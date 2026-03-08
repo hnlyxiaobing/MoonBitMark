@@ -1,0 +1,11 @@
+{
+  "import": [
+    "moonbitlang/moonbitmark/src/core",
+    "bobzhang/mbtpdf/pdfcrypt",
+    "bobzhang/mbtpdf/pdfread",
+    {
+      "path": "bobzhang/mbtpdf/pdftext",
+      "alias": "pdftextlib"
+    }
+  ]
+}

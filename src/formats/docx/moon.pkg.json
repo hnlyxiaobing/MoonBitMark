@@ -1,0 +1,17 @@
+{
+  "import": [
+    "moonbitlang/moonbitmark/src/core",
+    "moonbitlang/moonbitmark/src/formats/docx/ffi/expat"
+  ],
+  "native-stub": [
+    "ffi/stub.c"
+  ],
+  "cc-include-path": [
+    "C:/vcpkg/installed/x64-windows/include"
+  ],
+  "link": {
+    "native": {
+      "cc-link-flags": "C:/vcpkg/installed/x64-windows/lib/zip.lib C:/vcpkg/installed/x64-windows/lib/libexpat.lib"
+    }
+  }
+}

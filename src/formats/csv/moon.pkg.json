@@ -1,0 +1,1 @@
+{ "import": ["moonbitlang/moonbitmark/src/core", "moonbitlang/async/fs"] }

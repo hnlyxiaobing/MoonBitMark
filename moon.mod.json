@@ -1,0 +1,20 @@
+{
+  "name": "moonbitlang/moonbitmark",
+  "version": "0.3.0",
+  "deps": {
+    "moonbitlang/async": "0.16.7",
+    "bobzhang/mbtpdf": "0.1.1"
+  },
+  "readme": "README.mbt.md",
+  "repository": "https://github.com/moonbitlang/moonbitmark",
+  "license": "MIT",
+  "keywords": [
+    "markdown",
+    "converter",
+    "document",
+    "docx",
+    "word"
+  ],
+  "description": "Convert various file formats to Markdown - MoonBit implementation (with DOCX support via FFI)",
+  "preferred-target": "native"
+}
