@@ -10,7 +10,7 @@ fn init_crc32_table() -> Unit {
   for i = 0; i < 256; i = i + 1 {
     let mut crc = i.to_uint()
     for j = 0; j < 8; j = j + 1 {
-      if crc.lsb() == 1 {
+      if (crc % 2.to_uint()) == 1.to_uint() {
         crc = (crc >> 1) ^ 0xEDB88320
       } else {
         crc = crc >> 1
