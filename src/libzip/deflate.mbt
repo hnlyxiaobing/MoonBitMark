@@ -62,3 +62,26 @@ fn decode_block(mut decoder : DeflateDecoder) -> Bytes? {
     _ => None                              // 错误
   }
 }
+
+///|
+/// 解码存储块 (无压缩)
+fn decode_stored_block(mut decoder : DeflateDecoder) -> Bytes? {
+  // 跳过剩余位到字节边界
+  decoder.bit_pos = 0
+  decoder.byte_pos = decoder.byte_pos + 1
+  
+  let len = decoder.input[decoder.byte_pos].to_int() |
+            (decoder.input[decoder.byte_pos + 1].to_int() << 8)
+  let nlen = decoder.input[decoder.byte_pos + 2].to_int() |
+             (decoder.input[decoder.byte_pos + 3].to_int() << 8)
+  
+  // 验证长度
+  if len + nlen != 65535 {
+    return None
+  }
+  
+  // 复制数据
+  let start = decoder.byte_pos + 4
+  let data = decoder.input[start:start + len]
+  Some(data)
+}
