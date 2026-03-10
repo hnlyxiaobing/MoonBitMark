@@ -160,3 +160,13 @@ pub fn read_file_entry(archive : ZipArchive, name : String) -> Bytes? {
 pub fn close_archive(archive : ZipArchive) -> Unit {
   ignore(archive)
 }
+
+///|
+/// 获取 ZIP 归档中的文件列表
+pub fn ZipArchive::list_entries(self : ZipArchive) -> Array[String] {
+  let names : Array[String] = Array::new()
+  for entry in self.entries {
+    names.push(entry.name)
+  }
+  names
+}
