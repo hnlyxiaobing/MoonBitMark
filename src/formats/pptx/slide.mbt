@@ -8,6 +8,11 @@ pub fn process_slides(
 ) -> String {
   let mut markdown = ""
 
+  // 如果没有幻灯片，返回提示
+  if slide_refs.length() == 0 {
+    return "<!-- No slides found in presentation -->"
+  }
+
   for slide_ref in slide_refs {
     // 使用关系文件中获取的路径
     let slide_path = slide_ref.slide_path
@@ -15,14 +20,18 @@ pub fn process_slides(
     // 读取幻灯片内容
     match @libzip.read_file_entry_decompressed(archive, slide_path) {
       Some(xml_bytes) => {
-        let xml_string = xml_bytes.to_string()
+        let xml_string = try {
+          @utf8.decode(xml_bytes)
+        } catch {
+          _ => return "<!-- Failed to decode slide \{slide_ref.slide_num} -->"
+        }
         let slide_md = process_slide_xml(xml_string, slide_ref.slide_num)
         markdown = markdown + slide_md
       }
-      None =>
+      None => {
         // 幻灯片文件不存在，跳过
-        markdown = markdown +
-          "\n\n<!-- Slide \{slide_ref.slide_num}: Unable to read slide -->\n"
+        markdown = markdown + "\n\n<!-- Slide \{slide_ref.slide_num}: Unable to read \{slide_path} -->\n"
+      }
     }
   }
 
@@ -130,10 +139,16 @@ fn handle_slide_element_end(ctx : SlideContext, name : String) -> Unit {
 fn remove_ns_prefix(name : String) -> String {
   match name.find(":") {
     Some(pos) => {
+      // 从 pos+1 开始截取子字符串
+      let start = pos + 1
+      // 使用 iter 跳过前缀
+      let chars = name.iter()
       let mut result = ""
-      let mut i = pos + 1
-      while i < name.length() {
-        result = result + name[i].to_string()
+      let mut i = 0
+      for ch in chars {
+        if i >= start {
+          result = result + ch.to_string()
+        }
         i = i + 1
       }
       result

@@ -57,6 +57,15 @@ pub async fn PptxConverter::convert(file_path : String) -> String {
       // 解析 presentation.xml 获取幻灯片顺序
       match parse_presentation(archive) {
         Ok(slide_ids) => {
+          if slide_ids.length() == 0 {
+            // 调试：检查文件列表
+            let files = archive.list_entries()
+            let mut file_list = "Files: "
+            for f in files {
+              file_list = file_list + "[" + f + "] "
+            }
+            fail("No slides found. \{file_list}")
+          }
           // 解析每张幻灯片并生成 Markdown
           let markdown = process_slides(archive, slide_ids)
           markdown.trim().to_string()

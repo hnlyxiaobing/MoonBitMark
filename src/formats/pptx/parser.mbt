@@ -24,12 +24,21 @@ pub fn parse_presentation(archive : @libzip.ZipArchive) -> ParseResult {
   // 读取 presentation.xml
   match @libzip.read_file_entry_decompressed(archive, "ppt/presentation.xml") {
     Some(xml_bytes) => {
-      let xml_string = xml_bytes.to_string()
+      let xml_string = try {
+        @utf8.decode(xml_bytes)
+      } catch {
+        _ => return Err("Failed to decode presentation.xml as UTF-8")
+      }
       // 解析 XML 获取幻灯片 ID 列表
       match @xml.parse_xml(xml_string) {
         Ok(events) => {
           let slide_refs = extract_slide_refs(events, relations)
-          Ok(slide_refs)
+          // 如果没有找到幻灯片，返回调试信息
+          if slide_refs.length() == 0 {
+            Err("No sldId found in presentation.xml")
+          } else {
+            Ok(slide_refs)
+          }
         }
         Err(_) => Err("Failed to parse presentation.xml")
       }
@@ -48,7 +57,11 @@ fn parse_relations(archive : @libzip.ZipArchive) -> Map[String, String] {
       archive, "ppt/_rels/presentation.xml.rels",
     ) {
     Some(xml_bytes) => {
-      let xml_string = xml_bytes.to_string()
+      let xml_string = try {
+        @utf8.decode(xml_bytes)
+      } catch {
+        _ => return relations
+      }
       match @xml.parse_xml(xml_string) {
         Ok(events) => extract_relations(events, relations)
         Err(_) => ()
@@ -139,8 +152,24 @@ fn extract_slide_refs(
 
   for event in events {
     match event {
-      @xml.ElementStart(evt) => handle_presentation_element_start(ctx, evt)
-      @xml.ElementEnd(evt) => handle_presentation_element_end(ctx, evt.name)
+      @xml.ElementStart(evt) => {
+        let name = evt.name
+        let local = strip_ns_prefix(name)
+        // 调试：检查所有元素
+        // 检查 sldIdLst 和 sldId
+        if local == "sldIdLst" {
+          ctx.in_sld_id_lst = true
+        } else if local == "sldId" && ctx.in_sld_id_lst {
+          // 处理 sldId 元素
+          handle_sld_id_element(ctx, evt)
+        }
+      }
+      @xml.ElementEnd(evt) => {
+        let local = strip_ns_prefix(evt.name)
+        if local == "sldIdLst" {
+          ctx.in_sld_id_lst = false
+        }
+      }
       @xml.TextContent(_) => ()
     }
   }
@@ -149,7 +178,32 @@ fn extract_slide_refs(
 }
 
 ///|
-/// 处理 presentation.xml 元素开始
+/// 处理 sldId 元素
+fn handle_sld_id_element(ctx : PresentationContext, evt : @xml.ElementStartEvent) -> Unit {
+  // 提取 r:id 属性
+  // 注意：属性可能存储为不同的形式
+  let r_id_val = evt.attributes.get("r:id")
+
+  match r_id_val {
+    Some(r_id) => {
+      ctx.slide_num = ctx.slide_num + 1
+      // 从关系中获取实际路径
+      let slide_path = match ctx.relations.get(r_id) {
+        Some(path) => path.to_string()
+        None => "ppt/slides/slide\{ctx.slide_num}.xml"
+      }
+      ctx.slide_refs.push(SlideRef::{
+        slide_num: ctx.slide_num,
+        r_id: r_id.to_string(),
+        slide_path,
+      })
+    }
+    None => ()
+  }
+}
+
+///|
+/// 处理 presentation.xml 元素开始 (已弃用)
 fn handle_presentation_element_start(
   ctx : PresentationContext,
   evt : @xml.ElementStartEvent,
@@ -160,7 +214,13 @@ fn handle_presentation_element_start(
     ctx.in_sld_id_lst = true
   } else if local_name == "sldId" && ctx.in_sld_id_lst {
     // 提取 r:id 属性
-    match evt.attributes.get("r:id") {
+    // 注意：r:id 可能存储为 "r:id" 而不是带命名空间的完整形式
+    let r_id_val = match evt.attributes.get("r:id") {
+      Some(v) => Some(v)
+      None => evt.attributes.get("rId")  // 有些文件可能用 rId
+    }
+
+    match r_id_val {
       Some(r_id) => {
         ctx.slide_num = ctx.slide_num + 1
         // 从关系中获取实际路径
@@ -196,10 +256,16 @@ fn handle_presentation_element_end(
 fn strip_ns_prefix(name : String) -> String {
   match name.find(":") {
     Some(pos) => {
+      // 从 pos+1 开始截取子字符串
+      let start = pos + 1
+      // 使用 iter 跳过前缀
+      let chars = name.iter()
       let mut result = ""
-      let mut i = pos + 1
-      while i < name.length() {
-        result = result + name[i].to_string()
+      let mut i = 0
+      for ch in chars {
+        if i >= start {
+          result = result + ch.to_string()
+        }
         i = i + 1
       }
       result

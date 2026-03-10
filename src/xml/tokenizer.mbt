@@ -66,7 +66,7 @@ fn tokenize(xml : String) -> Result[Array[Token], XMLParseError] {
                 tokens.push(result.token)
                 pos = result.pos
                 line = result.line
-              } else if pos + 8 < len {
+              } else if pos + 9 < len {
                 // 检查 CDATA: 逐个字符比较 ![CDATA[
                 let is_cdata = xml[pos + 2] == '!' &&
                   xml[pos + 3] == '[' &&
@@ -351,7 +351,7 @@ fn parse_attribute(
   let mut current_line = line
 
   let name_start = pos
-  // 读取属性名
+  // 读取属性名 (允许命名空间前缀，如 r:id)
   while pos < xml.length() &&
         xml[pos] != '=' &&
         xml[pos] != ' ' &&

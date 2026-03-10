@@ -230,45 +230,59 @@ fn int_to_byte(n : Int) -> Byte {
 ///|
 /// 解码固定 Huffman 符号
 fn decode_fixed_symbol(reader : BitReader) -> Result[Int, String] {
-  // 读取前7位判断范围
+  // 读取前7位判断范围 (MSB first for Huffman codes)
   let first7_result = reader.read_bits_reverse(7)
   let first7 = match first7_result {
     Ok(v) => v
     Err(e) => return Err(e)
   }
 
+  // RFC 1951 Fixed Huffman codes:
+  // Lit Value    Bits   Codes (binary)       Codes (decimal)  First 7 bits range
+  // ---------    ----   ------------------   --------------   ------------------
+  //   0 - 143     8     00110000-10111111    48-191           24-95 (0x18-0x5F)
+  // 144 - 255     9     110010000-111111111  400-511          100-127 (0x64-0x7F)
+  // 256 - 279     7     0000000-0010111      0-23             0-23 (0x00-0x17)
+  // 280 - 287     8     11000000-11000111    192-199          96-99 (0x60-0x63)
+
   if first7 < 0x18 {
-    // 0-143: 8位编码
-    let bit8_result = reader.read_bits(1)
+    // 256-279: 7位编码
+    Ok(256 + first7)
+  } else if first7 < 0x60 {
+    // 0-143: 8位编码 - 需要1个额外位 (MSB first)
+    let bit8_result = reader.read_bits_reverse(1)
     let bit8 = match bit8_result {
       Ok(v) => v
       Err(e) => return Err(e)
     }
-    Ok((first7 << 1) | bit8)
-  } else if first7 < 0x60 {
-    // 144-255: 9位编码
-    let extra_result = reader.read_bits(2)
+    // code = (first7 << 1) | bit8, then subtract 48 to get literal
+    Ok(((first7 << 1) | bit8) - 48)
+  } else if first7 < 0x64 {
+    // 280-287: 8位编码 - 需要1个额外位 (MSB first)
+    let bit8_result = reader.read_bits_reverse(1)
+    let bit8 = match bit8_result {
+      Ok(v) => v
+      Err(e) => return Err(e)
+    }
+    // code = (first7 << 1) | bit8, then map to 280-287
+    // 192-199 map to 280-287, so subtract 192 and add 280
+    Ok(((first7 << 1) | bit8) - 192 + 280)
+  } else {
+    // 144-255: 9位编码 - 需要2个额外位 (MSB first)
+    let extra_result = reader.read_bits_reverse(2)
     let extra = match extra_result {
       Ok(v) => v
       Err(e) => return Err(e)
     }
-    Ok(144 + (((first7 - 0x18) << 2) | extra))
-  } else if first7 < 0x68 {
-    // 256-279: 7位编码
-    Ok(256 + (first7 - 0x60))
-  } else {
-    // 280-287: 8位编码
-    let bit8_result = reader.read_bits(1)
-    let bit8 = match bit8_result {
-      Ok(v) => v
-      Err(e) => return Err(e)
-    }
-    Ok(280 + (((first7 - 0x68) << 1) | bit8))
+    // 9-bit code = (first7 << 2) | extra
+    // Codes 400-511 map to 144-255, so subtract 400 and add 144 = subtract 256
+    Ok(((first7 << 2) | extra) - 256)
   }
 }
 
 ///|
-/// 逆向读取位 (MSB优先)
+/// 逆向读取位 (MSB优先) - 用于 Huffman 码读取
+/// 正确实现：逐位读取，每次左移结果，新位作为 LSB
 fn BitReader::read_bits_reverse(
   self : BitReader,
   count : Int,
@@ -281,17 +295,13 @@ fn BitReader::read_bits_reverse(
       return Err("Unexpected end of input")
     }
 
-    let available = 8 - self.bit_pos
-    let needed = count - bits_read
-    let to_read = if available < needed { available } else { needed }
-
     let byte = self.data[self.byte_pos].to_int()
-    let mask = (1 << to_read) - 1
-    let bits = (byte >> self.bit_pos) & mask
+    let bit = (byte >> self.bit_pos) & 1
 
-    result = (result << to_read) | bits
-    bits_read = bits_read + to_read
-    self.bit_pos = self.bit_pos + to_read
+    // MSB first: 每次左移结果，新位作为 LSB
+    result = (result << 1) | bit
+    bits_read = bits_read + 1
+    self.bit_pos = self.bit_pos + 1
 
     if self.bit_pos >= 8 {
       self.bit_pos = 0
@@ -472,7 +482,7 @@ fn decompress_dynamic_huffman(
     Err(_) => return None
   }
 
-  // 读取码长码顺序
+  // 读取码长码顺序 (RFC 1951 规定的顺序)
   let code_length_order : FixedArray[Int] = FixedArray::makei(19, fn(
     i : Int,
   ) -> Int {
@@ -499,7 +509,7 @@ fn decompress_dynamic_huffman(
     }
   })
 
-  // 读取码长码
+  // 读取码长码 - 使用 LSB first (这些不是 Huffman 编码)
   let code_lengths : FixedArray[Int] = FixedArray::makei(19, fn(_) { 0 })
 
   for i in 0..<hclen {
@@ -536,7 +546,7 @@ fn decompress_dynamic_huffman(
         i = i + 1
       }
       16 => {
-        // 重复上一个码 3-6 次
+        // 重复上一个码 3-6 次 (LSB first for extra bits)
         let repeat_result = reader.read_bits(2)
         let repeat = match repeat_result {
           Ok(v) => v + 3
@@ -551,7 +561,7 @@ fn decompress_dynamic_huffman(
         }
       }
       17 => {
-        // 重复 0 共 3-10 次
+        // 重复 0 共 3-10 次 (LSB first for extra bits)
         let repeat_result = reader.read_bits(3)
         let repeat = match repeat_result {
           Ok(v) => v + 3
@@ -565,7 +575,7 @@ fn decompress_dynamic_huffman(
         }
       }
       18 => {
-        // 重复 0 共 11-138 次
+        // 重复 0 共 11-138 次 (LSB first for extra bits)
         let repeat_result = reader.read_bits(7)
         let repeat = match repeat_result {
           Ok(v) => v + 11

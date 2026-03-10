@@ -77,8 +77,9 @@ fn parse_central_directory(
   eocd_offset : Int,
 ) -> Array[ZipEntry] {
   // 从 EOCD 获取中央目录偏移
-  let cd_offset = read_uint16_le(buffer, eocd_offset + 16).to_int()
-  let num_entries = read_uint16_le(buffer, eocd_offset + 10).to_int()
+  // EOCD 格式: 偏移16是中央目录偏移(4字节UInt32)
+  let cd_offset = read_uint32_le(buffer, eocd_offset + 16).reinterpret_as_int()
+  let num_entries = read_uint16_le(buffer, eocd_offset + 10).reinterpret_as_int()
 
   let entries : Array[ZipEntry] = Array::new()
   let mut pos = cd_offset
@@ -131,8 +132,24 @@ fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
 ///|
 /// 将字节转换为字符串
 fn bytes_to_string(buffer : Bytes, offset : Int, len : Int) -> String {
-  let bytes = buffer[offset:offset + len]
-  bytes.to_string()
+  let bytes = buffer[offset:offset + len].to_bytes()
+  // 使用 UTF-8 解码，如果失败则尝试直接转换
+  try {
+    @utf8.decode(bytes)
+  } catch {
+    _ => {
+      // 回退到逐字节转换（ASCII 兼容）
+      let mut result = ""
+      let mut i = 0
+      while i < bytes.length() {
+        let b = bytes[i]
+        // 简单地将字节转为字符
+        result = result + Char::from_int(b.to_int()).to_string()
+        i = i + 1
+      }
+      result
+    }
+  }
 }
 
 ///|
@@ -207,8 +224,8 @@ pub fn read_file_entry_decompressed(
       // 读取文件数据
       let data_start = entry.data_offset +
         30 +
-        read_uint16_le(archive.data, entry.data_offset + 26).to_int() +
-        read_uint16_le(archive.data, entry.data_offset + 28).to_int()
+        read_uint16_le(archive.data, entry.data_offset + 26).reinterpret_as_int() +
+        read_uint16_le(archive.data, entry.data_offset + 28).reinterpret_as_int()
       let compressed_data = archive.data[data_start:data_start +
       entry.compressed_size].to_bytes()
 
