@@ -2,9 +2,9 @@
 
 ///|
 /// ZIP 文件签名常量
-pub let LOCAL_FILE_HEADER_SIG : UInt = 0x04034b50
-pub let CENTRAL_DIR_SIG : UInt = 0x02014b50
-pub let END_OF_CENTRAL_DIR_SIG : UInt = 0x06054b50
+pub let local_file_header_sig : UInt = 0x04034b50
+pub let central_dir_sig : UInt = 0x02014b50
+pub let end_of_central_dir_sig : UInt = 0x06054b50
 
 ///|
 /// 压缩方法
