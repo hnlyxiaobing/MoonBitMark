@@ -116,3 +116,11 @@ fn parse_central_dir_entry(buffer : Bytes, offset : Int) -> ZipEntry {
     crc32: read_uint32_le(buffer, offset + 16)
   }
 }
+
+///|
+/// 获取中央目录条目大小
+fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
+  46 + read_uint16_le(buffer, offset + 28).to_int() +
+       read_uint16_le(buffer, offset + 30).to_int() +
+       read_uint16_le(buffer, offset + 32).to_int()
+}
