@@ -154,3 +154,9 @@ pub fn read_file_entry(archive : ZipArchive, name : String) -> Bytes? {
     None => None
   }
 }
+
+///|
+/// 关闭 ZIP 归档 (MoonBit 自动管理内存，此函数为兼容 API)
+pub fn close_archive(archive : ZipArchive) -> Unit {
+  ignore(archive)
+}
