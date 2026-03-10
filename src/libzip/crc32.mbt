@@ -39,5 +39,6 @@ fn get_table_value(index : UInt) -> UInt {
 ///|
 /// 判断是否为奇数
 fn is_odd(n : UInt) -> Bool {
-  n % 2.to_uint() == 1.to_uint()
+  let rem = n % 2.to_uint()
+  rem != 0.to_uint()
 }
