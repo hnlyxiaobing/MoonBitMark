@@ -176,7 +176,7 @@ pub fn ZipArchive::list_entries(self : ZipArchive) -> Array[String] {
 pub fn ZipArchive::has_file(self : ZipArchive, name : String) -> Bool {
   for entry in self.entries {
     if entry.name == name {
-      true
+      return true
     }
   }
   false
