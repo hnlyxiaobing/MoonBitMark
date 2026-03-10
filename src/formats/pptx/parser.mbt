@@ -73,12 +73,11 @@ fn handle_presentation_element_start(
   } else if local_name == "sldId" && ctx.in_sld_id_lst {
     // 提取 r:id 属性
     match evt.attributes.get("r:id") {
-      Some(r_id) => {
+      Some(r_id) =>
         ctx.slide_refs.push(SlideRef::{
           slide_num: ctx.slide_refs.length() + 1,
           r_id: r_id.to_string(),
         })
-      }
       None => ()
     }
   }
@@ -86,7 +85,10 @@ fn handle_presentation_element_start(
 
 ///|
 /// 处理 presentation.xml 元素结束
-fn handle_presentation_element_end(ctx : PresentationContext, name : String) -> Unit {
+fn handle_presentation_element_end(
+  ctx : PresentationContext,
+  name : String,
+) -> Unit {
   let local_name = strip_ns_prefix(name)
   if local_name == "sldIdLst" {
     ctx.in_sld_id_lst = false

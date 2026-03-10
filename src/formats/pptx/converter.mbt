@@ -27,7 +27,7 @@ pub fn PptxConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert a PPTX file to Markdown
-pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
+pub async fn PptxConverter::convert(file_path : String) -> String {
   // 读取 PPTX 文件内容
   let file = @fs.open(file_path, mode=ReadOnly)
   let all_bytes : Array[Byte] = Array::new()
@@ -53,21 +53,16 @@ pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
 
   // 使用纯 MoonBit libzip 打开 ZIP
   match @libzip.ZipArchive::open(bytes) {
-    Some(archive) => {
+    Some(archive) =>
       // 解析 presentation.xml 获取幻灯片顺序
       match parse_presentation(archive) {
         Ok(slide_ids) => {
           // 解析每张幻灯片并生成 Markdown
           let markdown = process_slides(archive, slide_ids)
-          @core.ConvertResult::{
-            markdown: markdown.trim().to_string(),
-            title: extract_title(markdown),
-            metadata: Map::from_array([("format", "pptx")]),
-          }
+          markdown.trim().to_string()
         }
         Err(e) => fail("Failed to parse presentation: \{e}")
       }
-    }
     None => fail("Failed to open PPTX file as ZIP archive")
   }
 }
@@ -80,25 +75,4 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
     buf.write_byte(b)
   }
   buf.to_bytes()
-}
-
-///|
-/// 从 Markdown 内容中提取标题
-fn extract_title(markdown : String) -> String? {
-  // 查找第一个 # 标题
-  let lines = markdown.split("\n")
-  for line in lines {
-    let trimmed = line.trim()
-    if trimmed.has_prefix("# ") {
-      // 移除 "# " 前缀
-      let mut result = ""
-      let mut i = 2
-      while i < trimmed.length() {
-        result = result + trimmed[i].to_string()
-        i = i + 1
-      }
-      return Some(result.trim().to_string())
-    }
-  }
-  None
 }

@@ -19,10 +19,10 @@ pub fn process_slides(
         let slide_md = process_slide_xml(xml_string, slide_ref.slide_num)
         markdown = markdown + slide_md
       }
-      None => {
+      None =>
         // 幻灯片文件不存在，跳过
-        markdown = markdown + "\n\n<!-- Slide \{slide_ref.slide_num}: Unable to read slide -->\n"
-      }
+        markdown = markdown +
+          "\n\n<!-- Slide \{slide_ref.slide_num}: Unable to read slide -->\n"
     }
   }
 
@@ -68,11 +68,10 @@ fn extract_slide_content(events : Array[@xml.ParseEvent]) -> String {
     match event {
       @xml.ElementStart(evt) => handle_slide_element_start(ctx, evt)
       @xml.ElementEnd(evt) => handle_slide_element_end(ctx, evt.name)
-      @xml.TextContent(evt) => {
+      @xml.TextContent(evt) =>
         if ctx.in_text {
           ctx.current_text = ctx.current_text + evt.content
         }
-      }
     }
   }
 
@@ -81,21 +80,22 @@ fn extract_slide_content(events : Array[@xml.ParseEvent]) -> String {
 
 ///|
 /// 处理幻灯片元素开始
-fn handle_slide_element_start(ctx : SlideContext, evt : @xml.ElementStartEvent) -> Unit {
+fn handle_slide_element_start(
+  ctx : SlideContext,
+  evt : @xml.ElementStartEvent,
+) -> Unit {
   let local_name = remove_ns_prefix(evt.name)
 
   // <a:t> - 文本内容
   if local_name == "t" {
     ctx.in_text = true
-  }
-  // <a:p> - 段落
-  else if local_name == "p" {
+    // <a:p> - 段落
+  } else if local_name == "p" {
     ctx.in_paragraph = true
     ctx.current_text = ""
     ctx.is_title = false
-  }
-  // 检查是否为标题形状 (通过 p:nvSpPr/p:cNvPr 的 name 属性)
-  else if local_name == "cNvPr" {
+    // 检查是否为标题形状 (通过 p:nvSpPr/p:cNvPr 的 name 属性)
+  } else if local_name == "cNvPr" {
     match evt.attributes.get("name") {
       Some(name) => {
         let name_lower = name.to_lower()
