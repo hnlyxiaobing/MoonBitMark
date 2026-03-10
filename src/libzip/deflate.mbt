@@ -11,7 +11,7 @@ struct DeflateDecoder {
   /// 当前位位置
   bit_pos : Int
   /// 输出缓冲区
-  output : @buffer.T[Byte]
+  output : @buffer.T
 }
 
 ///|
