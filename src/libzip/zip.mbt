@@ -60,3 +60,12 @@ fn find_eocd(buffer : Bytes) -> Int? {
   }
   None
 }
+
+///|
+/// 读取小端序 UInt32
+fn read_uint32_le(buffer : Bytes, offset : Int) -> UInt {
+  (buffer[offset].to_uint()) |
+  (buffer[offset + 1].to_uint() << 8) |
+  (buffer[offset + 2].to_uint() << 16) |
+  (buffer[offset + 3].to_uint() << 24)
+}
