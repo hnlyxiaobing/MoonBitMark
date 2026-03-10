@@ -131,3 +131,26 @@ fn bytes_to_string(buffer : Bytes, offset : Int, len : Int) -> String {
   let bytes = buffer[offset:offset + len]
   bytes.to_string()
 }
+
+///|
+/// 读取 ZIP 中指定文件内容
+pub fn read_file_entry(archive : ZipArchive, name : String) -> Bytes? {
+  // 查找文件条目
+  let mut found : ZipEntry? = None
+  for entry in archive.entries {
+    if entry.name == name {
+      found = Some(entry)
+    }
+  }
+  
+  match found {
+    Some(entry) => {
+      // 读取文件数据
+      let data_start = entry.data_offset + 30 + 
+                       read_uint16_le(archive.data, entry.data_offset + 26).to_int() +
+                       read_uint16_le(archive.data, entry.data_offset + 28).to_int()
+      archive.data[data_start:data_start + entry.compressed_size]
+    }
+    None => None
+  }
+}
