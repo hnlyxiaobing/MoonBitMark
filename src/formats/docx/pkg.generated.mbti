@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/formats/docx"
+
+import {
+  "moonbitlang/moonbitmark/src/core",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct DocxConverter {
+  dummy : Int
+}
+pub fn DocxConverter::accepts(@core.StreamInfo) -> Bool
+pub async fn DocxConverter::convert(String) -> String
+pub fn DocxConverter::new() -> Self
+
+// Type aliases
+
+// Traits
+

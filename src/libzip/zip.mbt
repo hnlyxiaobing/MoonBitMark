@@ -187,3 +187,44 @@ pub fn ZipArchive::has_file(self : ZipArchive, name : String) -> Bool {
   }
   false
 }
+
+///|
+/// 读取 ZIP 中指定文件内容（自动解压）
+pub fn read_file_entry_decompressed(
+  archive : ZipArchive,
+  name : String,
+) -> Bytes? {
+  // 查找文件条目
+  let mut found_entry : ZipEntry? = None
+  for entry in archive.entries {
+    if entry.name == name {
+      found_entry = Some(entry)
+    }
+  }
+
+  match found_entry {
+    Some(entry) => {
+      // 读取文件数据
+      let data_start = entry.data_offset +
+        30 +
+        read_uint16_le(archive.data, entry.data_offset + 26).to_int() +
+        read_uint16_le(archive.data, entry.data_offset + 28).to_int()
+      let compressed_data = archive.data[data_start:data_start +
+      entry.compressed_size].to_bytes()
+
+      // 根据压缩方法处理
+      // compression_method: 0 = Store (无压缩), 8 = Deflate
+      if entry.compression_method == 0 {
+        // Store - 无压缩
+        Some(compressed_data)
+      } else if entry.compression_method == 8 {
+        // Deflate 压缩
+        deflate_decompress(compressed_data)
+      } else {
+        // 不支持的压缩方法
+        None
+      }
+    }
+    None => None
+  }
+}

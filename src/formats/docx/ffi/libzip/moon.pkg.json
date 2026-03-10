@@ -1,8 +1,0 @@
-{
-  "import": [],
-  "link": {
-    "native": {
-      "cc-link-flags": "-lzip"
-    }
-  }
-}

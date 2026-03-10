@@ -1,0 +1,59 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/libzip"
+
+// Values
+pub let central_dir_sig : UInt
+
+pub fn close_archive(ZipArchive) -> Unit
+
+pub fn crc32(Bytes) -> UInt
+
+pub fn crc32_continue(Bytes, UInt) -> UInt
+
+pub fn crc32_hex(Bytes) -> String
+
+pub fn deflate_decompress(Bytes) -> Bytes?
+
+pub let end_of_central_dir_sig : UInt
+
+pub let local_file_header_sig : UInt
+
+pub fn read_file_entry(ZipArchive, String) -> Bytes?
+
+pub fn read_file_entry_decompressed(ZipArchive, String) -> Bytes?
+
+// Errors
+pub(all) suberror ZipError {
+  InvalidSignature
+  CorruptedHeader
+  FileNotFound(String)
+  UnsupportedMethod(Int)
+  DecompressFailed(String)
+  CrcMismatch
+}
+pub impl Eq for ZipError
+pub impl Show for ZipError
+
+// Types and methods
+pub enum CompressionMethod {
+  Store(Int)
+  Deflate(Int)
+  Unknown(Int)
+}
+pub impl Eq for CompressionMethod
+pub impl Show for CompressionMethod
+
+pub(all) struct ZipArchive {
+  data : Bytes
+  entries : Array[ZipEntry]
+}
+pub fn ZipArchive::has_file(Self, String) -> Bool
+pub fn ZipArchive::list_entries(Self) -> Array[String]
+pub fn ZipArchive::open(Bytes) -> Self?
+
+type ZipEntry
+
+// Type aliases
+
+// Traits
+

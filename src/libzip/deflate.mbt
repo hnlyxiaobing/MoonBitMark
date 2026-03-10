@@ -6,7 +6,7 @@
 pub fn deflate_decompress(input : Bytes) -> Bytes? {
   let reader = BitReader::new(input)
   let output : Array[Byte] = Array::new()
-  
+
   // 读取头部
   let bfinal_result = reader.read_bits(1)
   let bfinal = match bfinal_result {
@@ -14,13 +14,13 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
     Err(_) => return None
   }
   ignore(bfinal)
-  
+
   let btype_result = reader.read_bits(2)
   let btype = match btype_result {
     Ok(v) => v
     Err(_) => return None
   }
-  
+
   match btype {
     0 => decompress_stored(reader, output)
     1 => decompress_fixed_huffman(reader, output)
@@ -47,30 +47,30 @@ fn BitReader::new(data : Bytes) -> BitReader {
 fn BitReader::read_bits(self : BitReader, count : Int) -> Result[Int, String] {
   let mut result = 0
   let mut bits_read = 0
-  
+
   while bits_read < count {
     if self.byte_pos >= self.data.length() {
       return Err("Unexpected end of input")
     }
-    
+
     let available = 8 - self.bit_pos
     let needed = count - bits_read
     let to_read = if available < needed { available } else { needed }
-    
+
     let byte = self.data[self.byte_pos].to_int()
     let mask = (1 << to_read) - 1
     let bits = (byte >> self.bit_pos) & mask
-    
+
     result = result | (bits << bits_read)
     bits_read = bits_read + to_read
     self.bit_pos = self.bit_pos + to_read
-    
+
     if self.bit_pos >= 8 {
       self.bit_pos = 0
       self.byte_pos = self.byte_pos + 1
     }
   }
-  
+
   Ok(result)
 }
 
@@ -115,7 +115,7 @@ fn BitReader::read_uint16_le(self : BitReader) -> Result[Int, String] {
 fn decompress_stored(reader : BitReader, output : Array[Byte]) -> Bytes? {
   // 对齐到字节边界
   reader.align_to_byte()
-  
+
   // 读取 LEN 和 NLEN
   let len_result = reader.read_uint16_le()
   let len = match len_result {
@@ -127,12 +127,12 @@ fn decompress_stored(reader : BitReader, output : Array[Byte]) -> Bytes? {
     Ok(v) => v
     Err(_) => return None
   }
-  
+
   // 验证 NLEN 是 LEN 的补码
   if (len ^ nlen) != 0xFFFF {
     return None
   }
-  
+
   // 读取原始数据
   for _ in 0..<len {
     let byte_result = reader.read_byte()
@@ -141,7 +141,7 @@ fn decompress_stored(reader : BitReader, output : Array[Byte]) -> Bytes? {
       Err(_) => return None
     }
   }
-  
+
   Some(bytes_from_array(output))
 }
 
@@ -164,10 +164,10 @@ fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? 
   for _ in 0..<32768 {
     window.push(b'\x00')
   }
-  
+
   let mut window_pos = 0
   let mut done = false
-  
+
   while !done {
     // 解码下一个符号
     let symbol_result = decode_fixed_symbol(reader)
@@ -175,7 +175,7 @@ fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? 
       Ok(s) => s
       Err(_) => return None
     }
-    
+
     if symbol < 256 {
       // 字面量字节
       let byte = int_to_byte(symbol)
@@ -192,19 +192,19 @@ fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? 
         Ok(l) => l
         Err(_) => return None
       }
-      
+
       let dist_code_result = reader.read_bits_reverse(5)
       let dist_code = match dist_code_result {
         Ok(d) => d
         Err(_) => return None
       }
-      
+
       let distance_result = decode_distance(reader, dist_code)
       let distance = match distance_result {
         Ok(d) => d
         Err(_) => return None
       }
-      
+
       // 从滑动窗口复制
       for i in 0..<length {
         let src_pos = (window_pos - distance + i) & 0x7FFF
@@ -215,7 +215,7 @@ fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? 
       }
     }
   }
-  
+
   Some(bytes_from_array(output))
 }
 
@@ -236,7 +236,7 @@ fn decode_fixed_symbol(reader : BitReader) -> Result[Int, String] {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  
+
   if first7 < 0x18 {
     // 0-143: 8位编码
     let bit8_result = reader.read_bits(1)
@@ -269,33 +269,36 @@ fn decode_fixed_symbol(reader : BitReader) -> Result[Int, String] {
 
 ///|
 /// 逆向读取位 (MSB优先)
-fn BitReader::read_bits_reverse(self : BitReader, count : Int) -> Result[Int, String] {
+fn BitReader::read_bits_reverse(
+  self : BitReader,
+  count : Int,
+) -> Result[Int, String] {
   let mut result = 0
   let mut bits_read = 0
-  
+
   while bits_read < count {
     if self.byte_pos >= self.data.length() {
       return Err("Unexpected end of input")
     }
-    
+
     let available = 8 - self.bit_pos
     let needed = count - bits_read
     let to_read = if available < needed { available } else { needed }
-    
+
     let byte = self.data[self.byte_pos].to_int()
     let mask = (1 << to_read) - 1
     let bits = (byte >> self.bit_pos) & mask
-    
+
     result = (result << to_read) | bits
     bits_read = bits_read + to_read
     self.bit_pos = self.bit_pos + to_read
-    
+
     if self.bit_pos >= 8 {
       self.bit_pos = 0
       self.byte_pos = self.byte_pos + 1
     }
   }
-  
+
   Ok(result)
 }
 
@@ -339,12 +342,12 @@ let length_base : FixedArray[Int] = FixedArray::makei(29, fn(i : Int) -> Int {
 /// 长度码额外位数表
 let length_extra : FixedArray[Int] = FixedArray::makei(29, fn(i : Int) -> Int {
   match i {
-    0|1|2|3|4|5|6|7 => 0
-    8|9|10|11 => 1
-    12|13|14|15 => 2
-    16|17|18|19 => 3
-    20|21|22|23 => 4
-    24|25|26|27 => 5
+    0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 => 0
+    8 | 9 | 10 | 11 => 1
+    12 | 13 | 14 | 15 => 2
+    16 | 17 | 18 | 19 => 3
+    20 | 21 | 22 | 23 => 4
+    24 | 25 | 26 | 27 => 5
     _ => 0
   }
 })
@@ -390,19 +393,19 @@ let dist_base : FixedArray[Int] = FixedArray::makei(30, fn(i : Int) -> Int {
 /// 距离码额外位数表
 let dist_extra : FixedArray[Int] = FixedArray::makei(30, fn(i : Int) -> Int {
   match i {
-    0|1|2|3 => 0
-    4|5 => 1
-    6|7 => 2
-    8|9 => 3
-    10|11 => 4
-    12|13 => 5
-    14|15 => 6
-    16|17 => 7
-    18|19 => 8
-    20|21 => 9
-    22|23 => 10
-    24|25 => 11
-    26|27 => 12
+    0 | 1 | 2 | 3 => 0
+    4 | 5 => 1
+    6 | 7 => 2
+    8 | 9 => 3
+    10 | 11 => 4
+    12 | 13 => 5
+    14 | 15 => 6
+    16 | 17 => 7
+    18 | 19 => 8
+    20 | 21 => 9
+    22 | 23 => 10
+    24 | 25 => 11
+    26 | 27 => 12
     _ => 13
   }
 })
@@ -448,7 +451,10 @@ fn decode_distance(reader : BitReader, code : Int) -> Result[Int, String] {
 
 ///|
 /// 解压动态 Huffman 编码块
-fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? {
+fn decompress_dynamic_huffman(
+  reader : BitReader,
+  output : Array[Byte],
+) -> Bytes? {
   // 读取动态表信息
   let hlit_result = reader.read_bits(5)
   let hlit = match hlit_result {
@@ -465,9 +471,11 @@ fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes
     Ok(v) => v + 4
     Err(_) => return None
   }
-  
+
   // 读取码长码顺序
-  let code_length_order : FixedArray[Int] = FixedArray::makei(19, fn(i : Int) -> Int {
+  let code_length_order : FixedArray[Int] = FixedArray::makei(19, fn(
+    i : Int,
+  ) -> Int {
     match i {
       0 => 16
       1 => 17
@@ -490,10 +498,10 @@ fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes
       _ => 15
     }
   })
-  
+
   // 读取码长码
   let code_lengths : FixedArray[Int] = FixedArray::makei(19, fn(_) { 0 })
-  
+
   for i in 0..<hclen {
     let len_result = reader.read_bits(3)
     let len = match len_result {
@@ -502,26 +510,26 @@ fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes
     }
     code_lengths[code_length_order[i]] = len
   }
-  
+
   // 构建码长 Huffman 树
   let tree_result = build_huffman_tree(code_lengths)
   let code_length_tree = match tree_result {
     Ok(t) => t
     Err(_) => return None
   }
-  
+
   // 读取字面量/长度和距离编码长度
   let total = hlit + hdist
   let lit_len_dist : FixedArray[Int] = FixedArray::makei(total, fn(_) { 0 })
   let mut i = 0
-  
+
   while i < total {
     let code_result = decode_huffman(reader, code_length_tree)
     let code = match code_result {
       Ok(v) => v
       Err(_) => return None
     }
-    
+
     match code {
       0..=15 => {
         lit_len_dist[i] = code
@@ -573,7 +581,7 @@ fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes
       _ => return None
     }
   }
-  
+
   // 构建字面量/长度 Huffman 树
   let lit_len_lengths = fixedarray_slice(lit_len_dist, 0, hlit)
   let lit_len_tree_result = build_huffman_tree(lit_len_lengths)
@@ -581,7 +589,7 @@ fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes
     Ok(t) => t
     Err(_) => return None
   }
-  
+
   // 构建距离 Huffman 树
   let dist_lengths = fixedarray_slice(lit_len_dist, hlit, total)
   let dist_tree_result = build_huffman_tree(dist_lengths)
@@ -589,23 +597,23 @@ fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes
     Ok(t) => t
     Err(_) => return None
   }
-  
+
   // 解码数据
   let window : Array[Byte] = Array::new()
   for _ in 0..<32768 {
     window.push(b'\x00')
   }
-  
+
   let mut window_pos = 0
   let mut done = false
-  
+
   while !done {
     let symbol_result = decode_huffman(reader, lit_len_tree)
     let symbol = match symbol_result {
       Ok(v) => v
       Err(_) => return None
     }
-    
+
     if symbol < 256 {
       // 字面量字节
       let byte = int_to_byte(symbol)
@@ -632,7 +640,7 @@ fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes
         Ok(d) => d
         Err(_) => return None
       }
-      
+
       // 从滑动窗口复制
       for j in 0..<length {
         let src_pos = (window_pos - distance + j) & 0x7FFF
@@ -643,16 +651,18 @@ fn decompress_dynamic_huffman(reader : BitReader, output : Array[Byte]) -> Bytes
       }
     }
   }
-  
+
   Some(bytes_from_array(output))
 }
 
 ///|
 /// 切片 FixedArray
-fn fixedarray_slice(arr : FixedArray[Int], start : Int, end : Int) -> FixedArray[Int] {
-  FixedArray::makei(end - start, fn(i : Int) -> Int {
-    arr[start + i]
-  })
+fn fixedarray_slice(
+  arr : FixedArray[Int],
+  start : Int,
+  end : Int,
+) -> FixedArray[Int] {
+  FixedArray::makei(end - start, fn(i : Int) -> Int { arr[start + i] })
 }
 
 ///|
@@ -675,7 +685,7 @@ priv struct HuffmanTree {
 fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] {
   // 计算每个码长的数量
   let max_len = 15
-  
+
   // 计算每个长度的符号数量
   let bl_count : FixedArray[Int] = FixedArray::makei(max_len + 1, fn(_) { 0 })
   for i in 0..<lengths.length() {
@@ -684,20 +694,22 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
       bl_count[len] = bl_count[len] + 1
     }
   }
-  
+
   // 计算每个码长的起始码
   let mut code : Int = 0
   let next_code : FixedArray[Int] = FixedArray::makei(max_len + 1, fn(_) { 0 })
-  
-  for bits in 1..=max_len {
+
+  for bits in 1..<=max_len {
     code = (code + bl_count[bits - 1]) << 1
     next_code[bits] = code
   }
-  
+
   // 分配码字并记录
   let codes : FixedArray[Int] = FixedArray::makei(lengths.length(), fn(_) { 0 })
-  let code_lens : FixedArray[Int] = FixedArray::makei(lengths.length(), fn(_) { 0 })
-  
+  let code_lens : FixedArray[Int] = FixedArray::makei(lengths.length(), fn(_) {
+    0
+  })
+
   for i in 0..<lengths.length() {
     let len = lengths[i]
     if len > 0 && len <= max_len {
@@ -706,24 +718,24 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
       next_code[len] = next_code[len] + 1
     }
   }
-  
+
   // 构建树 - 使用可变数组
   let nodes : Array[HuffmanNode] = Array::new()
-  nodes.push(HuffmanNode::{ symbol: -1, left: -1, right: -1 })  // 根节点
-  
+  nodes.push(HuffmanNode::{ symbol: -1, left: -1, right: -1 }) // 根节点
+
   for i in 0..<lengths.length() {
     let len = code_lens[i]
     if len == 0 {
       continue
     }
-    
+
     let mut node = 0
     let code_val = codes[i]
-    
+
     for bit in 0..<len {
       let b = (code_val >> (len - 1 - bit)) & 1
       let current = nodes[node]
-      
+
       if b == 0 {
         // 左分支
         if current.left < 0 {
@@ -742,29 +754,32 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
         node = nodes[node].right
       }
     }
-    
+
     nodes[node].symbol = i
   }
-  
+
   // 转换为 FixedArray
   let node_count = nodes.length()
   let fixed_nodes = FixedArray::makei(node_count, fn(i : Int) -> HuffmanNode {
     nodes[i]
   })
-  
+
   Ok(HuffmanTree::{ nodes: fixed_nodes, root: 0 })
 }
 
 ///|
 /// 使用 Huffman 树解码符号
-fn decode_huffman(reader : BitReader, tree : HuffmanTree) -> Result[Int, String] {
+fn decode_huffman(
+  reader : BitReader,
+  tree : HuffmanTree,
+) -> Result[Int, String] {
   let mut node_idx = tree.root
   let mut found = false
   let mut result = -1
-  
+
   while !found {
     let current = tree.nodes[node_idx]
-    
+
     if current.symbol >= 0 {
       found = true
       result = current.symbol
@@ -774,7 +789,7 @@ fn decode_huffman(reader : BitReader, tree : HuffmanTree) -> Result[Int, String]
         Ok(v) => v
         Err(e) => return Err(e)
       }
-      
+
       if bit == 0 {
         if current.left < 0 {
           return Err("Invalid Huffman code")
@@ -788,6 +803,6 @@ fn decode_huffman(reader : BitReader, tree : HuffmanTree) -> Result[Int, String]
       }
     }
   }
-  
+
   Ok(result)
 }
