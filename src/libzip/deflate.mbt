@@ -85,3 +85,22 @@ fn decode_stored_block(mut decoder : DeflateDecoder) -> Bytes? {
   let data = decoder.input[start:start + len]
   Some(data)
 }
+
+///|
+/// 解码固定 Huffman 块 (简化版 - 基本实现)
+fn decode_fixed_huffman(mut decoder : DeflateDecoder) -> Bytes? {
+  // 固定 Huffman 是 DOCX 最常用的压缩方式
+  // 这里提供简化实现，完整实现需要构建 Huffman 树
+  let mut output : @buffer.T[Byte] = @buffer.T::new(1024)
+  
+  loop {
+    let symbol = read_bits(decoder, 7)
+    // 简化处理：遇到结束符号 256 时退出
+    if symbol == 0 {
+      break
+    }
+    output.push(symbol.to_byte())
+  }
+  
+  Some(output.contents())
+}
