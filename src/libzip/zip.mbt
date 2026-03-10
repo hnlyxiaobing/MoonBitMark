@@ -124,3 +124,10 @@ fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
        read_uint16_le(buffer, offset + 30).to_int() +
        read_uint16_le(buffer, offset + 32).to_int()
 }
+
+///|
+/// 将字节转换为字符串
+fn bytes_to_string(buffer : Bytes, offset : Int, len : Int) -> String {
+  let bytes = buffer[offset:offset + len]
+  bytes.to_string()
+}
