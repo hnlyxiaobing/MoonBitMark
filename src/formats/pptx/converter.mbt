@@ -53,7 +53,7 @@ pub async fn PptxConverter::convert(file_path : String) -> String {
 
   // 使用纯 MoonBit libzip 打开 ZIP
   match @libzip.ZipArchive::open(bytes) {
-    Some(archive) =>
+    Some(archive) => {
       // 解析 presentation.xml 获取幻灯片顺序
       match parse_presentation(archive) {
         Ok(slide_ids) => {
@@ -63,6 +63,7 @@ pub async fn PptxConverter::convert(file_path : String) -> String {
         }
         Err(e) => fail("Failed to parse presentation: \{e}")
       }
+    }
     None => fail("Failed to open PPTX file as ZIP archive")
   }
 }

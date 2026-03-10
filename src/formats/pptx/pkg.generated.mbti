@@ -30,6 +30,7 @@ pub fn PptxConverter::new() -> Self
 pub struct SlideRef {
   slide_num : Int
   r_id : String
+  slide_path : String
 }
 
 // Type aliases

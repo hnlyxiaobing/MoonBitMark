@@ -9,8 +9,8 @@ pub fn process_slides(
   let mut markdown = ""
 
   for slide_ref in slide_refs {
-    // 构建幻灯片文件路径
-    let slide_path = "ppt/slides/slide\{slide_ref.slide_num}.xml"
+    // 使用关系文件中获取的路径
+    let slide_path = slide_ref.slide_path
 
     // 读取幻灯片内容
     match @libzip.read_file_entry_decompressed(archive, slide_path) {
