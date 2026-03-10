@@ -87,3 +87,10 @@ fn parse_central_directory(buffer : Bytes, eocd_offset : Int) -> Array[ZipEntry]
   }
   entries
 }
+
+///|
+/// 读取小端序 UInt16
+fn read_uint16_le(buffer : Bytes, offset : Int) -> UInt {
+  (buffer[offset].to_uint()) |
+  (buffer[offset + 1].to_uint() << 8)
+}
