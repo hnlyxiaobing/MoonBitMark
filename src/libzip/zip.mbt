@@ -44,3 +44,19 @@ pub fn ZipArchive::open(buffer : Bytes) -> ZipArchive? {
     }
   }
 }
+
+///|
+/// 查找 EOCD (End of Central Directory) 记录
+fn find_eocd(buffer : Bytes) -> Int? {
+  // EOCD 签名: 0x06054b50
+  // 从文件末尾向前搜索
+  let mut pos = buffer.length() - 22
+  while pos >= 0 {
+    if read_uint32_le(buffer, pos) == 0x06054b50 {
+      Some(pos)
+    } else {
+      pos = pos - 1
+    }
+  }
+  None
+}
