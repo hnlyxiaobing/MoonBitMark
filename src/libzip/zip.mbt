@@ -38,7 +38,7 @@ pub fn ZipArchive::open(buffer : Bytes) -> ZipArchive? {
     match eocd_offset {
       Some(offset) => {
         let entries = parse_central_directory(buffer, offset)
-        Some(ZipArchive::{ data: buffer, entries: entries })
+        Some(ZipArchive::{ data: buffer, entries })
       }
       None => None
     }
@@ -64,7 +64,7 @@ fn find_eocd(buffer : Bytes) -> Int? {
 ///|
 /// 读取小端序 UInt32
 fn read_uint32_le(buffer : Bytes, offset : Int) -> UInt {
-  (buffer[offset].to_uint()) |
+  buffer[offset].to_uint() |
   (buffer[offset + 1].to_uint() << 8) |
   (buffer[offset + 2].to_uint() << 16) |
   (buffer[offset + 3].to_uint() << 24)
@@ -72,14 +72,17 @@ fn read_uint32_le(buffer : Bytes, offset : Int) -> UInt {
 
 ///|
 /// 解析中央目录
-fn parse_central_directory(buffer : Bytes, eocd_offset : Int) -> Array[ZipEntry] {
+fn parse_central_directory(
+  buffer : Bytes,
+  eocd_offset : Int,
+) -> Array[ZipEntry] {
   // 从 EOCD 获取中央目录偏移
   let cd_offset = read_uint16_le(buffer, eocd_offset + 16).to_int()
   let num_entries = read_uint16_le(buffer, eocd_offset + 10).to_int()
-  
+
   let entries : Array[ZipEntry] = Array::new()
   let mut pos = cd_offset
-  
+
   for i = 0; i < num_entries; i = i + 1 {
     let entry = parse_central_dir_entry(buffer, pos)
     entries.push(entry)
@@ -91,8 +94,7 @@ fn parse_central_directory(buffer : Bytes, eocd_offset : Int) -> Array[ZipEntry]
 ///|
 /// 读取小端序 UInt16
 fn read_uint16_le(buffer : Bytes, offset : Int) -> UInt {
-  (buffer[offset].to_uint()) |
-  (buffer[offset + 1].to_uint() << 8)
+  buffer[offset].to_uint() | (buffer[offset + 1].to_uint() << 8)
 }
 
 ///|
@@ -102,27 +104,28 @@ fn parse_central_dir_entry(buffer : Bytes, offset : Int) -> ZipEntry {
   let name_len = read_uint16_le(buffer, offset + 28).to_int()
   let extra_len = read_uint16_le(buffer, offset + 30).to_int()
   let comment_len = read_uint16_le(buffer, offset + 32).to_int()
-  
+
   // 读取文件名
   let name_start = offset + 46
   let name = bytes_to_string(buffer, name_start, name_len)
-  
+
   ZipEntry::{
-    name: name,
+    name,
     compression_method: read_uint16_le(buffer, offset + 10).to_int(),
     compressed_size: read_uint32_le(buffer, offset + 20).to_int(),
     uncompressed_size: read_uint32_le(buffer, offset + 24).to_int(),
     data_offset: read_uint32_le(buffer, offset + 42).to_int(),
-    crc32: read_uint32_le(buffer, offset + 16)
+    crc32: read_uint32_le(buffer, offset + 16),
   }
 }
 
 ///|
 /// 获取中央目录条目大小
 fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
-  46 + read_uint16_le(buffer, offset + 28).to_int() +
-       read_uint16_le(buffer, offset + 30).to_int() +
-       read_uint16_le(buffer, offset + 32).to_int()
+  46 +
+  read_uint16_le(buffer, offset + 28).to_int() +
+  read_uint16_le(buffer, offset + 30).to_int() +
+  read_uint16_le(buffer, offset + 32).to_int()
 }
 
 ///|
@@ -142,14 +145,17 @@ pub fn read_file_entry(archive : ZipArchive, name : String) -> Bytes? {
       found = Some(entry)
     }
   }
-  
+
   match found {
     Some(entry) => {
       // 读取文件数据
-      let data_start = entry.data_offset + 30 + 
-                       read_uint16_le(archive.data, entry.data_offset + 26).to_int() +
-                       read_uint16_le(archive.data, entry.data_offset + 28).to_int()
-      Some(archive.data[data_start:data_start + entry.compressed_size].to_bytes())
+      let data_start = entry.data_offset +
+        30 +
+        read_uint16_le(archive.data, entry.data_offset + 26).to_int() +
+        read_uint16_le(archive.data, entry.data_offset + 28).to_int()
+      Some(
+        archive.data[data_start:data_start + entry.compressed_size].to_bytes(),
+      )
     }
     None => None
   }
