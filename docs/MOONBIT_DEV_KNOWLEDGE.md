@@ -249,13 +249,26 @@ pub async fn convert_from_url(url : String) -> String raise {
 
 ### UInt 位运算限制
 
-**问题：** MoonBit 的 `UInt` 类型在位运算时有类型限制
+**核心问题：** `1.to_uint()` 返回 `Double` 类型，而非 `UInt`
 
+```
+Error: [4014]
+        has type : Double
+        wanted   : UInt
+```
+
+**受影响操作：**
 ```moonbit
-// ❌ 错误 - 类型不匹配
-if (crc & 1.to_uint()) == 1.to_uint() { ... }
+// ❌ 错误 - 右操作数是 Double
+let result = a & 1.to_uint()
 
-// ⚠️ 变通方案 - 使用取模判断奇偶
+// ❌ 错误 - 比较操作数类型不匹配
+if x == 1.to_uint() { ... }
+```
+
+**变通方案：**
+```moonbit
+// 使用取模判断奇偶
 if n % 2.to_uint() != 0.to_uint() { ... }
 ```
 
