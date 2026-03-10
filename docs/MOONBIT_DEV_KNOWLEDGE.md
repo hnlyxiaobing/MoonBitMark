@@ -377,8 +377,30 @@ pub async fn convert_from_url(url : String) -> String raise {
 
 - ✅ ZIP 结构解析
 - ✅ Store 解压 (无压缩)
-- ✅ Deflate 解压 (Fixed + Dynamic Huffman)
+- ⚠️ Deflate 解压 - Fixed Huffman 已修复，Dynamic Huffman 有 bug
 - ✅ CRC32 校验 (IEEE 802.3 标准)
+
+### ⚠️ Deflate 位读取关键修复 (2026-03-11)
+
+**问题**: `read_bits_reverse` 函数用于 MSB-first 读取 Huffman 码，原实现有 bug。
+
+**错误实现**:
+```moonbit
+// ❌ 批量读取位，然后或到一起
+let bits = (byte >> self.bit_pos) & mask
+result = (result << to_read) | bits
+```
+
+**正确实现**:
+```moonbit
+// ✅ 逐位读取，每次左移结果，新位作为 LSB
+let bit = (byte >> self.bit_pos) & 1
+result = (result << 1) | bit
+```
+
+**原理**: DEFLATE 中 Huffman 码是 MSB-first 存储的。读取时第一个读到的位是码的最高位。因此需要逐位读取，每次将结果左移，新位添加到最低位。
+
+**参考**: RFC 1951, `docs/KNOWN_ISSUES.md`
 
 ### UInt 位运算变通方案
 
@@ -434,5 +456,35 @@ pub async fn convert_from_url(url : String) -> String raise {
 
 ---
 
-**最后更新：** 2026-03-10  
+**最后更新：** 2026-03-11  
 **来源：** MoonBitMark 项目文档提炼
+
+---
+
+## 📋 项目脚本目录
+
+所有构建和测试脚本位于 `scripts/` 目录：
+
+| 脚本 | 用途 |
+|------|------|
+| `build_msvc.bat` | 使用 MSVC 编译器构建 Release 版本 |
+| `build_debug.bat` | 构建调试版本 |
+| `test_msvc.bat` | 使用 MSVC 运行测试 |
+| `run_pptx.bat` | 运行 PPTX 转换测试 |
+| `run_docx.bat` | 运行 DOCX 转换测试 |
+| `run_test.bat` | 运行综合测试 |
+
+**MSVC 环境配置**:
+脚本会自动调用 `vcvars64.bat` 设置 MSVC 编译环境：
+```batch
+call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+moon build --target native --release
+```
+
+---
+
+## 🔗 相关文档
+
+- [已知问题记录](./KNOWN_ISSUES.md) - 尚未解决的 bug
+- [libzip 实现计划](./libzip-pure-implementation-plan.md)
+- [PPTX 转换器开发计划](./pptx-converter-development-plan.md)

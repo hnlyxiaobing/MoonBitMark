@@ -7,7 +7,7 @@ You can browse and install extra skills here:
 
 ## Project Overview
 
-MoonBitMark is a document converter that transforms various file formats (TXT, CSV, JSON, PDF, HTML, DOCX, URLs) to Markdown. It compiles to native code for fast execution.
+MoonBitMark is a document converter that transforms various file formats (TXT, CSV, JSON, PDF, HTML, DOCX, PPTX, URLs) to Markdown. It compiles to native code for fast execution.
 
 ## Commands
 
@@ -16,6 +16,10 @@ MoonBitMark is a document converter that transforms various file formats (TXT, C
 moon check
 
 # Build (Release mode, requires MSVC on Windows)
+# Use the script for proper MSVC environment:
+scripts/build_msvc.bat
+
+# Or manually:
 moon build --target native --release
 
 # Run the compiled binary
@@ -62,7 +66,8 @@ src/
     ├── json/       # JSON → code blocks
     ├── pdf/        # PDF via mbtpdf library
     ├── html/       # HTML + URL fetching
-    └── docx/       # DOCX via Pure MoonBit (libzip + xml)
+    ├── docx/       # DOCX via Pure MoonBit (libzip + xml)
+    └── pptx/       # PPTX via Pure MoonBit (libzip + xml) - IN DEVELOPMENT
 ```
 
 **Conversion flow:** CLI → detect format by extension → select converter → read/convert → output Markdown
@@ -155,6 +160,13 @@ All converters use pure MoonBit code without FFI dependencies:
 ### Features
 - ✅ ZIP structure parsing
 - ✅ Store decompression (no compression)
-- ✅ Deflate decompression (Fixed + Dynamic Huffman)
+- ✅ Deflate decompression - Fixed Huffman (working)
+- ⚠️ Deflate decompression - Dynamic Huffman (has bug, see docs/KNOWN_ISSUES.md)
 - ✅ CRC32 validation (IEEE 802.3)
 - ✅ XML parsing (tags, attributes, text content)
+
+## Known Issues
+
+See [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) for a list of known bugs and issues.
+
+**Most critical:** Dynamic Huffman decompression in `src/libzip/deflate.mbt` has a bug that affects PPTX files using dynamic Huffman compression.
