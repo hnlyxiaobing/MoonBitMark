@@ -53,7 +53,7 @@ fn find_eocd(buffer : Bytes) -> Int? {
   let mut pos = buffer.length() - 22
   while pos >= 0 {
     if read_uint32_le(buffer, pos) == 0x06054b50 {
-      Some(pos)
+      return Some(pos)
     } else {
       pos = pos - 1
     }
