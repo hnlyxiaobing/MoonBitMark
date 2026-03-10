@@ -54,13 +54,15 @@ src/
 ├── core/           # Core types (ConvertResult, StreamInfo, DocumentConverter trait)
 │   ├── types.mbt   # Type definitions
 │   └── engine.mbt  # MarkItDown engine
+├── libzip/         # Pure MoonBit ZIP library (Store + Deflate)
+├── xml/            # Pure MoonBit XML parser (SAX-style)
 └── formats/        # Format converters (one subdirectory per format)
     ├── text/       # Plain text (.txt)
     ├── csv/        # CSV → Markdown tables
     ├── json/       # JSON → code blocks
     ├── pdf/        # PDF via mbtpdf library
     ├── html/       # HTML + URL fetching
-    └── docx/       # DOCX via FFI (libzip + expat)
+    └── docx/       # DOCX via Pure MoonBit (libzip + xml)
 ```
 
 **Conversion flow:** CLI → detect format by extension → select converter → read/convert → output Markdown
@@ -72,9 +74,12 @@ src/
    - `accepts(info: @core.StreamInfo) -> Bool` - check if format matches
    - `convert(file_path: String) -> String raise` - async conversion
 
-2. Create `src/formats/<format>/moon.pkg.json`:
-   ```json
-   { "import": ["moonbitlang/moonbitmark/src/core", "moonbitlang/async/fs"] }
+2. Create `src/formats/<format>/moon.pkg`:
+   ```
+   import {
+     "moonbitlang/moonbitmark/src/core",
+     "moonbitlang/async/fs",
+   }
    ```
 
 3. Register in `cmd/main/main.mbt` by adding format detection in `convert_file()`.
@@ -140,25 +145,16 @@ suberror MyError { NotFound, InvalidInput(String) }
 - `moonbitlang/async` - File system, HTTP client
 - `bobzhang/mbtpdf` - PDF text extraction
 
-## FFI (DOCX Converter)
+## Pure MoonBit Implementation
 
-The DOCX converter uses native C libraries via FFI:
-- **libzip** - ZIP extraction
-- **expat** - XML parsing
+All converters use pure MoonBit code without FFI dependencies:
 
-Install on Windows: `vcpkg install libzip:x64-windows expat:x64-windows`
+- **libzip** (`src/libzip/`) - ZIP extraction with Store and Deflate decompression
+- **xml** (`src/xml/`) - SAX-style XML parser for DOCX processing
 
-FFI bindings are in `src/formats/docx/ffi/`.
-
-## Pure MoonBit libzip (In Development)
-
-A pure MoonBit implementation of libzip is being developed at `src/libzip/`:
-
-**Current Status:**
+### Features
 - ✅ ZIP structure parsing
 - ✅ Store decompression (no compression)
-- ⚠️ Deflate decompression (simplified implementation)
-- ⚠️ CRC32 validation (simplified implementation)
-
-**Known Limitation:**
-MoonBit's `UInt` type has restrictions on bitwise operations. `1.to_uint()` returns `Double`, not `UInt`, making bit masking and comparison difficult.
+- ✅ Deflate decompression (Fixed + Dynamic Huffman)
+- ✅ CRC32 validation (IEEE 802.3)
+- ✅ XML parsing (tags, attributes, text content)

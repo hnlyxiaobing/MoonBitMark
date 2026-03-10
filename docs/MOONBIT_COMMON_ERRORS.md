@@ -344,7 +344,184 @@ if condition {
 
 ---
 
-## 15. 调试技巧
+## 15. 类型定义语法
+
+### ❌ 错误写法
+```moonbit
+// type 用于类型别名，不是结构体
+type Point {
+  x : Int
+  y : Int
+}
+```
+
+### ✅ 正确写法
+```moonbit
+// 结构体使用 struct
+struct Point {
+  x : Int
+  y : Int
+}
+
+// 类型别名使用 type
+type Coordinate = Int
+type Name = String
+```
+
+### 📝 规则
+- `struct` 用于定义结构体（记录类型）
+- `type` 用于定义类型别名
+- `enum` 用于定义枚举
+- `suberror` 用于定义错误类型
+
+---
+
+## 16. Bytes 构建
+
+### ❌ 错误写法
+```moonbit
+let bytes : Bytes = ...
+bytes[idx] = byte  // Bytes 没有 op_set 方法
+```
+
+### ✅ 正确写法
+```moonbit
+// 使用 @buffer 构建 Bytes
+let buf = @buffer.new()
+buf.write_byte(b'\x41')
+buf.write_byte(b'\x42')
+let bytes = buf.to_bytes()
+
+// 或从 Array[Byte] 转换
+fn array_to_bytes(arr : Array[Byte]) -> Bytes {
+  let buf = @buffer.new()
+  for b in arr {
+    buf.write_byte(b)
+  }
+  buf.to_bytes()
+}
+```
+
+### 📝 注意
+- `Bytes` 类型不支持直接索引赋值
+- 需要导入 `moonbitlang/core/buffer`
+
+---
+
+## 17. 空代码块语法
+
+### ❌ 错误写法
+```moonbit
+if condition {
+  {}  // 这是空的 Map，不是空语句
+}
+```
+
+### ✅ 正确写法
+```moonbit
+if condition {
+  ()  // 正确：空语句（Unit）
+}
+
+// 或者直接省略
+if condition {
+  // do nothing
+}
+```
+
+### 📝 规则
+- `{}` 是空的 Map 字面量
+- `()` 是 Unit 类型，表示空操作
+- 分支必须有返回值或 Unit
+
+---
+
+## 18. 可选值问号操作符
+
+### ❌ 错误写法
+```moonbit
+let value = opt?  // MoonBit 没有问号操作符
+```
+
+### ✅ 正确写法
+```moonbit
+// 方式 1：使用 match
+let value = match opt {
+  Some(v) => v
+  None => default_value
+}
+
+// 方式 2：使用 if-is
+let value = if opt is Some(v) {
+  v
+} else {
+  default_value
+}
+
+// 方式 3：使用 unwrap（可能崩溃）
+let value = opt.unwrap()
+```
+
+---
+
+## 19. 字符串切片与函数签名
+
+### ❌ 错误写法
+```moonbit
+fn get_prefix(s : String) -> String {
+  s[0:5].to_string()  // 未声明 raise
+}
+```
+
+### ✅ 正确写法
+```moonbit
+fn get_prefix(s : String) -> String raise {
+  s[0:5].to_string()
+}
+
+// 或使用 try/catch 包装
+fn safe_get_prefix(s : String) -> String {
+  try {
+    s[0:5].to_string()
+  } catch {
+    _ => ""
+  }
+}
+```
+
+### 📝 规则
+- 字符串切片可能抛出越界异常
+- 所有使用切片的函数必须声明 `raise`
+- 错误会向上传播到调用链
+
+---
+
+## 20. 循环语法
+
+### ❌ 错误写法
+```moonbit
+loop {
+  // 没有使用 continue 的 loop 是无用的
+}
+```
+
+### ✅ 正确写法
+```moonbit
+// 无限循环使用 while true
+while true {
+  if done { break }
+  // ...
+}
+
+// 或使用带条件的 loop
+loop {
+  if done { break }
+  // ...
+  continue  // 必须有 continue 才有意义
+}
+```
+
+---
 
 ### 使用 `inspect` 代替 `println`
 ```moonbit
@@ -372,5 +549,5 @@ fn safe_div(x : Int, y : Int) -> Int? {
 
 ---
 
-**最后更新：** 2026-03-07  
+**最后更新：** 2026-03-10  
 **项目：** MoonBitMark

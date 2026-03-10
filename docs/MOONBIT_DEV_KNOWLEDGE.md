@@ -61,20 +61,154 @@ fn f() -> Unit raise MyError { ... }
 ```
 
 ### 7. 模块导入
-```json
-// ✅ 导入具体的子包
-{
-  "import": [
-    "moonbitlang/core/builtin",
-    "moonbitlang/core/array",
-    "moonbitlang/async/fs"
-  ]
+
+```
+// moon.pkg 文件格式（新格式）
+import {
+  "moonbitlang/core/builtin",
+  "moonbitlang/core/array",
+  "moonbitlang/async/fs",
+}
+```
+
+### 8. 类型定义
+```moonbit
+// ✅ 结构体使用 struct，不是 type
+struct Point {
+  x : Int
+  y : Int
+}
+
+// ✅ 错误类型使用 suberror，不是 enum
+suberror MyError {
+  NotFound
+  InvalidInput(String)
+}
+```
+
+### 9. Bytes 构建
+```moonbit
+// ❌ Bytes 没有 op_set 方法
+// bytes[idx] = byte  // 错误
+
+// ✅ 使用 @buffer 构建 Bytes
+fn bytes_from_array(arr : Array[Byte]) -> Bytes {
+  let buf = @buffer.new()
+  for b in arr {
+    buf.write_byte(b)
+  }
+  buf.to_bytes()
+}
+```
+
+### 10. 可选值处理
+```moonbit
+// ❌ 没有问号操作符
+// let x = opt?  // 错误
+
+// ✅ 使用 match 或 if-is
+match opt {
+  Some(v) => v
+  None => default
+}
+
+// 或
+if opt is Some(v) {
+  v
+} else {
+  default
+}
+```
+
+### 11. 空代码块语法
+```moonbit
+// ❌ {} 表示空 Map，不是空代码块
+if condition {
+  {}  // 错误：这是一个空的 Map
+}
+
+// ✅ 使用 () 表示空操作
+if condition {
+  ()  // 正确：空语句
 }
 ```
 
 ---
 
-## 🔧 FFI 绑定最佳实践
+## 文件操作模式
+
+### 读取文件到 Bytes
+```moonbit
+pub async fn read_file_to_bytes(file_path : String) -> Bytes raise {
+  let file = @fs.open(file_path, mode=ReadOnly)
+  // 获取文件大小
+  let size = file.size()
+  // 创建固定大小缓冲区
+  let buffer : FixedArray[Byte] = FixedArray::make(size, b'\x00')
+  // 读取文件
+  let bytes_read = file.read(buffer)
+  file.close()
+  
+  // 转换为 Bytes
+  let arr : Array[Byte] = Array::new()
+  for i = 0; i < bytes_read; i = i + 1 {
+    arr.push(buffer[i])
+  }
+  bytes_from_array(arr)
+}
+```
+
+---
+
+## XML 解析模式
+
+### SAX 风格事件驱动解析
+```moonbit
+pub enum ParseEvent {
+  ElementStart(ElementStartEvent)  // <tag attr="value">
+  ElementEnd(ElementEndEvent)      // </tag>
+  TextContent(TextEvent)           // text content
+}
+
+// 使用示例
+let events = @xml.parse_xml(xml_content)
+for event in events {
+  match event {
+    { ElementStart: { name, attributes } } => 
+      // 处理开始标签
+    { ElementEnd: { name } } => 
+      // 处理结束标签
+    { TextContent: { content } } => 
+      // 处理文本内容
+  }
+}
+```
+
+### 字符串切片与 raise
+```moonbit
+// 字符串切片函数必须声明 raise
+fn parse_attribute(s : String, start : Int) -> (String, String, Int) raise {
+  let name_end = find_char(s, '=', start)
+  let name = s[start:name_end].to_string()
+  // ...
+}
+
+// 使用 try/catch 处理错误
+fn safe_parse(s : String) -> Result[Data, ParseError] {
+  try {
+    Ok(parse_internal(s))
+  } catch {
+    e => Error(ParseError::from(e))
+  }
+}
+```
+
+---
+
+## FFI 绑定（已弃用）
+
+> **注意:** 从 v0.4.0 开始，MoonBitMark 项目已完全移除 FFI 依赖，
+> 使用纯 MoonBit 实现替代。以下内容仅作参考保留。
 
 ### FFI 声明模式
 ```moonbit
@@ -102,12 +236,6 @@ moonbit_bytes_t moonbit_zip_read(moonbit_bytes_t path, moonbit_bytes_t name) {
 - 使用 `moonbit_make_external_object` 包装 C 指针
 - 字符串自动 null 终止
 
-### 性能优化
-- **批量 FFI 调用** - 减少调用次数
-- **流式处理** - 降低内存占用
-- **结果缓存** - 避免重复查询
-- **FFI 开销** - 约 50-500 纳秒/次，通常 < 5% 总耗时
-
 ---
 
 ## 📁 项目结构规范
@@ -116,16 +244,20 @@ moonbit_bytes_t moonbit_zip_read(moonbit_bytes_t path, moonbit_bytes_t name) {
 project/
 ├── src/
 │   ├── core/              # 核心模块
+│   ├── libzip/            # 纯 MoonBit ZIP 库
+│   │   ├── crc32.mbt
+│   │   ├── deflate.mbt
+│   │   └── zip.mbt
+│   ├── xml/               # 纯 MoonBit XML 解析器
+│   │   ├── types.mbt
+│   │   ├── tokenizer.mbt
+│   │   └── package.mbt
 │   ├── formats/           # 格式转换器
 │   │   ├── html/
 │   │   ├── pdf/
 │   │   └── docx/
 │   │       ├── converter.mbt
-│   │       ├── ffi/
-│   │       │   ├── libzip.mbt
-│   │       │   ├── expat.mbt
-│   │       │   └── stub.c
-│   │       └── moon.pkg.json
+│   │       └── moon.pkg
 │   └── cmd/
 │       └── main/
 ├── tests/
@@ -181,19 +313,13 @@ moon add moonbitlang/async
 - `moonbitlang/async/io` - I/O 操作
 - `bobzhang/mbtpdf` - PDF 处理
 
-### moon.pkg.json 配置
-```json
-{
-  "import": [
-    "moonbitlang/moonbitmark/src/core",
-    "moonbitlang/async/fs"
-  ],
-  "native-stub": ["ffi/stub.c"],
-  "link": {
-    "native": {
-      "cc-link-flags": "-lzip -lexpat"
-    }
-  }
+### moon.pkg 配置
+```
+// 新格式 (moon.pkg)
+import {
+  "moonbitlang/moonbitmark/src/core",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/buffer",
 }
 ```
 
@@ -247,29 +373,25 @@ pub async fn convert_from_url(url : String) -> String raise {
 
 ## 🔧 libzip 纯 MoonBit 实现经验
 
-### UInt 位运算限制
+### 已完成功能
 
-**核心问题：** `1.to_uint()` 返回 `Double` 类型，而非 `UInt`
+- ✅ ZIP 结构解析
+- ✅ Store 解压 (无压缩)
+- ✅ Deflate 解压 (Fixed + Dynamic Huffman)
+- ✅ CRC32 校验 (IEEE 802.3 标准)
 
-```
-Error: [4014]
-        has type : Double
-        wanted   : UInt
-```
+### UInt 位运算变通方案
 
-**受影响操作：**
-```moonbit
-// ❌ 错误 - 右操作数是 Double
-let result = a & 1.to_uint()
-
-// ❌ 错误 - 比较操作数类型不匹配
-if x == 1.to_uint() { ... }
-```
+**问题：** `1.to_uint()` 返回 `Double` 类型，而非 `UInt`
 
 **变通方案：**
 ```moonbit
 // 使用取模判断奇偶
 if n % 2.to_uint() != 0.to_uint() { ... }
+
+// 使用 UInt 字面量
+let mask : UInt = 0xFF
+let result = a.land(mask)
 ```
 
 ### 函数可变参数
@@ -286,15 +408,29 @@ fn read(mut self : Decoder) -> Int {
 
 ---
 
-## 📝 当前已知问题
+## 🌐 HTML/DOCX 转换技术要点
 
-### 1. CRC32 完整实现受限
-- **状态：** 简化实现（求和）
-- **原因：** UInt 位运算类型限制
+### HTML 转 Markdown
+- 标题：`<h1>` → `#`
+- 段落：`<p>` → 双换行
+- 列表：`<ul>/<ol>` → `-` / `1.`
+- 链接：`<a>` → `[text](url)`
+- 代码：`<code>` → `` `code` ``
+- 表格：`<table>` → Markdown 表格
 
-### 2. Deflate 完整实现受限
-- **状态：** 简化实现（直通）
-- **原因：** Huffman 解码复杂度高
+### DOCX 转换流程（纯 MoonBit）
+```
+DOCX → 读取 Bytes → ZIP 解析 (@libzip) → Deflate 解压 → XML 解析 (@xml) → Markdown
+```
+
+### URL 抓取
+```moonbit
+pub async fn convert_from_url(url : String) -> String raise {
+  let (response, data) = @http.get(url)
+  let html = data.text()  // Data.text() 自动 UTF-8 解码
+  html_to_markdown(html)
+}
+```
 
 ---
 
