@@ -16,7 +16,7 @@ struct DeflateDecoder {
 
 ///|
 /// 读取 1 位
-fn read_bit(self : DeflateDecoder) -> Int {
+fn read_bit(mut self : DeflateDecoder) -> Int {
   let byte = self.input[self.byte_pos].to_int()
   let bit = (byte >> self.bit_pos) & 1
   self.bit_pos = self.bit_pos + 1
