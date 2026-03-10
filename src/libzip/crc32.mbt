@@ -15,7 +15,7 @@ pub fn crc32(data : Bytes) -> UInt {
 ///|
 /// 更新 CRC 值
 fn update_crc(crc : UInt, index : UInt) -> UInt {
-  let mut result = crc >> 8
+  let result = crc >> 8
   let poly : UInt = 0xEDB88320
   let table_val = get_table_value(index)
   result ^ table_val
