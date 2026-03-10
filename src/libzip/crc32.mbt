@@ -6,7 +6,7 @@ pub fn crc32(data : Bytes) -> UInt {
   let mut crc : UInt = 0xFFFFFFFF
   for i = 0; i < data.length(); i = i + 1 {
     let byte = data[i].to_uint()
-    let mut index = (crc ^ byte) & 0xFF
+    let index = (crc ^ byte) & 0xFF
     crc = update_crc(crc, index)
   }
   crc ^ 0xFFFFFFFF
