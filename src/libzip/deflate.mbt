@@ -48,3 +48,17 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
   }
   decode_block(decoder)
 }
+
+///|
+/// 解码 Deflate 块
+fn decode_block(mut decoder : DeflateDecoder) -> Bytes? {
+  let bfinal = read_bits(decoder, 1)
+  let btype = read_bits(decoder, 2)
+  
+  match btype {
+    0 => decode_stored_block(decoder)      // 无压缩
+    1 => decode_fixed_huffman(decoder)     // 固定 Huffman
+    2 => decode_dynamic_huffman(decoder)   // 动态 Huffman
+    _ => None                              // 错误
+  }
+}
