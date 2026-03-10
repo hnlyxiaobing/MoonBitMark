@@ -47,7 +47,6 @@ fn process_slide_xml(xml : String, slide_num : Int) -> String {
 /// 幻灯片解析上下文
 priv struct SlideContext {
   mut in_text : Bool
-  mut in_paragraph : Bool
   mut current_text : String
   mut result : String
   mut is_title : Bool
@@ -58,7 +57,6 @@ priv struct SlideContext {
 fn extract_slide_content(events : Array[@xml.ParseEvent]) -> String {
   let ctx = SlideContext::{
     in_text: false,
-    in_paragraph: false,
     current_text: "",
     result: "",
     is_title: false,
@@ -91,7 +89,6 @@ fn handle_slide_element_start(
     ctx.in_text = true
     // <a:p> - 段落
   } else if local_name == "p" {
-    ctx.in_paragraph = true
     ctx.current_text = ""
     ctx.is_title = false
     // 检查是否为标题形状 (通过 p:nvSpPr/p:cNvPr 的 name 属性)
@@ -116,8 +113,6 @@ fn handle_slide_element_end(ctx : SlideContext, name : String) -> Unit {
   if local_name == "t" {
     ctx.in_text = false
   } else if local_name == "p" {
-    ctx.in_paragraph = false
-
     if ctx.current_text.length() > 0 {
       if ctx.is_title {
         ctx.result = ctx.result + "# " + ctx.current_text + "\n\n"
