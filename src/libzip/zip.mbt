@@ -94,3 +94,25 @@ fn read_uint16_le(buffer : Bytes, offset : Int) -> UInt {
   (buffer[offset].to_uint()) |
   (buffer[offset + 1].to_uint() << 8)
 }
+
+///|
+/// 解析单个中央目录条目
+fn parse_central_dir_entry(buffer : Bytes, offset : Int) -> ZipEntry {
+  // Central Directory Header 固定部分 46 字节
+  let name_len = read_uint16_le(buffer, offset + 28).to_int()
+  let extra_len = read_uint16_le(buffer, offset + 30).to_int()
+  let comment_len = read_uint16_le(buffer, offset + 32).to_int()
+  
+  // 读取文件名
+  let name_start = offset + 46
+  let name = bytes_to_string(buffer, name_start, name_len)
+  
+  ZipEntry::{
+    name: name,
+    compression_method: read_uint16_le(buffer, offset + 10).to_int(),
+    compressed_size: read_uint32_le(buffer, offset + 20).to_int(),
+    uncompressed_size: read_uint32_le(buffer, offset + 24).to_int(),
+    data_offset: read_uint32_le(buffer, offset + 42).to_int(),
+    crc32: read_uint32_le(buffer, offset + 16)
+  }
+}
