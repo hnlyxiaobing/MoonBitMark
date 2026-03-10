@@ -1,30 +1,34 @@
-# MoonBit 纯实现 expat 库开发计划
+# MoonBit 纯实现 XML 解析库开发计划
 
 ## 执行摘要
 
-本项目旨在用纯 MoonBit 实现一个 XML 解析库，完全替代当前通过 FFI 调用的 C 语言 expat 库。实现后将获得更好的跨平台兼容性、内存安全和开发体验。
+本项目旨在用纯 MoonBit 实现一个轻量级 XML 解析库，为 MoonBitMark 的 DOCX 处理提供 XML 解析能力。基于 MoonBit 的语言特性，提供更安全、更易用的解析方案。
 
 **关键优势**:
 - ✅ 零外部依赖，纯 MoonBit 实现
-- ✅ 与现有 API 完全兼容，平滑迁移
 - ✅ 自动内存管理，无需手动释放
-- ✅ 完整的类型安全
-- ✅ 支持流式解析大文件
+- ✅ 完整的类型安全和编译时检查
+- ✅ 流式解析支持，适合大文件
+- ✅ 简洁的异步友好的 API 设计
+- ✅ 跨平台支持（包括 WASM）
 
 ## 1. 项目背景
 
 ### 1.1 当前状态
 
-当前 MoonBitMark 项目在处理 DOCX 文件时，通过 FFI 调用 C 语言的 expat 库来解析 XML 内容。
+当前 MoonBitMark 项目在处理 DOCX 文件时，通过 FFI 调用 C 语言的 expat 库来解析 XML 内容。这引入了外部依赖和平台兼容性问题。
 
-**现有 FFI 接口** (`src/formats/docx/ffi/expat.mbt`):
-- `XML_Parser` - XML 解析器句柄
-- `XML_ParserCreate` - 创建解析器
-- `XML_ParserFree` - 释放解析器
-- `XML_Parse` - 解析 XML 数据
-- `XML_GetErrorCode` - 获取错误码
-- `XML_ErrorString` - 获取错误信息
-- `XML_GetCurrentLineNumber` - 获取当前行号
+**现有 FFI 依赖**:
+- 需要安装 expat C 库
+- Windows 下需要 vcpkg 配置
+- 存在内存安全风险
+- 跨平台部署复杂
+
+**DOCX 解析需求**:
+- 解析 Office Open XML 格式的 XML 文件
+- 提取文档结构、样式、内容信息
+- 处理大型 XML 文件（>1MB）
+- 准确的错误定位和报告
 
 ### 1.2 目标
 
@@ -46,265 +50,310 @@ expat 是一个流式 XML 解析器，支持：
 
 ### 2.2 核心功能需求
 
-DOCX 文件解析需要：
-- 元素开始/结束回调
-- 文本内容回调
-- 错误处理
-- 行号追踪
+基于 DOCX 解析场景的实际需求：
+- 解析标准的 Office Open XML 文件结构
+- 提取元素属性和文本内容
+- 处理嵌套的 XML 结构
+- 准确的错误定位（行号、上下文）
+- 支持流式解析以处理大文件
 
-### 2.3 需要实现的功能
+### 2.3 功能优先级
 
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| 基础解析 | 高 | 解析 XML 元素、属性、文本 |
-| 回调机制 | 高 | 支持 start_element, end_element, character_data |
-| 错误处理 | 高 | 报告错误位置和原因 |
-| 编码支持 | 中 | UTF-8 编码处理 |
-| 命名空间 | 低 | XML 命名空间支持 |
+| 功能 | 优先级 | 说明 | MoonBit 实现要点 |
+|------|--------|------|------------------|
+| 基础XML解析 | 高 | 元素、属性、文本 | 使用模式匹配简化状态机 |
+| SAX风格回调 | 高 | 事件驱动解析 | 利用MoonBit函数式特性 |
+| 错误处理 | 高 | 错误类型和恢复 | 使用suberror定义错误类型 |
+| UTF-8处理 | 中 | 编码检测转换 | MoonBit原生UTF-8支持 |
+| 命名空间 | 低 | XML命名空间 | 可选功能，后期扩展 |
 
 ## 3. API 设计规范
 
-### 3.1 核心 API
+### 3.1 核心 API 设计
+
+采用 MoonBit 惯用设计，利用类型系统和错误处理优势：
 
 ```moonbit
 ///|
-/// XML 解析器
-pub type XML_Parser
-
-///|
-/// XML 解析状态
-pub enum XML_Status {
-  OK
-  Error
+/// XML 解析错误类型
+pub type XMLParseError {
+  ///| 语法错误，包含行号和错误信息
+  SyntaxError(Int, String)
+  ///| 未闭合标签
+  UnclosedTag(String)
+  ///| 无效属性格式
+  InvalidAttributeFormat
+  ///| IO 错误
+  IOError(String)
 }
 
 ///|
+/// XML 解析器配置
+pub type XMLParserConfig {
+  encoding : String = "utf-8"
+  buffer_size : Int = 4096
+}
+
+///|
+/// XML 解析器句柄（内部类型）
+priv type XMLParserHandle
+
+///|
+/// XML 解析器实例
+pub type XMLParser {
+  handle : XMLParserHandle
+  line_number : Int
+}
+
+///|
+/// 解析结果
+pub type ParseResult = Result[Unit, XMLParseError]
+
+///|
+/// 元素开始事件
+pub type ElementStartEvent = {
+  name : String
+  attributes : Map[String, String]
+  line_number : Int
+}
+
+///|
+/// 元素结束事件
+pub type ElementEndEvent = {
+  name : String
+  line_number : Int
+}
+
+///|
+/// 文本内容事件
+pub type TextEvent = {
+  content : String
+  line_number : Int
+}
+
+///|
+/// 事件处理器类型
+pub type EventHandler = Fn(ParseEvent) -> Unit
+pub type ParseEvent =
+  | ElementStart(ElementStartEvent)
+  | ElementEnd(ElementEndEvent)  
+  | TextContent(TextEvent)
+```
+
+### 3.2 主要 API
+
+```moonbit
+///|
 /// 创建 XML 解析器
-pub fn XML_ParserCreate(encoding : String?) -> XML_Parser?
+pub fn XMLParser::new(config : XMLParserConfig = XMLParserConfig::default()) -> XMLParser
 
 ///|
-/// 释放 XML 解析器
-pub fn XML_ParserFree(parser : XML_Parser) -> Unit
+/// 设置事件处理器
+pub fn XMLParser::set_handler(handler : EventHandler) -> Unit
 
 ///|
-/// 解析 XML 数据
-pub fn XML_Parse(parser : XML_Parser, data : Bytes, is_final : Bool) -> XML_Status
+/// 解析 XML 数据块
+pub fn XMLParser::parse_chunk(data : String) -> ParseResult
 
 ///|
-/// 获取错误码
-pub fn XML_GetErrorCode(parser : XML_Parser) -> Int
-
-///|
-/// 获取错误信息
-pub fn XML_ErrorString(code : Int) -> String
+/// 完成解析
+pub fn XMLParser::finish() -> ParseResult
 
 ///|
 /// 获取当前行号
-pub fn XML_GetCurrentLineNumber(parser : XML_Parser) -> Int
-```
-
-### 3.2 回调接口
-
-```moonbit
-///|
-/// 元素开始回调
-pub type StartElementHandler = fn(String, Map[String, String]) -> Unit
+pub fn XMLParser::line_number(self : XMLParser) -> Int
 
 ///|
-/// 元素结束回调
-pub type EndElementHandler = fn(String) -> Unit
+/// 便捷解析函数
+pub fn parse_xml(xml_content : String) -> Result[List[ParseEvent], XMLParseError] {
+  ///| 一次性解析完整 XML 文档，返回事件列表
+}
 
 ///|
-/// 字符数据回调
-pub type CharacterDataHandler = fn(String) -> Unit
-
-///|
-/// 设置元素处理器
-pub fn XML_SetElementHandler(
-  parser : XML_Parser,
-  start_handler : StartElementHandler,
-  end_handler : EndElementHandler
-) -> Unit
-
-///|
-/// 设置字符数据处理器
-pub fn XML_SetCharacterDataHandler(
-  parser : XML_Parser,
-  handler : CharacterDataHandler
-) -> Unit
-```
-
-### 3.3 便捷 API
-
-```moonbit
-///|
-/// 简单解析 XML 文档
-pub fn parse_xml_document(
-  xml_data : Bytes,
-  on_element_start : StartElementHandler?,
-  on_element_end : EndElementHandler?,
-  on_character_data : CharacterDataHandler?
-) -> Result[Unit, XML_ParseError]
+/// 流式解析函数
+pub fn parse_xml_stream(reader : @fs.StreamReader) -> Result[Unit, XMLParseError] {
+  ///| 从流中读取并解析 XML
+}
 ```
 
 ## 4. 实现计划
 
-### 4.1 文件结构
+### 4.1 项目结构
+
+遵循 MoonBit 项目组织规范：
 
 ```
-src/libexpat/
-├── moon.pkg.json
-├── expat_spec.mbt      # API 规范
-├── expat.mbt           # 主实现
-├── parser.mbt          # 解析器核心
-├── tokenizer.mbt       # XML 分词器
-├── handlers.mbt        # 回调处理
-└── expat_test.mbt      # 测试
+src/xml/
+├── moon.pkg.json              # 包配置
+├── package.mbt                # 公共 API
+├── parser/
+│   ├── mod.mbt               # 模块入口
+│   ├── core.mbt              # 核心解析逻辑
+│   ├── tokenizer.mbt          # 词法分析器
+│   └── state.mbt             # 解析状态管理
+├── events/
+│   ├── mod.mbt               # 事件定义
+│   ├── handlers.mbt          # 事件处理器
+│   └── types.mbt             # 数据类型定义
+├── error/
+│   ├── mod.mbt               # 错误处理模块
+│   └── codes.mbt             # 错误码定义
+└── test/
+    ├── parser_test.mbt        # 解析器测试
+    ├── integration_test.mbt   # 集成测试
+    └── docx_samples/          # DOCX 测试样本
 ```
 
-### 4.2 实现阶段
+### 4.2 实现里程碑
 
-| 阶段 | 内容 | 优先级 |
-|------|------|--------|
-| Phase 1 | XML tokenizer (分词器) | 高 |
-| Phase 2 | 基础元素解析 | 高 |
-| Phase 3 | 属性解析 | 高 |
-| Phase 4 | 回调机制 | 高 |
-| Phase 5 | 错误处理 | 中 |
-| Phase 6 | 编码处理 | 中 |
-| Phase 7 | 性能优化 | 低 |
+采用迭代式开发，每个里程碑都产出可用的功能：
+
+| 里程碑 | 目标 | 预计时间 | 产出 |
+|--------|------|----------|------|
+| M1 | 基础XML解析器 | 1周 | 能解析简单XML元素和文本 |
+| M2 | 事件系统 | 1周 | 完整的SAX风格事件回调 |
+| M3 | 错误处理 | 3天 | 精确的错误定位和报告 |
+| M4 | DOCX集成测试 | 3天 | 成功解析真实DOCX文件 |
+| M5 | 性能优化 | 2天 | 流式解析支持 |
+| M6 | 文档和示例 | 2天 | 完整的API文档和使用示例 |
 
 ## 5. XML 解析技术细节
 
-### 5.1 状态机设计
+### 5.1 解析策略
 
-XML 解析本质上是一个状态机：
+采用简化的递归下降解析，利用 MoonBit 的强大模式匹配：
 
+**核心思路**：
+- 将 XML 解析分解为标记化 + 语法分析两个阶段
+- 使用枚举类型表示解析状态
+- 通过递归函数处理嵌套结构
+
+**关键技术点**：
+- **标记化**：识别 XML 标记（元素、属性、文本）
+- **语法分析**：构建元素树，触发事件回调
+- **状态管理**：跟踪当前元素栈和行号信息
+
+### 5.2 简化实现
+
+避免复杂的状态机，使用 MoonBit 的函数式特性：
+
+```moonbit
+///| XML 标记类型
+pub enum Token {
+  StartTag(String, Map[String, String])
+  EndTag(String)
+  SelfCloseTag(String, Map[String, String])
+  Text(String)
+  Comment(String)
+}
+
+///| 主要解析函数
+fn parse_tokens(tokens : List[Token]) -> Result[List[ParseEvent], XMLParseError] {
+  ///| 将标记转换为事件流
+}
 ```
-状态:
-- START         # 文档开始
-- ELEMENT_START # 元素开始 <
-- TAG_NAME      # 标签名
-- ATTR_NAME     # 属性名
-- ATTR_VALUE    # 属性值
-- TEXT          # 文本内容
-- ENTITY        # 实体引用
-- ELEMENT_END   # 元素结束 >
-- CLOSE_TAG     # 关闭标签 /
-- PI_TARGET     # 处理指令
-- COMMENT       # 注释
-- DONE          # 解析完成
-```
-
-### 5.2 关键算法
-
-**分词 (Tokenization)**:
-- 逐字节扫描输入
-- 识别 < > = " ' / 等分隔符
-- 处理实体引用 (&lt; &gt; &amp; 等)
-
-**元素解析**:
-- 解析标签名
-- 解析属性名值对
-- 区分自闭合标签
-
-**文本处理**:
-- 合并连续文本节点
-- 处理空白符
 
 ## 6. 测试计划
 
-### 6.1 基础测试
+### 6.1 测试策略
 
+采用分层测试，确保各组件正确性：
+
+**单元测试** (`parser/` 和 `tokenizer/`)：
 ```moonbit
-test "parse empty document" { ... }
-test "parse simple element" { ... }
-test "parse element with attributes" { ... }
-test "parse nested elements" { ... }
-test "parse text content" { ... }
+test "tokenize simple element" {
+  let input = "<tag attr=\"value\">text</tag>"
+  let tokens = tokenize(input)?
+  assert_eq(tokens.length(), 3)
+}
+
+test "parse nested structure" {
+  let xml = "<root><child attr=\"1\">content</child></root>"
+  let events = parse_xml(xml)?
+  // 验证事件序列
+}
 ```
 
-### 6.2 错误处理测试
+**集成测试** (`test/` 目录)：
+- 真实 DOCX 文件解析测试
+- 与其他 XML 库的兼容性对比
+- 性能基准测试
 
-```moonbit
-test "unclosed tag error" { ... }
-test "mismatched tag error" { ... }
-test "invalid attribute error" { ... }
-```
+**DOCX 专项测试**：
+- Word 生成的文档.xml
+- Excel 生成的共享字符串.xml  
+- PowerPoint 生成的演示文稿.xml
 
-### 6.3 DOCX 测试
+## 7. MoonBit 实现价值
 
-```moonbit
-test "parse word/document.xml" { ... }
-test "parse word/styles.xml" { ... }
-test "parse complex docx" { ... }
-```
+### 7.1 技术收益
 
-## 7. 与 C expat 对比
+此项目将为 MoonBitMark 带来显著的技术提升：
 
-### 7.1 功能对比
+**架构现代化**：
+- 消除最后一个 C 语言外部依赖
+- 实现真正的单一二进制分发
+- 为未来 WASM 部署铺平道路
 
-| 功能 | C expat | Pure MoonBit expat | 状态 |
-|------|---------|-------------------|------|
-| XML 解析 | ✅ | ✅ | 完整 |
-| 回调机制 | ✅ | ✅ | 完整 |
-| 错误报告 | ✅ | ✅ | 完整 |
-| 行号追踪 | ✅ | ✅ | 完整 |
-| UTF-8 支持 | ✅ | ✅ | 完整 |
-| 命名空间 | ✅ | ❌ | 可选 |
+**安全性增强**：
+- 消除 FFI 边界的内存安全问题
+- 编译时类型检查覆盖 XML 解析逻辑
+- 避免 C 库潜在的缓冲区溢出风险
 
-### 7.2 优势
-
-- **零依赖**: 无需安装 expat 库
-- **内存安全**: 无缓冲区溢出风险
-- **类型安全**: 编译时类型检查
-- **WASM 支持**: 可在浏览器运行
-
-### 7.3 限制
-
-- **性能**: 预期略低于 C 实现（~10-20%）
-- **命名空间**: 暂不支持
-- **外部实体**: 暂不支持
+**开发效率**：
+- 统一的 MoonBit 开发体验
+- 更好的调试和错误追踪能力
+- 便于后续功能扩展和维护
 
 ## 8. 验收标准
 
-**功能性**:
-- [ ] 正确解析标准 XML 文档
-- [ ] 支持元素开始/结束回调
-- [ ] 支持属性解析
-- [ ] 支持文本内容回调
-- [ ] 正确报告解析错误和位置
-- [ ] 正确解析 DOCX 文件
+**核心功能** (必须达成)：
+- [ ] 解析标准 XML 1.0 文档，正确处理元素嵌套
+- [ ] 提取元素属性和文本内容，支持转义字符
+- [ ] 生成结构化事件流（开始/结束/文本事件）
+- [ ] 精确定位错误（行号、上下文信息）
+- [ ] 成功解析至少 3 个真实的 DOCX 样本文件
 
-**兼容性**:
-- [ ] API 与现有 FFI 兼容
-- [ ] 可完全替换 C expat
+**集成要求**：
+- [ ] 无缝替换现有 FFI expat 调用
+- [ ] DOCX 转换器功能不受影响
+- [ ] 通过现有测试套件
 
-**易用性**:
-- [ ] 自动内存管理
-- [ ] 详细的错误信息
+**质量指标**：
+- [ ] 代码覆盖率 ≥ 80%
+- [ ] 解析 1MB XML 文件内存占用 < 10MB
+- [ ] 错误恢复能力：能跳过错误继续解析
 
-## 9. 开发命令
+## 9. 开发工作流
+
+遵循 MoonBit 最佳实践：
 
 ```bash
-# 类型检查
-moon check src/libexpat/
+# 进入项目目录
+cd d:/MySoftware/MoonBitMark
 
-# 运行测试
-moon test
+# 开发循环
+moon check src/xml/           # 类型检查
+moon test src/xml/test/       # 运行测试
+moon fmt                      # 代码格式化
+moon info && moon fmt         # 更新接口并格式化
 
-# 格式化
-moon fmt
-
-# 更新接口
-moon info && moon fmt
+# 集成验证
+moon check                    # 全项目检查
+moon test                     # 全项目测试
 ```
 
-## 10. 参考资源
+**开发准则**：
+- 每完成一个里程碑，运行完整测试套件
+- 提交前执行 `moon info` 检查接口变化
+- 优先编写测试，采用 TDD 方式开发
 
-- [expat XML Parser](https://libexpat.github.io/)
-- [XML 1.0 规范](https://www.w3.org/TR/xml/)
-- 现有 FFI 实现: `src/formats/docx/ffi/expat/`
+## 10. 技术资源
+
+- [XML 1.0 规范](https://www.w3.org/TR/xml/) - 语法参考
+- [Office Open XML 规范](https://officeopenxml.com/) - DOCX 格式说明
+- 现有实现: `src/formats/docx/ffi/expat/` - 参考 API 设计
+- MoonBit 文档: https://docs.moonbitlang.com - 语言特性指南
 
 ## 11. 总结
 

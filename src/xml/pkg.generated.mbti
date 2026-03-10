@@ -1,0 +1,58 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/xml"
+
+// Values
+pub fn parse_xml(String) -> Result[Array[ParseEvent], XMLParseError]
+
+// Errors
+pub(all) suberror XMLParseError {
+  SyntaxError(Int, String)
+  UnclosedTag(String)
+  MismatchedTag(String, String)
+  InvalidAttributeFormat(String)
+  InvalidEntity(String)
+  IOError(String)
+}
+
+// Types and methods
+pub(all) struct ElementEndEvent {
+  name : String
+  line_number : Int
+}
+
+pub(all) struct ElementStartEvent {
+  name : String
+  attributes : Map[String, String]
+  line_number : Int
+}
+
+pub enum ParseEvent {
+  ElementStart(ElementStartEvent)
+  ElementEnd(ElementEndEvent)
+  TextContent(TextEvent)
+}
+
+pub(all) struct TextEvent {
+  content : String
+  line_number : Int
+}
+
+pub enum Token {
+  StartTag(String, Map[String, String])
+  EndTag(String)
+  SelfCloseTag(String, Map[String, String])
+  Text(String)
+  Comment(String)
+  Declaration(String)
+  CData(String)
+}
+
+pub(all) struct XMLParserConfig {
+  encoding : String
+  buffer_size : Int
+}
+
+// Type aliases
+
+// Traits
+
