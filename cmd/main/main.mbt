@@ -1,5 +1,6 @@
 // MoonBitMark CLI - File to Markdown Converter
 
+///|
 fn print_usage() -> Unit {
   println("MoonBitMark v0.3.0 - File to Markdown Converter")
   println("")
@@ -15,24 +16,21 @@ fn print_usage() -> Unit {
   println("  - URL (http://... or https://...)")
 }
 
+///|
 async fn main {
   let args = @env.args()
-  
+
   if args.length() < 2 {
     print_usage()
     return
   }
-  
+
   let input_file = args[1]
-  let output_file = if args.length() >= 3 {
-    Some(args[2])
-  } else {
-    None
-  }
-  
+  let output_file = if args.length() >= 3 { Some(args[2]) } else { None }
+
   try {
     let result = convert_file(input_file)
-    
+
     match output_file {
       Some(path) => {
         let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
@@ -41,18 +39,15 @@ async fn main {
         file.close()
         println("Converted: " + input_file + " -> " + path)
       }
-      None => {
-        println(result)
-      }
+      None => println(result)
     }
   } catch {
-    err => {
-      println("Error: " + err.to_string())
-    }
+    err => println("Error: " + err.to_string())
   }
 }
 
-async fn convert_file(file_path: String) -> String raise {
+///|
+async fn convert_file(file_path : String) -> String {
   let file_lower = file_path.to_lower()
   if file_lower.has_suffix(".txt") {
     @text.TextConverter::convert(file_path)
@@ -66,7 +61,8 @@ async fn convert_file(file_path: String) -> String raise {
     @html.HtmlConverter::convert(file_path)
   } else if file_lower.has_suffix(".docx") {
     @docx.DocxConverter::convert(file_path)
-  } else if file_lower.has_prefix("http://") || file_lower.has_prefix("https://") {
+  } else if file_lower.has_prefix("http://") ||
+    file_lower.has_prefix("https://") {
     @html.HtmlConverter::convert(file_path)
   } else {
     fail("Unknown format: " + file_path)

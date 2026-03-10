@@ -1,0 +1,6 @@
+import {
+  "moonbitlang/moonbitmark/src/core",
+  "bobzhang/mbtpdf/pdfcrypt",
+  "bobzhang/mbtpdf/pdfread",
+  "bobzhang/mbtpdf/pdftext" @pdftextlib,
+}

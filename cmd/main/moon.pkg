@@ -1,0 +1,21 @@
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/moonbitmark/src/formats/text",
+  "moonbitlang/moonbitmark/src/formats/csv",
+  "moonbitlang/moonbitmark/src/formats/json",
+  "moonbitlang/moonbitmark/src/formats/pdf",
+  "moonbitlang/moonbitmark/src/formats/html",
+  "moonbitlang/moonbitmark/src/formats/docx",
+  "moonbitlang/async/fs",
+  "moonbitlang/async",
+  "moonbitlang/core/encoding/utf8",
+}
+
+options(
+  "is-main": true,
+  link: {
+    "native": {
+      "cc-link-flags": "C:/vcpkg/installed/x64-windows/lib/zip.lib C:/vcpkg/installed/x64-windows/lib/libexpat.lib",
+    },
+  },
+)

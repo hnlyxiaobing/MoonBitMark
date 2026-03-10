@@ -1,32 +1,33 @@
 // JSON Converter - Converts JSON files to Markdown code blocks
 
+///|
 /// Converter for JSON files
 pub(all) struct JsonConverter {
-  dummy: Int
+  dummy : Int
 }
 
+///|
 /// Create a new JSON converter
 pub fn JsonConverter::new() -> JsonConverter {
-  JsonConverter::{
-    dummy: 0
-  }
+  JsonConverter::{ dummy: 0 }
 }
 
+///|
 /// Accepts function - checks if file is JSON
-pub fn JsonConverter::accepts(info: @core.StreamInfo) -> Bool {
+pub fn JsonConverter::accepts(info : @core.StreamInfo) -> Bool {
   match info.mimetype {
     Some(mt) => mt == "application/json"
-    None => {
+    None =>
       match info.extension {
         Some(".json") => true
         _ => false
       }
-    }
   }
 }
 
+///|
 /// Convert function - converts JSON to Markdown code block
-pub async fn JsonConverter::convert(file_path: String) -> String raise {
+pub async fn JsonConverter::convert(file_path : String) -> String {
   let file = @fs.open(file_path, mode=ReadOnly)
   let mut content = ""
   let mut is_first = true

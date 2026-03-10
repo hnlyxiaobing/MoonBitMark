@@ -1,44 +1,45 @@
 // PDF Converter - Converts PDF files to Markdown (Stage 4: Advanced Post-processing)
 
+///|
 /// Converter for PDF files
 pub(all) struct PdfConverter {
-  dummy: Int
+  dummy : Int
 }
 
+///|
 /// Create a new PDF converter
 pub fn PdfConverter::new() -> PdfConverter {
-  PdfConverter::{
-    dummy: 0
-  }
+  PdfConverter::{ dummy: 0 }
 }
 
+///|
 /// Accepts function - checks if file is PDF
-pub fn PdfConverter::accepts(info: @core.StreamInfo) -> Bool {
+pub fn PdfConverter::accepts(info : @core.StreamInfo) -> Bool {
   match info.mimetype {
     Some(mt) => mt.has_prefix("application/pdf")
-    None => {
+    None =>
       match info.extension {
         Some(".pdf") => true
         _ => false
       }
-    }
   }
 }
 
+///|
 /// Normalize whitespace in PDF text
 /// - Replace multiple consecutive newlines with double newline (paragraph break)
 /// - Trim leading/trailing whitespace from each line
 /// - Remove trailing whitespace from the entire text
-fn normalize_whitespace(text: String) -> String {
+fn normalize_whitespace(text : String) -> String {
   let lines = text.split("\n")
   let lines_array = lines.to_array()
   let result_lines = Array::new()
   let mut prev_empty = false
-  
+
   for line in lines_array {
     let trimmed = line.trim()
     let is_empty = trimmed.length() == 0
-    
+
     if is_empty {
       // Only add one empty line between paragraphs
       if !prev_empty && result_lines.length() > 0 {
@@ -50,14 +51,15 @@ fn normalize_whitespace(text: String) -> String {
       prev_empty = false
     }
   }
-  
+
   // Join lines and trim final result
   let joined = result_lines.join("\n")
   joined.trim().to_string()
 }
 
+///|
 /// Check if a string is a MasterFormat partial numbering (e.g., ".1", ".2", ".10")
-fn is_partial_numbering(s: String) -> Bool {
+fn is_partial_numbering(s : String) -> Bool {
   if !s.has_prefix(".") || s.length() < 2 {
     return false
   }
@@ -65,7 +67,7 @@ fn is_partial_numbering(s: String) -> Bool {
   let mut i = 1
   while i < s.length() {
     let c = s.at(i) catch { _ => return false }
-    if c < 48 || c > 57 {  // ASCII '0' = 48, '9' = 57
+    if c < 48 || c > 57 { // ASCII '0' = 48, '9' = 57
       return false
     }
     i = i + 1
@@ -73,26 +75,27 @@ fn is_partial_numbering(s: String) -> Bool {
   true
 }
 
+///|
 /// Merge MasterFormat-style partial numbering lines
 /// Merges lines like ".1" with the following line
 /// Example: ".1\nThe intent..." → ".1 The intent..."
-fn merge_partial_numbering(text: String) -> String {
+fn merge_partial_numbering(text : String) -> String {
   let lines = text.split("\n")
   let lines_array = lines.to_array()
   let result_lines = Array::new()
   let mut i = 0
-  
+
   while i < lines_array.length() {
     let line = lines_array[i]
     let stripped = line.trim().to_string()
-    
+
     if is_partial_numbering(stripped) && i + 1 < lines_array.length() {
       // Find next non-empty line
       let mut j = i + 1
       while j < lines_array.length() && lines_array[j].trim().length() == 0 {
         j = j + 1
       }
-      
+
       if j < lines_array.length() {
         // Merge with next line
         let next_line = lines_array[j].trim().to_string()
@@ -101,32 +104,33 @@ fn merge_partial_numbering(text: String) -> String {
         continue
       }
     }
-    
+
     result_lines.push(stripped)
     i = i + 1
   }
-  
+
   result_lines.join("\n")
 }
 
+///|
 /// Convert function - extracts text from PDF and returns as Markdown
 /// Stage 4: With advanced post-processing (whitespace, MasterFormat merging)
-pub async fn PdfConverter::convert(file_path: String) -> String raise {
+pub async fn PdfConverter::convert(file_path : String) -> String {
   // Read PDF file
   let pdf = @pdfread.pdf_of_file(None, None, file_path)
-  
+
   // Check if PDF is encrypted
   if @pdfcrypt.is_encrypted(pdf) {
     fail("PDF file is encrypted and cannot be processed.")
   }
-  
+
   // Extract text using mbtpdf with page break separator
   let text = @pdftextlib.extract_text(pdf, page_break="\n\n---\n\n")
-  
+
   // Post-processing pipeline
   let normalized = normalize_whitespace(text)
   let merged = merge_partial_numbering(normalized)
-  
+
   // Return as Markdown
   merged
 }

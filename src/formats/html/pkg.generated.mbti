@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/formats/html"
+
+import {
+  "moonbitlang/moonbitmark/src/core",
+}
+
+// Values
+pub async fn convert_from_file(String) -> String
+
+pub async fn convert_from_url(String) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct HtmlConverter {
+  dummy : Int
+}
+pub fn HtmlConverter::accepts(@core.StreamInfo) -> Bool
+pub async fn HtmlConverter::convert(String) -> String
+pub fn HtmlConverter::new() -> Self
+
+// Type aliases
+
+// Traits
+

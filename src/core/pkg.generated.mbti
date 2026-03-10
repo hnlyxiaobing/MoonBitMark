@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/core"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct ConvertResult {
+  markdown : String
+  title : String?
+  metadata : Map[String, String]
+}
+pub impl Eq for ConvertResult
+pub impl Show for ConvertResult
+pub impl ToJson for ConvertResult
+
+pub(all) struct MarkItDown {
+  dummy : Int
+}
+pub fn MarkItDown::convert(String) -> String
+pub fn MarkItDown::new() -> Self
+
+pub(all) struct StreamInfo {
+  mimetype : String?
+  extension : String?
+  filename : String?
+  url : String?
+  charset : String?
+}
+pub impl Eq for StreamInfo
+pub impl Show for StreamInfo
+pub impl ToJson for StreamInfo
+
+// Type aliases
+
+// Traits
+pub(open) trait DocumentConverter {
+  accepts(StreamInfo) -> Bool
+  convert(String) -> ConvertResult raise
+}
+
