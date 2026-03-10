@@ -69,3 +69,21 @@ fn read_uint32_le(buffer : Bytes, offset : Int) -> UInt {
   (buffer[offset + 2].to_uint() << 16) |
   (buffer[offset + 3].to_uint() << 24)
 }
+
+///|
+/// 解析中央目录
+fn parse_central_directory(buffer : Bytes, eocd_offset : Int) -> Array[ZipEntry] {
+  // 从 EOCD 获取中央目录偏移
+  let cd_offset = read_uint16_le(buffer, eocd_offset + 16).to_int()
+  let num_entries = read_uint16_le(buffer, eocd_offset + 10).to_int()
+  
+  let entries : Array[ZipEntry] = Array::new()
+  let mut pos = cd_offset
+  
+  for i = 0; i < num_entries; i = i + 1 {
+    let entry = parse_central_dir_entry(buffer, pos)
+    entries.push(entry)
+    pos = pos + get_central_dir_entry_size(buffer, pos)
+  }
+  entries
+}
