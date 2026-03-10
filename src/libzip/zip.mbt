@@ -25,3 +25,22 @@ struct ZipEntry {
   /// CRC32
   crc32 : UInt
 }
+
+///|
+/// 从内存缓冲区打开 ZIP 归档
+pub fn ZipArchive::open(buffer : Bytes) -> ZipArchive? {
+  // 检查最小长度
+  if buffer.length() < 22 {
+    None
+  } else {
+    // 解析 EOCD (End of Central Directory)
+    let eocd_offset = find_eocd(buffer)
+    match eocd_offset {
+      Some(offset) => {
+        let entries = parse_central_directory(buffer, offset)
+        Some(ZipArchive::{ data: buffer, entries: entries })
+      }
+      None => None
+    }
+  }
+}
