@@ -36,3 +36,15 @@ fn read_bits(self : DeflateDecoder, n : Int) -> Int {
   }
   result
 }
+
+///|
+/// Deflate 解压主函数
+pub fn deflate_decompress(input : Bytes) -> Bytes? {
+  let decoder = DeflateDecoder::{
+    input,
+    byte_pos: 0,
+    bit_pos: 0,
+    output: @buffer.T::new(1024)
+  }
+  decode_block(decoder)
+}
