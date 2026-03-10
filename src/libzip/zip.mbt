@@ -149,7 +149,7 @@ pub fn read_file_entry(archive : ZipArchive, name : String) -> Bytes? {
       let data_start = entry.data_offset + 30 + 
                        read_uint16_le(archive.data, entry.data_offset + 26).to_int() +
                        read_uint16_le(archive.data, entry.data_offset + 28).to_int()
-      archive.data[data_start:data_start + entry.compressed_size]
+      archive.data[data_start:data_start + entry.compressed_size].to_bytes()
     }
     None => None
   }
