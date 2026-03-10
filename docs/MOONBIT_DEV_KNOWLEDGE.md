@@ -243,5 +243,35 @@ pub async fn convert_from_url(url : String) -> String raise {
 
 ---
 
-**最后更新：** 2026-03-08  
+---
+
+## 🔧 libzip 纯 MoonBit 实现经验
+
+### UInt 位运算限制
+
+**问题：** MoonBit 的 `UInt` 类型在位运算时有类型限制
+
+```moonbit
+// ❌ 错误 - 类型不匹配
+if (crc & 1.to_uint()) == 1.to_uint() { ... }
+
+// ⚠️ 变通方案 - 使用取模判断奇偶
+if n % 2.to_uint() != 0.to_uint() { ... }
+```
+
+### 函数可变参数
+
+```moonbit
+// ✅ 正确 - 只读访问
+fn read(self : Decoder) -> Int
+
+// ✅ 正确 - 需要修改
+fn read(mut self : Decoder) -> Int {
+  self.pos = self.pos + 1
+}
+```
+
+---
+
+**最后更新：** 2026-03-10  
 **来源：** MoonBitMark 项目文档提炼
