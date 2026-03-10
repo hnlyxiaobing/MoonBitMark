@@ -6,6 +6,7 @@ import {
   "moonbitlang/moonbitmark/src/formats/pdf",
   "moonbitlang/moonbitmark/src/formats/html",
   "moonbitlang/moonbitmark/src/formats/docx",
+  "moonbitlang/moonbitmark/src/formats/pptx",
   "moonbitlang/async/fs",
   "moonbitlang/async",
   "moonbitlang/core/encoding/utf8",

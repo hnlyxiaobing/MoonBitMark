@@ -13,6 +13,7 @@ fn print_usage() -> Unit {
   println("  - PDF (.pdf)")
   println("  - HTML (.html, .htm)")
   println("  - Word (.docx)")
+  println("  - PowerPoint (.pptx)")
   println("  - URL (http://... or https://...)")
 }
 
@@ -61,6 +62,8 @@ async fn convert_file(file_path : String) -> String {
     @html.HtmlConverter::convert(file_path)
   } else if file_lower.has_suffix(".docx") {
     @docx.DocxConverter::convert(file_path)
+  } else if file_lower.has_suffix(".pptx") {
+    @pptx.PptxConverter::convert(file_path)
   } else if file_lower.has_prefix("http://") ||
     file_lower.has_prefix("https://") {
     @html.HtmlConverter::convert(file_path)
