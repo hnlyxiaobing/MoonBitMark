@@ -104,3 +104,12 @@ fn decode_fixed_huffman(mut decoder : DeflateDecoder) -> Bytes? {
   
   Some(output.contents())
 }
+
+///|
+/// 解码动态 Huffman 块 (占位实现)
+fn decode_dynamic_huffman(mut decoder : DeflateDecoder) -> Bytes? {
+  // 动态 Huffman 需要读取码表，实现较复杂
+  // 这里提供占位实现
+  ignore(decoder)
+  None
+}
