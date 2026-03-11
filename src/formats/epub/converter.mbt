@@ -13,7 +13,7 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 
 ///|
 /// 从 Option[String] 获取标题，默认为空字符串
-fn get_title(title : Option[String]) -> String {
+fn get_title(title : String?) -> String {
   match title {
     Some(t) => t
     None => ""
@@ -78,9 +78,10 @@ pub async fn EpubConverter::convert(file_path : String) -> String {
 
   // 使用纯 MoonBit libzip 打开 ZIP
   match @libzip.ZipArchive::open(epub_data) {
-    Some(zip) => {
+    Some(zip) =>
       // Parse container.xml to find OPF file
-      match @libzip.read_file_entry_decompressed(zip, "META-INF/container.xml") {
+      match
+        @libzip.read_file_entry_decompressed(zip, "META-INF/container.xml") {
         Some(container_data) => {
           let opf_path = parse_container_xml(container_data)
 
@@ -101,15 +102,12 @@ pub async fn EpubConverter::convert(file_path : String) -> String {
 
               // Add metadata
               match epub_pkg.metadata.authors {
-                authors if authors.length() > 0 => {
+                authors if authors.length() > 0 =>
                   result = result + "**Author:** " + authors[0] + "\n\n"
-                }
                 _ => ignore(())
               }
               match epub_pkg.metadata.language {
-                Some(lang) => {
-                  result = result + "**Language:** " + lang + "\n\n"
-                }
+                Some(lang) => result = result + "**Language:** " + lang + "\n\n"
                 None => ignore(())
               }
 
@@ -124,9 +122,8 @@ pub async fn EpubConverter::convert(file_path : String) -> String {
                       opf_dir + "/" + manifest_item.href
                     }
                     match @libzip.read_file_entry_decompressed(zip, full_path) {
-                      Some(content) => {
+                      Some(content) =>
                         result = result + parse_xhtml(content) + "\n\n"
-                      }
                       None => ignore(())
                     }
                   }
@@ -141,28 +138,40 @@ pub async fn EpubConverter::convert(file_path : String) -> String {
         }
         None => fail("Failed to read container.xml")
       }
-    }
     None => fail("Failed to open EPUB file as ZIP archive")
   }
 }
 
 ///|
 fn parse_container_xml(data : Bytes) -> String raise {
-  let xml_string = data.to_string()
+  // 使用 UTF-8 解码
+  let xml_string = @utf8.decode(data) catch {
+    _ => {
+      // 回退：逐字节转换（ASCII 兼容）
+      let mut result = ""
+      let mut i = 0
+      while i < data.length() {
+        let b = data[i]
+        result = result + Char::from_int(b.to_int()).to_string()
+        i = i + 1
+      }
+      result
+    }
+  }
+
   match @xml.parse_xml(xml_string) {
     Ok(events) => {
       let mut opf_path = ""
 
       for event in events {
         match event {
-          @xml.ElementStart(evt) => {
+          @xml.ElementStart(evt) =>
             if evt.name == "rootfile" {
               match evt.attributes.get("full-path") {
                 Some(path) => opf_path = path
                 None => ignore(())
               }
             }
-          }
           _ => ignore(())
         }
       }
@@ -173,13 +182,26 @@ fn parse_container_xml(data : Bytes) -> String raise {
 
       opf_path
     }
-    Err(_) => fail("Failed to parse container.xml")
+    Err(_) => fail("Failed to parse container.xml: parse error")
   }
 }
 
 ///|
 fn parse_opf(data : Bytes) -> EpubPackage raise {
-  let xml_string = data.to_string()
+  // 使用 UTF-8 解码
+  let xml_string = @utf8.decode(data) catch {
+    _ => {
+      // 回退：逐字节转换
+      let mut result = ""
+      let mut i = 0
+      while i < data.length() {
+        let b = data[i]
+        result = result + Char::from_int(b.to_int()).to_string()
+        i = i + 1
+      }
+      result
+    }
+  }
   match @xml.parse_xml(xml_string) {
     Ok(events) => {
       let metadata = EpubMetadata::default()
@@ -200,17 +222,19 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
               let href = evt.attributes.get("href")
               let media_type = evt.attributes.get("media-type")
               match (id, href, media_type) {
-                (Some(id_val), Some(href_val), Some(mt_val)) => {
-                  manifest.set(id_val, { id: id_val, href: href_val, media_type: mt_val, properties: None })
-                }
+                (Some(id_val), Some(href_val), Some(mt_val)) =>
+                  manifest.set(id_val, {
+                    id: id_val,
+                    href: href_val,
+                    media_type: mt_val,
+                    properties: None,
+                  })
                 _ => ignore(())
               }
             }
             if evt.name == "itemref" {
               match evt.attributes.get("idref") {
-                Some(idref) => {
-                  spine.push({ idref, linear: true })
-                }
+                Some(idref) => spine.push({ idref, linear: true })
                 None => ignore(())
               }
             }
@@ -221,7 +245,7 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
             }
             current_element = ""
           }
-          @xml.TextContent(evt) => {
+          @xml.TextContent(evt) =>
             if in_metadata {
               if current_element == "dc:title" {
                 metadata.title = Some(evt.content)
@@ -236,7 +260,6 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
                 metadata.description = Some(evt.content)
               }
             }
-          }
         }
       }
 
@@ -248,7 +271,20 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
 
 ///|
 fn parse_xhtml(data : Bytes) -> String {
-  let xml_string = data.to_string()
+  // 使用 UTF-8 解码
+  let xml_string = @utf8.decode(data) catch {
+    _ => {
+      // 回退：逐字节转换
+      let mut result = ""
+      let mut i = 0
+      while i < data.length() {
+        let b = data[i]
+        result = result + Char::from_int(b.to_int()).to_string()
+        i = i + 1
+      }
+      result
+    }
+  }
   match @xml.parse_xml(xml_string) {
     Ok(events) => {
       let mut result = ""
@@ -271,16 +307,8 @@ fn parse_xhtml(data : Bytes) -> String {
               }
             }
           }
-          @xml.ElementEnd(evt) => {
-            if evt.name == "body" {
-              in_body = false
-            }
-          }
-          @xml.TextContent(evt) => {
-            if in_body {
-              result = result + evt.content
-            }
-          }
+          @xml.ElementEnd(evt) => if evt.name == "body" { in_body = false }
+          @xml.TextContent(evt) => if in_body { result = result + evt.content }
         }
       }
 
