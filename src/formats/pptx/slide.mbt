@@ -20,18 +20,16 @@ pub fn process_slides(
     // 读取幻灯片内容
     match @libzip.read_file_entry_decompressed(archive, slide_path) {
       Some(xml_bytes) => {
-        let xml_string = try {
-          @utf8.decode(xml_bytes)
-        } catch {
+        let xml_string = @utf8.decode(xml_bytes) catch {
           _ => return "<!-- Failed to decode slide \{slide_ref.slide_num} -->"
         }
         let slide_md = process_slide_xml(xml_string, slide_ref.slide_num)
         markdown = markdown + slide_md
       }
-      None => {
+      None =>
         // 幻灯片文件不存在，跳过
-        markdown = markdown + "\n\n<!-- Slide \{slide_ref.slide_num}: Unable to read \{slide_path} -->\n"
-      }
+        markdown = markdown +
+          "\n\n<!-- Slide \{slide_ref.slide_num}: Unable to read \{slide_path} -->\n"
     }
   }
 

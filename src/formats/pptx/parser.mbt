@@ -24,9 +24,7 @@ pub fn parse_presentation(archive : @libzip.ZipArchive) -> ParseResult {
   // 读取 presentation.xml
   match @libzip.read_file_entry_decompressed(archive, "ppt/presentation.xml") {
     Some(xml_bytes) => {
-      let xml_string = try {
-        @utf8.decode(xml_bytes)
-      } catch {
+      let xml_string = @utf8.decode(xml_bytes) catch {
         _ => return Err("Failed to decode presentation.xml as UTF-8")
       }
       // 解析 XML 获取幻灯片 ID 列表
@@ -57,11 +55,7 @@ fn parse_relations(archive : @libzip.ZipArchive) -> Map[String, String] {
       archive, "ppt/_rels/presentation.xml.rels",
     ) {
     Some(xml_bytes) => {
-      let xml_string = try {
-        @utf8.decode(xml_bytes)
-      } catch {
-        _ => return relations
-      }
+      let xml_string = @utf8.decode(xml_bytes) catch { _ => return relations }
       match @xml.parse_xml(xml_string) {
         Ok(events) => extract_relations(events, relations)
         Err(_) => ()
@@ -84,7 +78,7 @@ fn extract_relations(
   events : Array[@xml.ParseEvent],
   relations : Map[String, String],
 ) -> Unit {
-  let ctx = RelationsContext::{ relations }
+  let ctx = RelationsContext::{ relations, }
 
   for event in events {
     match event {
@@ -179,7 +173,10 @@ fn extract_slide_refs(
 
 ///|
 /// 处理 sldId 元素
-fn handle_sld_id_element(ctx : PresentationContext, evt : @xml.ElementStartEvent) -> Unit {
+fn handle_sld_id_element(
+  ctx : PresentationContext,
+  evt : @xml.ElementStartEvent,
+) -> Unit {
   // 提取 r:id 属性
   // 注意：属性可能存储为不同的形式
   let r_id_val = evt.attributes.get("r:id")
@@ -217,7 +214,7 @@ fn handle_presentation_element_start(
     // 注意：r:id 可能存储为 "r:id" 而不是带命名空间的完整形式
     let r_id_val = match evt.attributes.get("r:id") {
       Some(v) => Some(v)
-      None => evt.attributes.get("rId")  // 有些文件可能用 rId
+      None => evt.attributes.get("rId") // 有些文件可能用 rId
     }
 
     match r_id_val {
