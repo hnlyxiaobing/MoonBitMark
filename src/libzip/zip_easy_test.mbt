@@ -18,26 +18,24 @@ test "bit reader - read_bits LSB first" {
 
   let r1 = reader.read_bits(3)
   match r1 {
-    Ok(v) => {
+    Ok(v) =>
       // 从位 0,1,2 读取: bits 0,1,2 = 1,1,1 -> LSB first = 111 = 7
       // Wait, let me recalculate:
       // 0xF3 = 11110011
       // bit 0 = 1, bit 1 = 1, bit 2 = 0
       // LSB first reading 3 bits: result = bit0 | (bit1<<1) | (bit2<<2) = 1|2|0 = 3
       assert_eq(v, 3)
-    }
     Err(e) => fail("read_bits failed: \{e}")
   }
 
   // 继续读取 3 位
   let r2 = reader.read_bits(3)
   match r2 {
-    Ok(v) => {
+    Ok(v) =>
       // 现在从位 3,4,5 读取
       // bit 3 = 0, bit 4 = 1, bit 5 = 1
       // LSB first: 0 | (1<<1) | (1<<2) = 6
       assert_eq(v, 6)
-    }
     Err(e) => fail("read_bits failed: \{e}")
   }
 }
@@ -52,12 +50,11 @@ test "bit reader - read_bits_reverse MSB first" {
 
   let r1 = reader.read_bits_reverse(3)
   match r1 {
-    Ok(v) => {
+    Ok(v) =>
       // 从位 0,1,2 读取，但解释为 MSB first
       // bit 0 = 1, bit 1 = 1, bit 2 = 0
       // MSB first: (bit0<<2) | (bit1<<1) | bit2 = 4|2|0 = 6
       assert_eq(v, 6)
-    }
     Err(e) => fail("read_bits_reverse failed: \{e}")
   }
 }
@@ -91,11 +88,10 @@ test "deflate - fixed huffman decode first symbol" {
   // 现在读取第一个 Huffman 码的前 7 位 (MSB first)
   let first7 = reader.read_bits_reverse(7)
   match first7 {
-    Ok(v) => {
+    Ok(v) =>
       // 'H' = 72, 在 fixed huffman 中码字是 72+48=120=01111000 (8位)
       // 前 7 位是 0111100 = 60
       assert_eq(v, 60)
-    }
     Err(e) => fail("first7 failed: \{e}")
   }
 }
@@ -142,8 +138,11 @@ test "deflate decompress dynamic huffman" {
       }
       // 动态 Huffman 解压仍有问题，暂时跳过严格验证
       // 只检查长度是否接近
-      if text.length() < original.length() - 10 || text.length() > original.length() + 10 {
-        fail("Decompressed length mismatch: got \{text.length()}, expected \{original.length()}")
+      if text.length() < original.length() - 10 ||
+        text.length() > original.length() + 10 {
+        fail(
+          "Decompressed length mismatch: got \{text.length()}, expected \{original.length()}",
+        )
       }
       // 跳过 assert_eq，只打印结果用于调试
       println("Decompressed (first 50): \{text[0:50]}")
@@ -166,7 +165,10 @@ pub fn BitReader::new(data : Bytes) -> BitReader {
 }
 
 ///|
-pub fn BitReader::read_bits(self : BitReader, count : Int) -> Result[Int, String] {
+pub fn BitReader::read_bits(
+  self : BitReader,
+  count : Int,
+) -> Result[Int, String] {
   let mut result = 0
   let mut bits_read = 0
 
@@ -197,7 +199,10 @@ pub fn BitReader::read_bits(self : BitReader, count : Int) -> Result[Int, String
 }
 
 ///|
-pub fn BitReader::read_bits_reverse(self : BitReader, count : Int) -> Result[Int, String] {
+pub fn BitReader::read_bits_reverse(
+  self : BitReader,
+  count : Int,
+) -> Result[Int, String] {
   let mut result = 0
   let mut bits_read = 0
 

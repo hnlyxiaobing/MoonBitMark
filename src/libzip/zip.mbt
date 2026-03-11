@@ -134,9 +134,7 @@ fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
 fn bytes_to_string(buffer : Bytes, offset : Int, len : Int) -> String {
   let bytes = buffer[offset:offset + len].to_bytes()
   // 使用 UTF-8 解码，如果失败则尝试直接转换
-  try {
-    @utf8.decode(bytes)
-  } catch {
+  @utf8.decode(bytes) catch {
     _ => {
       // 回退到逐字节转换（ASCII 兼容）
       let mut result = ""
