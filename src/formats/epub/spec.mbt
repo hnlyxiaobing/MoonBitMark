@@ -3,7 +3,9 @@
 
 ///|
 /// Create a new EPUB converter
-declare pub fn EpubConverter::new() -> EpubConverter
+pub fn EpubConverter::new() -> EpubConverter {
+  EpubConverter::{ dummy: 0 }
+}
 
 ///|
 /// Check if this converter accepts the given file

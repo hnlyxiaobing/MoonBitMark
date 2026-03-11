@@ -4,13 +4,13 @@
 ///|
 /// EPUB metadata extracted from OPF file
 pub(all) struct EpubMetadata {
-  title : Option[String]
-  authors : Array[String]
-  language : Option[String]
-  publisher : Option[String]
-  date : Option[String]
-  description : Option[String]
-  identifier : Option[String]
+  mut title : Option[String]
+  mut authors : Array[String]
+  mut language : Option[String]
+  mut publisher : Option[String]
+  mut date : Option[String]
+  mut description : Option[String]
+  mut identifier : Option[String]
 } derive(Show, Eq, ToJson)
 
 ///|
