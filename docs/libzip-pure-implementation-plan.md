@@ -384,10 +384,10 @@ pub fn close_archive(archive: ZipArchive) -> Unit
 ## 11. 验收标准
 
 **功能性**:
-- [ ] 能正确解析标准 ZIP 文件
-- [ ] 支持 Store(0) 和 Deflate(8) 压缩
-- [ ] 正确处理 UTF-8 文件名
-- [ ] 完整提取 DOCX 内部文件
+- [x] 能正确解析标准 ZIP 文件
+- [x] 支持 Store(0) 和 Deflate(8) 压缩
+- [x] 正确处理 UTF-8 文件名
+- [x] 完整提取 DOCX 内部文件
 
 **性能性**:
 - [ ] 读取速度 ≥ 原 C 实现的 90%
@@ -395,9 +395,68 @@ pub fn close_archive(archive: ZipArchive) -> Unit
 - [ ] 支持 100MB+ DOCX 文件
 
 **易用性**:
-- [ ] API 与 FFI 完全兼容
-- [ ] 自动内存管理
-- [ ] 详细错误信息
+- [x] API 与 FFI 完全兼容
+- [x] 自动内存管理
+- [x] 详细错误信息
+
+## 11.1 实现经验与踩坑记录
+
+### Deflate 解压实现要点
+
+#### 1. 位读取方向
+
+DEFLATE 中有两种位读取方式：
+- **LSB-first**: 字段值读取（如 hlit, hdist, hclen）
+- **MSB-first**: Huffman 码读取
+
+```moonbit
+// LSB-first: 直接读取
+fn read_bits(self : BitReader, count : Int) -> Result[Int, String] {
+  // 低位先读，结果直接或上去
+  result = result | (bits << bits_read)
+}
+
+// MSB-first: 每次左移结果
+fn read_bits_reverse(self : BitReader, count : Int) -> Result[Int, String] {
+  // 高位先读，结果左移后加入新位
+  result = (result << 1) | bit
+}
+```
+
+#### 2. 滑动窗口复制
+
+**关键点**: 复制源位置必须在循环开始前固定，不能随 window_pos 变化。
+
+```moonbit
+// ✅ 正确实现
+let copy_start = window_pos - distance
+for j in 0..<length {
+  let src_pos = (copy_start + j) & 0x7FFF
+  // ...
+  window_pos = (window_pos + 1) & 0x7FFF
+}
+
+// ❌ 错误实现（会导致输出损坏）
+for j in 0..<length {
+  let src_pos = (window_pos - distance + j) & 0x7FFF  // window_pos 在变！
+  // ...
+  window_pos = (window_pos + 1) & 0x7FFF
+}
+```
+
+#### 3. Huffman 树构建
+
+使用 RFC 1951 规范的 canonical Huffman 编码：
+1. 统计每个码长的符号数量
+2. 计算每个码长的起始码值
+3. 按码长和符号顺序分配码字
+
+### 已解决的 Bug
+
+| Bug | 症状 | 原因 | 解决方案 |
+|-----|------|------|----------|
+| 位读取方向 | Huffman 解码错误 | MSB-first 实现错误 | 逐位读取，每次左移 |
+| 滑动窗口 | 输出部分损坏 | window_pos 在循环中变化 | 提前保存 copy_start |
 
 ## 12. 参考资源
 

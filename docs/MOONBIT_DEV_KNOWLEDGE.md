@@ -402,6 +402,39 @@ result = (result << 1) | bit
 
 **参考**: RFC 1951, `docs/KNOWN_ISSUES.md`
 
+### ⚠️ Deflate 滑动窗口复制 Bug 修复 (2026-03-11)
+
+**问题**: Dynamic Huffman 和 Fixed Huffman 解压输出损坏，如 `version="1.0"` 变成 `eso=10?`。
+
+**根本原因**: 在长度-距离对复制循环中，`window_pos` 被用来计算 `src_pos`，但 `window_pos` 在循环中递增，导致源位置计算错误。
+
+**错误实现**:
+```moonbit
+// ❌ window_pos 在循环中变化，导致 src_pos 计算错误
+for j in 0..<length {
+  let src_pos = (window_pos - distance + j) & 0x7FFF  // BUG: window_pos 变化！
+  let byte = window[src_pos]
+  output.push(byte)
+  window[window_pos] = byte
+  window_pos = (window_pos + 1) & 0x7FFF  // window_pos 递增
+}
+```
+
+**正确实现**:
+```moonbit
+// ✅ 在循环开始前保存固定的起始位置
+let copy_start = window_pos - distance
+for j in 0..<length {
+  let src_pos = (copy_start + j) & 0x7FFF  // 使用固定值计算
+  let byte = window[src_pos]
+  output.push(byte)
+  window[window_pos] = byte
+  window_pos = (window_pos + 1) & 0x7FFF
+}
+```
+
+**原理**: DEFLATE 的 LZ77 滑动窗口复制需要从固定位置开始复制，不能让 `window_pos` 的变化影响源位置计算。
+
 ### UInt 位运算变通方案
 
 **问题：** `1.to_uint()` 返回 `Double` 类型，而非 `UInt`
@@ -453,6 +486,130 @@ pub async fn convert_from_url(url : String) -> String raise {
   html_to_markdown(html)
 }
 ```
+
+---
+
+## 🔬 复杂 Bug 调试方法论
+
+> 基于 2026-03-11 Deflate 滑动窗口 Bug 修复经验总结
+
+### 1. 使用参照实现验证
+
+当遇到数据转换/解压问题时，**首先用已知正确的实现验证输入输出**：
+
+```python
+# 使用 Python 标准库验证正确输出
+import zipfile
+with zipfile.ZipFile('test.epub', 'r') as z:
+    correct_output = z.read('META-INF/container.xml')
+    print(f"Correct: {correct_output[:50]!r}")
+    print(f"Hex: {correct_output[:30].hex()}")
+```
+
+**关键点**：知道"正确答案"是什么，才能判断哪一步出错了。
+
+### 2. 分层隔离问题
+
+当问题涉及多个处理层时，**逐层隔离**：
+
+```
+ZIP 文件 → ZIP 解析 → Deflate 解压 → UTF-8 解码 → XML 解析
+```
+
+**隔离方法**：
+1. 创建仅使用 Store（无压缩）的测试文件 → 验证 ZIP 解析和后续流程
+2. 创建使用 Fixed Huffman 的测试文件 → 验证 Huffman 解码
+3. 测试实际文件（Dynamic Huffman）→ 定位到具体层
+
+**本次调试实例**：
+- Store EPUB 测试成功 → ZIP 解析、UTF-8、XML 解析都正常
+- 问题定位到 Deflate 解压层
+
+### 3. 比较解码符号 vs 最终输出
+
+**关键技巧**：在解压算法中，比较"解码的符号"和"最终输出"。
+
+```moonbit
+// 调试输出：解码的符号
+if symbol < 256 {
+  debug_output = debug_output + Char::from_int(symbol).to_string()
+}
+
+// 在块结束时比较
+println("[DEBUG] Decoded symbols: " + debug_output)  // <?xml version...
+println("[DEBUG] Output: " + output_preview)          // <?xml eso=10...
+```
+
+**发现**：
+- 解码符号正确：`<?xml version="1.0"?>\n<container xmlns="urn:oasi`
+- 输出损坏：`<?xml version="1.0"?>\n<container eso=10?`
+- **结论**：符号解码正确，问题在"长度-距离对复制"逻辑
+
+### 4. 追踪数据流关键变量
+
+当确定问题范围后，**追踪关键变量的变化**：
+
+```moonbit
+// 添加详细调试
+println("[DEBUG] Back-ref: len=\{length}, dist=\{distance}")
+println("[DEBUG] copy_from=\{window_pos - distance}")
+println("[DEBUG] Copy from window: \{copy_preview}")
+println("[DEBUG] Current output: \{output_preview}")
+```
+
+**本次发现**：
+- `copy_from=5` 但窗口中正确内容在位置 6
+- 距离差了 1，但更重要的是位置在循环中递增
+
+### 5. 理解算法的工作原理
+
+**最重要的一点**：深入理解算法，而不仅仅是"代码看起来正确"。
+
+**DEFLATE LZ77 原理**：
+```
+编码：version="1.0" → 后续出现的 version="1.0" → (length=14, distance=27)
+解码：从当前位置往前 27 字节，复制 14 字节
+```
+
+**关键理解**：
+- distance 是相对于"当前位置"的偏移
+- 复制过程中，当前位置会变化
+- 但复制的源位置应该固定不变
+
+### 6. 调试检查清单
+
+遇到复杂 bug 时，按此清单检查：
+
+| 检查项 | 方法 |
+|--------|------|
+| 输入是否正确？ | 打印原始数据的 hex |
+| 参照实现输出？ | 用 Python/C 等验证 |
+| 问题在哪一层？ | 分层测试隔离 |
+| 解码是否正确？ | 比较解码符号和输出 |
+| 变量如何变化？ | 追踪关键变量 |
+| 算法理解正确？ | 手动模拟执行过程 |
+
+### 7. MoonBit 特定调试技巧
+
+**Bytes vs String 转换**：
+```moonbit
+// ❌ Bytes.to_string() 返回调试格式 "b\"...\""
+let s = data.to_string()  // "b\"<?xml...\""
+
+// ✅ 使用 UTF-8 解码
+let s = @utf8.decode(data)
+```
+
+**使用 println 调试**：
+```moonbit
+// 在关键点添加调试输出
+println("[DEBUG] variable=\{value}")
+println("[DEBUG] array length=\{arr.length()}")
+```
+
+**移除调试代码**：
+- 修复后记得移除调试输出
+- 保持代码整洁
 
 ---
 
