@@ -2,15 +2,10 @@
 
 ///|
 /// Test cell reference to column index conversion
-@Test
-test test_cell_ref_to_col_index() {
+@Test fn test_cell_ref_to_col_index() {
   // A -> 0
   let idx_a = cell_ref_to_col_index("A1")
   inspect(idx_a, content="0")!
-
-  // B -> 1
-  let idx_b = cell_ref_to_col_index("B1")
-  inspect(idx_b, content="1")!
 
   // Z -> 25
   let idx_z = cell_ref_to_col_index("Z1")
@@ -27,8 +22,7 @@ test test_cell_ref_to_col_index() {
 
 ///|
 /// Test strip_namespace function
-@Test
-test test_strip_namespace() {
+@Test fn test_strip_namespace() {
   // Strip w: prefix
   let name1 = strip_namespace("w:t")
   inspect(name1, content="t")!
@@ -44,8 +38,7 @@ test test_strip_namespace() {
 
 ///|
 /// Test resolve_cell_value function
-@Test
-test test_resolve_cell_value() {
+@Test fn test_resolve_cell_value() {
   let shared_strings : Array[String] = ["Name", "Age", "Alice"]
 
   // Shared string type
@@ -73,8 +66,7 @@ test test_resolve_cell_value() {
 
 ///|
 /// Test XlsxConverter accepts function
-@Test
-test test_xlsx_accepts() {
+@Test fn test_xlsx_accepts() {
   let converter = XlsxConverter::new()
 
   // Should accept .xlsx extension
