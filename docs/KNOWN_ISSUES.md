@@ -4,56 +4,38 @@
 
 ---
 
-## 🔴 高优先级问题
-
-### 1. Deflate 动态 Huffman 解压 Bug
-
-**状态**: 未解决
-**发现日期**: 2026-03-11
-**相关文件**: `src/libzip/deflate.mbt`
-
-**问题描述**:
-动态 Huffman 编码的 Deflate 解压产生错误的输出。固定 Huffman 解压工作正常。
-
-**测试用例**:
-```moonbit
-// 测试数据 (使用动态 Huffman 压缩)
-let original = "The quick brown fox jumps over the lazy dog. ..."
-let compressed : Bytes = b"\x5d\x90\x4b\x6e\xc3\x30..."
-let result = deflate_decompress(compressed)
-
-// 预期输出: "The quick brown fox jumps over the lazy dog..."
-// 实际输出: "The quick brown fox jumps over th ulazy dog..."
-```
-
-**已排查**:
-- ✅ `read_bits_reverse` 函数已修复（MSB-first 位读取）
-- ✅ 固定 Huffman 解压正常工作
-- ❌ 动态 Huffman 解压输出错误
-
-**可能原因**:
-1. `build_huffman_tree` 函数构建树时逻辑错误
-2. `decode_huffman` 函数遍历树时方向判断错误
-3. 码长解码过程中的重复码处理（code 16/17/18）有 bug
-
-**参考**:
-- RFC 1951 DEFLATE 规范
-- `docs/libzip-pure-implementation-plan.md`
-
----
-
 ## 🟡 中优先级问题
 
 ### 2. PPTX 文件转换 - 动态 Huffman 压缩文件
 
-**状态**: 受问题1影响
-**相关文件**: `src/formats/pptx/`, `src/libzip/deflate.mbt`
+**状态**: ✅ 已解决
+**解决日期**: 2026-03-11
+**相关文件**: `src/libzip/deflate.mbt`
 
 **问题描述**:
 大多数 PPTX 文件使用动态 Huffman 压缩，导致转换失败。只有使用 Store 或固定 Huffman 压缩的 PPTX 文件可以正常转换。
 
-**临时解决方案**:
-使用简单的测试 PPTX 文件（Store 压缩）进行测试。
+**解决方案**:
+修复了 `decompress_dynamic_huffman` 和 `decompress_fixed_huffman` 中的滑动窗口复制 bug。问题是在复制循环中 `window_pos` 被修改导致 `src_pos` 计算错误。
+
+修复前的错误代码：
+```moonbit
+for j in 0..<length {
+  let src_pos = (window_pos - distance + j) & 0x7FFF  // BUG: window_pos 变化！
+  ...
+  window_pos = (window_pos + 1) & 0x7FFF
+}
+```
+
+修复后的正确代码：
+```moonbit
+let copy_start = window_pos - distance
+for j in 0..<length {
+  let src_pos = (copy_start + j) & 0x7FFF  // 正确：使用固定起始位置
+  ...
+  window_pos = (window_pos + 1) & 0x7FFF
+}
+```
 
 ---
 
