@@ -15,6 +15,7 @@ fn print_usage() -> Unit {
   println("  - Word (.docx)")
   println("  - PowerPoint (.pptx)")
   println("  - Excel (.xlsx)")
+  println("  - EPUB (.epub)")
   println("  - URL (http://... or https://...)")
 }
 
@@ -67,6 +68,8 @@ async fn convert_file(file_path : String) -> String {
     @pptx.PptxConverter::convert(file_path)
   } else if file_lower.has_suffix(".xlsx") {
     @xlsx.XlsxConverter::convert(file_path)
+  } else if file_lower.has_suffix(".epub") {
+    @epub.EpubConverter::convert(file_path)
   } else if file_lower.has_prefix("http://") ||
     file_lower.has_prefix("https://") {
     @html.HtmlConverter::convert(file_path)
