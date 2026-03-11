@@ -188,11 +188,7 @@ fn extract_shared_strings(events : Array[@xml.ParseEvent]) -> Array[String] {
 
 ///|
 /// Generate Markdown from all sheets
-fn generate_markdown(
-  archive : @libzip.ZipArchive,
-  sheets : Array[(String, String)],
-  shared_strings : Array[String]
-) -> String {
+fn generate_markdown(archive : @libzip.ZipArchive, sheets : Array[(String, String)], shared_strings : Array[String]) -> String {
   // First, get sheet path mapping from workbook.xml.rels
   let sheet_paths = parse_sheet_paths(archive)
 
@@ -206,7 +202,7 @@ fn generate_markdown(
     let sheet_path = find_sheet_path(rid, sheet_paths)
     match sheet_path {
       Some(path) => {
-        let sheet_md = parse_worksheet_to_markdown(archive, path, shared_strings)
+        let sheet_md = parse_worksheet_to_markdown(archive, path, sheet_name, shared_strings)
         let header = "## " + sheet_name + "\n\n"
         markdown_parts.push(header + sheet_md)
       }
@@ -272,11 +268,7 @@ fn find_sheet_path(rid : String, paths : Map[String, String]) -> String? {
 
 ///|
 /// Parse a single worksheet and convert to Markdown
-fn parse_worksheet_to_markdown(
-  archive : @libzip.ZipArchive,
-  sheet_path : String,
-  shared_strings : Array[String]
-) -> String {
+fn parse_worksheet_to_markdown(archive : @libzip.ZipArchive, sheet_path : String, sheet_name : String, shared_strings : Array[String]) -> String {
   // Ensure path starts with xl/
   let full_path = if sheet_path.has_prefix("xl/") {
     sheet_path
@@ -303,7 +295,7 @@ fn parse_worksheet_to_markdown(
 /// Sheet data structure
 priv struct SheetData {
   rows : Array[Array[String]]
-  max_cols : Int
+  mut max_cols : Int
 }
 
 ///|
@@ -318,7 +310,7 @@ fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[St
   let mut current_row : Array[String] = []
   let mut current_cell_ref = ""
   let mut current_cell_type = ""
-  let mut current_value = ""
+  let mut current_content = ""
 
   for event in events {
     match event {
@@ -332,7 +324,7 @@ fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[St
             in_cell = true
             current_cell_ref = match evt.attributes.get("r") { Some(r) => r; None => "" }
             current_cell_type = match evt.attributes.get("t") { Some(t) => t; None => "" }
-            current_value = ""
+            current_content = ""
           }
           "v" => {
             if in_cell {
@@ -363,7 +355,7 @@ fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[St
           "c" => {
             in_cell = false
             // Resolve cell value
-            let cell_value = resolve_cell_value(current_cell_type, current_value, shared_strings)
+            let cell_value = get_cell_value(current_cell_type, current_content, shared_strings)
             // Parse cell reference to get column index
             let col_idx = cell_ref_to_col_index(current_cell_ref)
             // Extend row if needed
@@ -391,9 +383,9 @@ fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[St
       }
       @xml.TextContent(evt) => {
         if in_value {
-          current_value = current_value + evt.content
+          current_content = current_content + evt.content
         } else if in_inline_t {
-          current_value = current_value + evt.content
+          current_content = current_content + evt.content
         }
       }
       _ => ()
@@ -404,38 +396,32 @@ fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[St
 }
 
 ///|
-/// Resolve cell value based on type
-fn resolve_cell_value(cell_type : String, raw_value : String, shared_strings : Array[String]) -> String {
-  match cell_type {
-    "s" => {
-      // Shared string - lookup in shared strings array
-      match parse_int(raw_value) {
-        Some(idx) => {
-          if idx >= 0 && idx < shared_strings.length() {
-            shared_strings[idx]
-          } else {
-            ""
-          }
+/// Get cell value based on type
+fn get_cell_value(cell_type : String, raw_value : String, shared_strings : Array[String]) -> String {
+  if cell_type == "s" {
+    // Shared string - lookup in shared strings array
+    match parse_int(raw_value) {
+      Some(idx) => {
+        if idx >= 0 && idx < shared_strings.length() {
+          shared_strings[idx]
+        } else {
+          ""
         }
-        None => ""
       }
+      None => ""
     }
-    "b" => {
-      // Boolean
-      if raw_value == "1" { "TRUE" } else { "FALSE" }
-    }
-    "e" => {
-      // Error - return raw value
-      raw_value
-    }
-    "inlineStr" => {
-      // Inline string - already in current_value
-      raw_value
-    }
-    _ => {
-      // Number or other - return raw value
-      raw_value
-    }
+  } else if cell_type == "b" {
+    // Boolean
+    if raw_value == "1" { "TRUE" } else { "FALSE" }
+  } else if cell_type == "e" {
+    // Error
+    raw_value
+  } else if cell_type == "inlineStr" {
+    // Inline string
+    raw_value
+  } else {
+    // Number or other
+    raw_value
   }
 }
 
@@ -444,13 +430,6 @@ fn resolve_cell_value(cell_type : String, raw_value : String, shared_strings : A
 fn parse_int(s : String) -> Int? {
   let mut result = 0
   let mut i = 0
-  let has_sign = if s.length() > 0 && s[0] == '-' {
-    i = 1
-    true
-  } else {
-    false
-  }
-  let start = i
   while i < s.length() {
     let ch = s[i]
     if ch >= '0' && ch <= '9' {
@@ -460,13 +439,7 @@ fn parse_int(s : String) -> Int? {
       return None
     }
   }
-  if i == start {
-    None
-  } else if has_sign {
-    Some(-result)
-  } else {
-    Some(result)
-  }
+  Some(result)
 }
 
 ///|
@@ -501,7 +474,7 @@ fn sheet_data_to_markdown(data : SheetData) -> String {
   let mut row_idx = 0
   for row in data.rows {
     // Extend row to match max columns
-    let mut extended_row = row
+    let extended_row = row
     while extended_row.length() < col_count {
       extended_row.push("")
     }
