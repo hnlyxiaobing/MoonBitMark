@@ -4,13 +4,13 @@
 ///|
 /// EPUB metadata extracted from OPF file
 pub(all) struct EpubMetadata {
-  mut title : Option[String]
+  mut title : String?
   mut authors : Array[String]
-  mut language : Option[String]
-  mut publisher : Option[String]
-  mut date : Option[String]
-  mut description : Option[String]
-  mut identifier : Option[String]
+  mut language : String?
+  mut publisher : String?
+  mut date : String?
+  mut description : String?
+  mut identifier : String?
 } derive(Show, Eq, ToJson)
 
 ///|
@@ -33,7 +33,7 @@ pub(all) struct ManifestItem {
   id : String
   href : String
   media_type : String
-  properties : Option[String]
+  properties : String?
 } derive(Show, Eq, ToJson)
 
 ///|
