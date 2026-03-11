@@ -17,10 +17,7 @@ pub fn XlsxConverter::new() -> XlsxConverter {
 /// Check if this converter accepts the given file
 pub fn XlsxConverter::accepts(info : @core.StreamInfo) -> Bool {
   match info.extension {
-    Some(ext) => {
-      let ext_lower = ext.to_lower()
-      ext_lower == ".xlsx"
-    }
+    Some(ext) => ext.to_lower() == ".xlsx"
     None => false
   }
 }
@@ -55,11 +52,11 @@ pub async fn XlsxConverter::convert(file_path : String) -> String {
   match @libzip.ZipArchive::open(bytes) {
     Some(archive) => {
       // Parse workbook.xml to get sheet names
-      let sheets = parse_workbook_sheets(archive)?
+      let sheets = parse_workbook_sheets(archive)
       // Parse shared strings
       let shared_strings = parse_shared_strings(archive)
       // Parse each sheet and generate markdown
-      let markdown = generate_markdown(archive, sheets, shared_strings)?
+      let markdown = generate_markdown(archive, sheets, shared_strings)
       markdown.trim()
     }
     None => fail("Failed to open XLSX file as ZIP archive")
@@ -78,12 +75,12 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 
 ///|
 /// Parse workbook.xml to get sheet names
-fn parse_workbook_sheets(archive : @libzip.ZipArchive) -> Array[(String, String)] raise {
+fn parse_workbook_sheets(archive : @libzip.ZipArchive) -> Array[(String, String)] {
   match @libzip.read_file_entry_decompressed(archive, "xl/workbook.xml") {
     Some(xml_bytes) => {
       let xml_string = xml_bytes.to_string()
       match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_sheet_info(events),
+        Ok(events) => extract_sheet_info(events)
         Err(_) => []
       }
     }
@@ -141,7 +138,7 @@ fn parse_shared_strings(archive : @libzip.ZipArchive) -> Array[String] {
     Some(xml_bytes) => {
       let xml_string = xml_bytes.to_string()
       match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_shared_strings(events),
+        Ok(events) => extract_shared_strings(events)
         Err(_) => []
       }
     }
@@ -195,9 +192,9 @@ fn generate_markdown(
   archive : @libzip.ZipArchive,
   sheets : Array[(String, String)],
   shared_strings : Array[String]
-) -> String raise {
+) -> String {
   // First, get sheet path mapping from workbook.xml.rels
-  let sheet_paths = parse_sheet_paths(archive)?
+  let sheet_paths = parse_sheet_paths(archive)
 
   let mut markdown_parts : Array[String] = []
 
@@ -206,7 +203,7 @@ fn generate_markdown(
     let sheet_path = find_sheet_path(rid, sheet_paths)
     match sheet_path {
       Some(path) => {
-        let sheet_md = parse_worksheet_to_markdown(archive, path, sheet_name, shared_strings)?
+        let sheet_md = parse_worksheet_to_markdown(archive, path, sheet_name, shared_strings)
         markdown_parts.push("## \{sheet_name\}\n\n\{sheet_md\}")
       }
       None => ()
@@ -218,12 +215,12 @@ fn generate_markdown(
 
 ///|
 /// Parse workbook.xml.rels to get r:id -> sheet path mapping
-fn parse_sheet_paths(archive : @libzip.ZipArchive) -> Map[String, String] raise {
+fn parse_sheet_paths(archive : @libzip.ZipArchive) -> Map[String, String] {
   match @libzip.read_file_entry_decompressed(archive, "xl/_rels/workbook.xml.rels") {
     Some(xml_bytes) => {
       let xml_string = xml_bytes.to_string()
       match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_sheet_paths(events),
+        Ok(events) => extract_sheet_paths(events)
         Err(_) => Map::new()
       }
     }
@@ -241,9 +238,18 @@ fn extract_sheet_paths(events : Array[@xml.ParseEvent]) -> Map[String, String] {
       @xml.ElementStart(evt) => {
         let name = strip_namespace(evt.name)
         if name == "Relationship" {
-          let id = evt.attributes.get("Id")? 
-          let target = evt.attributes.get("Target")?
-          paths[id] = target
+          // Extract attributes
+          match evt.attributes.get("Id") {
+            Some(id) => {
+              match evt.attributes.get("Target") {
+                Some(target) => {
+                  paths[id] = target
+                }
+                None => ()
+              }
+            }
+            None => ()
+          }
         }
       }
       _ => ()
@@ -266,7 +272,7 @@ fn parse_worksheet_to_markdown(
   sheet_path : String,
   sheet_name : String,
   shared_strings : Array[String]
-) -> String raise {
+) -> String {
   // Ensure path starts with xl/
   let full_path = if sheet_path.has_prefix("xl/") {
     sheet_path
@@ -306,7 +312,6 @@ fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[St
   let mut in_value = false
   let mut in_inline_str = false
   let mut in_inline_t = false
-
   let mut current_row_num = 0
   let mut current_row : Array[String] = []
   let mut current_cell_ref = ""
