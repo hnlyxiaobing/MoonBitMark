@@ -57,7 +57,7 @@ pub async fn XlsxConverter::convert(file_path : String) -> String {
       let shared_strings = parse_shared_strings(archive)
       // Parse each sheet and generate markdown
       let markdown = generate_markdown(archive, sheets, shared_strings)
-      markdown.trim()
+      markdown.trim().to_string()
     }
     None => fail("Failed to open XLSX file as ZIP archive")
   }
@@ -91,7 +91,7 @@ fn parse_workbook_sheets(archive : @libzip.ZipArchive) -> Array[(String, String)
 ///|
 /// Extract sheet name and r:id from workbook.xml events
 fn extract_sheet_info(events : Array[@xml.ParseEvent]) -> Array[(String, String)] {
-  let mut sheets : Array[(String, String)] = []
+  let sheets : Array[(String, String)] = []
   let mut in_sheet = false
   let mut current_name = ""
   let mut current_rid = ""
@@ -149,7 +149,7 @@ fn parse_shared_strings(archive : @libzip.ZipArchive) -> Array[String] {
 ///|
 /// Extract shared strings from XML events
 fn extract_shared_strings(events : Array[@xml.ParseEvent]) -> Array[String] {
-  let mut strings : Array[String] = []
+  let strings : Array[String] = []
   let mut in_si = false
   let mut in_t = false
   let mut current_string = ""
@@ -196,18 +196,23 @@ fn generate_markdown(
   // First, get sheet path mapping from workbook.xml.rels
   let sheet_paths = parse_sheet_paths(archive)
 
-  let mut markdown_parts : Array[String] = []
+  let markdown_parts : Array[String] = []
 
-  for (sheet_name, rid) in sheets.iter() {
+  // Iterate over sheets array
+  let mut idx = 0
+  while idx < sheets.length() {
+    let (sheet_name, rid) = sheets[idx]
     // Find sheet path by r:id
     let sheet_path = find_sheet_path(rid, sheet_paths)
     match sheet_path {
       Some(path) => {
-        let sheet_md = parse_worksheet_to_markdown(archive, path, sheet_name, shared_strings)
-        markdown_parts.push("## \{sheet_name\}\n\n\{sheet_md\}")
+        let sheet_md = parse_worksheet_to_markdown(archive, path, shared_strings)
+        let header = "## " + sheet_name + "\n\n"
+        markdown_parts.push(header + sheet_md)
       }
       None => ()
     }
+    idx = idx + 1
   }
 
   markdown_parts.join("\n\n")
@@ -231,7 +236,7 @@ fn parse_sheet_paths(archive : @libzip.ZipArchive) -> Map[String, String] {
 ///|
 /// Extract r:id -> Target path mapping from rels XML
 fn extract_sheet_paths(events : Array[@xml.ParseEvent]) -> Map[String, String] {
-  let mut paths : Map[String, String] = Map::new()
+  let paths : Map[String, String] = Map::new()
 
   for event in events {
     match event {
@@ -270,7 +275,6 @@ fn find_sheet_path(rid : String, paths : Map[String, String]) -> String? {
 fn parse_worksheet_to_markdown(
   archive : @libzip.ZipArchive,
   sheet_path : String,
-  sheet_name : String,
   shared_strings : Array[String]
 ) -> String {
   // Ensure path starts with xl/
@@ -298,8 +302,8 @@ fn parse_worksheet_to_markdown(
 ///|
 /// Sheet data structure
 priv struct SheetData {
-  mut rows : Array[Array[String]]
-  mut max_cols : Int
+  rows : Array[Array[String]]
+  max_cols : Int
 }
 
 ///|
@@ -307,12 +311,10 @@ priv struct SheetData {
 fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[String]) -> SheetData {
   let data = SheetData::{ rows: [], max_cols: 0 }
 
-  let mut in_row = false
   let mut in_cell = false
   let mut in_value = false
   let mut in_inline_str = false
   let mut in_inline_t = false
-  let mut current_row_num = 0
   let mut current_row : Array[String] = []
   let mut current_cell_ref = ""
   let mut current_cell_type = ""
@@ -324,11 +326,7 @@ fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[St
         let name = strip_namespace(evt.name)
         match name {
           "row" => {
-            in_row = true
-            match evt.attributes.get("r") {
-              Some(r) => current_row_num = r.to_int()
-              None => ()
-            }
+            current_row = []
           }
           "c" => {
             in_cell = true
@@ -358,7 +356,6 @@ fn extract_sheet_data(events : Array[@xml.ParseEvent], shared_strings : Array[St
         let name = strip_namespace(evt.name)
         match name {
           "row" => {
-            in_row = false
             // Add row to data
             data.rows.push(current_row)
             current_row = []
@@ -412,7 +409,7 @@ fn resolve_cell_value(cell_type : String, raw_value : String, shared_strings : A
   match cell_type {
     "s" => {
       // Shared string - lookup in shared strings array
-      match raw_value.to_int() {
+      match parse_int(raw_value) {
         Some(idx) => {
           if idx >= 0 && idx < shared_strings.length() {
             shared_strings[idx]
@@ -428,7 +425,7 @@ fn resolve_cell_value(cell_type : String, raw_value : String, shared_strings : A
       if raw_value == "1" { "TRUE" } else { "FALSE" }
     }
     "e" => {
-      // Error
+      // Error - return raw value
       raw_value
     }
     "inlineStr" => {
@@ -436,9 +433,39 @@ fn resolve_cell_value(cell_type : String, raw_value : String, shared_strings : A
       raw_value
     }
     _ => {
-      // Number or other
+      // Number or other - return raw value
       raw_value
     }
+  }
+}
+
+///|
+/// Parse integer from string
+fn parse_int(s : String) -> Int? {
+  let mut result = 0
+  let mut i = 0
+  let has_sign = if s.length() > 0 && s[0] == '-' {
+    i = 1
+    true
+  } else {
+    false
+  }
+  let start = i
+  while i < s.length() {
+    let ch = s[i]
+    if ch >= '0' && ch <= '9' {
+      result = result * 10 + (ch.to_int() - '0'.to_int())
+      i = i + 1
+    } else {
+      return None
+    }
+  }
+  if i == start {
+    None
+  } else if has_sign {
+    Some(-result)
+  } else {
+    Some(result)
   }
 }
 
@@ -446,7 +473,8 @@ fn resolve_cell_value(cell_type : String, raw_value : String, shared_strings : A
 /// Convert cell reference (e.g., "A1", "C10") to column index
 fn cell_ref_to_col_index(cell_ref : String) -> Int {
   let mut col_idx = 0
-  for ch in cell_ref.iter() {
+  let chars = cell_ref.iter()
+  for ch in chars {
     if ch >= 'A' && ch <= 'Z' {
       col_idx = col_idx * 26 + (ch.to_int() - 'A'.to_int() + 1)
     } else if ch >= 'a' && ch <= 'z' {
@@ -491,7 +519,7 @@ fn sheet_data_to_markdown(data : SheetData) -> String {
     row_idx = row_idx + 1
   }
 
-  markdown.trim()
+  markdown.trim().to_string()
 }
 
 ///|
