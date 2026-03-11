@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/formats/xlsx"
+
+import {
+  "moonbitlang/moonbitmark/src/core",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct XlsxConverter {
+  dummy : Int
+}
+pub fn XlsxConverter::accepts(@core.StreamInfo) -> Bool
+pub async fn XlsxConverter::convert(String) -> String
+pub fn XlsxConverter::new() -> Self
+
+// Type aliases
+
+// Traits
+
