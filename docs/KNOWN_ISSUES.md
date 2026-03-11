@@ -59,18 +59,90 @@ let result = deflate_decompress(compressed)
 
 ## 🟢 低优先级问题
 
-### 3. 废弃函数警告
+### 3. 编译警告清理
 
 **状态**: 待清理
-**相关文件**: `src/libzip/deflate.mbt`, `src/formats/pptx/parser.mbt`
+**相关文件**: 多个文件
 
 **问题描述**:
-存在一些已弃用的函数调用：
-- `to_int()` 应改为 `reinterpret_as_int()`
-- `Char::from_int()` 应改为 `Int::to_char()` 或 `Int::unsafe_to_char()`
-- `Map::size()` 应改为 `Map::length()`
+存在一些编译警告：
+- `unused_error_type`: 未使用的错误类型
+- `unused_value`: 未使用的变量
+- `reserved_keyword`: 使用保留关键字 `local`
 
-**影响**: 编译警告，不影响功能
+**影响**: 仅编译警告，不影响功能
+
+---
+
+### 4. DOCX 功能限制
+
+**状态**: 功能限制
+**相关文件**: `src/formats/docx/`
+
+**问题描述**:
+DOCX 转换器目前仅支持纯文本提取：
+- ❌ 不支持格式保留（粗体/斜体）
+- ❌ 不支持表格
+- ❌ 不支持图片
+
+---
+
+### 5. XLSX 功能限制
+
+**状态**: 功能限制
+**相关文件**: `src/formats/xlsx/`
+
+**问题描述**:
+XLSX 转换器目前支持基础功能：
+- ✅ 多工作表支持
+- ✅ 共享字符串
+- ✅ 基础数据类型（字符串、数字、布尔值）
+- ❌ 不支持样式（日期/货币格式）
+- ❌ 不支持合并单元格
+- ❌ 不支持公式计算
+
+---
+
+## ✅ 已解决问题
+
+### 6. XLSX 转换器开发 (2026-03-11)
+
+**状态**: ✅ 已解决
+**相关文件**: `src/formats/xlsx/`
+
+**问题描述**:
+需要实现 XLSX 格式的转换支持。
+
+**解决方案**:
+1. 实现 `XlsxConverter` 转换器
+2. 使用 SAX 风格 XML 解析器解析 `sheetN.xml`
+3. 解析 `workbook.xml` 获取工作表列表
+4. 解析 `sharedStrings.xml` 获取共享字符串
+5. 支持单元格坐标转换（A1 → 行0列0）
+6. 生成 Markdown 表格格式
+
+**实现文件**:
+- `src/formats/xlsx/converter.mbt` - 主转换逻辑
+- `src/formats/xlsx/converter_test.mbt` - 单元测试
+
+---
+
+### 7. libzip Stored 和 Fixed Huffman 解压 (2026-03-10)
+
+**状态**: ✅ 已解决
+**相关文件**: `src/libzip/deflate.mbt`
+
+**问题描述**:
+需要实现 ZIP 文件的 Deflate 解压功能。
+
+**解决方案**:
+1. 实现 `deflate_decompress` 函数
+2. 支持 Stored（无压缩）块
+3. 支持 Fixed Huffman 编码块
+4. 实现 CRC32 校验
+
+**限制**:
+动态 Huffman 编码仍有 bug（见问题1）
 
 ---
 
