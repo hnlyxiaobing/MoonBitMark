@@ -7,7 +7,7 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
   let reader = BitReader::new(input)
   let output : Array[Byte] = Array::new()
 
-  // 读取头部
+  // 读取头部 - bfinal (1 bit)
   let bfinal_result = reader.read_bits(1)
   let bfinal = match bfinal_result {
     Ok(v) => v == 1
@@ -15,6 +15,7 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
   }
   ignore(bfinal)
 
+  // 读取块类型 (2 bits)
   let btype_result = reader.read_bits(2)
   let btype = match btype_result {
     Ok(v) => v
@@ -206,8 +207,10 @@ fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? 
       }
 
       // 从滑动窗口复制
+      // 保存起始位置，因为 window_pos 会在循环中变化
+      let copy_start = window_pos - distance
       for i in 0..<length {
-        let src_pos = (window_pos - distance + i) & 0x7FFF
+        let src_pos = (copy_start + i) & 0x7FFF
         let byte = window[src_pos]
         output.push(byte)
         window[window_pos] = byte
@@ -652,8 +655,10 @@ fn decompress_dynamic_huffman(
       }
 
       // 从滑动窗口复制
+      // 保存起始位置，因为 window_pos 会在循环中变化
+      let copy_start = window_pos - distance
       for j in 0..<length {
-        let src_pos = (window_pos - distance + j) & 0x7FFF
+        let src_pos = (copy_start + j) & 0x7FFF
         let byte = window[src_pos]
         output.push(byte)
         window[window_pos] = byte
