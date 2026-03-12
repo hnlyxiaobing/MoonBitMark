@@ -3,10 +3,11 @@
 use @types.*
 use @jsonrpc.*
 use @converter_bridge.*
+use @util.*
 
 ///|
 /// 工具函数类型
-pub(all) type ToolHandler = (JsonValue) -> McpToolResult raise
+pub(all) type ToolHandler = (JsonValue) -> Future[McpToolResult]
 
 ///|
 /// 工具定义
@@ -40,12 +41,12 @@ pub fn ToolRegistry::register(self : ToolRegistry, tool : ToolDefinition) -> Too
 }
 
 ///|
-/// 调用工具
-pub fn ToolRegistry::call(self : ToolRegistry, name : String, args : JsonValue) -> McpToolResult raise {
+/// 调用工具 (async)
+pub fn ToolRegistry::call(self : ToolRegistry, name : String, args : JsonValue) -> Future[McpToolResult] {
   match self.tools.get(name) {
     Some(tool) => tool.handler(args)
     None => {
-      McpToolResult::{
+      Future::ready(McpToolResult::{
         content: [
           TextContent::{
             type: "text",
@@ -53,7 +54,7 @@ pub fn ToolRegistry::call(self : ToolRegistry, name : String, args : JsonValue) 
           }
         ],
         isError: true
-      }
+      })
     }
   }
 }
@@ -105,12 +106,12 @@ pub fn ToolRegistry::register_convert_tools(self : ToolRegistry) -> ToolRegistry
 
 ///|
 /// 文档转换处理函数
-fn convert_to_markdown_handler(args : JsonValue) -> McpToolResult raise {
+fn convert_to_markdown_handler(args : JsonValue) -> Future[McpToolResult] {
   // 解析 URI 参数
   let uri = match args.get("uri") {
     Some(String(u)) => u
     _ => {
-      return McpToolResult::{
+      return Future::ready(McpToolResult::{
         content: [
           TextContent::{
             type: "text",
@@ -118,12 +119,12 @@ fn convert_to_markdown_handler(args : JsonValue) -> McpToolResult raise {
           }
         ],
         isError: true
-      }
+      })
     }
   }
 
   // 检查 URI 类型
-  let markdown = if uri.starts_with("http://") || uri.starts_with("https://") {
+  let markdown_future = if uri.starts_with("http://") || uri.starts_with("https://") {
     // URL 转换
     convert_from_url(uri)
   } else if uri.starts_with("file://") {
@@ -135,54 +136,56 @@ fn convert_to_markdown_handler(args : JsonValue) -> McpToolResult raise {
     convert_from_file(uri)
   }
 
-  match markdown {
-    Ok(md) => {
-      McpToolResult::{
-        content: [
-          TextContent::{
-            type: "text",
-            text: md
-          }
-        ],
-        isError: false
+  // Map future result to tool result
+  map_future(markdown_future, fn(markdown) {
+    match markdown {
+      Ok(md) => {
+        McpToolResult::{
+          content: [
+            TextContent::{
+              type: "text",
+              text: md
+            }
+          ],
+          isError: false
+        }
+      }
+      Err(e) => {
+        McpToolResult::{
+          content: [
+            TextContent::{
+              type: "text",
+              text: "Error converting document: " + e.to_string()
+            }
+          ],
+          isError: true
+        }
       }
     }
-    Err(e) => {
-      McpToolResult::{
-        content: [
-          TextContent::{
-            type: "text",
-            text: "Error converting document: " + e.to_string()
-          }
-        ],
-        isError: true
-      }
-    }
+  })
+}
+
+///|
+/// Map over future values
+fn map_future[T, U](future : Future[T], f : (T) -> U) -> Future[U] {
+  // For now, this is a simplified implementation
+  // In a real async runtime, this would chain futures
+  match future.await() {
+    Ok(value) => Future::ready(f(value))
+    Err(e) => Future::error(e)
   }
 }
 
 ///|
 /// 从文件转换
-fn convert_from_file(file_path : String) -> Result[String, String] {
+fn convert_from_file(file_path : String) -> Future[String] {
   // 使用转换器桥接来处理所有支持的格式
-  // 注意: 由于 async 函数的限制,这里需要返回占位符
-  // 实际实现需要在异步上下文中调用
-
-  // 检测文件类型
-  let doc_type = detect_document_type(file_path)
-
-  if doc_type == "unknown" {
-    return Err("Unsupported file format: " + file_path)
-  }
-
-  // 临时返回格式信息,实际转换需要异步支持
-  Ok("# Document Conversion\n\n**File:** " + file_path + "\n**Type:** " + doc_type + "\n\n*Note: Full conversion will be implemented with async support.*")
+  convert_to_markdown(file_path)
 }
 
 ///|
 /// 从 URL 转换
-fn convert_from_url(url : String) -> Result[String, String] {
-  // 使用 HTML 转换器处理 URL
-  // 注意: 由于 async 函数的限制,这里需要返回占位符
-  Ok("# Web Page Conversion\n\n**URL:** " + url + "\n\n*Note: Full conversion will be implemented with async support.*")
+fn convert_from_url(url : String) -> Future[String] {
+  // 使用转换器桥接处理 URL
+  convert_to_markdown(url)
 }

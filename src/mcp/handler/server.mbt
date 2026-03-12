@@ -6,6 +6,7 @@ use @types.*
 use @transport.*
 use @handler.*
 use @util.*
+use @async_runtime.*
 
 ///|
 /// MCP 服务器
@@ -167,14 +168,18 @@ fn McpServer::handle_tools_list(self : McpServer, id : JsonId?) -> JsonResponse 
 }
 
 ///|
-/// 工具调用处理
+/// 工具调用处理 (async)
 fn McpServer::handle_tools_call(self : McpServer, params : JsonValue?, id : JsonId?) -> JsonResponse {
   match params {
     Some(p) => {
       // 尝试解析工具调用参数
       match parse_tool_call_params(p) {
         Ok(call_params) => {
-          match self.tools.call(call_params.name, call_params.arguments) {
+          // Call tool (returns Future)
+          let result_future = self.tools.call(call_params.name, call_params.arguments)
+
+          // Wait for future to complete (blocking for now)
+          match block_on(result_future) {
             Ok(result) => {
               JsonResponse::{
                 jsonrpc: "2.0",
