@@ -1,0 +1,34 @@
+{
+  "is": "pkg",
+  "pkg": {
+    "name": "moonbitmark/mcp/util",
+    "version": "0.1.0",
+    "description": "MCP utility functions (logging, error handling)",
+    "authors": ["MoonBitMark Team"],
+    "license": "MIT",
+    "readme": "README.md",
+    "homepage": "https://github.com/moonbitlang/moonbitmark",
+    "repository": "https://github.com/moonbitlang/moonbitmark",
+    "keywords": ["mcp", "logging", "error-handling"],
+    "categories": ["utilities"]
+  },
+  "deps": {
+    "target": {
+      "moon": "moonbitlang/core ~> 0.1"
+    },
+    "dev": {}
+  },
+  "readmes": {},
+  "metadata": {
+    "build": {
+      "backend": "wasm",
+      "wasm": {
+        "runtime": "wasmedge",
+        "gc": "v8",
+        "link": {
+          "strip": true
+        }
+      }
+    }
+  }
+}

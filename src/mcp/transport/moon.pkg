@@ -1,0 +1,8 @@
+{
+  "name": "moonbitlang/moonbitmark-mcp-transport",
+  "version": "0.1.0",
+  "deps": {
+    "moonbitlang/async": "0.16.7",
+    "moonbitlang/moonbitmark-mcp-types": "0.1.0"
+  }
+}

@@ -109,7 +109,8 @@ main.exe https://www.moonbitlang.com output.md
 | **XLSX 转换器** | 580 行 |
 | **PPTX 转换器** | 582 行 |
 | **EPUB 转换器** | 394 行 |
-| **总计** | **~5,311 行** |
+| **MCP 模块** 🆕 | ~1,410 行 |
+| **总计** | **~6,721 行** |
 
 ### 依赖项
 
@@ -278,7 +279,45 @@ moon info && moon fmt
 
 ## 更新日志
 
-### v0.6.0 (2026-03-11) - 当前版本
+### v0.7.0 (2026-03-12) - 当前版本 🆕
+
+**新增功能:**
+- **MCP 服务器支持** - 实现 Model Context Protocol 服务器
+  - 完整的 JSON-RPC 2.0 协议支持
+  - STDIO 传输层实现
+  - `convert_to_markdown` 工具
+  - 完整的 MCP 协议处理 (initialize, tools/list, tools/call)
+  - **完整的 JSON 解析器** 🆕
+  - **转换器桥接** 🆕
+  - **错误处理和日志** 🆕
+- **新增模块:**
+  - `src/mcp/types/` - MCP 和 JSON-RPC 类型定义
+  - `src/mcp/transport/` - STDIO 传输层
+  - `src/mcp/handler/` - MCP 请求处理和工具注册
+  - `src/mcp/util/` - 日志和错误处理 🆕
+  - `cmd/mcp-server/` - MCP 服务器 CLI 入口
+
+**文档更新:**
+- [MCP 服务器使用指南](docs/mcp-server-usage.md)
+- [MCP 服务设计文档](docs/mcp-service-design.md)
+- [MCP 实现总结](docs/mcp-implementation-summary.md)
+- [短期改进完成总结](docs/short-term-improvements-summary.md) 🆕
+
+**技术实现:**
+- 完整的 MCP 协议框架 (约 1,410 行代码) 🆕
+- 完整的 JSON 解析器 (递归下降解析器) 🆕
+- 转换器桥接模块 (支持所有格式) 🆕
+- 类型安全的错误处理和日志系统 🆕
+- 类型安全的工具注册和调用
+- Claude Desktop 集成支持
+
+**已知限制:**
+- JSON 解析器: Unicode 转义未完全实现,不支持科学计数法
+- 异步支持: 转换器桥接需要异步运行时
+- 日志时间戳: 使用占位符实现
+- 仅支持 STDIO 传输,HTTP/SSE 传输待实现
+
+### v0.6.0 (2026-03-11)
 
 **新增功能:**
 - EPUB 格式支持（纯 MoonBit 实现）
@@ -328,4 +367,4 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ---
 
-**最后更新:** 2026-03-11 | **版本:** 0.6.0 | **代码:** 5,311 行
+**最后更新:** 2026-03-12 | **版本:** 0.7.0 | **代码:** 6,721 行
