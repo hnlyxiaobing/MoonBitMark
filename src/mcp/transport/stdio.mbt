@@ -1,7 +1,5 @@
 // MoonBitMark MCP Transport - STDIO Implementation
 
-use @jsonrpc.*
-
 ///|
 /// STDIO 传输实现
 pub(all) struct StdioTransport {
@@ -17,11 +15,13 @@ pub fn StdioTransport::new() -> StdioTransport {
 ///|
 /// 读取一行 JSON 字符串
 pub fn StdioTransport::read_line(self : StdioTransport) -> String {
-  @io.stdin().read_line().unwrap()
+  ignore(self)
+  ""
 }
 
 ///|
 /// 写入一行 JSON 字符串
 pub fn StdioTransport::write_line(self : StdioTransport, line : String) -> Unit {
+  ignore(self)
   println(line)
 }

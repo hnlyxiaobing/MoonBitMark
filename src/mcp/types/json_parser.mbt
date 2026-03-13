@@ -1,99 +1,99 @@
-// MoonBitMark MCP JSON Parser - Enhanced with Unicode and Scientific Notation
+// MoonBitMark MCP Types - JSON Parser
 
 ///|
-/// JSON 解析错误类型
-pub(all) type JsonParseError =
-  | UnexpectedEnd
-  | ExpectedChar(Char)
-  | InvalidEscape(Char)
-  | ExpectedColon
-  | ExpectedCommaOrBrace
-  | InvalidJson(String)
+pub enum JsonParseError {
+  UnexpectedEnd
+  ExpectedChar(Int)
+  InvalidEscape(Int)
+  ExpectedColon
+  ExpectedCommaOrTerminator
+  InvalidJson(String)
+}
 
-pub(all) fn JsonParseError::to_string(self : JsonParseError) -> String {
+///|
+pub fn JsonParseError::to_string(self : JsonParseError) -> String {
   match self {
     UnexpectedEnd => "Unexpected end of JSON input"
-    ExpectedChar(c) => "Expected character: '" + c.to_string() + "'"
-    InvalidEscape(c) => "Invalid escape sequence: \\" + c.to_string()
+    ExpectedChar(ch) => "Expected character: '" + ch.unsafe_to_char().to_string() + "'"
+    InvalidEscape(ch) => "Invalid escape sequence: \\" + ch.unsafe_to_char().to_string()
     ExpectedColon => "Expected ':'"
-    ExpectedCommaOrBrace => "Expected ',' or '}'"
-    InvalidJson(msg) => "Invalid JSON: " + msg
+    ExpectedCommaOrTerminator => "Expected ',' or closing delimiter"
+    InvalidJson(message) => "Invalid JSON: " + message
   }
 }
 
 ///|
-/// 解析 JSON 字符串
-pub(all) fn parse_json(input : String) -> Result[JsonValue, JsonParseError] {
-  let mut index = 0
-  parse_value(input, { index: index })
+priv struct ParserState {
+  mut index : Int
 }
 
 ///|
-/// 解析 JSON 值
-fn parse_value(input : String, state : { index : Int }) -> Result[JsonValue, JsonParseError] {
+pub fn parse_json(input : String) -> Result[JsonValue, JsonParseError] {
+  let state = ParserState::{ index: 0 }
+  match parse_value(input, state) {
+    Ok(value) => {
+      skip_whitespace(input, state)
+      if state.index != input.length() {
+        Err(InvalidJson("Trailing content"))
+      } else {
+        Ok(value)
+      }
+    }
+    Err(error) => Err(error)
+  }
+}
+
+///|
+fn parse_value(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
   skip_whitespace(input, state)
 
   if state.index >= input.length() {
     return Err(UnexpectedEnd)
   }
 
-  let c = input.at(state.index) catch { return Err(UnexpectedEnd) }
-
-  match c {
-    '"' => parse_string(input, state)
-    '{' => parse_object(input, state)
-    '[' => parse_array(input, state)
-    't' => parse_literal(input, state, "true", Bool(true))
-    'f' => parse_literal(input, state, "false", Bool(false))
-    'n' => parse_literal(input, state, "null", Null)
-    '0'..'9' | '-' => parse_number(input, state)
-    _ => Err(ExpectedChar(c))
+  let ch = char_code_at(input, state.index)
+  match ch {
+    34 => parse_string(input, state)
+    123 => parse_object(input, state)
+    91 => parse_array(input, state)
+    116 => parse_literal(input, state, "true", Bool(true))
+    102 => parse_literal(input, state, "false", Bool(false))
+    110 => parse_literal(input, state, "null", Null)
+    45 => parse_number(input, state)
+    _ =>
+      if is_digit(ch) {
+        parse_number(input, state)
+      } else {
+        Err(ExpectedChar(ch))
+      }
   }
 }
 
 ///|
-/// 解析字符串（支持 Unicode 转义）
-fn parse_string(input : String, state : { index : Int }) -> Result[JsonValue, JsonParseError] {
-  state.index = state.index + 1 // 跳过开头的 "
-
+fn parse_string(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+  state.index = state.index + 1
   let mut result = ""
 
   while state.index < input.length() {
-    let c = input.at(state.index) catch { return Err(UnexpectedEnd) }
-
-    if c == '"' {
+    let ch = input.at(state.index)
+    if ch == 34 {
       state.index = state.index + 1
       return Ok(String(result))
-    } else if c == '\\' {
+    }
+
+    if ch == 92 {
       state.index = state.index + 1
       if state.index >= input.length() {
         return Err(UnexpectedEnd)
       }
-
-      let escaped = input.at(state.index) catch { return Err(UnexpectedEnd) }
+      let escaped = char_code_at(input, state.index)
       state.index = state.index + 1
-
-      let decoded = match escaped {
-        '"' => '"'
-        '\\' => '\\'
-        '/' => '/'
-        'b' => '\b'
-        'f' => '\f'
-        'n' => '\n'
-        'r' => '\r'
-        't' => '\t'
-        'u' => {
-          // Unicode 转义 \uXXXX
-          match parse_unicode_escape(input, state) {
-            Ok(char) => char
-            Err(e) => return Err(e)
-          }
-        }
-        _ => return Err(InvalidEscape(escaped))
+      match decode_escape(input, state, escaped) {
+        Ok(decoded) => result = result + decoded.to_string()
+        Err(error) => return Err(error)
       }
-      result = result + decoded.to_string()
     } else {
-      result = result + c.to_string()
+      result = result + ch.unsafe_to_char().to_string()
       state.index = state.index + 1
     }
   }
@@ -102,286 +102,315 @@ fn parse_string(input : String, state : { index : Int }) -> Result[JsonValue, Js
 }
 
 ///|
-/// 解析 Unicode 转义 \uXXXX
-fn parse_unicode_escape(input : String, state : { index : Int }) -> Result[Char, JsonParseError] {
-  // 确保后面有 4 个十六进制字符
+fn decode_escape(
+  input : String,
+  state : ParserState,
+  escaped : Int,
+) -> Result[Char, JsonParseError] {
+  match escaped {
+    34 => Ok('"')
+    92 => Ok('\\')
+    47 => Ok('/')
+    98 => Ok('\b')
+    102 => Ok('\f')
+    110 => Ok('\n')
+    114 => Ok('\r')
+    116 => Ok('\t')
+    117 => parse_unicode_escape(input, state)
+    _ => Err(InvalidEscape(escaped))
+  }
+}
+
+///|
+fn parse_unicode_escape(
+  input : String,
+  state : ParserState,
+) -> Result[Char, JsonParseError] {
   if state.index + 4 > input.length() {
     return Err(UnexpectedEnd)
   }
 
-  let hex_str = input[state.index : state.index + 4].to_string()
+  let hex = input[state.index:state.index + 4].to_string()
   state.index = state.index + 4
 
-  // 解析十六进制字符串为整数
-  match hex_to_int(hex_str) {
-    Some(code_point) => {
-      // 简化实现：直接使用字符码
-      // 注意：完整实现需要处理代理对 (surrogate pairs)
-      if code_point < 128 {
-        // ASCII 字符
-        Ok(char_from_int(code_point) catch { return Err(InvalidJson("Invalid Unicode escape")) })
-      } else {
-        // 非 ASCII 字符，使用占位符
-        // 完整实现需要正确处理 UTF-8 编码
-        Ok('?')
+  match hex_to_int(hex) {
+    Some(codepoint) =>
+      match codepoint.to_char() {
+        Some(ch) => Ok(ch)
+        None => Err(InvalidJson("Invalid unicode code point: " + hex))
       }
-    }
-    None => Err(InvalidJson("Invalid Unicode escape: " + hex_str))
+    None => Err(InvalidJson("Invalid unicode escape: " + hex))
   }
 }
 
 ///|
-/// 十六进制字符串转整数
-fn hex_to_int(hex : String) -> Int? {
-  let mut result = 0
-  let mut i = 0
+fn parse_object(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+  state.index = state.index + 1
+  let entries : Map[String, JsonValue] = Map::new()
 
-  while i < hex.length() {
-    let c = hex.at(i) catch { return None }
-    let digit = match c {
-      '0'..'9' => (c - '0')
-      'a'..'f' => (c - 'a' + 10)
-      'A'..'F' => (c - 'A' + 10)
-      _ => return None
-    }
-    result = result * 16 + digit
-    i = i + 1
-  }
-
-  Some(result)
-}
-
-///|
-/// 从整数创建字符（简化实现）
-fn char_from_int(code : Int) -> Char? {
-  if code >= 0 && code < 128 {
-    Some(code.to_char())
-  } else {
-    None
-  }
-}
-
-///|
-/// 解析对象
-fn parse_object(input : String, state : { index : Int }) -> Result[JsonValue, JsonParseError] {
-  state.index = state.index + 1 // 跳过 {
-
-  let mut map = Map::empty()
   skip_whitespace(input, state)
-
-  // 检查是否为空对象
-  if state.index < input.length() && input.at(state.index) catch { return Err(UnexpectedEnd) } == '}' {
+  if is_current_char(input, state, 125) {
     state.index = state.index + 1
-    return Ok(Object(map))
+    return Ok(Object(entries))
   }
 
-  // 解析键值对
   while true {
-    skip_whitespace(input, state)
-
-    // 解析键
-    match parse_value(input, state) {
-      Ok(String(key)) => {
-        skip_whitespace(input, state)
-
-        // 检查冒号
-        if state.index >= input.length() || input.at(state.index) catch { return Err(UnexpectedEnd) } != ':' {
-          return Err(ExpectedColon)
-        }
-        state.index = state.index + 1
-
-        skip_whitespace(input, state)
-
-        // 解析值
-        match parse_value(input, state) {
-          Ok(value) => {
-            map = map.insert(key, value)
-          }
-          Err(e) => return Err(e)
-        }
-      }
-      Ok(_) => return Err(ExpectedChar('"'))
-      Err(e) => return Err(e)
+    let key_value = match parse_string(input, state) {
+      Ok(value) => value
+      Err(error) => return Err(error)
+    }
+    let key = match key_value {
+      String(value) => value
+      _ => return Err(InvalidJson("Object key must be a string"))
     }
 
     skip_whitespace(input, state)
-
-    // 检查下一个字符
-    if state.index >= input.length() {
-      return Err(UnexpectedEnd)
+    if !is_current_char(input, state, 58) {
+      return Err(ExpectedColon)
     }
+    state.index = state.index + 1
 
-    let next = input.at(state.index) catch { return Err(UnexpectedEnd) }
+    let value = match parse_value(input, state) {
+      Ok(parsed) => parsed
+      Err(error) => return Err(error)
+    }
+    entries[key] = value
 
-    if next == '}' {
+    skip_whitespace(input, state)
+    if is_current_char(input, state, 125) {
       state.index = state.index + 1
       break
-    } else if next == ',' {
-      state.index = state.index + 1
-      continue
-    } else {
-      return Err(ExpectedCommaOrBrace)
     }
+    if !is_current_char(input, state, 44) {
+      return Err(ExpectedCommaOrTerminator)
+    }
+    state.index = state.index + 1
   }
 
-  Ok(Object(map))
+  Ok(Object(entries))
 }
 
 ///|
-/// 解析数组
-fn parse_array(input : String, state : { index : Int }) -> Result[JsonValue, JsonParseError] {
-  state.index = state.index + 1 // 跳过 [
+fn parse_array(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+  state.index = state.index + 1
+  let values : Array[JsonValue] = []
 
-  let mut array = Array::empty()
   skip_whitespace(input, state)
-
-  // 检查是否为空数组
-  if state.index < input.length() && input.at(state.index) catch { return Err(UnexpectedEnd) } == ']' {
+  if is_current_char(input, state, 93) {
     state.index = state.index + 1
-    return Ok(Array(array))
+    return Ok(Array(values))
   }
 
-  // 解析元素
   while true {
-    skip_whitespace(input, state)
-
     match parse_value(input, state) {
-      Ok(value) => {
-        array = array.push(value)
-      }
-      Err(e) => return Err(e)
+      Ok(value) => values.push(value)
+      Err(error) => return Err(error)
     }
-
     skip_whitespace(input, state)
 
-    // 检查下一个字符
-    if state.index >= input.length() {
-      return Err(UnexpectedEnd)
-    }
-
-    let next = input.at(state.index) catch { return Err(UnexpectedEnd) }
-
-    if next == ']' {
+    if is_current_char(input, state, 93) {
       state.index = state.index + 1
       break
-    } else if next == ',' {
-      state.index = state.index + 1
-      continue
-    } else {
-      return Err(ExpectedCommaOrBrace)
     }
+    if !is_current_char(input, state, 44) {
+      return Err(ExpectedCommaOrTerminator)
+    }
+    state.index = state.index + 1
   }
 
-  Ok(Array(array))
+  Ok(Array(values))
 }
 
 ///|
-/// 解析数字（支持科学计数法）
-fn parse_number(input : String, state : { index : Int }) -> Result[JsonValue, JsonParseError] {
-  let mut start = state.index
+fn parse_number(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+  let start = state.index
 
-  // 处理负号
-  if state.index < input.length() && input.at(state.index) catch { return Err(UnexpectedEnd) } == '-' {
+  if is_current_char(input, state, 45) {
     state.index = state.index + 1
   }
 
-  // 处理整数部分
-  while state.index < input.length() {
-    let c = input.at(state.index) catch { break }
-    if c < '0' || c > '9' {
-      break
-    }
+  consume_digits(input, state)
+
+  let mut has_decimal = false
+  if is_current_char(input, state, 46) {
+    has_decimal = true
     state.index = state.index + 1
+    consume_digits(input, state)
   }
 
-  // 检查是否有小数部分
-  let has_decimal = if state.index < input.length() && input.at(state.index) catch { false } == '.' {
-    state.index = state.index + 1
-
-    while state.index < input.length() {
-      let c = input.at(state.index) catch { break }
-      if c < '0' || c > '9' {
-        break
-      }
+  let mut has_exponent = false
+  if state.index < input.length() {
+    let ch = input.at(state.index)
+    if ch == 101 || ch == 69 {
+      has_exponent = true
       state.index = state.index + 1
-    }
-    true
-  } else {
-    false
-  }
-
-  // 检查是否有指数部分（科学计数法）
-  let has_exponent = if state.index < input.length() {
-    let c = input.at(state.index) catch { false }
-    c == 'e' || c == 'E'
-  } else {
-    false
-  }
-
-  if has_exponent {
-    state.index = state.index + 1
-
-    // 处理指数符号
-    if state.index < input.length() {
-      let c = input.at(state.index) catch { return Err(UnexpectedEnd) }
-      if c == '+' || c == '-' {
-        state.index = state.index + 1
+      if state.index < input.length() {
+        let sign = input.at(state.index)
+        if sign == 43 || sign == 45 {
+          state.index = state.index + 1
+        }
       }
-    }
-
-    // 处理指数数字
-    while state.index < input.length() {
-      let c = input.at(state.index) catch { break }
-      if c < '0' || c > '9' {
-        break
-      }
-      state.index = state.index + 1
+      consume_digits(input, state)
     }
   }
 
-  // 解析为浮点数（如果有小数或指数）
+  let number_text = input[start:state.index].to_string()
   if has_decimal || has_exponent {
-    let num_str = input[start:state.index].to_string()
-    match num_str.to_float() {
-      Some(f) => Ok(Float(f))
-      None => Err(InvalidJson("Invalid float: " + num_str))
+    match parse_float(number_text) {
+      Some(value) => Ok(Float(value))
+      None => Err(InvalidJson("Invalid float: " + number_text))
     }
   } else {
-    // 解析为整数
-    let num_str = input[start:state.index].to_string()
-    match num_str.to_int() {
-      Some(n) => Ok(Number(n))
-      None => Err(InvalidJson("Invalid number: " + num_str))
+    try {
+      Ok(Number(@strconv.parse_int(number_text)))
+    } catch {
+      _ => Err(InvalidJson("Invalid number: " + number_text))
     }
   }
 }
 
 ///|
-/// 解析字面量 (true, false, null)
-fn parse_literal(input : String, state : { index : Int }, literal : String, value : JsonValue) -> Result[JsonValue, JsonParseError] {
+fn parse_literal(
+  input : String,
+  state : ParserState,
+  literal : String,
+  value : JsonValue,
+) -> Result[JsonValue, JsonParseError] {
   if state.index + literal.length() > input.length() {
     return Err(UnexpectedEnd)
   }
 
-  let actual = input[state.index : state.index + literal.length()].to_string()
-
+  let actual = input[state.index:state.index + literal.length()].to_string()
   if actual == literal {
     state.index = state.index + literal.length()
     Ok(value)
   } else {
-    Err(ExpectedChar(input.at(state.index) catch { return Err(UnexpectedEnd) }))
+    Err(InvalidJson("Expected literal: " + literal))
   }
 }
 
 ///|
-/// 跳过空白字符
-fn skip_whitespace(input : String, state : { index : Int }) {
+fn consume_digits(input : String, state : ParserState) -> Unit {
+  while state.index < input.length() && is_digit(char_code_at(input, state.index)) {
+    state.index = state.index + 1
+  }
+}
+
+///|
+fn skip_whitespace(input : String, state : ParserState) -> Unit {
   while state.index < input.length() {
-    let c = input.at(state.index) catch { break }
-    if c == ' ' || c == '\n' || c == '\r' || c == '\t' {
+    let ch = char_code_at(input, state.index)
+    if ch == 32 || ch == 10 || ch == 13 || ch == 9 {
       state.index = state.index + 1
     } else {
       break
     }
   }
+}
+
+///|
+fn is_current_char(input : String, state : ParserState, expected : Int) -> Bool {
+  state.index < input.length() && char_code_at(input, state.index) == expected
+}
+
+///|
+fn is_digit(ch : Int) -> Bool {
+  ch >= 48 && ch <= 57
+}
+
+///|
+fn hex_to_int(hex : String) -> Int? {
+  let mut result = 0
+  for ch in hex {
+    let digit = match ch {
+      '0'..='9' => ch.to_int() - '0'.to_int()
+      'a'..='f' => ch.to_int() - 'a'.to_int() + 10
+      'A'..='F' => ch.to_int() - 'A'.to_int() + 10
+      _ => return None
+    }
+    result = result * 16 + digit
+  }
+  Some(result)
+}
+
+///|
+fn parse_float(text : String) -> Float? {
+  let mut index = 0
+  let mut sign = 1.0F
+  if text.length() == 0 {
+    return None
+  }
+
+  if char_code_at(text, 0) == 45 {
+    sign = -1.0F
+    index = 1
+  } else if char_code_at(text, 0) == 43 {
+    index = 1
+  }
+
+  let mut integer_part = 0
+  while index < text.length() && is_digit(char_code_at(text, index)) {
+    integer_part = integer_part * 10 + (char_code_at(text, index) - 48)
+    index = index + 1
+  }
+
+  let mut result = Float::from_int(integer_part)
+
+  if index < text.length() && char_code_at(text, index) == 46 {
+    index = index + 1
+    let mut fraction = 0.0F
+    let mut divisor = 10.0F
+    while index < text.length() && is_digit(char_code_at(text, index)) {
+      fraction = fraction + Float::from_int(char_code_at(text, index) - 48) / divisor
+      divisor = divisor * 10.0F
+      index = index + 1
+    }
+    result = result + fraction
+  }
+
+  if index < text.length() && (char_code_at(text, index) == 101 || char_code_at(text, index) == 69) {
+    index = index + 1
+    let mut exponent_sign = 1
+    if index < text.length() && char_code_at(text, index) == 45 {
+      exponent_sign = -1
+      index = index + 1
+    } else if index < text.length() && char_code_at(text, index) == 43 {
+      index = index + 1
+    }
+
+    let mut exponent = 0
+    while index < text.length() && is_digit(char_code_at(text, index)) {
+      exponent = exponent * 10 + (char_code_at(text, index) - 48)
+      index = index + 1
+    }
+
+    let power = pow10(exponent)
+    result = if exponent_sign < 0 {
+      result / power
+    } else {
+      result * power
+    }
+  }
+
+  if index != text.length() {
+    None
+  } else {
+    Some(sign * result)
+  }
+}
+
+///|
+fn pow10(exponent : Int) -> Float {
+  let mut result = 1.0F
+  let mut i = 0
+  while i < exponent {
+    result = result * 10.0F
+    i = i + 1
+  }
+  result
+}
+
+///|
+fn char_code_at(text : String, index : Int) -> Int {
+  text.at(index).to_int()
 }

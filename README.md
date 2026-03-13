@@ -1,370 +1,169 @@
 # MoonBitMark
 
-**用 MoonBit 编写的文档转换工具 - 将多种格式转换为 Markdown**
+用 MoonBit 编写的文档转 Markdown 工具，目标是复刻并逐步逼近上游 `MarkItDown` 的核心文档转换能力，同时保持纯 MoonBit 实现路径。
 
-[![Version](https://img.shields.io/badge/version-0.6.0-orange)]()
-[![MoonBit](https://img.shields.io/badge/moonbit-latest-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-green)]()
-[![Code](https://img.shields.io/badge/code-5311%20lines-brightgreen)]()
+## 当前状态
 
----
+当前主模块已经恢复到可维护状态：
 
-## 项目简介
+- `moon check` 可以通过
+- 在 Windows + MSVC 环境下，`moon test` 可以通过
+- 主 CLI `cmd/main` 可用
+- `src/mcp/` 与 `cmd/mcp-server/` 目前保留为实验代码，但不参与主模块构建
 
-MoonBitMark 是一个用 MoonBit 语言编写的命令行文档转换工具，支持将 HTML、PDF、DOCX、XLSX、EPUB 等格式转换为 Markdown。利用 MoonBit 的静态类型系统和编译为原生代码的能力，提供类型安全和高效的转换体验。
+## 当前已实现功能
 
-**核心特性:**
-- 纯 MoonBit 实现，无 FFI 依赖
-- 编译为原生代码，启动快速
-- 完整的 ZIP/Deflate 解压支持（Store + Fixed/Dynamic Huffman）
-- SAX 风格 XML 解析器
+主 CLI 当前支持这些输入：
 
----
-
-## 支持的格式
-
-| 格式 | 状态 | 说明 |
+| 输入类型 | 状态 | 当前行为 |
 |------|------|------|
-| **TXT** | ✅ 完成 | 纯文本读取，UTF-8 支持 |
-| **CSV** | ✅ 完成 | 转换为 Markdown 表格 |
-| **JSON** | ✅ 完成 | 带语法高亮的代码块 |
-| **PDF** | ✅ 完成 | 基于 mbtpdf 库，支持页面分隔 |
-| **HTML** | ✅ 完成 | 本地文件 + URL 抓取 |
-| **DOCX** | ✅ 完成 | 纯 MoonBit (libzip + xml parser) |
-| **XLSX** | ✅ 完成 | 纯 MoonBit，多工作表、共享字符串 |
-| **EPUB** | ✅ 完成 | 纯 MoonBit，支持 Deflate 压缩 |
-| **PPTX** | ✅ 完成 | 纯 MoonBit，支持 Deflate 压缩 |
-| **URL 抓取** | ✅ 完成 | HTTP GET + HTML 转换 |
+| TXT | 已实现 | 直接读取文本 |
+| CSV | 已实现 | 转为 Markdown 表格 |
+| JSON | 已实现 | 包装为 `json` 代码块 |
+| PDF | 已实现 | 基于 `bobzhang/mbtpdf` 提取文本，并做基础后处理 |
+| HTML | 已实现 | 支持本地 HTML 文件 |
+| URL | 已实现 | 支持 `http://` / `https://`，交给 HTML 转换器 |
+| DOCX | 已实现 | 通过 `libzip` + `xml` 提取段落、标题、简单列表文本 |
+| PPTX | 已实现 | 通过 `libzip` + `xml` 提取幻灯片文本 |
+| XLSX | 已实现 | 支持多工作表、共享字符串，输出 Markdown 表格 |
+| EPUB | 已实现 | 提取书籍元数据和 spine 文本内容 |
 
----
+## 与上游 MarkItDown 的差距
 
-## 快速开始
+本项目当前只覆盖了上游 `MarkItDown` 的一部分核心能力，主要差距如下：
 
-### 前置要求
+| 能力 | 上游 MarkItDown | 当前 MoonBitMark |
+|------|------|------|
+| PDF / DOCX / PPTX / XLSX / HTML / EPUB | 支持 | 支持 |
+| TXT / CSV / JSON | 支持 | 支持 |
+| XML 文件转换 | 支持文本类输入的一部分 | 尚未作为独立输入格式接入 CLI |
+| ZIP 遍历转换 | 支持 | 未实现 |
+| 图片 OCR / EXIF | 支持或可通过插件支持 | 未实现 |
+| 音频转写 | 支持 | 未实现 |
+| YouTube / RSS / Bing / Wikipedia 等特殊 URL 转换器 | 支持 | 未实现 |
+| Outlook `.msg` / 旧版 `.xls` / notebook 等 | 支持 | 未实现 |
+| 插件体系 | 支持 | 未实现 |
+| MCP 服务 | 上游作为独立包维护 | 当前仓库仅保留实验代码，未作为正式可发布能力 |
 
-- **MoonBit 工具链**: https://docs.moonbitlang.com
-- **MSVC (Windows)**: Visual Studio Build Tools 2022
+换句话说，MoonBitMark 当前更接近一个“纯 MoonBit 文档转换器核心子集”，而不是完整对齐上游全部生态能力。
 
-### 基本用法
+## 当前实现边界
+
+- PDF：以文本提取为主，不含 OCR。
+- HTML：不支持 JavaScript 渲染。
+- DOCX：当前以文本提取为主，不保留完整富文本样式。
+- PPTX：当前以文本提取为主，不处理动画、图片等复杂元素。
+- XLSX：不做公式计算，不完整支持复杂样式。
+- EPUB：以元数据和正文文本提取为主。
+- MCP：源码仍在仓库中，但未接入当前主模块构建。
+
+## 已完成的工程修复
+
+这次整理后，项目有这些关键修复：
+
+- 修正了 README 中已经失真的版本、状态和构建说明。
+- 修正了 `moon.mod.json` 中过时的项目描述。
+- 清理了会让主模块构建直接失败的 MCP 包配置。
+- 将未完成的 MCP 子项目从主模块构建图中移除，避免影响 `moon check` / `moon test`。
+- 保留 `src/mcp/` 代码用于后续拆分独立模块，而不是继续污染主转换器模块。
+- 在本机 Windows 用户环境中切换到了 MSVC 编译链，避免 `moonbitlang/async` 测试阶段错误落到 MinGW。
+
+## Windows 构建说明
+
+当前项目在 Windows 下应使用 MSVC，而不是 MinGW。
+
+本机现已验证可用的 MSVC 路径为：
+
+```text
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\cl.exe
+```
+
+如果你刚修改过环境变量，记得重新打开终端再执行 `moon` 命令。
+
+## 使用方式
+
+### 构建
+
+推荐使用项目脚本：
+
+```bat
+scripts\build.bat
+scripts\build.bat --debug
+```
+
+或直接运行：
 
 ```bash
-# 编译项目（Release 模式）
-scripts\build_msvc.bat
-
-# 或手动编译
 moon build --target native --release
-
-# 转换文件
-_build\native\release\build\cmd\main\main.exe input.html output.md
-
-# 从 URL 抓取并转换
-_build\native\release\build\cmd\main\main.exe https://example.com/page.html output.md
-
-# 输出到控制台
-_build\native\release\build\cmd\main\main.exe document.pdf
 ```
 
-### 格式示例
+### 测试
+
+推荐使用项目脚本：
+
+```bat
+scripts\test.bat
+scripts\test.bat --update
+```
+
+或直接运行：
 
 ```bash
-# HTML 转换
-main.exe page.html output.md
-
-# PDF 转换
-main.exe document.pdf output.md
-
-# DOCX 转换
-main.exe document.docx output.md
-
-# XLSX 转换
-main.exe spreadsheet.xlsx output.md
-
-# EPUB 转换
-main.exe book.epub output.md
-
-# PPTX 转换
-main.exe presentation.pptx output.md
-
-# URL 抓取
-main.exe https://www.moonbitlang.com output.md
-```
-
----
-
-## 项目统计
-
-### 代码行数
-
-| 模块 | 代码行数 |
-|------|----------|
-| **核心模块** | 58 行 |
-| **libzip (Pure MoonBit)** | 1,453 行 |
-| **xml (Pure MoonBit)** | 880 行 |
-| **TXT 转换器** | 38 行 |
-| **CSV 转换器** | 79 行 |
-| **JSON 转换器** | 49 行 |
-| **PDF 转换器** | 136 行 |
-| **HTML 转换器** | 819 行 |
-| **DOCX 转换器** | 243 行 |
-| **XLSX 转换器** | 580 行 |
-| **PPTX 转换器** | 582 行 |
-| **EPUB 转换器** | 394 行 |
-| **MCP 模块** 🆕 | ~1,410 行 |
-| **总计** | **~6,721 行** |
-
-### 依赖项
-
-```json
-{
-  "moonbitlang/async": "文件系统、HTTP 客户端",
-  "bobzhang/mbtpdf": "PDF 文本提取"
-}
-```
-
-### 系统依赖
-
-> **注意:** 项目完全使用纯 MoonBit 实现，无需任何 C 库依赖。
-
-如需编译原生版本，Windows 需要 MSVC (Visual Studio Build Tools)。
-
----
-
-## 技术架构
-
-### 目录结构
-
-```
-MoonBitMark/
-├── src/
-│   ├── core/              # 核心类型和接口
-│   ├── libzip/            # Pure MoonBit ZIP 库
-│   │   ├── crc32.mbt      # CRC32 校验
-│   │   ├── deflate.mbt    # Deflate 解压 (Store + Fixed + Dynamic Huffman)
-│   │   └── zip.mbt        # ZIP 解析
-│   ├── xml/               # Pure MoonBit XML 解析器
-│   │   ├── types.mbt      # 类型定义
-│   │   ├── tokenizer.mbt  # 词法分析
-│   │   └── package.mbt    # SAX 解析
-│   └── formats/           # 格式转换器
-│       ├── text/          # TXT
-│       ├── csv/           # CSV
-│       ├── json/          # JSON
-│       ├── pdf/           # PDF
-│       ├── html/          # HTML + URL
-│       ├── docx/          # DOCX
-│       ├── xlsx/          # XLSX
-│       ├── pptx/          # PPTX
-│       └── epub/          # EPUB
-├── cmd/main/              # CLI 入口
-├── scripts/               # 构建/测试脚本
-└── docs/                  # 文档
-```
-
-### 转换流程
-
-```
-用户输入 → CLI → 检测类型 → 选择转换器 → 读取文件 → 转换 → 输出 Markdown
-```
-
-### DOCX/EPUB/PPTX 转换流程
-
-```
-文件 → ZIP 解析 (libzip) → Deflate 解压 → XML 解析 (xml) → Markdown
-```
-
----
-
-## Pure MoonBit libzip 实现
-
-MoonBitMark 包含一个完整的纯 MoonBit ZIP 库实现：
-
-### 功能支持
-
-| 功能 | 状态 |
-|------|------|
-| ZIP 结构解析 | ✅ |
-| Store 解压 (无压缩) | ✅ |
-| Deflate - Fixed Huffman | ✅ |
-| Deflate - Dynamic Huffman | ✅ |
-| CRC32 校验 | ✅ |
-| UTF-8 文件名 | ✅ |
-
-### 优势
-
-- 无需外部 C 库依赖
-- 编译为 WASM 可在浏览器运行
-- 内存安全，无缓冲区溢出风险
-- 代码简洁，约 1,453 行
-
----
-
-## 开发指南
-
-### 构建命令
-
-```bash
-# 检查类型
-moon check
-
-# 编译 (Windows)
-scripts\build_msvc.bat
-
-# 运行测试
 moon test
-
-# 更新快照
 moon test --update
-
-# 格式化代码
-moon fmt
-
-# 更新接口
-moon info && moon fmt
 ```
 
-### 添加新转换器
+### 转换文件
 
-1. 创建包目录 `src/formats/your_format/`
-2. 实现 `converter.mbt`:
-   - `accepts(info: @core.StreamInfo) -> Bool`
-   - `convert(file_path: String) -> String raise`
-3. 在 `cmd/main/main.mbt` 注册
+```bash
+_build/native/release/build/cmd/main/main.exe input.txt
+_build/native/release/build/cmd/main/main.exe input.docx output.md
+_build/native/release/build/cmd/main/main.exe https://example.com output.md
+```
 
----
+### CLI 支持的输入
 
-## 已知限制
+```text
+.txt .csv .json .pdf .html .htm .docx .pptx .xlsx .epub
+http://...
+https://...
+```
 
-### PDF 转换器
-- 表格检测有限 (mbtpdf 无单词位置 API)
-- 复杂 CJK 字体可能乱码
-- 图片 PDF 需要 OCR (不支持)
+## 项目结构
 
-### HTML 转换器
-- 不支持 JavaScript 渲染页面
-- CSS 样式识别有限
-- 复杂表格降级处理
+```text
+src/
+├── core/       核心类型和转换逻辑
+├── libzip/     纯 MoonBit ZIP / Deflate 实现
+├── xml/        纯 MoonBit XML 解析器
+├── formats/    各格式转换器
+│   ├── text/
+│   ├── csv/
+│   ├── json/
+│   ├── pdf/
+│   ├── html/
+│   ├── docx/
+│   ├── pptx/
+│   ├── xlsx/
+│   └── epub/
+└── mcp/        MCP 实验代码（当前不参与主模块构建）
+```
 
-### DOCX 转换器
-- 仅支持纯文本提取
-- 不支持格式保留（粗体/斜体）
-- 不支持表格
+## 开发命令
 
-### XLSX 转换器
-- 不支持日期格式识别
-- 不支持合并单元格
-- 不支持公式计算
+```bash
+moon check
+moon test
+moon test --update
+moon fmt
+moon info
+```
 
-### EPUB 转换器
-- 提取标题、作者、语言等元数据
-- 提取章节内容
-- 不支持图片提取
+## 依赖
 
-### PPTX 转换器
-- 提取幻灯片文本内容
-- 不支持图片提取
-- 不支持动画/过渡效果
-
----
-
-## 文档
-
-| 文档 | 说明 |
-|------|------|
-| [KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | 已知问题记录 |
-| [MOONBIT_DEV_KNOWLEDGE.md](docs/MOONBIT_DEV_KNOWLEDGE.md) | MoonBit 开发知识 |
-| [libzip-pure-implementation-plan.md](docs/libzip-pure-implementation-plan.md) | libzip 实现计划 |
-| [epub-converter-development-plan.md](docs/epub-converter-development-plan.md) | EPUB 转换器计划 |
-
----
-
-## 更新日志
-
-### v0.7.0 (2026-03-12) - 当前版本 🆕
-
-**新增功能:**
-- **MCP 服务器支持** - 实现 Model Context Protocol 服务器
-  - 完整的 JSON-RPC 2.0 协议支持
-  - STDIO 传输层实现
-  - `convert_to_markdown` 工具
-  - 完整的 MCP 协议处理 (initialize, tools/list, tools/call)
-  - **完整的 JSON 解析器** 🆕
-  - **转换器桥接** 🆕
-  - **错误处理和日志** 🆕
-- **新增模块:**
-  - `src/mcp/types/` - MCP 和 JSON-RPC 类型定义
-  - `src/mcp/transport/` - STDIO 传输层
-  - `src/mcp/handler/` - MCP 请求处理和工具注册
-  - `src/mcp/util/` - 日志和错误处理 🆕
-  - `cmd/mcp-server/` - MCP 服务器 CLI 入口
-
-**文档更新:**
-- [MCP 服务器使用指南](docs/mcp-server-usage.md)
-- [MCP 服务设计文档](docs/mcp-service-design.md)
-- [MCP 实现总结](docs/mcp-implementation-summary.md)
-- [短期改进完成总结](docs/short-term-improvements-summary.md) 🆕
-
-**技术实现:**
-- 完整的 MCP 协议框架 (约 1,410 行代码) 🆕
-- 完整的 JSON 解析器 (递归下降解析器) 🆕
-- 转换器桥接模块 (支持所有格式) 🆕
-- 类型安全的错误处理和日志系统 🆕
-- 类型安全的工具注册和调用
-- Claude Desktop 集成支持
-
-**已知限制:**
-- JSON 解析器: Unicode 转义未完全实现,不支持科学计数法
-- 异步支持: 转换器桥接需要异步运行时
-- 日志时间戳: 使用占位符实现
-- 仅支持 STDIO 传输,HTTP/SSE 传输待实现
-
-### v0.6.0 (2026-03-11)
-
-**新增功能:**
-- EPUB 格式支持（纯 MoonBit 实现）
-- PPTX 完整支持（Dynamic Huffman bug 已修复）
-
-**Bug 修复:**
-- 修复 Deflate 滑动窗口复制 bug
-- 修复 Dynamic Huffman 解压输出损坏问题
-
-**改进:**
-- 更新调试方法论文档
-- 完善测试覆盖
-
-### v0.5.0 (2026-03-11)
-
-**新增功能:**
-- XLSX 格式支持（多工作表、共享字符串）
-
-### v0.4.0 (2026-03-10)
-
-**新增功能:**
-- PPTX 格式基础结构
-- libzip Deflate 解压 (Fixed Huffman)
-
-### v0.3.0 (2026-03-08)
-
-**新增功能:**
-- HTML 格式支持（本地文件 + URL 抓取）
-- DOCX 格式支持（纯 MoonBit 实现）
-
-### v0.2.0 (2026-03-02)
-
-**新增功能:**
-- PDF 格式支持（基于 mbtpdf 库）
-
-### v0.1.0 (2026-03-01)
-
-**初始版本:**
-- TXT、CSV、JSON 格式支持
-- CLI 命令行工具
-
----
+- `moonbitlang/async`
+- `bobzhang/mbtpdf`
 
 ## 许可证
 
-MIT License - 详见 [LICENSE](LICENSE) 文件
-
----
-
-**最后更新:** 2026-03-12 | **版本:** 0.7.0 | **代码:** 6,721 行
+MIT

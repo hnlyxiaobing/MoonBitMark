@@ -1,191 +1,132 @@
-// MoonBitMark MCP Handler - Tool Registry and Handlers
+// MoonBitMark MCP Handler - Tool Registry
 
 use @types.*
-use @jsonrpc.*
-use @converter_bridge.*
-use @util.*
 
 ///|
-/// 工具函数类型
-pub(all) type ToolHandler = (JsonValue) -> Future[McpToolResult]
-
-///|
-/// 工具定义
 pub(all) struct ToolDefinition {
   name : String
   description : String
-  handler : ToolHandler
   input_schema : JsonValue
 }
 
 ///|
-/// 工具注册表
 pub(all) struct ToolRegistry {
   tools : Map[String, ToolDefinition]
 }
 
 ///|
-/// 创建空工具注册表
 pub fn ToolRegistry::new() -> ToolRegistry {
-  { tools: Map::empty() }
+  { tools: Map::new() }
 }
 
 ///|
-/// 注册工具
 pub fn ToolRegistry::register(self : ToolRegistry, tool : ToolDefinition) -> ToolRegistry raise {
   if self.tools.contains(tool.name) {
     fail("Tool already registered: " + tool.name)
-  } else {
-    { tools: self.tools.insert(tool.name, tool) }
   }
+
+  let tools = self.tools
+  tools[tool.name] = tool
+  { tools }
 }
 
 ///|
-/// 调用工具 (async)
-pub fn ToolRegistry::call(self : ToolRegistry, name : String, args : JsonValue) -> Future[McpToolResult] {
-  match self.tools.get(name) {
-    Some(tool) => tool.handler(args)
-    None => {
-      Future::ready(McpToolResult::{
-        content: [
-          TextContent::{
-            type: "text",
-            text: "Tool not found: " + name
-          }
-        ],
-        isError: true
-      })
-    }
-  }
-}
-
-///|
-/// 列出所有工具
 pub fn ToolRegistry::list(self : ToolRegistry) -> Array[McpTool] {
-  self.tools.values().map(fn(t) {
-    McpTool::{
-      name: t.name,
-      description: t.description,
-      input_schema: t.input_schema
-    }
-  }).to_array()
+  let items : Array[McpTool] = []
+  for (_, tool) in self.tools {
+    items.push(McpTool::{
+      name: tool.name,
+      description: tool.description,
+      input_schema: tool.input_schema,
+    })
+  }
+  items
 }
 
 ///|
-/// 注册文档转换工具
+pub async fn ToolRegistry::call(
+  self : ToolRegistry,
+  name : String,
+  args : JsonValue,
+) -> McpToolResult {
+  ignore(self)
+  match name {
+    "convert_to_markdown" => convert_to_markdown_handler(args)
+    _ =>
+      McpToolResult::{
+        content: [
+          Text(TextContent::{ type_: "text", text: "Tool not found: " + name }),
+        ],
+        is_error: true,
+      }
+  }
+}
+
+///|
 pub fn ToolRegistry::register_convert_tools(self : ToolRegistry) -> ToolRegistry raise {
-  // 创建输入 schema
-  let mut props = Map::empty()
-  props = props.insert("uri",
-    Object(
-      let mut uri_schema = Map::empty()
-      uri_schema = uri_schema.insert("type", String("string"))
-      uri_schema = uri_schema.insert("description",
-        String("URI of the document to convert (file://, http://, https://)"))
-      uri_schema
-    )
+  let uri_schema : Map[String, JsonValue] = Map::new()
+  uri_schema["type"] = String("string")
+  uri_schema["description"] = String(
+    "URI of the document to convert (file://, http://, https://)",
   )
 
-  let mut schema = Map::empty()
-  schema = schema.insert("type", String("object"))
-  schema = schema.insert("properties", Object(props))
+  let properties : Map[String, JsonValue] = Map::new()
+  properties["uri"] = Object(uri_schema)
 
-  let mut required_arr = Array::empty()
-  required_arr = required_arr.push(String("uri"))
-  schema = schema.insert("required", Array(required_arr))
+  let required : Array[JsonValue] = [String("uri")]
 
-  let convert_tool = ToolDefinition::{
+  let schema : Map[String, JsonValue] = Map::new()
+  schema["type"] = String("object")
+  schema["properties"] = Object(properties)
+  schema["required"] = Array(required)
+
+  self.register(ToolDefinition::{
     name: "convert_to_markdown",
-    description: "Convert a document (PDF, DOCX, HTML, etc.) to Markdown format",
+    description: "Convert a document to Markdown format",
     input_schema: Object(schema),
-    handler: convert_to_markdown_handler
-  }
-
-  self.register(convert_tool)?
-}
-
-///|
-/// 文档转换处理函数
-fn convert_to_markdown_handler(args : JsonValue) -> Future[McpToolResult] {
-  // 解析 URI 参数
-  let uri = match args.get("uri") {
-    Some(String(u)) => u
-    _ => {
-      return Future::ready(McpToolResult::{
-        content: [
-          TextContent::{
-            type: "text",
-            text: "Error: 'uri' parameter is required"
-          }
-        ],
-        isError: true
-      })
-    }
-  }
-
-  // 检查 URI 类型
-  let markdown_future = if uri.starts_with("http://") || uri.starts_with("https://") {
-    // URL 转换
-    convert_from_url(uri)
-  } else if uri.starts_with("file://") {
-    // 文件路径转换
-    let file_path = uri.substring(7)
-    convert_from_file(file_path)
-  } else {
-    // 直接当作文件路径处理
-    convert_from_file(uri)
-  }
-
-  // Map future result to tool result
-  map_future(markdown_future, fn(markdown) {
-    match markdown {
-      Ok(md) => {
-        McpToolResult::{
-          content: [
-            TextContent::{
-              type: "text",
-              text: md
-            }
-          ],
-          isError: false
-        }
-      }
-      Err(e) => {
-        McpToolResult::{
-          content: [
-            TextContent::{
-              type: "text",
-              text: "Error converting document: " + e.to_string()
-            }
-          ],
-          isError: true
-        }
-      }
-    }
   })
 }
 
 ///|
-/// Map over future values
-fn map_future[T, U](future : Future[T], f : (T) -> U) -> Future[U] {
-  // For now, this is a simplified implementation
-  // In a real async runtime, this would chain futures
-  match future.await() {
-    Ok(value) => Future::ready(f(value))
-    Err(e) => Future::error(e)
+async fn convert_to_markdown_handler(args : JsonValue) -> McpToolResult {
+  let uri = match args.get("uri") {
+    Some(String(value)) => value
+    _ =>
+      return McpToolResult::{
+        content: [
+          Text(TextContent::{
+            type_: "text",
+            text: "Error: 'uri' parameter is required",
+          }),
+        ],
+        is_error: true,
+      }
   }
-}
 
-///|
-/// 从文件转换
-fn convert_from_file(file_path : String) -> Future[String] {
-  // 使用转换器桥接来处理所有支持的格式
-  convert_to_markdown(file_path)
-}
+  let input = if uri.has_prefix("file://") {
+    uri.substring(7)
+  } else {
+    uri
+  }
 
-///|
-/// 从 URL 转换
-fn convert_from_url(url : String) -> Future[String] {
-  // 使用转换器桥接处理 URL
-  convert_to_markdown(url)
+  try {
+    let markdown = convert_to_markdown(input)
+    McpToolResult::{
+      content: [
+        Text(TextContent::{ type_: "text", text: markdown }),
+      ],
+      is_error: false,
+    }
+  } catch {
+    error =>
+      McpToolResult::{
+        content: [
+          Text(TextContent::{
+            type_: "text",
+            text: "Error converting document: " + error.to_string(),
+          }),
+        ],
+        is_error: true,
+      }
+  }
 }

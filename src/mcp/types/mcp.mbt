@@ -1,9 +1,6 @@
-// MoonBitMark MCP Types - MCP Protocol Type Definitions
-
-use @jsonrpc.*
+// MoonBitMark MCP Types - MCP Protocol Models
 
 ///|
-/// MCP 工具定义
 pub(all) struct McpTool {
   name : String
   description : String
@@ -11,113 +8,130 @@ pub(all) struct McpTool {
 }
 
 ///|
-/// MCP 工具调用参数
 pub(all) struct McpToolCallParams {
   name : String
   arguments : JsonValue
 }
 
 ///|
-/// MCP 工具调用结果
+pub(all) struct TextContent {
+  type_ : String
+  text : String
+}
+
+///|
+pub enum McpContent {
+  Text(TextContent)
+}
+
+///|
 pub(all) struct McpToolResult {
   content : Array[McpContent]
-  isError : Bool
+  is_error : Bool
 }
 
 ///|
-/// MCP 内容类型
-pub(all) type McpContent =
-  | TextContent {
-      type : String,
-      text : String
-    }
-
-pub(all) fn McpContent::to_json(self : McpContent) -> JsonValue {
-  match self {
-    TextContent{type, text} => {
-      let mut m = Map::empty()
-      m = m.insert("type", String(type))
-      m = m.insert("text", String(text))
-      Object(m)
-    }
-  }
-}
-
-///|
-/// MCP 服务器信息
 pub(all) struct McpServerInfo {
   name : String
   version : String
   protocol_version : String
 }
 
-pub(all) fn McpServerInfo::to_json(self : McpServerInfo) -> JsonValue {
-  let mut m = Map::empty()
-  m = m.insert("name", String(self.name))
-  m = m.insert("version", String(self.version))
-  m = m.insert("protocolVersion", String(self.protocol_version))
-  Object(m)
+///|
+pub(all) struct McpServerCapabilitiesTools {
+  list_changed : Bool
 }
 
 ///|
-/// MCP 服务器能力
 pub(all) struct McpServerCapabilities {
   tools : McpServerCapabilitiesTools
 }
 
-pub(all) fn McpServerCapabilities::to_json(self : McpServerCapabilities) -> JsonValue {
-  let mut caps = Map::empty()
-  let mut tools_map = Map::empty()
-  tools_map = tools_map.insert("listChanged", Bool(false))
-  caps = caps.insert("tools", Object(tools_map))
-  Object(caps)
-}
-
-pub(all) struct McpServerCapabilitiesTools {
-  listChanged : Bool
-}
-
 ///|
-/// MCP 初始化结果
 pub(all) struct McpInitializeResult {
   protocol_version : String
   capabilities : McpServerCapabilities
   server_info : McpServerInfo
 }
 
-pub(all) fn McpInitializeResult::to_json(self : McpInitializeResult) -> JsonValue {
-  let mut m = Map::empty()
-  m = m.insert("protocolVersion", String(self.protocol_version))
-  m = m.insert("capabilities", self.capabilities.to_json())
-  m = m.insert("serverInfo", self.server_info.to_json())
-  Object(m)
-}
-
 ///|
-/// MCP 工具列表结果
 pub(all) struct McpToolsListResult {
   tools : Array[McpTool]
 }
 
-pub(all) fn McpToolsListResult::to_json(self : McpToolsListResult) -> JsonValue {
-  let tools_json = self.tools.map(fn(t) {
-    let mut m = Map::empty()
-    m = m.insert("name", String(t.name))
-    m = m.insert("description", String(t.description))
-    m = m.insert("inputSchema", t.input_schema)
-    Object(m)
-  })
-  let mut m = Map::empty()
-  m = m.insert("tools", Array(tools_json))
-  Object(m)
+///|
+pub fn TextContent::to_json(self : TextContent) -> JsonValue {
+  let map : Map[String, JsonValue] = Map::new()
+  map["type"] = String(self.type_)
+  map["text"] = String(self.text)
+  Object(map)
 }
 
 ///|
-/// MCP 工具调用结果 JSON
-pub(all) fn McpToolResult::to_json(self : McpToolResult) -> JsonValue {
-  let content_json = self.content.map(McpContent::to_json)
-  let mut m = Map::empty()
-  m = m.insert("content", Array(content_json))
-  m = m.insert("isError", Bool(self.isError))
-  Object(m)
+pub fn McpContent::to_json(self : McpContent) -> JsonValue {
+  match self {
+    Text(content) => content.to_json()
+  }
+}
+
+///|
+pub fn McpTool::to_json(self : McpTool) -> JsonValue {
+  let map : Map[String, JsonValue] = Map::new()
+  map["name"] = String(self.name)
+  map["description"] = String(self.description)
+  map["inputSchema"] = self.input_schema
+  Object(map)
+}
+
+///|
+pub fn McpToolResult::to_json(self : McpToolResult) -> JsonValue {
+  let items : Array[JsonValue] = []
+  for content in self.content {
+    items.push(content.to_json())
+  }
+
+  let map : Map[String, JsonValue] = Map::new()
+  map["content"] = Array(items)
+  map["isError"] = Bool(self.is_error)
+  Object(map)
+}
+
+///|
+pub fn McpServerInfo::to_json(self : McpServerInfo) -> JsonValue {
+  let map : Map[String, JsonValue] = Map::new()
+  map["name"] = String(self.name)
+  map["version"] = String(self.version)
+  map["protocolVersion"] = String(self.protocol_version)
+  Object(map)
+}
+
+///|
+pub fn McpServerCapabilities::to_json(self : McpServerCapabilities) -> JsonValue {
+  let tools_map : Map[String, JsonValue] = Map::new()
+  tools_map["listChanged"] = Bool(self.tools.list_changed)
+
+  let map : Map[String, JsonValue] = Map::new()
+  map["tools"] = Object(tools_map)
+  Object(map)
+}
+
+///|
+pub fn McpInitializeResult::to_json(self : McpInitializeResult) -> JsonValue {
+  let map : Map[String, JsonValue] = Map::new()
+  map["protocolVersion"] = String(self.protocol_version)
+  map["capabilities"] = self.capabilities.to_json()
+  map["serverInfo"] = self.server_info.to_json()
+  Object(map)
+}
+
+///|
+pub fn McpToolsListResult::to_json(self : McpToolsListResult) -> JsonValue {
+  let items : Array[JsonValue] = []
+  for tool in self.tools {
+    items.push(tool.to_json())
+  }
+
+  let map : Map[String, JsonValue] = Map::new()
+  map["tools"] = Array(items)
+  Object(map)
 }

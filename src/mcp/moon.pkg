@@ -1,8 +1,0 @@
-{
-  "name": "moonbitlang/moonbitmark-mcp",
-  "version": "0.1.0",
-  "readme": "README.mbt.md",
-  "deps": {
-    "moonbitlang/async": "0.16.7"
-  }
-}

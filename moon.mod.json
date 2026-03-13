@@ -15,6 +15,6 @@
     "docx",
     "word"
   ],
-  "description": "Convert various file formats to Markdown - MoonBit implementation (with DOCX support via FFI)",
+  "description": "Convert various file formats to Markdown - MoonBit implementation",
   "preferred-target": "native"
 }

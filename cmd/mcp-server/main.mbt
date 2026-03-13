@@ -1,7 +1,7 @@
 // MoonBitMark MCP Server - CLI Entry Point
 
-use @jsonrpc.*
 use @handler.*
+use @transport.*
 
 ///|
 /// 打印使用说明
