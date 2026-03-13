@@ -1,9 +1,0 @@
-{
-  "name": "moonbitlang/moonbitmark-mcp-server",
-  "version": "0.1.0",
-  "is-script": true,
-  "deps": {
-    "moonbitlang/async": "0.16.7",
-    "moonbitlang/moonbitmark-mcp": "0.1.0"
-  }
-}
