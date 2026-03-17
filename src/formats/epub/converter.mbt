@@ -52,7 +52,7 @@ pub fn EpubConverter::accepts(info : @core.StreamInfo) -> Bool {
 }
 
 ///|
-pub async fn EpubConverter::convert(file_path : String) -> String {
+pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
   // 读取 EPUB 文件内容
   let file = @fs.open(file_path, mode=ReadOnly)
   let all_bytes : Array[Byte] = Array::new()
@@ -131,7 +131,7 @@ pub async fn EpubConverter::convert(file_path : String) -> String {
                 }
               }
 
-              result
+              @core.ConvertResult::markdown_only(result, "epub")
             }
             None => fail("Failed to read OPF file")
           }

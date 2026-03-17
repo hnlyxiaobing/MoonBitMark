@@ -27,7 +27,7 @@ pub fn PptxConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert a PPTX file to Markdown
-pub async fn PptxConverter::convert(file_path : String) -> String {
+pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
   // 读取 PPTX 文件内容
   let file = @fs.open(file_path, mode=ReadOnly)
   let all_bytes : Array[Byte] = Array::new()
@@ -68,7 +68,10 @@ pub async fn PptxConverter::convert(file_path : String) -> String {
           }
           // 解析每张幻灯片并生成 Markdown
           let markdown = process_slides(archive, slide_ids)
-          markdown.trim().to_string()
+          @core.ConvertResult::markdown_only(
+            markdown.trim().to_string(),
+            "pptx",
+          )
         }
         Err(e) => fail("Failed to parse presentation: \{e}")
       }

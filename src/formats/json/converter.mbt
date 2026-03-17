@@ -27,7 +27,7 @@ pub fn JsonConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert function - converts JSON to Markdown code block
-pub async fn JsonConverter::convert(file_path : String) -> String {
+pub async fn JsonConverter::convert(file_path : String) -> @core.ConvertResult {
   let file = @fs.open(file_path, mode=ReadOnly)
   let mut content = ""
   let mut is_first = true
@@ -45,5 +45,8 @@ pub async fn JsonConverter::convert(file_path : String) -> String {
   // Use Unicode escape for backtick: U+0060
   let bt = "\u{0060}"
   let triple_bt = bt + bt + bt
-  triple_bt + " json\n" + final_trimmed.to_string() + "\n" + triple_bt
+  @core.ConvertResult::markdown_only(
+    triple_bt + " json\n" + final_trimmed.to_string() + "\n" + triple_bt,
+    "json",
+  )
 }

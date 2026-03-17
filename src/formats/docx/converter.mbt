@@ -27,7 +27,7 @@ pub fn DocxConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert a DOCX file to Markdown
-pub async fn DocxConverter::convert(file_path : String) -> String {
+pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
   // 读取 DOCX 文件内容
   let file = @fs.open(file_path, mode=ReadOnly)
   let all_bytes : Array[Byte] = Array::new()
@@ -60,7 +60,10 @@ pub async fn DocxConverter::convert(file_path : String) -> String {
           // 解析 XML 并提取文本
           let xml_string = xml_bytes.to_string()
           let markdown = extract_text_from_docx_xml(xml_string)
-          markdown.trim().to_string()
+          @core.ConvertResult::markdown_only(
+            markdown.trim().to_string(),
+            "docx",
+          )
         }
         None => fail("Failed to read document.xml from DOCX")
       }

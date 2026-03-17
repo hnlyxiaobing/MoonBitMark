@@ -34,12 +34,12 @@ pub fn HtmlConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert function - converts HTML to Markdown (supports files and URLs)
-pub async fn HtmlConverter::convert(input : String) -> String {
+pub async fn HtmlConverter::convert(input : String) -> @core.ConvertResult {
   // Check if input is a URL
   if input.has_prefix("http://") || input.has_prefix("https://") {
-    convert_from_url(input)
+    @core.ConvertResult::markdown_only(convert_from_url(input), "html")
   } else {
-    convert_from_file(input)
+    @core.ConvertResult::markdown_only(convert_from_file(input), "html")
   }
 }
 

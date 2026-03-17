@@ -115,7 +115,7 @@ fn merge_partial_numbering(text : String) -> String {
 ///|
 /// Convert function - extracts text from PDF and returns as Markdown
 /// Stage 4: With advanced post-processing (whitespace, MasterFormat merging)
-pub async fn PdfConverter::convert(file_path : String) -> String {
+pub async fn PdfConverter::convert(file_path : String) -> @core.ConvertResult {
   // Read PDF file
   let pdf = @pdfread.pdf_of_file(None, None, file_path)
 
@@ -132,5 +132,5 @@ pub async fn PdfConverter::convert(file_path : String) -> String {
   let merged = merge_partial_numbering(normalized)
 
   // Return as Markdown
-  merged
+  @core.ConvertResult::markdown_only(merged, "pdf")
 }

@@ -2,12 +2,12 @@
 
 ///|
 test "MarkItDown new" {
-  let engine = @core.MarkItDown::new()
-  inspect(engine.dummy, content="0")
+  let result = @core.ConvertResult::markdown_only("hello", "text")
+  inspect(result.source_type, content="text")
 }
 
 ///|
-test "MarkItDown convert" {
-  let result = @core.MarkItDown::convert("test.txt")
-  inspect(result, content="Converted: test.txt")
+test "ConvertContext default" {
+  let ctx = @core.ConvertContext::default()
+  inspect(ctx.keep_metadata, content="true")
 }

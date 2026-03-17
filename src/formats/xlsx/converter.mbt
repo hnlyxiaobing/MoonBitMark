@@ -24,7 +24,7 @@ pub fn XlsxConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert an XLSX file to Markdown
-pub async fn XlsxConverter::convert(file_path : String) -> String {
+pub async fn XlsxConverter::convert(file_path : String) -> @core.ConvertResult {
   // Read XLSX file content
   let file = @fs.open(file_path, mode=ReadOnly)
   let all_bytes : Array[Byte] = Array::new()
@@ -57,7 +57,7 @@ pub async fn XlsxConverter::convert(file_path : String) -> String {
       let shared_strings = parse_shared_strings(archive)
       // Parse each sheet and generate markdown
       let markdown = generate_markdown(archive, sheets, shared_strings)
-      markdown.trim().to_string()
+      @core.ConvertResult::markdown_only(markdown.trim().to_string(), "xlsx")
     }
     None => fail("Failed to open XLSX file as ZIP archive")
   }
