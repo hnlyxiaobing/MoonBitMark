@@ -17,7 +17,7 @@ pub(all) struct HtmlConverter {
   dummy : Int
 }
 pub fn HtmlConverter::accepts(@core.StreamInfo) -> Bool
-pub async fn HtmlConverter::convert(String) -> String
+pub async fn HtmlConverter::convert(String) -> @core.ConvertResult
 pub fn HtmlConverter::new() -> Self
 
 // Type aliases

@@ -13,18 +13,28 @@ pub(all) struct MarkItDown {
 
 ///|
 pub fn MarkItDown::new() -> MarkItDown {
-  let converters : Array[ConverterRegistration] = [
-    { name: "docx", priority: 100 },
-    { name: "epub", priority: 95 },
-    { name: "pptx", priority: 90 },
-    { name: "xlsx", priority: 85 },
-    { name: "pdf", priority: 80 },
-    { name: "html", priority: 70 },
-    { name: "json", priority: 50 },
-    { name: "csv", priority: 40 },
-    { name: "text", priority: 10 },
-  ]
-  MarkItDown::{ converters }
+  let engine = MarkItDown::{ converters: [] }
+  engine
+  .register("docx", 100)
+  .register("epub", 95)
+  .register("pptx", 90)
+  .register("xlsx", 85)
+  .register("pdf", 80)
+  .register("html", 70)
+  .register("json", 50)
+  .register("csv", 40)
+  .register("text", 10)
+}
+
+///|
+pub fn MarkItDown::register(
+  self : MarkItDown,
+  name : String,
+  priority : Int,
+) -> MarkItDown {
+  let converters = self.converters
+  converters.push({ name, priority })
+  MarkItDown::{ converters, }
 }
 
 ///|
@@ -41,8 +51,8 @@ pub async fn MarkItDown::convert(
   self : MarkItDown,
   input : String,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
-) -> @core.ConvertResult raise {
-  self.convert_source(@core.InputSource::from_string(input), ctx=ctx)
+) -> @core.ConvertResult {
+  self.convert_source(@core.InputSource::from_string(input), ctx~)
 }
 
 ///|
@@ -50,11 +60,35 @@ pub async fn MarkItDown::convert_source(
   self : MarkItDown,
   input : @core.InputSource,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
-) -> @core.ConvertResult raise {
-  ignore(ctx)
+) -> @core.ConvertResult {
   let info = stream_info_of_input(input)
-  let converter = self.select_converter(info)
-  run_converter(converter.name, input)
+  let converter = self.select_converter(info) catch {
+    err =>
+      fail(
+        format_engine_error(
+          category="FormatDetectionError",
+          phase="detect/select",
+          source=describe_input(input),
+          message=err.to_string(),
+          hint=Some("Check the file extension, URL, or MIME information."),
+        ),
+      )
+  }
+
+  let raw_result = run_converter(converter.name, input) catch {
+    err =>
+      fail(
+        format_engine_error(
+          category="ConversionFailed",
+          phase=converter.name,
+          source=describe_input(input),
+          message=err.to_string(),
+          hint=Some("Inspect the source document or run with debug context."),
+        ),
+      )
+  }
+
+  finalize_result(raw_result, converter, input, info, ctx)
 }
 
 ///|
@@ -128,6 +162,14 @@ fn describe_stream_info(info : @core.StreamInfo) -> String {
 }
 
 ///|
+fn describe_input(input : @core.InputSource) -> String {
+  match input.name() {
+    Some(name) => name
+    None => "<unknown input>"
+  }
+}
+
+///|
 fn option_extension(name : String?) -> String? {
   match name {
     Some(value) => file_extension(value)
@@ -145,12 +187,7 @@ fn file_name(path : String) -> String? {
       } else {
         None
       }
-    None =>
-      if normalized.length() > 0 {
-        Some(normalized)
-      } else {
-        None
-      }
+    None => if normalized.length() > 0 { Some(normalized) } else { None }
   }
 }
 
@@ -204,11 +241,15 @@ fn accepts_converter(name : String, info : @core.StreamInfo) -> Bool {
 async fn run_converter(
   name : String,
   input : @core.InputSource,
-) -> @core.ConvertResult raise {
+) -> @core.ConvertResult {
   let input_name = match input {
     @core.FileInput(path, _) => path
     @core.UrlInput(url, _) => url
-    @core.BytesInput(_, _, _) => fail("Bytes input is not supported yet")
+    @core.BytesInput(name, _, _) =>
+      match name {
+        Some(value) => value
+        None => fail("Bytes input is not supported without a source name")
+      }
   }
 
   match name {
@@ -223,4 +264,133 @@ async fn run_converter(
     "text" => @text.TextConverter::convert(input_name)
     _ => fail("Unknown converter: " + name)
   }
+}
+
+///|
+fn finalize_result(
+  raw_result : @core.ConvertResult,
+  converter : ConverterRegistration,
+  input : @core.InputSource,
+  info : @core.StreamInfo,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  let metadata = if ctx.keep_metadata {
+    enrich_metadata(raw_result.metadata, converter, input, info)
+  } else {
+    Map::new()
+  }
+  let rendered_markdown = render_output_mode(
+    raw_result.markdown,
+    raw_result.title,
+    metadata,
+    ctx.output_mode,
+  )
+  let stats = match raw_result.stats {
+    Some(existing) => Some(existing)
+    None => Some(@core.stats_for_markdown(rendered_markdown))
+  }
+
+  @core.ConvertResult::{
+    markdown: rendered_markdown,
+    title: raw_result.title,
+    metadata,
+    warnings: raw_result.warnings,
+    source_type: raw_result.source_type,
+    stats,
+  }
+}
+
+///|
+fn enrich_metadata(
+  original : Map[String, String],
+  converter : ConverterRegistration,
+  input : @core.InputSource,
+  info : @core.StreamInfo,
+) -> Map[String, String] {
+  let metadata = Map::new()
+  for key, value in original {
+    metadata[key] = value
+  }
+  metadata["converter"] = converter.name
+  metadata["source_kind"] = input.kind()
+  metadata["source_type"] = converter.name
+
+  match input.name() {
+    Some(name) => metadata["source_name"] = name
+    None => ()
+  }
+  match info.extension {
+    Some(extension) => metadata["extension"] = extension
+    None => ()
+  }
+  match info.mimetype {
+    Some(mimetype) => metadata["mimetype"] = mimetype
+    None => ()
+  }
+  match info.url {
+    Some(url) => metadata["url"] = url
+    None => ()
+  }
+
+  metadata
+}
+
+///|
+fn render_output_mode(
+  markdown : String,
+  title : String?,
+  metadata : Map[String, String],
+  mode : @core.OutputMode,
+) -> String {
+  match mode {
+    @core.PlainText => markdown
+    @core.StandardMarkdown => markdown
+    @core.FrontMatterMarkdown => add_frontmatter(markdown, title, metadata)
+  }
+}
+
+///|
+fn add_frontmatter(
+  markdown : String,
+  title : String?,
+  metadata : Map[String, String],
+) -> String {
+  let lines : Array[String] = ["---"]
+  match title {
+    Some(value) => lines.push("title: " + escape_frontmatter(value))
+    None => ()
+  }
+  for key, value in metadata {
+    if key != "title" {
+      lines.push(key + ": " + escape_frontmatter(value))
+    }
+  }
+  lines.push("---")
+  lines.push("")
+  lines.push(markdown)
+  lines.join("\n")
+}
+
+///|
+fn escape_frontmatter(value : String) -> String {
+  "\"" + value.replace(old="\"", new="\\\"") + "\""
+}
+
+///|
+fn format_engine_error(
+  category~ : String,
+  phase~ : String,
+  source~ : String,
+  message~ : String,
+  hint~ : String?,
+) -> String {
+  let mut result = "Error: " + category + "\n"
+  result = result + "  Phase: " + phase + "\n"
+  result = result + "  Source: " + source + "\n"
+  result = result + "  Message: " + message
+  match hint {
+    Some(value) => result = result + "\n  Hint: " + value
+    None => ()
+  }
+  result
 }

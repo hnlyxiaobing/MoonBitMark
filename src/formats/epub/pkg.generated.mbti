@@ -14,7 +14,7 @@ pub(all) struct EpubConverter {
   dummy : Int
 }
 pub fn EpubConverter::accepts(@core.StreamInfo) -> Bool
-pub async fn EpubConverter::convert(String) -> String
+pub async fn EpubConverter::convert(String) -> @core.ConvertResult
 pub fn EpubConverter::new() -> Self
 
 pub(all) struct EpubMetadata {

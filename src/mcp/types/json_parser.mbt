@@ -14,8 +14,10 @@ pub enum JsonParseError {
 pub fn JsonParseError::to_string(self : JsonParseError) -> String {
   match self {
     UnexpectedEnd => "Unexpected end of JSON input"
-    ExpectedChar(ch) => "Expected character: '" + ch.unsafe_to_char().to_string() + "'"
-    InvalidEscape(ch) => "Invalid escape sequence: \\" + ch.unsafe_to_char().to_string()
+    ExpectedChar(ch) =>
+      "Expected character: '" + ch.unsafe_to_char().to_string() + "'"
+    InvalidEscape(ch) =>
+      "Invalid escape sequence: \\" + ch.unsafe_to_char().to_string()
     ExpectedColon => "Expected ':'"
     ExpectedCommaOrTerminator => "Expected ',' or closing delimiter"
     InvalidJson(message) => "Invalid JSON: " + message
@@ -44,7 +46,10 @@ pub fn parse_json(input : String) -> Result[JsonValue, JsonParseError] {
 }
 
 ///|
-fn parse_value(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+fn parse_value(
+  input : String,
+  state : ParserState,
+) -> Result[JsonValue, JsonParseError] {
   skip_whitespace(input, state)
 
   if state.index >= input.length() {
@@ -70,7 +75,10 @@ fn parse_value(input : String, state : ParserState) -> Result[JsonValue, JsonPar
 }
 
 ///|
-fn parse_string(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+fn parse_string(
+  input : String,
+  state : ParserState,
+) -> Result[JsonValue, JsonParseError] {
   state.index = state.index + 1
   let mut result = ""
 
@@ -144,7 +152,10 @@ fn parse_unicode_escape(
 }
 
 ///|
-fn parse_object(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+fn parse_object(
+  input : String,
+  state : ParserState,
+) -> Result[JsonValue, JsonParseError] {
   state.index = state.index + 1
   let entries : Map[String, JsonValue] = Map::new()
 
@@ -191,7 +202,10 @@ fn parse_object(input : String, state : ParserState) -> Result[JsonValue, JsonPa
 }
 
 ///|
-fn parse_array(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+fn parse_array(
+  input : String,
+  state : ParserState,
+) -> Result[JsonValue, JsonParseError] {
   state.index = state.index + 1
   let values : Array[JsonValue] = []
 
@@ -222,7 +236,10 @@ fn parse_array(input : String, state : ParserState) -> Result[JsonValue, JsonPar
 }
 
 ///|
-fn parse_number(input : String, state : ParserState) -> Result[JsonValue, JsonParseError] {
+fn parse_number(
+  input : String,
+  state : ParserState,
+) -> Result[JsonValue, JsonParseError] {
   let start = state.index
 
   if is_current_char(input, state, 45) {
@@ -261,9 +278,7 @@ fn parse_number(input : String, state : ParserState) -> Result[JsonValue, JsonPa
       None => Err(InvalidJson("Invalid float: " + number_text))
     }
   } else {
-    try {
-      Ok(Number(@strconv.parse_int(number_text)))
-    } catch {
+    Ok(Number(@strconv.parse_int(number_text))) catch {
       _ => Err(InvalidJson("Invalid number: " + number_text))
     }
   }
@@ -291,7 +306,8 @@ fn parse_literal(
 
 ///|
 fn consume_digits(input : String, state : ParserState) -> Unit {
-  while state.index < input.length() && is_digit(char_code_at(input, state.index)) {
+  while state.index < input.length() &&
+        is_digit(char_code_at(input, state.index)) {
     state.index = state.index + 1
   }
 }
@@ -361,14 +377,16 @@ fn parse_float(text : String) -> Float? {
     let mut fraction = 0.0F
     let mut divisor = 10.0F
     while index < text.length() && is_digit(char_code_at(text, index)) {
-      fraction = fraction + Float::from_int(char_code_at(text, index) - 48) / divisor
+      fraction = fraction +
+        Float::from_int(char_code_at(text, index) - 48) / divisor
       divisor = divisor * 10.0F
       index = index + 1
     }
     result = result + fraction
   }
 
-  if index < text.length() && (char_code_at(text, index) == 101 || char_code_at(text, index) == 69) {
+  if index < text.length() &&
+    (char_code_at(text, index) == 101 || char_code_at(text, index) == 69) {
     index = index + 1
     let mut exponent_sign = 1
     if index < text.length() && char_code_at(text, index) == 45 {
@@ -385,11 +403,7 @@ fn parse_float(text : String) -> Float? {
     }
 
     let power = pow10(exponent)
-    result = if exponent_sign < 0 {
-      result / power
-    } else {
-      result * power
-    }
+    result = if exponent_sign < 0 { result / power } else { result * power }
   }
 
   if index != text.length() {

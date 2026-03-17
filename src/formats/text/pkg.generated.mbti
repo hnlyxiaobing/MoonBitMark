@@ -14,7 +14,7 @@ pub(all) struct TextConverter {
   dummy : Int
 }
 pub fn TextConverter::accepts(@core.StreamInfo) -> Bool
-pub async fn TextConverter::convert(String) -> String
+pub async fn TextConverter::convert(String) -> @core.ConvertResult
 pub fn TextConverter::new() -> Self
 
 // Type aliases

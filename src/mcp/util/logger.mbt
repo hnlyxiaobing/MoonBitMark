@@ -33,11 +33,7 @@ pub(all) struct Logger {
 
 ///|
 pub fn Logger::default() -> Logger {
-  Logger::new("", {
-    level: Info,
-    enable_timestamp: true,
-    enable_color: false,
-  })
+  Logger::new("", { level: Info, enable_timestamp: true, enable_color: false })
 }
 
 ///|
@@ -133,12 +129,18 @@ pub fn get_current_datetime() -> DateTime {
 
 ///|
 pub fn format_datetime(dt : DateTime) -> String {
-  pad4(dt.year) + "-" +
-  pad2(dt.month) + "-" +
-  pad2(dt.day) + " " +
-  pad2(dt.hour) + ":" +
-  pad2(dt.minute) + ":" +
-  pad2(dt.second) + "." +
+  pad4(dt.year) +
+  "-" +
+  pad2(dt.month) +
+  "-" +
+  pad2(dt.day) +
+  " " +
+  pad2(dt.hour) +
+  ":" +
+  pad2(dt.minute) +
+  ":" +
+  pad2(dt.second) +
+  "." +
   pad3(dt.millisecond)
 }
 

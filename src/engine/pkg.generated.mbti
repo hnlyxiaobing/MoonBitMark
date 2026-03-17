@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/engine"
+
+import {
+  "moonbitlang/moonbitmark/src/core",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct ConverterRegistration {
+  name : String
+  priority : Int
+}
+
+pub(all) struct MarkItDown {
+  converters : Array[ConverterRegistration]
+}
+pub async fn MarkItDown::convert(Self, String, ctx? : @core.ConvertContext) -> @core.ConvertResult
+pub async fn MarkItDown::convert_source(Self, @core.InputSource, ctx? : @core.ConvertContext) -> @core.ConvertResult
+pub fn MarkItDown::detect_converter_name(Self, String) -> String raise
+pub fn MarkItDown::new() -> Self
+pub fn MarkItDown::register(Self, String, Int) -> Self
+pub fn MarkItDown::select_converter(Self, @core.StreamInfo) -> ConverterRegistration raise
+
+// Type aliases
+
+// Traits
+

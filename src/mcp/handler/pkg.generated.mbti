@@ -1,0 +1,46 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/mcp/handler"
+
+import {
+  "moonbitlang/moonbitmark/src/mcp/transport",
+  "moonbitlang/moonbitmark/src/mcp/types",
+  "moonbitlang/moonbitmark/src/mcp/util",
+}
+
+// Values
+pub async fn convert_document_to_markdown(String) -> String
+
+pub fn detect_document_type(String) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct McpServer {
+  tools : ToolRegistry
+  transport : @transport.StdioTransport
+  logger : @util.Logger
+}
+pub async fn McpServer::handle_jsonrpc_request(Self, String) -> @types.JsonResponse
+pub fn McpServer::new(@transport.StdioTransport) -> Self
+pub fn McpServer::new_with_logger(@transport.StdioTransport, @util.Logger) -> Self
+pub async fn McpServer::run(Self) -> Unit
+
+pub(all) struct ToolDefinition {
+  name : String
+  description : String
+  input_schema : @types.JsonValue
+}
+
+pub(all) struct ToolRegistry {
+  tools : Map[String, ToolDefinition]
+}
+pub async fn ToolRegistry::call(Self, String, @types.JsonValue) -> @types.McpToolResult
+pub fn ToolRegistry::list(Self) -> Array[@types.McpTool]
+pub fn ToolRegistry::new() -> Self
+pub fn ToolRegistry::register(Self, ToolDefinition) -> Self raise
+pub fn ToolRegistry::register_convert_tools(Self) -> Self raise
+
+// Type aliases
+
+// Traits
+

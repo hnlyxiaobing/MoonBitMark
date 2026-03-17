@@ -1,0 +1,120 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/mcp/types"
+
+// Values
+pub fn parse_json(String) -> Result[JsonValue, JsonParseError]
+
+// Errors
+
+// Types and methods
+pub(all) struct JsonError {
+  code : Int
+  message : String
+  data : JsonValue?
+}
+
+pub(all) enum JsonId {
+  StringId(String)
+  NumberId(Int)
+  NullId
+}
+pub fn JsonId::to_string(Self) -> String
+
+pub enum JsonParseError {
+  UnexpectedEnd
+  ExpectedChar(Int)
+  InvalidEscape(Int)
+  ExpectedColon
+  ExpectedCommaOrTerminator
+  InvalidJson(String)
+}
+pub fn JsonParseError::to_string(Self) -> String
+
+pub(all) struct JsonRequest {
+  jsonrpc : String
+  method_name : String
+  params : JsonValue?
+  id : JsonId?
+}
+
+pub(all) struct JsonResponse {
+  jsonrpc : String
+  result : JsonValue?
+  error : JsonError?
+  id : JsonId?
+}
+
+pub(all) enum JsonValue {
+  String(String)
+  Number(Int)
+  Float(Float)
+  Bool(Bool)
+  Null
+  Object(Map[String, JsonValue])
+  Array(Array[JsonValue])
+}
+pub fn JsonValue::get(Self, String) -> Self?
+pub fn JsonValue::get_array(Self, Int) -> Self?
+pub fn JsonValue::to_string(Self) -> String
+
+pub(all) enum McpContent {
+  Text(TextContent)
+}
+pub fn McpContent::to_json(Self) -> JsonValue
+
+pub(all) struct McpInitializeResult {
+  protocol_version : String
+  capabilities : McpServerCapabilities
+  server_info : McpServerInfo
+}
+pub fn McpInitializeResult::to_json(Self) -> JsonValue
+
+pub(all) struct McpServerCapabilities {
+  tools : McpServerCapabilitiesTools
+}
+pub fn McpServerCapabilities::to_json(Self) -> JsonValue
+
+pub(all) struct McpServerCapabilitiesTools {
+  list_changed : Bool
+}
+
+pub(all) struct McpServerInfo {
+  name : String
+  version : String
+  protocol_version : String
+}
+pub fn McpServerInfo::to_json(Self) -> JsonValue
+
+pub(all) struct McpTool {
+  name : String
+  description : String
+  input_schema : JsonValue
+}
+pub fn McpTool::to_json(Self) -> JsonValue
+
+pub(all) struct McpToolCallParams {
+  name : String
+  arguments : JsonValue
+}
+
+pub(all) struct McpToolResult {
+  content : Array[McpContent]
+  is_error : Bool
+}
+pub fn McpToolResult::to_json(Self) -> JsonValue
+
+pub(all) struct McpToolsListResult {
+  tools : Array[McpTool]
+}
+pub fn McpToolsListResult::to_json(Self) -> JsonValue
+
+pub(all) struct TextContent {
+  type_ : String
+  text : String
+}
+pub fn TextContent::to_json(Self) -> JsonValue
+
+// Type aliases
+
+// Traits
+

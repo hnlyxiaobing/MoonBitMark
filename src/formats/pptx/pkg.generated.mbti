@@ -24,7 +24,7 @@ pub(all) struct PptxConverter {
   dummy : Int
 }
 pub fn PptxConverter::accepts(@core.StreamInfo) -> Bool
-pub async fn PptxConverter::convert(String) -> String
+pub async fn PptxConverter::convert(String) -> @core.ConvertResult
 pub fn PptxConverter::new() -> Self
 
 pub struct SlideRef {

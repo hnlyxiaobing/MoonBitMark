@@ -57,8 +57,10 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
       // 读取 word/document.xml
       match @libzip.read_file_entry_decompressed(archive, "word/document.xml") {
         Some(xml_bytes) => {
-          // 解析 XML 并提取文本
-          let xml_string = xml_bytes.to_string()
+          // 解析 XML 并提取文本（正确 UTF-8 解码，避免 to_string() 返回调试格式）
+          let xml_string = @utf8.decode(xml_bytes) catch {
+            _ => fail("document.xml contains invalid UTF-8 sequence")
+          }
           let markdown = extract_text_from_docx_xml(xml_string)
           @core.ConvertResult::markdown_only(
             markdown.trim().to_string(),

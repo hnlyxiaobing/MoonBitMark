@@ -19,6 +19,33 @@ pub(all) struct ConvertResult {
 } derive(Show, Eq, ToJson)
 
 ///|
+pub(all) enum DiagnosticLevel {
+  Info
+  Warning
+  Error
+} derive(Show, Eq, ToJson)
+
+///|
+pub(all) enum ConversionError {
+  InputError(String, String?)
+  FormatDetectionError(String)
+  ZipError(String, String?)
+  XmlParseError(String, Int?)
+  UnsupportedFeatureError(String, String)
+  ConversionFailed(String, String)
+} derive(Show, Eq, ToJson)
+
+///|
+pub(all) struct ConversionDiagnostic {
+  level : DiagnosticLevel
+  category : String
+  phase : String?
+  source : String?
+  message : String
+  hint : String?
+} derive(Show, Eq, ToJson)
+
+///|
 pub fn ConvertResult::markdown_only(
   markdown : String,
   source_type : String,
@@ -44,9 +71,9 @@ pub(all) struct StreamInfo {
 
 ///|
 pub(all) enum InputSource {
-  FileInput(path : String, bytes : Bytes?)
-  UrlInput(url : String, fetched_html : String?)
-  BytesInput(name : String?, bytes : Bytes, mimetype : String?)
+  FileInput(String, Bytes?)
+  UrlInput(String, String?)
+  BytesInput(String?, Bytes, String?)
 } derive(Show, Eq, ToJson)
 
 ///|
@@ -64,6 +91,15 @@ pub fn InputSource::name(self : InputSource) -> String? {
     FileInput(path, _) => Some(path)
     UrlInput(url, _) => Some(url)
     BytesInput(name, _, _) => name
+  }
+}
+
+///|
+pub fn InputSource::kind(self : InputSource) -> String {
+  match self {
+    FileInput(_, _) => "file"
+    UrlInput(_, _) => "url"
+    BytesInput(_, _, _) => "bytes"
   }
 }
 
@@ -101,4 +137,28 @@ pub(open) trait DocumentConverter {
   name() -> String
   priority() -> Int
   accepts(StreamInfo) -> Bool
+}
+
+///|
+pub fn count_markdown_blocks(markdown : String) -> Int {
+  let trimmed = markdown.trim()
+  if trimmed == "" {
+    0
+  } else {
+    trimmed.split("\n\n").to_array().length()
+  }
+}
+
+///|
+pub fn stats_for_markdown(
+  markdown : String,
+  duration_ms? : Int,
+  used_fallback? : Bool = false,
+) -> ConvertStats {
+  ConvertStats::{
+    char_count: markdown.length(),
+    block_count: count_markdown_blocks(markdown),
+    duration_ms,
+    used_fallback,
+  }
 }

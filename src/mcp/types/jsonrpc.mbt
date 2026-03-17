@@ -24,7 +24,7 @@ pub(all) struct JsonError {
 }
 
 ///|
-pub enum JsonId {
+pub(all) enum JsonId {
   StringId(String)
   NumberId(Int)
   NullId
@@ -40,7 +40,7 @@ pub fn JsonId::to_string(self : JsonId) -> String {
 }
 
 ///|
-pub enum JsonValue {
+pub(all) enum JsonValue {
   String(String)
   Number(Int)
   Float(Float)

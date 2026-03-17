@@ -1,25 +1,21 @@
 // MoonBitMark MCP Handler - Server Implementation
 
-use @types.*
-use @transport.*
-use @util.*
-
 ///|
 pub(all) struct McpServer {
   tools : ToolRegistry
-  transport : StdioTransport
-  logger : Logger
+  transport : @transport.StdioTransport
+  logger : @util.Logger
 }
 
 ///|
-pub fn McpServer::new(transport : StdioTransport) -> McpServer {
-  McpServer::new_with_logger(transport, Logger::default())
+pub fn McpServer::new(transport : @transport.StdioTransport) -> McpServer {
+  McpServer::new_with_logger(transport, @util.Logger::default())
 }
 
 ///|
 pub fn McpServer::new_with_logger(
-  transport : StdioTransport,
-  logger : Logger,
+  transport : @transport.StdioTransport,
+  logger : @util.Logger,
 ) -> McpServer {
   let registry = ToolRegistry::new().register_convert_tools() catch {
     error => {
@@ -35,24 +31,24 @@ pub fn McpServer::new_with_logger(
 pub async fn McpServer::handle_jsonrpc_request(
   self : McpServer,
   json_str : String,
-) -> JsonResponse {
-  match parse_json(json_str) {
+) -> @types.JsonResponse {
+  match @types.parse_json(json_str) {
     Ok(json) =>
       match parse_json_request(json) {
         Ok(request) => self.handle_request(request)
         Err(message) =>
-          JsonResponse::{
+          @types.JsonResponse::{
             jsonrpc: "2.0",
             result: None,
-            error: Some(JsonError::{ code: -32600, message, data: None }),
+            error: Some(@types.JsonError::{ code: -32600, message, data: None }),
             id: None,
           }
       }
     Err(error) =>
-      JsonResponse::{
+      @types.JsonResponse::{
         jsonrpc: "2.0",
         result: None,
-        error: Some(JsonError::{
+        error: Some(@types.JsonError::{
           code: -32700,
           message: error.to_string(),
           data: None,
@@ -65,19 +61,19 @@ pub async fn McpServer::handle_jsonrpc_request(
 ///|
 async fn McpServer::handle_request(
   self : McpServer,
-  request : JsonRequest,
-) -> JsonResponse {
-  match request.method {
+  request : @types.JsonRequest,
+) -> @types.JsonResponse {
+  match request.method_name {
     "initialize" => self.handle_initialize(request.id)
     "tools/list" => self.handle_tools_list(request.id)
     "tools/call" => self.handle_tools_call(request.params, request.id)
     _ =>
-      JsonResponse::{
+      @types.JsonResponse::{
         jsonrpc: "2.0",
         result: None,
-        error: Some(JsonError::{
+        error: Some(@types.JsonError::{
           code: -32601,
-          message: "Method not found: " + request.method,
+          message: "Method not found: " + request.method_name,
           data: None,
         }),
         id: request.id,
@@ -86,21 +82,24 @@ async fn McpServer::handle_request(
 }
 
 ///|
-fn McpServer::handle_initialize(self : McpServer, id : JsonId?) -> JsonResponse {
+fn McpServer::handle_initialize(
+  self : McpServer,
+  id : @types.JsonId?,
+) -> @types.JsonResponse {
   ignore(self)
-  let result = McpInitializeResult::{
+  let result = @types.McpInitializeResult::{
     protocol_version: "2024-11-05",
-    capabilities: McpServerCapabilities::{
-      tools: McpServerCapabilitiesTools::{ list_changed: false },
+    capabilities: @types.McpServerCapabilities::{
+      tools: @types.McpServerCapabilitiesTools::{ list_changed: false },
     },
-    server_info: McpServerInfo::{
+    server_info: @types.McpServerInfo::{
       name: "moonbitmark",
       version: "0.3.0",
       protocol_version: "2024-11-05",
     },
   }
 
-  JsonResponse::{
+  @types.JsonResponse::{
     jsonrpc: "2.0",
     result: Some(result.to_json()),
     error: None,
@@ -109,9 +108,12 @@ fn McpServer::handle_initialize(self : McpServer, id : JsonId?) -> JsonResponse 
 }
 
 ///|
-fn McpServer::handle_tools_list(self : McpServer, id : JsonId?) -> JsonResponse {
-  let result = McpToolsListResult::{ tools: self.tools.list() }
-  JsonResponse::{
+fn McpServer::handle_tools_list(
+  self : McpServer,
+  id : @types.JsonId?,
+) -> @types.JsonResponse {
+  let result = @types.McpToolsListResult::{ tools: self.tools.list() }
+  @types.JsonResponse::{
     jsonrpc: "2.0",
     result: Some(result.to_json()),
     error: None,
@@ -122,9 +124,9 @@ fn McpServer::handle_tools_list(self : McpServer, id : JsonId?) -> JsonResponse 
 ///|
 async fn McpServer::handle_tools_call(
   self : McpServer,
-  params : JsonValue?,
-  id : JsonId?,
-) -> JsonResponse {
+  params : @types.JsonValue?,
+  id : @types.JsonId?,
+) -> @types.JsonResponse {
   let parsed_params = match params {
     Some(value) => parse_tool_call_params(value)
     None => Err("Invalid params: params is required")
@@ -133,7 +135,7 @@ async fn McpServer::handle_tools_call(
   match parsed_params {
     Ok(call_params) => {
       let result = self.tools.call(call_params.name, call_params.arguments)
-      JsonResponse::{
+      @types.JsonResponse::{
         jsonrpc: "2.0",
         result: Some(result.to_json()),
         error: None,
@@ -141,10 +143,10 @@ async fn McpServer::handle_tools_call(
       }
     }
     Err(message) =>
-      JsonResponse::{
+      @types.JsonResponse::{
         jsonrpc: "2.0",
         result: None,
-        error: Some(JsonError::{ code: -32602, message, data: None }),
+        error: Some(@types.JsonError::{ code: -32602, message, data: None }),
         id,
       }
   }
@@ -153,7 +155,7 @@ async fn McpServer::handle_tools_call(
 ///|
 pub async fn McpServer::run(self : McpServer) -> Unit {
   self.logger.info("Starting MCP server")
-  loop {
+  while true {
     let json_str = self.transport.read_line()
     if json_str.trim().length() == 0 {
       continue
@@ -164,53 +166,62 @@ pub async fn McpServer::run(self : McpServer) -> Unit {
 }
 
 ///|
-fn parse_json_request(json : JsonValue) -> Result[JsonRequest, String] {
+fn parse_json_request(
+  json : @types.JsonValue,
+) -> Result[@types.JsonRequest, String] {
   match json {
-    Object(map) => {
+    @types.Object(map) => {
       let jsonrpc = match map.get("jsonrpc") {
-        Some(String(value)) => value
+        Some(@types.String(value)) => value
         _ => return Err("Missing or invalid 'jsonrpc' field")
       }
-      let method = match map.get("method") {
-        Some(String(value)) => value
+      let method_name = match map.get("method") {
+        Some(@types.String(value)) => value
         _ => return Err("Missing or invalid 'method' field")
       }
       let id = match map.get("id") {
-        Some(String(value)) => Some(StringId(value))
-        Some(Number(value)) => Some(NumberId(value))
-        Some(Null) => Some(NullId)
+        Some(@types.String(value)) => Some(@types.StringId(value))
+        Some(@types.Number(value)) => Some(@types.NumberId(value))
+        Some(@types.Null) => Some(@types.NullId)
         None => None
         _ => return Err("Invalid 'id' field")
       }
 
-      Ok(JsonRequest::{ jsonrpc, method, params: map.get("params"), id })
+      Ok(@types.JsonRequest::{
+        jsonrpc,
+        method_name,
+        params: map.get("params"),
+        id,
+      })
     }
     _ => Err("JSON must be an object")
   }
 }
 
 ///|
-fn parse_tool_call_params(json : JsonValue) -> Result[McpToolCallParams, String] {
+fn parse_tool_call_params(
+  json : @types.JsonValue,
+) -> Result[@types.McpToolCallParams, String] {
   match json {
-    Object(map) => {
+    @types.Object(map) => {
       let name = match map.get("name") {
-        Some(String(value)) => value
+        Some(@types.String(value)) => value
         _ => return Err("Missing or invalid 'name' field")
       }
       let arguments = match map.get("arguments") {
         Some(value) => value
-        None => Object(Map::new())
+        None => @types.Object(Map::new())
       }
-      Ok(McpToolCallParams::{ name, arguments })
+      Ok(@types.McpToolCallParams::{ name, arguments })
     }
     _ => Err("Tool call params must be an object")
   }
 }
 
 ///|
-fn response_to_json(response : JsonResponse) -> String {
-  let map : Map[String, JsonValue] = Map::new()
-  map["jsonrpc"] = String(response.jsonrpc)
+fn response_to_json(response : @types.JsonResponse) -> String {
+  let map : Map[String, @types.JsonValue] = Map::new()
+  map["jsonrpc"] = @types.String(response.jsonrpc)
 
   match response.result {
     Some(value) => map["result"] = value
@@ -218,23 +229,23 @@ fn response_to_json(response : JsonResponse) -> String {
   }
   match response.error {
     Some(error) => {
-      let error_map : Map[String, JsonValue] = Map::new()
-      error_map["code"] = Number(error.code)
-      error_map["message"] = String(error.message)
+      let error_map : Map[String, @types.JsonValue] = Map::new()
+      error_map["code"] = @types.Number(error.code)
+      error_map["message"] = @types.String(error.message)
       match error.data {
         Some(value) => error_map["data"] = value
         None => ()
       }
-      map["error"] = Object(error_map)
+      map["error"] = @types.Object(error_map)
     }
     None => ()
   }
   match response.id {
-    Some(StringId(value)) => map["id"] = String(value)
-    Some(NumberId(value)) => map["id"] = Number(value)
-    Some(NullId) => map["id"] = Null
+    Some(@types.StringId(value)) => map["id"] = @types.String(value)
+    Some(@types.NumberId(value)) => map["id"] = @types.Number(value)
+    Some(@types.NullId) => map["id"] = @types.Null
     None => ()
   }
 
-  Object(map).to_string()
+  @types.Object(map).to_string()
 }

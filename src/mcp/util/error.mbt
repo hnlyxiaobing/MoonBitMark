@@ -21,32 +21,59 @@ pub(all) struct ErrorLocation {
 
 ///|
 pub fn ErrorLocation::new() -> ErrorLocation {
+  { file: None, line: None, column: None, function: None }
+}
+
+///|
+pub fn ErrorLocation::with_file(
+  self : ErrorLocation,
+  file : String,
+) -> ErrorLocation {
   {
-    file: None,
-    line: None,
-    column: None,
-    function: None,
+    file: Some(file),
+    line: self.line,
+    column: self.column,
+    function: self.function,
   }
 }
 
 ///|
-pub fn ErrorLocation::with_file(self : ErrorLocation, file : String) -> ErrorLocation {
-  { file: Some(file), line: self.line, column: self.column, function: self.function }
+pub fn ErrorLocation::with_line(
+  self : ErrorLocation,
+  line : Int,
+) -> ErrorLocation {
+  {
+    file: self.file,
+    line: Some(line),
+    column: self.column,
+    function: self.function,
+  }
 }
 
 ///|
-pub fn ErrorLocation::with_line(self : ErrorLocation, line : Int) -> ErrorLocation {
-  { file: self.file, line: Some(line), column: self.column, function: self.function }
+pub fn ErrorLocation::with_column(
+  self : ErrorLocation,
+  column : Int,
+) -> ErrorLocation {
+  {
+    file: self.file,
+    line: self.line,
+    column: Some(column),
+    function: self.function,
+  }
 }
 
 ///|
-pub fn ErrorLocation::with_column(self : ErrorLocation, column : Int) -> ErrorLocation {
-  { file: self.file, line: self.line, column: Some(column), function: self.function }
-}
-
-///|
-pub fn ErrorLocation::with_function(self : ErrorLocation, function_name : String) -> ErrorLocation {
-  { file: self.file, line: self.line, column: self.column, function: Some(function_name) }
+pub fn ErrorLocation::with_function(
+  self : ErrorLocation,
+  function_name : String,
+) -> ErrorLocation {
+  {
+    file: self.file,
+    line: self.line,
+    column: self.column,
+    function: Some(function_name),
+  }
 }
 
 ///|
@@ -95,7 +122,10 @@ pub fn ErrorContext::new(location : ErrorLocation) -> ErrorContext {
 }
 
 ///|
-pub fn ErrorContext::with_request_id(self : ErrorContext, request_id : String) -> ErrorContext {
+pub fn ErrorContext::with_request_id(
+  self : ErrorContext,
+  request_id : String,
+) -> ErrorContext {
   {
     location: self.location,
     timestamp: self.timestamp,
@@ -105,7 +135,11 @@ pub fn ErrorContext::with_request_id(self : ErrorContext, request_id : String) -
 }
 
 ///|
-pub fn ErrorContext::add_info(self : ErrorContext, key : String, value : String) -> ErrorContext {
+pub fn ErrorContext::add_info(
+  self : ErrorContext,
+  key : String,
+  value : String,
+) -> ErrorContext {
   let info = self.additional_info
   info[key] = value
   {
@@ -126,22 +160,41 @@ pub(all) struct McpError {
 }
 
 ///|
-pub fn McpError::parse_error(code : Int, message : String, context : ErrorContext) -> McpError {
+pub fn McpError::parse_error(
+  code : Int,
+  message : String,
+  context : ErrorContext,
+) -> McpError {
   { code: ParseError(code), message, details: None, context, cause: None }
 }
 
 ///|
-pub fn McpError::invalid_request(message : String, context : ErrorContext) -> McpError {
+pub fn McpError::invalid_request(
+  message : String,
+  context : ErrorContext,
+) -> McpError {
   { code: InvalidRequest, message, details: None, context, cause: None }
 }
 
 ///|
-pub fn McpError::method_not_found(method_name : String, context : ErrorContext) -> McpError {
-  { code: MethodNotFound, message: "Method not found: " + method_name, details: None, context, cause: None }
+pub fn McpError::method_not_found(
+  method_name : String,
+  context : ErrorContext,
+) -> McpError {
+  {
+    code: MethodNotFound,
+    message: "Method not found: " + method_name,
+    details: None,
+    context,
+    cause: None,
+  }
 }
 
 ///|
-pub fn McpError::invalid_params(message : String, context : ErrorContext) -> McpError {
+pub fn McpError::invalid_params(
+  message : String,
+  context : ErrorContext,
+) -> McpError {
   { code: InvalidParams, message, details: None, context, cause: None }
 }
 
@@ -165,8 +218,18 @@ pub fn McpError::internal_error_with_cause(
 }
 
 ///|
-pub fn McpError::tool_error(tool_name : String, reason : String, context : ErrorContext) -> McpError {
-  { code: ToolError(tool_name), message: "Tool execution failed: " + reason, details: None, context, cause: None }
+pub fn McpError::tool_error(
+  tool_name : String,
+  reason : String,
+  context : ErrorContext,
+) -> McpError {
+  {
+    code: ToolError(tool_name),
+    message: "Tool execution failed: " + reason,
+    details: None,
+    context,
+    cause: None,
+  }
 }
 
 ///|
@@ -211,9 +274,7 @@ pub fn McpError::format(self : McpError) -> String {
 
 ///|
 pub fn create_error_context(function_name : String) -> ErrorContext {
-  ErrorContext::new(
-    ErrorLocation::new().with_function(function_name),
-  )
+  ErrorContext::new(ErrorLocation::new().with_function(function_name))
 }
 
 ///|

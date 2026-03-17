@@ -14,7 +14,7 @@ pub(all) struct XlsxConverter {
   dummy : Int
 }
 pub fn XlsxConverter::accepts(@core.StreamInfo) -> Bool
-pub async fn XlsxConverter::convert(String) -> String
+pub async fn XlsxConverter::convert(String) -> @core.ConvertResult
 pub fn XlsxConverter::new() -> Self
 
 // Type aliases

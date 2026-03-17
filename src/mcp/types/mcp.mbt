@@ -20,7 +20,7 @@ pub(all) struct TextContent {
 }
 
 ///|
-pub enum McpContent {
+pub(all) enum McpContent {
   Text(TextContent)
 }
 
@@ -106,7 +106,9 @@ pub fn McpServerInfo::to_json(self : McpServerInfo) -> JsonValue {
 }
 
 ///|
-pub fn McpServerCapabilities::to_json(self : McpServerCapabilities) -> JsonValue {
+pub fn McpServerCapabilities::to_json(
+  self : McpServerCapabilities,
+) -> JsonValue {
   let tools_map : Map[String, JsonValue] = Map::new()
   tools_map["listChanged"] = Bool(self.tools.list_changed)
 

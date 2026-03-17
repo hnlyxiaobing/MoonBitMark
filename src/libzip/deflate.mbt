@@ -2,32 +2,42 @@
 // 实现 RFC 1951 DEFLATE 解压缩算法
 
 ///|
-/// Deflate 解压主函数
+/// Deflate 解压主函数（支持 RFC 1951 多块流）
 pub fn deflate_decompress(input : Bytes) -> Bytes? {
   let reader = BitReader::new(input)
   let output : Array[Byte] = Array::new()
 
-  // 读取头部 - bfinal (1 bit)
-  let bfinal_result = reader.read_bits(1)
-  let bfinal = match bfinal_result {
-    Ok(v) => v == 1
-    Err(_) => return None
-  }
-  ignore(bfinal)
+  // RFC 1951: DEFLATE 数据流由一个或多个块组成，每块有 bfinal 标志
+  let mut is_final = false
+  while !is_final {
+    // 读取 bfinal (1 bit): 1 = 最后一块
+    let bfinal_result = reader.read_bits(1)
+    let bfinal = match bfinal_result {
+      Ok(v) => v == 1
+      Err(_) => return None
+    }
+    is_final = bfinal
 
-  // 读取块类型 (2 bits)
-  let btype_result = reader.read_bits(2)
-  let btype = match btype_result {
-    Ok(v) => v
-    Err(_) => return None
+    // 读取块类型 (2 bits)
+    let btype_result = reader.read_bits(2)
+    let btype = match btype_result {
+      Ok(v) => v
+      Err(_) => return None
+    }
+
+    // 解压当前块到 output（各函数返回 Bool 表示成功/失败）
+    let ok = match btype {
+      0 => decompress_stored_block(reader, output)
+      1 => decompress_fixed_huffman_block(reader, output)
+      2 => decompress_dynamic_huffman_block(reader, output)
+      _ => return None
+    }
+    if !ok {
+      return None
+    }
   }
 
-  match btype {
-    0 => decompress_stored(reader, output)
-    1 => decompress_fixed_huffman(reader, output)
-    2 => decompress_dynamic_huffman(reader, output)
-    _ => None
-  }
+  Some(bytes_from_array(output))
 }
 
 ///|
@@ -112,8 +122,8 @@ fn BitReader::read_uint16_le(self : BitReader) -> Result[Int, String] {
 }
 
 ///|
-/// 解压存储块 (无压缩)
-fn decompress_stored(reader : BitReader, output : Array[Byte]) -> Bytes? {
+/// 解压存储块 (无压缩) — 写入 output，返回是否成功
+fn decompress_stored_block(reader : BitReader, output : Array[Byte]) -> Bool {
   // 对齐到字节边界
   reader.align_to_byte()
 
@@ -121,17 +131,17 @@ fn decompress_stored(reader : BitReader, output : Array[Byte]) -> Bytes? {
   let len_result = reader.read_uint16_le()
   let len = match len_result {
     Ok(v) => v
-    Err(_) => return None
+    Err(_) => return false
   }
   let nlen_result = reader.read_uint16_le()
   let nlen = match nlen_result {
     Ok(v) => v
-    Err(_) => return None
+    Err(_) => return false
   }
 
   // 验证 NLEN 是 LEN 的补码
   if (len ^ nlen) != 0xFFFF {
-    return None
+    return false
   }
 
   // 读取原始数据
@@ -139,11 +149,11 @@ fn decompress_stored(reader : BitReader, output : Array[Byte]) -> Bytes? {
     let byte_result = reader.read_byte()
     match byte_result {
       Ok(b) => output.push(b)
-      Err(_) => return None
+      Err(_) => return false
     }
   }
 
-  Some(bytes_from_array(output))
+  true
 }
 
 ///|
@@ -157,8 +167,11 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 }
 
 ///|
-/// 解压固定 Huffman 编码块
-fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? {
+/// 解压固定 Huffman 编码块 — 写入 output，返回是否成功
+fn decompress_fixed_huffman_block(
+  reader : BitReader,
+  output : Array[Byte],
+) -> Bool {
   // 使用滑动窗口 - 用 Array 代替 FixedArray 以支持修改
   let window : Array[Byte] = Array::new()
   // 预填充窗口
@@ -174,7 +187,7 @@ fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? 
     let symbol_result = decode_fixed_symbol(reader)
     let symbol = match symbol_result {
       Ok(s) => s
-      Err(_) => return None
+      Err(_) => return false
     }
 
     if symbol < 256 {
@@ -191,19 +204,19 @@ fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? 
       let length_result = decode_length(reader, symbol)
       let length = match length_result {
         Ok(l) => l
-        Err(_) => return None
+        Err(_) => return false
       }
 
       let dist_code_result = reader.read_bits_reverse(5)
       let dist_code = match dist_code_result {
         Ok(d) => d
-        Err(_) => return None
+        Err(_) => return false
       }
 
       let distance_result = decode_distance(reader, dist_code)
       let distance = match distance_result {
         Ok(d) => d
-        Err(_) => return None
+        Err(_) => return false
       }
 
       // 从滑动窗口复制
@@ -219,7 +232,7 @@ fn decompress_fixed_huffman(reader : BitReader, output : Array[Byte]) -> Bytes? 
     }
   }
 
-  Some(bytes_from_array(output))
+  true
 }
 
 ///|
@@ -463,26 +476,26 @@ fn decode_distance(reader : BitReader, code : Int) -> Result[Int, String] {
 }
 
 ///|
-/// 解压动态 Huffman 编码块
-fn decompress_dynamic_huffman(
+/// 解压动态 Huffman 编码块 — 写入 output，返回是否成功
+fn decompress_dynamic_huffman_block(
   reader : BitReader,
   output : Array[Byte],
-) -> Bytes? {
+) -> Bool {
   // 读取动态表信息
   let hlit_result = reader.read_bits(5)
   let hlit = match hlit_result {
     Ok(v) => v + 257
-    Err(_) => return None
+    Err(_) => return false
   }
   let hdist_result = reader.read_bits(5)
   let hdist = match hdist_result {
     Ok(v) => v + 1
-    Err(_) => return None
+    Err(_) => return false
   }
   let hclen_result = reader.read_bits(4)
   let hclen = match hclen_result {
     Ok(v) => v + 4
-    Err(_) => return None
+    Err(_) => return false
   }
 
   // 读取码长码顺序 (RFC 1951 规定的顺序)
@@ -519,7 +532,7 @@ fn decompress_dynamic_huffman(
     let len_result = reader.read_bits(3)
     let len = match len_result {
       Ok(v) => v
-      Err(_) => return None
+      Err(_) => return false
     }
     code_lengths[code_length_order[i]] = len
   }
@@ -528,7 +541,7 @@ fn decompress_dynamic_huffman(
   let tree_result = build_huffman_tree(code_lengths)
   let code_length_tree = match tree_result {
     Ok(t) => t
-    Err(_) => return None
+    Err(_) => return false
   }
 
   // 读取字面量/长度和距离编码长度
@@ -540,7 +553,7 @@ fn decompress_dynamic_huffman(
     let code_result = decode_huffman(reader, code_length_tree)
     let code = match code_result {
       Ok(v) => v
-      Err(_) => return None
+      Err(_) => return false
     }
 
     match code {
@@ -553,7 +566,7 @@ fn decompress_dynamic_huffman(
         let repeat_result = reader.read_bits(2)
         let repeat = match repeat_result {
           Ok(v) => v + 3
-          Err(_) => return None
+          Err(_) => return false
         }
         let prev = if i > 0 { lit_len_dist[i - 1] } else { 0 }
         for _ in 0..<repeat {
@@ -568,7 +581,7 @@ fn decompress_dynamic_huffman(
         let repeat_result = reader.read_bits(3)
         let repeat = match repeat_result {
           Ok(v) => v + 3
-          Err(_) => return None
+          Err(_) => return false
         }
         for _ in 0..<repeat {
           if i < total {
@@ -582,7 +595,7 @@ fn decompress_dynamic_huffman(
         let repeat_result = reader.read_bits(7)
         let repeat = match repeat_result {
           Ok(v) => v + 11
-          Err(_) => return None
+          Err(_) => return false
         }
         for _ in 0..<repeat {
           if i < total {
@@ -591,7 +604,7 @@ fn decompress_dynamic_huffman(
           }
         }
       }
-      _ => return None
+      _ => return false
     }
   }
 
@@ -600,7 +613,7 @@ fn decompress_dynamic_huffman(
   let lit_len_tree_result = build_huffman_tree(lit_len_lengths)
   let lit_len_tree = match lit_len_tree_result {
     Ok(t) => t
-    Err(_) => return None
+    Err(_) => return false
   }
 
   // 构建距离 Huffman 树
@@ -608,7 +621,7 @@ fn decompress_dynamic_huffman(
   let dist_tree_result = build_huffman_tree(dist_lengths)
   let dist_tree = match dist_tree_result {
     Ok(t) => t
-    Err(_) => return None
+    Err(_) => return false
   }
 
   // 解码数据
@@ -624,7 +637,7 @@ fn decompress_dynamic_huffman(
     let symbol_result = decode_huffman(reader, lit_len_tree)
     let symbol = match symbol_result {
       Ok(v) => v
-      Err(_) => return None
+      Err(_) => return false
     }
 
     if symbol < 256 {
@@ -641,17 +654,17 @@ fn decompress_dynamic_huffman(
       let length_result = decode_length(reader, symbol)
       let length = match length_result {
         Ok(l) => l
-        Err(_) => return None
+        Err(_) => return false
       }
       let dist_code_result = decode_huffman(reader, dist_tree)
       let dist_code = match dist_code_result {
         Ok(d) => d
-        Err(_) => return None
+        Err(_) => return false
       }
       let distance_result = decode_distance(reader, dist_code)
       let distance = match distance_result {
         Ok(d) => d
-        Err(_) => return None
+        Err(_) => return false
       }
 
       // 从滑动窗口复制
@@ -667,7 +680,7 @@ fn decompress_dynamic_huffman(
     }
   }
 
-  Some(bytes_from_array(output))
+  true
 }
 
 ///|

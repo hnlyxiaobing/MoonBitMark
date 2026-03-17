@@ -1,0 +1,141 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/mcp/util"
+
+// Values
+pub fn[T] block_on(Future[T]) -> Result[T, String]
+
+pub fn create_error_context(String) -> ErrorContext
+
+pub fn create_error_context_with_request(String, String) -> ErrorContext
+
+pub fn format_datetime(DateTime) -> String
+
+pub fn get_current_datetime() -> DateTime
+
+pub fn[T] spawn(() -> Result[T, String]) -> Future[T]
+
+// Errors
+
+// Types and methods
+pub(all) struct AsyncTask[T] {
+  id : Int
+  state : TaskState
+  result : T?
+}
+
+pub(all) struct DateTime {
+  year : Int
+  month : Int
+  day : Int
+  hour : Int
+  minute : Int
+  second : Int
+  millisecond : Int
+}
+
+pub(all) struct ErrorContext {
+  location : ErrorLocation
+  timestamp : String
+  request_id : String?
+  additional_info : Map[String, String]
+}
+pub fn ErrorContext::add_info(Self, String, String) -> Self
+pub fn ErrorContext::new(ErrorLocation) -> Self
+pub fn ErrorContext::with_request_id(Self, String) -> Self
+
+pub(all) struct ErrorLocation {
+  file : String?
+  line : Int?
+  column : Int?
+  function : String?
+}
+pub fn ErrorLocation::new() -> Self
+pub fn ErrorLocation::to_string(Self) -> String
+pub fn ErrorLocation::with_column(Self, Int) -> Self
+pub fn ErrorLocation::with_file(Self, String) -> Self
+pub fn ErrorLocation::with_function(Self, String) -> Self
+pub fn ErrorLocation::with_line(Self, Int) -> Self
+
+pub(all) struct EventLoop {
+  mut next_id : Int
+}
+pub fn EventLoop::new() -> Self
+pub fn EventLoop::run(Self) -> Unit
+pub fn[T] EventLoop::submit(Self, () -> Result[T, String]) -> Future[T]
+pub fn EventLoop::tick(Self) -> Unit
+
+pub(all) struct Future[T] {
+  completed : Bool
+  value : T?
+  error : String?
+}
+pub fn[T] Future::error(String) -> Self[T]
+pub fn[T] Future::is_ready(Self[T]) -> Bool
+pub fn[T] Future::ready(T) -> Self[T]
+pub fn[T] Future::wait(Self[T]) -> Result[T, String]
+
+pub enum LogLevel {
+  Debug
+  Info
+  Warn
+  Error
+}
+pub fn LogLevel::to_string(Self) -> String
+pub impl Eq for LogLevel
+
+pub(all) struct Logger {
+  config : LoggerConfig
+  name : String
+}
+pub fn Logger::debug(Self, String) -> Unit
+pub fn Logger::default() -> Self
+pub fn Logger::error(Self, String) -> Unit
+pub fn Logger::info(Self, String) -> Unit
+pub fn Logger::log(Self, LogLevel, String) -> Unit
+pub fn Logger::new(String, LoggerConfig) -> Self
+pub fn Logger::set_level(Self, LogLevel) -> Self
+pub fn Logger::warn(Self, String) -> Unit
+
+pub(all) struct LoggerConfig {
+  level : LogLevel
+  enable_timestamp : Bool
+  enable_color : Bool
+}
+
+pub(all) struct McpError {
+  code : McpErrorCode
+  message : String
+  details : String?
+  context : ErrorContext
+  cause : McpError?
+}
+pub fn McpError::format(Self) -> String
+pub fn McpError::internal_error(String, String?, ErrorContext) -> Self
+pub fn McpError::internal_error_with_cause(String, String?, ErrorContext, Self) -> Self
+pub fn McpError::invalid_params(String, ErrorContext) -> Self
+pub fn McpError::invalid_request(String, ErrorContext) -> Self
+pub fn McpError::method_not_found(String, ErrorContext) -> Self
+pub fn McpError::parse_error(Int, String, ErrorContext) -> Self
+pub fn McpError::to_jsonrpc_code(Self) -> Int
+pub fn McpError::tool_error(String, String, ErrorContext) -> Self
+
+pub enum McpErrorCode {
+  ParseError(Int)
+  InvalidRequest
+  MethodNotFound
+  InvalidParams
+  InternalError
+  ServerError(Int)
+  ToolError(String)
+}
+
+pub enum TaskState {
+  Pending
+  Completed
+  Failed(String)
+}
+
+// Type aliases
+
+// Traits
+

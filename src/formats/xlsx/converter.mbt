@@ -80,7 +80,7 @@ fn parse_workbook_sheets(
 ) -> Array[(String, String)] {
   match @libzip.read_file_entry_decompressed(archive, "xl/workbook.xml") {
     Some(xml_bytes) => {
-      let xml_string = xml_bytes.to_string()
+      let xml_string = @utf8.decode(xml_bytes) catch { _ => return [] }
       match @xml.parse_xml(xml_string) {
         Ok(events) => extract_sheet_info(events)
         Err(_) => []
@@ -140,7 +140,7 @@ fn extract_sheet_info(
 fn parse_shared_strings(archive : @libzip.ZipArchive) -> Array[String] {
   match @libzip.read_file_entry_decompressed(archive, "xl/sharedStrings.xml") {
     Some(xml_bytes) => {
-      let xml_string = xml_bytes.to_string()
+      let xml_string = @utf8.decode(xml_bytes) catch { _ => return [] }
       match @xml.parse_xml(xml_string) {
         Ok(events) => extract_shared_strings(events)
         Err(_) => []
@@ -229,7 +229,7 @@ fn parse_sheet_paths(archive : @libzip.ZipArchive) -> Map[String, String] {
   match
     @libzip.read_file_entry_decompressed(archive, "xl/_rels/workbook.xml.rels") {
     Some(xml_bytes) => {
-      let xml_string = xml_bytes.to_string()
+      let xml_string = @utf8.decode(xml_bytes) catch { _ => return Map::new() }
       match @xml.parse_xml(xml_string) {
         Ok(events) => extract_sheet_paths(events)
         Err(_) => Map::new()
@@ -290,7 +290,7 @@ fn parse_worksheet_to_markdown(
 
   match @libzip.read_file_entry_decompressed(archive, full_path) {
     Some(xml_bytes) => {
-      let xml_string = xml_bytes.to_string()
+      let xml_string = @utf8.decode(xml_bytes) catch { _ => return "" }
       match @xml.parse_xml(xml_string) {
         Ok(events) => {
           let sheet_data = extract_sheet_data(events, shared_strings)

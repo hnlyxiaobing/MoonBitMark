@@ -9,7 +9,7 @@ pub(all) struct StdioTransport {
 ///|
 /// 创建 STDIO 传输
 pub fn StdioTransport::new() -> StdioTransport {
-  StdioTransport::{}
+  StdioTransport::{  }
 }
 
 ///|

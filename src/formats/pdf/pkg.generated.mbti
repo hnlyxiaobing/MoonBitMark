@@ -14,7 +14,7 @@ pub(all) struct PdfConverter {
   dummy : Int
 }
 pub fn PdfConverter::accepts(@core.StreamInfo) -> Bool
-pub async fn PdfConverter::convert(String) -> String
+pub async fn PdfConverter::convert(String) -> @core.ConvertResult
 pub fn PdfConverter::new() -> Self
 
 // Type aliases

@@ -4,4 +4,5 @@ import {
   "moonbitlang/moonbitmark/src/xml",
   "moonbitlang/async/fs",
   "moonbitlang/core/buffer",
+  "moonbitlang/core/encoding/utf8",
 }

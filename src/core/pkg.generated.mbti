@@ -2,24 +2,102 @@
 package "moonbitlang/moonbitmark/src/core"
 
 // Values
+pub fn count_markdown_blocks(String) -> Int
+
+pub fn stats_for_markdown(String, duration_ms? : Int, used_fallback? : Bool) -> ConvertStats
 
 // Errors
 
 // Types and methods
+pub(all) struct ConversionDiagnostic {
+  level : DiagnosticLevel
+  category : String
+  phase : String?
+  source : String?
+  message : String
+  hint : String?
+}
+pub impl Eq for ConversionDiagnostic
+pub impl Show for ConversionDiagnostic
+pub impl ToJson for ConversionDiagnostic
+
+pub(all) enum ConversionError {
+  InputError(String, String?)
+  FormatDetectionError(String)
+  ZipError(String, String?)
+  XmlParseError(String, Int?)
+  UnsupportedFeatureError(String, String)
+  ConversionFailed(String, String)
+}
+pub impl Eq for ConversionError
+pub impl Show for ConversionError
+pub impl ToJson for ConversionError
+
+pub(all) struct ConvertContext {
+  keep_metadata : Bool
+  debug : Bool
+  max_file_size : Int?
+  timeout_ms : Int?
+  asset_output_dir : String?
+  output_mode : OutputMode
+}
+pub fn ConvertContext::default() -> Self
+pub impl Eq for ConvertContext
+pub impl Show for ConvertContext
+pub impl ToJson for ConvertContext
+
 pub(all) struct ConvertResult {
   markdown : String
   title : String?
   metadata : Map[String, String]
+  warnings : Array[String]
+  source_type : String
+  stats : ConvertStats?
 }
+pub fn ConvertResult::markdown_only(String, String) -> Self
 pub impl Eq for ConvertResult
 pub impl Show for ConvertResult
 pub impl ToJson for ConvertResult
 
-pub(all) struct MarkItDown {
-  dummy : Int
+pub(all) struct ConvertStats {
+  char_count : Int
+  block_count : Int
+  duration_ms : Int?
+  used_fallback : Bool
 }
-pub fn MarkItDown::convert(String) -> String
-pub fn MarkItDown::new() -> Self
+pub impl Eq for ConvertStats
+pub impl Show for ConvertStats
+pub impl ToJson for ConvertStats
+
+pub(all) enum DiagnosticLevel {
+  Info
+  Warning
+  Error
+}
+pub impl Eq for DiagnosticLevel
+pub impl Show for DiagnosticLevel
+pub impl ToJson for DiagnosticLevel
+
+pub(all) enum InputSource {
+  FileInput(String, Bytes?)
+  UrlInput(String, String?)
+  BytesInput(String?, Bytes, String?)
+}
+pub fn InputSource::from_string(String) -> Self
+pub fn InputSource::kind(Self) -> String
+pub fn InputSource::name(Self) -> String?
+pub impl Eq for InputSource
+pub impl Show for InputSource
+pub impl ToJson for InputSource
+
+pub(all) enum OutputMode {
+  PlainText
+  StandardMarkdown
+  FrontMatterMarkdown
+}
+pub impl Eq for OutputMode
+pub impl Show for OutputMode
+pub impl ToJson for OutputMode
 
 pub(all) struct StreamInfo {
   mimetype : String?
@@ -36,7 +114,8 @@ pub impl ToJson for StreamInfo
 
 // Traits
 pub(open) trait DocumentConverter {
+  name() -> String
+  priority() -> Int
   accepts(StreamInfo) -> Bool
-  convert(String) -> ConvertResult raise
 }
 
