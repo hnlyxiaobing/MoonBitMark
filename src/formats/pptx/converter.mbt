@@ -68,10 +68,16 @@ pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
           }
           // 解析每张幻灯片并生成 Markdown
           let markdown = process_slides(archive, slide_ids)
-          @core.ConvertResult::markdown_only(
-            markdown.trim().to_string(),
-            "pptx",
-          )
+          let final_markdown = markdown.trim().to_string()
+          let metadata = Map::new()
+          metadata["format"] = "pptx"
+          metadata["slide_count"] = slide_ids.length().to_string()
+          let warnings = collect_pptx_warnings(final_markdown)
+          @core.ConvertResult::markdown_only(final_markdown, "pptx")
+          .with_title(file_stem(file_path))
+          .with_metadata(metadata)
+          .with_warnings(warnings)
+          .with_stats(Some(@core.stats_for_markdown(final_markdown)))
         }
         Err(e) => fail("Failed to parse presentation: \{e}")
       }
@@ -87,4 +93,54 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
     buf.write_byte(b)
   }
   buf.to_bytes()
+}
+
+///|
+fn collect_pptx_warnings(markdown : String) -> Array[String] {
+  let warnings : Array[String] = []
+  if markdown.contains("Unable to read") {
+    warnings.push("Some slide XML files could not be read from the archive.")
+  }
+  if markdown.contains("Parse error") {
+    warnings.push("Some slides could not be parsed as XML.")
+  }
+  if markdown.contains("Failed to decode slide") {
+    warnings.push("Some slides could not be decoded as UTF-8.")
+  }
+  warnings
+}
+
+///|
+fn file_stem(path : String) -> String? {
+  let normalized = path.replace(old="\\", new="/")
+  let basename = match find_last_char(normalized, '/') {
+    Some(index) => normalized[index + 1:].to_string()
+    None => normalized
+  }
+  match find_last_char(basename, '.') {
+    Some(index) =>
+      if index > 0 {
+        Some(basename[0:index].to_string())
+      } else {
+        None
+      }
+    None => if basename != "" { Some(basename) } else { None }
+  }
+}
+
+///|
+fn find_last_char(s : String, target : Char) -> Int? {
+  let mut found = -1
+  let mut i = 0
+  for ch in s {
+    if ch == target {
+      found = i
+    }
+    i = i + 1
+  }
+  if found >= 0 {
+    Some(found)
+  } else {
+    None
+  }
 }

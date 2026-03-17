@@ -42,7 +42,20 @@ pub async fn CsvConverter::convert(file_path : String) -> @core.ConvertResult {
     }
   }
   file.close()
-  @core.ConvertResult::markdown_only(csv_to_markdown(content), "csv")
+  let markdown = csv_to_markdown(content)
+  let metadata = Map::new()
+  metadata["format"] = "csv"
+  metadata["row_count"] = csv_row_count(content).to_string()
+  metadata["column_count"] = csv_column_count(content).to_string()
+  let warnings : Array[String] = []
+  if markdown == "" {
+    warnings.push("CSV input produced empty Markdown output.")
+  }
+  @core.ConvertResult::markdown_only(markdown, "csv")
+  .with_title(file_stem(file_path))
+  .with_metadata(metadata)
+  .with_warnings(warnings)
+  .with_stats(Some(@core.stats_for_markdown(markdown)))
 }
 
 ///|
@@ -76,4 +89,55 @@ fn csv_to_markdown(csv : String) -> String {
   }
 
   markdown_lines.join("\n")
+}
+
+///|
+fn csv_row_count(csv : String) -> Int {
+  csv.split("\n").to_array().filter(line => line.trim() != "").length()
+}
+
+///|
+fn csv_column_count(csv : String) -> Int {
+  let lines = csv.split("\n").to_array()
+  for line in lines {
+    if line.trim() != "" {
+      return line.split(",").to_array().length()
+    }
+  }
+  0
+}
+
+///|
+fn file_stem(path : String) -> String? {
+  let normalized = path.replace(old="\\", new="/")
+  let basename = match find_last_char(normalized, '/') {
+    Some(index) => normalized[index + 1:].to_string()
+    None => normalized
+  }
+  match find_last_char(basename, '.') {
+    Some(index) =>
+      if index > 0 {
+        Some(basename[0:index].to_string())
+      } else {
+        None
+      }
+    None => if basename != "" { Some(basename) } else { None }
+  }
+}
+
+///|
+fn find_last_char(s : String, target : Char) -> Int? {
+  let mut found = -1
+  let mut i = 0
+  for ch in s {
+    if ch == target {
+      found = i
+    }
+    i = i + 1
+  }
+  if found >= 0 {
+    Some(found)
+  } else {
+    None
+  }
 }

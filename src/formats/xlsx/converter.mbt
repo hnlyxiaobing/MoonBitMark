@@ -57,7 +57,23 @@ pub async fn XlsxConverter::convert(file_path : String) -> @core.ConvertResult {
       let shared_strings = parse_shared_strings(archive)
       // Parse each sheet and generate markdown
       let markdown = generate_markdown(archive, sheets, shared_strings)
-      @core.ConvertResult::markdown_only(markdown.trim().to_string(), "xlsx")
+      let final_markdown = markdown.trim().to_string()
+      let metadata = Map::new()
+      metadata["format"] = "xlsx"
+      metadata["sheet_count"] = sheets.length().to_string()
+      metadata["shared_string_count"] = shared_strings.length().to_string()
+      let warnings : Array[String] = []
+      if sheets.length() == 0 {
+        warnings.push("No sheets discovered in xl/workbook.xml.")
+      }
+      if final_markdown == "" {
+        warnings.push("XLSX conversion produced empty Markdown output.")
+      }
+      @core.ConvertResult::markdown_only(final_markdown, "xlsx")
+      .with_title(file_stem(file_path))
+      .with_metadata(metadata)
+      .with_warnings(warnings)
+      .with_stats(Some(@core.stats_for_markdown(final_markdown)))
     }
     None => fail("Failed to open XLSX file as ZIP archive")
   }
@@ -519,5 +535,40 @@ fn strip_namespace(name : String) -> String {
       result
     }
     None => name
+  }
+}
+
+///|
+fn file_stem(path : String) -> String? {
+  let normalized = path.replace(old="\\", new="/")
+  let basename = match find_last_char(normalized, '/') {
+    Some(index) => normalized[index + 1:].to_string()
+    None => normalized
+  }
+  match find_last_char(basename, '.') {
+    Some(index) =>
+      if index > 0 {
+        Some(basename[0:index].to_string())
+      } else {
+        None
+      }
+    None => if basename != "" { Some(basename) } else { None }
+  }
+}
+
+///|
+fn find_last_char(s : String, target : Char) -> Int? {
+  let mut found = -1
+  let mut i = 0
+  for ch in s {
+    if ch == target {
+      found = i
+    }
+    i = i + 1
+  }
+  if found >= 0 {
+    Some(found)
+  } else {
+    None
   }
 }

@@ -34,5 +34,56 @@ pub async fn TextConverter::convert(file_path : String) -> @core.ConvertResult {
     content = content + line + "\n"
   }
   file.close()
-  @core.ConvertResult::markdown_only(content, "text")
+  let markdown = content
+  let metadata = Map::new()
+  metadata["format"] = "plain_text"
+  metadata["line_count"] = count_lines(markdown).to_string()
+  @core.ConvertResult::markdown_only(markdown, "text")
+  .with_title(file_stem(file_path))
+  .with_metadata(metadata)
+  .with_stats(Some(@core.stats_for_markdown(markdown)))
+}
+
+///|
+fn count_lines(content : String) -> Int {
+  if content == "" {
+    0
+  } else {
+    content.split("\n").to_array().length()
+  }
+}
+
+///|
+fn file_stem(path : String) -> String? {
+  let normalized = path.replace(old="\\", new="/")
+  let basename = match find_last_char(normalized, '/') {
+    Some(index) => normalized[index + 1:].to_string()
+    None => normalized
+  }
+  match find_last_char(basename, '.') {
+    Some(index) =>
+      if index > 0 {
+        Some(basename[0:index].to_string())
+      } else {
+        None
+      }
+    None => if basename != "" { Some(basename) } else { None }
+  }
+}
+
+///|
+fn find_last_char(s : String, target : Char) -> Int? {
+  let mut found = -1
+  let mut i = 0
+  for ch in s {
+    if ch == target {
+      found = i
+    }
+    i = i + 1
+  }
+  if found >= 0 {
+    Some(found)
+  } else {
+    None
+  }
 }

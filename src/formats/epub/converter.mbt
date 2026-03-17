@@ -95,6 +95,7 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
           match @libzip.read_file_entry_decompressed(zip, opf_path) {
             Some(opf_data) => {
               let epub_pkg = parse_opf(opf_data)
+              let warnings : Array[String] = []
 
               // Build content
               let mut result = "# "
@@ -124,14 +125,29 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
                     match @libzip.read_file_entry_decompressed(zip, full_path) {
                       Some(content) =>
                         result = result + parse_xhtml(content) + "\n\n"
-                      None => ignore(())
+                      None =>
+                        warnings.push(
+                          "Missing spine resource in archive: " + full_path,
+                        )
                     }
                   }
-                  None => ignore(())
+                  None =>
+                    warnings.push(
+                      "Missing manifest item for spine idref: " + item.idref,
+                    )
                 }
               }
 
-              @core.ConvertResult::markdown_only(result, "epub")
+              let markdown = result.trim().to_string()
+              let metadata = metadata_of_epub(epub_pkg.metadata, opf_path)
+              let title = epub_pkg.metadata.title
+              let doc = @ast.document_of_markdownish(markdown, title, metadata)
+              let rendered_markdown = @ast.render_markdown(doc)
+              @core.ConvertResult::markdown_only(rendered_markdown, "epub")
+              .with_title(title)
+              .with_metadata(metadata)
+              .with_warnings(warnings)
+              .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
             }
             None => fail("Failed to read OPF file")
           }
@@ -316,4 +332,38 @@ fn parse_xhtml(data : Bytes) -> String {
     }
     Err(_) => ""
   }
+}
+
+///|
+fn metadata_of_epub(
+  metadata_source : EpubMetadata,
+  opf_path : String,
+) -> Map[String, String] {
+  let metadata = Map::new()
+  metadata["format"] = "epub"
+  metadata["opf_path"] = opf_path
+  match metadata_source.language {
+    Some(language) => metadata["language"] = language
+    None => ()
+  }
+  match metadata_source.publisher {
+    Some(publisher) => metadata["publisher"] = publisher
+    None => ()
+  }
+  match metadata_source.date {
+    Some(date) => metadata["date"] = date
+    None => ()
+  }
+  match metadata_source.description {
+    Some(description) => metadata["description"] = description
+    None => ()
+  }
+  match metadata_source.identifier {
+    Some(identifier) => metadata["identifier"] = identifier
+    None => ()
+  }
+  if metadata_source.authors.length() > 0 {
+    metadata["author"] = metadata_source.authors.join(", ")
+  }
+  metadata
 }

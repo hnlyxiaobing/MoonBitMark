@@ -1,7 +1,21 @@
 // MoonBitMark - Main Conversion Engine
 
 ///|
+pub(all) enum ConverterKind {
+  Docx
+  Epub
+  Pptx
+  Xlsx
+  Pdf
+  Html
+  Json
+  Csv
+  Text
+}
+
+///|
 pub(all) struct ConverterRegistration {
+  kind : ConverterKind
   name : String
   priority : Int
 }
@@ -13,28 +27,26 @@ pub(all) struct MarkItDown {
 
 ///|
 pub fn MarkItDown::new() -> MarkItDown {
-  let engine = MarkItDown::{ converters: [] }
-  engine
-  .register("docx", 100)
-  .register("epub", 95)
-  .register("pptx", 90)
-  .register("xlsx", 85)
-  .register("pdf", 80)
-  .register("html", 70)
-  .register("json", 50)
-  .register("csv", 40)
-  .register("text", 10)
+  register_default_converters(MarkItDown::{ converters: [] })
 }
 
 ///|
 pub fn MarkItDown::register(
   self : MarkItDown,
-  name : String,
-  priority : Int,
+  converter : ConverterRegistration,
 ) -> MarkItDown {
   let converters = self.converters
-  converters.push({ name, priority })
+  converters.push(converter)
   MarkItDown::{ converters, }
+}
+
+///|
+pub fn MarkItDown::register_named(
+  self : MarkItDown,
+  kind : ConverterKind,
+  priority : Int,
+) -> MarkItDown {
+  self.register(default_registration(kind, priority))
 }
 
 ///|
@@ -75,7 +87,7 @@ pub async fn MarkItDown::convert_source(
       )
   }
 
-  let raw_result = run_converter(converter.name, input) catch {
+  let raw_result = run_converter(converter, input) catch {
     err =>
       fail(
         format_engine_error(
@@ -98,7 +110,7 @@ pub fn MarkItDown::select_converter(
 ) -> ConverterRegistration raise {
   let mut selected : ConverterRegistration? = None
   for converter in self.converters {
-    if accepts_converter(converter.name, info) {
+    if accepts_converter(converter, info) {
       match selected {
         Some(current) =>
           if converter.priority > current.priority {
@@ -222,24 +234,26 @@ fn find_last_char(s : String, target : Char) -> Int? {
 }
 
 ///|
-fn accepts_converter(name : String, info : @core.StreamInfo) -> Bool {
-  match name {
-    "docx" => @docx.DocxConverter::accepts(info)
-    "epub" => @epub.EpubConverter::accepts(info)
-    "pptx" => @pptx.PptxConverter::accepts(info)
-    "xlsx" => @xlsx.XlsxConverter::accepts(info)
-    "pdf" => @pdf.PdfConverter::accepts(info)
-    "html" => @html.HtmlConverter::accepts(info)
-    "json" => @json.JsonConverter::accepts(info)
-    "csv" => @csv.CsvConverter::accepts(info)
-    "text" => @text.TextConverter::accepts(info)
-    _ => false
+fn accepts_converter(
+  converter : ConverterRegistration,
+  info : @core.StreamInfo,
+) -> Bool {
+  match converter.kind {
+    Docx => @docx.DocxConverter::accepts(info)
+    Epub => @epub.EpubConverter::accepts(info)
+    Pptx => @pptx.PptxConverter::accepts(info)
+    Xlsx => @xlsx.XlsxConverter::accepts(info)
+    Pdf => @pdf.PdfConverter::accepts(info)
+    Html => @html.HtmlConverter::accepts(info)
+    Json => @json.JsonConverter::accepts(info)
+    Csv => @csv.CsvConverter::accepts(info)
+    Text => @text.TextConverter::accepts(info)
   }
 }
 
 ///|
 async fn run_converter(
-  name : String,
+  converter : ConverterRegistration,
   input : @core.InputSource,
 ) -> @core.ConvertResult {
   let input_name = match input {
@@ -252,17 +266,16 @@ async fn run_converter(
       }
   }
 
-  match name {
-    "docx" => @docx.DocxConverter::convert(input_name)
-    "epub" => @epub.EpubConverter::convert(input_name)
-    "pptx" => @pptx.PptxConverter::convert(input_name)
-    "xlsx" => @xlsx.XlsxConverter::convert(input_name)
-    "pdf" => @pdf.PdfConverter::convert(input_name)
-    "html" => @html.HtmlConverter::convert(input_name)
-    "json" => @json.JsonConverter::convert(input_name)
-    "csv" => @csv.CsvConverter::convert(input_name)
-    "text" => @text.TextConverter::convert(input_name)
-    _ => fail("Unknown converter: " + name)
+  match converter.kind {
+    Docx => @docx.DocxConverter::convert(input_name)
+    Epub => @epub.EpubConverter::convert(input_name)
+    Pptx => @pptx.PptxConverter::convert(input_name)
+    Xlsx => @xlsx.XlsxConverter::convert(input_name)
+    Pdf => @pdf.PdfConverter::convert(input_name)
+    Html => @html.HtmlConverter::convert(input_name)
+    Json => @json.JsonConverter::convert(input_name)
+    Csv => @csv.CsvConverter::convert(input_name)
+    Text => @text.TextConverter::convert(input_name)
   }
 }
 
@@ -279,6 +292,7 @@ fn finalize_result(
   } else {
     Map::new()
   }
+  let diagnostics = merge_diagnostics(raw_result, converter, input)
   let rendered_markdown = render_output_mode(
     raw_result.markdown,
     raw_result.title,
@@ -295,6 +309,7 @@ fn finalize_result(
     title: raw_result.title,
     metadata,
     warnings: raw_result.warnings,
+    diagnostics,
     source_type: raw_result.source_type,
     stats,
   }
@@ -333,6 +348,27 @@ fn enrich_metadata(
   }
 
   metadata
+}
+
+///|
+fn merge_diagnostics(
+  raw_result : @core.ConvertResult,
+  converter : ConverterRegistration,
+  input : @core.InputSource,
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  for diagnostic in raw_result.diagnostics {
+    diagnostics.push(diagnostic)
+  }
+  for
+    diagnostic in @core.diagnostics_from_warnings(
+      raw_result.warnings,
+      Some(converter.name),
+      input.name(),
+    ) {
+    diagnostics.push(diagnostic)
+  }
+  diagnostics
 }
 
 ///|
@@ -393,4 +429,41 @@ fn format_engine_error(
     None => ()
   }
   result
+}
+
+///|
+fn register_default_converters(engine : MarkItDown) -> MarkItDown {
+  engine
+  .register_named(Docx, 100)
+  .register_named(Epub, 95)
+  .register_named(Pptx, 90)
+  .register_named(Xlsx, 85)
+  .register_named(Pdf, 80)
+  .register_named(Html, 70)
+  .register_named(Json, 50)
+  .register_named(Csv, 40)
+  .register_named(Text, 10)
+}
+
+///|
+fn default_registration(
+  kind : ConverterKind,
+  priority : Int,
+) -> ConverterRegistration {
+  ConverterRegistration::{ kind, name: converter_name(kind), priority }
+}
+
+///|
+fn converter_name(kind : ConverterKind) -> String {
+  match kind {
+    Docx => "docx"
+    Epub => "epub"
+    Pptx => "pptx"
+    Xlsx => "xlsx"
+    Pdf => "pdf"
+    Html => "html"
+    Json => "json"
+    Csv => "csv"
+    Text => "text"
+  }
 }

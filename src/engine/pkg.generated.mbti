@@ -10,7 +10,20 @@ import {
 // Errors
 
 // Types and methods
+pub(all) enum ConverterKind {
+  Docx
+  Epub
+  Pptx
+  Xlsx
+  Pdf
+  Html
+  Json
+  Csv
+  Text
+}
+
 pub(all) struct ConverterRegistration {
+  kind : ConverterKind
   name : String
   priority : Int
 }
@@ -22,7 +35,8 @@ pub async fn MarkItDown::convert(Self, String, ctx? : @core.ConvertContext) -> @
 pub async fn MarkItDown::convert_source(Self, @core.InputSource, ctx? : @core.ConvertContext) -> @core.ConvertResult
 pub fn MarkItDown::detect_converter_name(Self, String) -> String raise
 pub fn MarkItDown::new() -> Self
-pub fn MarkItDown::register(Self, String, Int) -> Self
+pub fn MarkItDown::register(Self, ConverterRegistration) -> Self
+pub fn MarkItDown::register_named(Self, ConverterKind, Int) -> Self
 pub fn MarkItDown::select_converter(Self, @core.StreamInfo) -> ConverterRegistration raise
 
 // Type aliases

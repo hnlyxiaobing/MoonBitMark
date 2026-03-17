@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/ast"
+
+// Values
+pub fn document_of_markdownish(String, String?, Map[String, String]) -> Document
+
+pub fn parse_markdownish_block(String) -> Block
+
+pub fn render_markdown(Document) -> String
+
+pub fn text_paragraph(String) -> Block
+
+// Errors
+
+// Types and methods
+pub(all) enum Block {
+  Heading(Int, String)
+  Paragraph(Array[Inline])
+  List(Array[String], Bool)
+  Quote(Array[String])
+  CodeBlock(String?, String)
+  Table(Array[String], Array[Array[String]])
+  HorizontalRule
+}
+pub impl Eq for Block
+pub impl Show for Block
+pub impl ToJson for Block
+
+pub(all) struct Document {
+  title : String?
+  metadata : Map[String, String]
+  blocks : Array[Block]
+}
+pub impl Eq for Document
+pub impl Show for Document
+pub impl ToJson for Document
+
+pub(all) enum Inline {
+  Text(String)
+}
+pub impl Eq for Inline
+pub impl Show for Inline
+pub impl ToJson for Inline
+
+// Type aliases
+
+// Traits
+

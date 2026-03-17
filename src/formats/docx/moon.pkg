@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/libzip",
   "moonbitlang/moonbitmark/src/xml",

@@ -45,8 +45,51 @@ pub async fn JsonConverter::convert(file_path : String) -> @core.ConvertResult {
   // Use Unicode escape for backtick: U+0060
   let bt = "\u{0060}"
   let triple_bt = bt + bt + bt
-  @core.ConvertResult::markdown_only(
-    triple_bt + " json\n" + final_trimmed.to_string() + "\n" + triple_bt,
-    "json",
-  )
+  let markdown = triple_bt +
+    " json\n" +
+    final_trimmed.to_string() +
+    "\n" +
+    triple_bt
+  let metadata = Map::new()
+  metadata["format"] = "json"
+  metadata["render_mode"] = "code_fence"
+  @core.ConvertResult::markdown_only(markdown, "json")
+  .with_title(file_stem(file_path))
+  .with_metadata(metadata)
+  .with_stats(Some(@core.stats_for_markdown(markdown)))
+}
+
+///|
+fn file_stem(path : String) -> String? {
+  let normalized = path.replace(old="\\", new="/")
+  let basename = match find_last_char(normalized, '/') {
+    Some(index) => normalized[index + 1:].to_string()
+    None => normalized
+  }
+  match find_last_char(basename, '.') {
+    Some(index) =>
+      if index > 0 {
+        Some(basename[0:index].to_string())
+      } else {
+        None
+      }
+    None => if basename != "" { Some(basename) } else { None }
+  }
+}
+
+///|
+fn find_last_char(s : String, target : Char) -> Int? {
+  let mut found = -1
+  let mut i = 0
+  for ch in s {
+    if ch == target {
+      found = i
+    }
+    i = i + 1
+  }
+  if found >= 0 {
+    Some(found)
+  } else {
+    None
+  }
 }

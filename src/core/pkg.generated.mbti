@@ -4,7 +4,13 @@ package "moonbitlang/moonbitmark/src/core"
 // Values
 pub fn count_markdown_blocks(String) -> Int
 
+pub fn diagnostics_from_warnings(Array[String], String?, String?) -> Array[ConversionDiagnostic]
+
+pub fn error_diagnostic(String, String, String?, String?, String?) -> ConversionDiagnostic
+
 pub fn stats_for_markdown(String, duration_ms? : Int, used_fallback? : Bool) -> ConvertStats
+
+pub fn warning_diagnostic(String, String, String?, String?, String?) -> ConversionDiagnostic
 
 // Errors
 
@@ -51,10 +57,16 @@ pub(all) struct ConvertResult {
   title : String?
   metadata : Map[String, String]
   warnings : Array[String]
+  diagnostics : Array[ConversionDiagnostic]
   source_type : String
   stats : ConvertStats?
 }
 pub fn ConvertResult::markdown_only(String, String) -> Self
+pub fn ConvertResult::with_diagnostics(Self, Array[ConversionDiagnostic]) -> Self
+pub fn ConvertResult::with_metadata(Self, Map[String, String]) -> Self
+pub fn ConvertResult::with_stats(Self, ConvertStats?) -> Self
+pub fn ConvertResult::with_title(Self, String?) -> Self
+pub fn ConvertResult::with_warnings(Self, Array[String]) -> Self
 pub impl Eq for ConvertResult
 pub impl Show for ConvertResult
 pub impl ToJson for ConvertResult

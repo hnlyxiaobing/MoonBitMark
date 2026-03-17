@@ -367,22 +367,22 @@ fn register_converters(engine: Engine) -> Engine {
 ### P0：必须做
 
 - [~] Core Engine 接管主流程
-  当前状态：已新增独立 `src/engine/` 包，由引擎负责输入识别、converter 选择与调度执行；但统一诊断、耗时统计、metadata 补全尚未完成。
+  当前状态：已新增独立 `src/engine/` 包，由引擎负责输入识别、converter 注册、选择与调度执行；metadata 补全、frontmatter 输出、基础 diagnostics 合并与 stats 默认生成已接入，但统一 typed error 体系仍未完成。
 - [x] CLI 只调用 engine
   当前状态：`cmd/main/main.mbt` 已移除格式分支，改为调用引擎并输出 `ConvertResult.markdown`。
-- [~] 所有 converter 返回 `ConvertResult`
-  当前状态：text/csv/json/pdf/html/docx/pptx/xlsx/epub 已统一返回 `ConvertResult`；但尚未统一到完整 converter 协议，也未充分填充 metadata/warnings/stats。
-- [ ] 统一错误/警告模型
-  当前状态：`warnings` 字段已加入 `ConvertResult`，但统一错误类型、诊断结构、warning 产出机制尚未实现。
+- [x] 所有 converter 返回 `ConvertResult`
+  当前状态：text/csv/json/pdf/html/docx/pptx/xlsx/epub 已统一返回 `ConvertResult`，并已普遍填充 title、metadata、warnings、stats 等结果字段。
+- [~] 统一错误/警告模型
+  当前状态：`warnings`、`diagnostics`、`ConversionDiagnostic` 已接入 `ConvertResult` 与 engine 汇总流程；warning 产出机制已在各 converter 初步落地，但 typed error 分类和统一 phase/source/hint 规范仍未全面接通。
 
 ### P1：强烈建议
 
-- [ ] HTML/DOCX/EPUB 接入 AST
-  当前状态：未开始，现阶段仍为各格式直接输出 Markdown。
-- [~] 转换 stats/metadata 输出
-  当前状态：`ConvertStats`、`ConvertContext`、`source_type` 等字段已建模，但大多数 converter 尚未实际产出 stats 和增强 metadata。
+- [~] HTML/DOCX/EPUB 接入 AST
+  当前状态：已新增 `src/ast/` 包与统一 renderer；HTML 已直接生成 AST block，DOCX/EPUB 已接入 `Document -> renderer` 流程，但二者仍经 markdown-ish 过渡层，尚未实现原生 XML/XHTML → AST 的直接映射。
+- [x] 转换 stats/metadata 输出
+  当前状态：`ConvertStats`、`ConvertContext`、`source_type` 等字段已建模并实际接入，各主要 converter 已补充基础 stats 与格式相关 metadata。
 - [~] Converter 注册表
-  当前状态：引擎内已有集中注册列表与优先级；但还不是文档目标中的可扩展 `register(...)` 插件式机制。
+  当前状态：引擎已具备 `ConverterKind`、`ConverterRegistration`、`register/register_named` 等集中注册机制；但尚未抽象为独立插件包或外部可扩展注册入口。
 
 ### P2：冲刺加分
 
@@ -396,11 +396,13 @@ fn register_converters(engine: Engine) -> Engine {
 - 已完成的代码落点主要包括：
   - `src/core/types.mbt`
   - `src/engine/engine.mbt`
+  - `src/ast/*`
   - `cmd/main/main.mbt`
   - `src/mcp/handler/converter_bridge.mbt`
   - 各 `src/formats/*/converter.mbt`
-- 当前仍缺少完整编译验收。
-  - 原因：本机 `moon check` / `moon ide` 在 Windows 环境下会出现工具自身的 UTF-8 panic，导致尚未完成 `moon fmt`、`moon info`、`moon test` 收口。
+- 当前已完成基本编译与测试验收。
+  - 已执行：`moon check`、多包 `moon test`、`moon fmt`、`moon info`
+  - 当前仍存在若干历史 warning，主要集中在 HTML 遗留 helper、EPUB 字符解码、PPTX parser、XLSX parser 与 libzip 兼容性问题。
 
 ## 6. 实施优先级
 

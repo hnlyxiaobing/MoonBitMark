@@ -14,6 +14,7 @@ pub(all) struct ConvertResult {
   title : String?
   metadata : Map[String, String]
   warnings : Array[String]
+  diagnostics : Array[ConversionDiagnostic]
   source_type : String
   stats : ConvertStats?
 } derive(Show, Eq, ToJson)
@@ -55,9 +56,50 @@ pub fn ConvertResult::markdown_only(
     title: None,
     metadata: Map::new(),
     warnings: [],
+    diagnostics: [],
     source_type,
     stats: None,
   }
+}
+
+///|
+pub fn ConvertResult::with_title(
+  self : ConvertResult,
+  title : String?,
+) -> ConvertResult {
+  { ..self, title, }
+}
+
+///|
+pub fn ConvertResult::with_metadata(
+  self : ConvertResult,
+  metadata : Map[String, String],
+) -> ConvertResult {
+  { ..self, metadata, }
+}
+
+///|
+pub fn ConvertResult::with_warnings(
+  self : ConvertResult,
+  warnings : Array[String],
+) -> ConvertResult {
+  { ..self, warnings, }
+}
+
+///|
+pub fn ConvertResult::with_diagnostics(
+  self : ConvertResult,
+  diagnostics : Array[ConversionDiagnostic],
+) -> ConvertResult {
+  { ..self, diagnostics, }
+}
+
+///|
+pub fn ConvertResult::with_stats(
+  self : ConvertResult,
+  stats : ConvertStats?,
+) -> ConvertResult {
+  { ..self, stats, }
 }
 
 ///|
@@ -161,4 +203,48 @@ pub fn stats_for_markdown(
     duration_ms,
     used_fallback,
   }
+}
+
+///|
+pub fn warning_diagnostic(
+  category : String,
+  message : String,
+  phase : String?,
+  source : String?,
+  hint : String?,
+) -> ConversionDiagnostic {
+  ConversionDiagnostic::{
+    level: Warning,
+    category,
+    phase,
+    source,
+    message,
+    hint,
+  }
+}
+
+///|
+pub fn error_diagnostic(
+  category : String,
+  message : String,
+  phase : String?,
+  source : String?,
+  hint : String?,
+) -> ConversionDiagnostic {
+  ConversionDiagnostic::{ level: Error, category, phase, source, message, hint }
+}
+
+///|
+pub fn diagnostics_from_warnings(
+  warnings : Array[String],
+  phase : String?,
+  source : String?,
+) -> Array[ConversionDiagnostic] {
+  let diagnostics : Array[ConversionDiagnostic] = []
+  for warning in warnings {
+    diagnostics.push(
+      warning_diagnostic("ConverterWarning", warning, phase, source, None),
+    )
+  }
+  diagnostics
 }
