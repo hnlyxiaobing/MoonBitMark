@@ -17,3 +17,14 @@ pub enum CompressionMethod {
   Deflate(Int) // DEFLATE 压缩
   Unknown(Int) // 未知方法
 } derive(Show, Eq)
+
+///|
+pub fn compression_method_from_int(code : Int) -> CompressionMethod {
+  if code == 0 {
+    Store(code)
+  } else if code == 8 {
+    Deflate(code)
+  } else {
+    Unknown(code)
+  }
+}

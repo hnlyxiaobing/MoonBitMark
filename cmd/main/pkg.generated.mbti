@@ -6,6 +6,7 @@ package "moonbitlang/moonbitmark/cmd/main"
 // Errors
 
 // Types and methods
+type CliOptions
 
 // Type aliases
 

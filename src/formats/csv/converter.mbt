@@ -51,10 +51,12 @@ pub async fn CsvConverter::convert(file_path : String) -> @core.ConvertResult {
   if markdown == "" {
     warnings.push("CSV input produced empty Markdown output.")
   }
+  let diagnostics = csv_warning_diagnostics(file_path, markdown)
   @core.ConvertResult::markdown_only(markdown, "csv")
   .with_title(file_stem(file_path))
   .with_metadata(metadata)
   .with_warnings(warnings)
+  .with_diagnostics(diagnostics)
   .with_stats(Some(@core.stats_for_markdown(markdown)))
 }
 
@@ -140,4 +142,27 @@ fn find_last_char(s : String, target : Char) -> Int? {
   } else {
     None
   }
+}
+
+///|
+fn csv_warning_diagnostics(
+  file_path : String,
+  markdown : String,
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  if markdown == "" {
+    diagnostics.push(
+      @core.warning_diagnostic(
+        "CSV input produced empty Markdown output.",
+        Some(@core.Render(Some("markdown"))),
+        Some(@core.File(file_path)),
+        Some(
+          @core.Custom(
+            "Check whether the CSV contains at least one non-empty row.",
+          ),
+        ),
+      ),
+    )
+  }
+  diagnostics
 }

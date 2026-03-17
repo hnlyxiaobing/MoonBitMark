@@ -6,6 +6,8 @@ pub let central_dir_sig : UInt
 
 pub fn close_archive(ZipArchive) -> Unit
 
+pub fn compression_method_from_int(Int) -> CompressionMethod
+
 pub fn crc32(Bytes) -> UInt
 
 pub fn crc32_continue(Bytes, UInt) -> UInt

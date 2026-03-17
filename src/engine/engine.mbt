@@ -74,30 +74,33 @@ pub async fn MarkItDown::convert_source(
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let info = stream_info_of_input(input)
+  let input_source = diagnostic_source_of_input(input)
   let converter = self.select_converter(info) catch {
     err =>
       fail(
-        format_engine_error(
-          category="FormatDetectionError",
-          phase="detect/select",
-          source=describe_input(input),
-          message=err.to_string(),
-          hint=Some("Check the file extension, URL, or MIME information."),
+        render_engine_failure(
+          @core.FormatDetectionError(err.to_string()),
+          Some(@core.Detect(Some("select"))),
+          Some(input_source),
+          Some(@core.CheckInputDetection),
         ),
       )
   }
 
   let raw_result = run_converter(converter, input) catch {
     err =>
-      fail(
-        format_engine_error(
-          category="ConversionFailed",
-          phase=converter.name,
-          source=describe_input(input),
-          message=err.to_string(),
-          hint=Some("Inspect the source document or run with debug context."),
-        ),
-      )
+      if is_rendered_diagnostic(err.to_string()) {
+        fail(err.to_string())
+      } else {
+        fail(
+          render_engine_failure(
+            @core.ConversionFailed(err.to_string(), converter.name),
+            Some(@core.Convert(converter.name)),
+            Some(input_source),
+            Some(fallback_hint_for_converter(converter)),
+          ),
+        )
+      }
   }
 
   finalize_result(raw_result, converter, input, info, ctx)
@@ -174,10 +177,13 @@ fn describe_stream_info(info : @core.StreamInfo) -> String {
 }
 
 ///|
-fn describe_input(input : @core.InputSource) -> String {
-  match input.name() {
-    Some(name) => name
-    None => "<unknown input>"
+fn diagnostic_source_of_input(
+  input : @core.InputSource,
+) -> @core.DiagnosticSource {
+  match input {
+    @core.FileInput(path, _) => @core.File(path)
+    @core.UrlInput(url, _) => @core.Url(url)
+    @core.BytesInput(name, _, _) => @core.Bytes(name)
   }
 }
 
@@ -262,7 +268,18 @@ async fn run_converter(
     @core.BytesInput(name, _, _) =>
       match name {
         Some(value) => value
-        None => fail("Bytes input is not supported without a source name")
+        None =>
+          fail(
+            render_engine_failure(
+              @core.InputError(
+                "Bytes input is not supported without a source name",
+                None,
+              ),
+              Some(@core.Load(Some("resolve-input"))),
+              Some(@core.Bytes(None)),
+              Some(@core.ProvideBytesSourceName),
+            ),
+          )
       }
   }
 
@@ -280,7 +297,7 @@ async fn run_converter(
 }
 
 ///|
-fn finalize_result(
+async fn finalize_result(
   raw_result : @core.ConvertResult,
   converter : ConverterRegistration,
   input : @core.InputSource,
@@ -292,23 +309,50 @@ fn finalize_result(
   } else {
     Map::new()
   }
-  let diagnostics = merge_diagnostics(raw_result, converter, input)
   let rendered_markdown = render_output_mode(
     raw_result.markdown,
     raw_result.title,
     metadata,
     ctx.output_mode,
   )
+  let (asset_markdown, asset_warnings, asset_diagnostics, asset_count) = match
+    ctx.asset_output_dir {
+    Some(dir) => materialize_data_uri_assets(rendered_markdown, dir)
+    None => (rendered_markdown, [], [], 0)
+  }
+  let warnings : Array[String] = []
+  for warning in raw_result.warnings {
+    warnings.push(warning)
+  }
+  for warning in asset_warnings {
+    warnings.push(warning)
+  }
+  if asset_count > 0 {
+    metadata["asset_count"] = asset_count.to_string()
+    match ctx.asset_output_dir {
+      Some(dir) => metadata["asset_output_dir"] = normalize_asset_path(dir)
+      None => ()
+    }
+  }
+  let diagnostics = merge_diagnostics(
+    raw_result.diagnostics,
+    raw_result.warnings,
+    converter,
+    input,
+  )
+  for diagnostic in asset_diagnostics {
+    diagnostics.push(diagnostic)
+  }
   let stats = match raw_result.stats {
     Some(existing) => Some(existing)
-    None => Some(@core.stats_for_markdown(rendered_markdown))
+    None => Some(@core.stats_for_markdown(asset_markdown))
   }
 
   @core.ConvertResult::{
-    markdown: rendered_markdown,
+    markdown: asset_markdown,
     title: raw_result.title,
     metadata,
-    warnings: raw_result.warnings,
+    warnings,
     diagnostics,
     source_type: raw_result.source_type,
     stats,
@@ -352,23 +396,306 @@ fn enrich_metadata(
 
 ///|
 fn merge_diagnostics(
-  raw_result : @core.ConvertResult,
+  raw_diagnostics : Array[@core.ConversionDiagnostic],
+  warnings : Array[String],
   converter : ConverterRegistration,
   input : @core.InputSource,
 ) -> Array[@core.ConversionDiagnostic] {
   let diagnostics : Array[@core.ConversionDiagnostic] = []
-  for diagnostic in raw_result.diagnostics {
-    diagnostics.push(diagnostic)
+  let fallback_phase = Some(@core.Convert(converter.name))
+  let fallback_source = Some(diagnostic_source_of_input(input))
+  let fallback_hint = fallback_hint_for_converter(converter)
+  for diagnostic in raw_diagnostics {
+    diagnostics.push(
+      diagnostic.with_defaults(
+        fallback_phase,
+        fallback_source,
+        Some(fallback_hint),
+      ),
+    )
   }
   for
     diagnostic in @core.diagnostics_from_warnings(
-      raw_result.warnings,
-      Some(converter.name),
-      input.name(),
+      warnings,
+      fallback_phase,
+      fallback_source,
+      hint=fallback_hint,
     ) {
     diagnostics.push(diagnostic)
   }
   diagnostics
+}
+
+///|
+fn fallback_hint_for_converter(
+  converter : ConverterRegistration,
+) -> @core.DiagnosticHint {
+  match converter.kind {
+    Docx => @core.CheckArchiveIntegrity
+    Epub => @core.CheckArchiveIntegrity
+    Pptx => @core.CheckArchiveIntegrity
+    Xlsx => @core.CheckArchiveIntegrity
+    Pdf => @core.InspectSourceDocument
+    Html => @core.InspectSourceDocument
+    Json => @core.InspectSourceDocument
+    Csv => @core.InspectSourceDocument
+    Text => @core.InspectSourceDocument
+  }
+}
+
+///|
+fn render_engine_failure(
+  error : @core.ConversionError,
+  phase : @core.ConversionPhase?,
+  source : @core.DiagnosticSource?,
+  hint : @core.DiagnosticHint?,
+) -> String {
+  @core.error_diagnostic(error, phase, source, hint).render()
+}
+
+///|
+fn is_rendered_diagnostic(message : String) -> Bool {
+  message.has_prefix("Error: ") && message.contains("\n  Message: ")
+}
+
+///|
+async fn materialize_data_uri_assets(
+  markdown : String,
+  asset_output_dir : String,
+) -> (String, Array[String], Array[@core.ConversionDiagnostic], Int) {
+  let mut rewritten = markdown
+  let warnings : Array[String] = []
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  let normalized_dir = normalize_asset_path(asset_output_dir)
+  let mut cursor = 0
+  let mut asset_index = 1
+  let mut asset_count = 0
+
+  while true {
+    match find_substring(rewritten, "data:image/", cursor) {
+      Some(start) => {
+        let end = match find_data_uri_end(rewritten, start) {
+          Some(value) => value
+          None => break
+        }
+        let uri = rewritten[start:end].to_string()
+        match decode_data_uri_asset(uri, asset_index) {
+          Some((filename, bytes)) => {
+            let relative_path = normalized_dir + "/" + filename
+            let disk_path = join_asset_path(asset_output_dir, filename)
+            ensure_directory_chain(asset_output_dir)
+            let write_result = write_asset_file(disk_path, bytes) catch {
+              err => {
+                let message = "Failed to write asset file: " + relative_path
+                warnings.push(message)
+                diagnostics.push(
+                  @core.warning_diagnostic(
+                    message,
+                    Some(@core.Postprocess(Some("assets"))),
+                    Some(@core.Generated(relative_path)),
+                    Some(@core.Custom(err.to_string())),
+                  ),
+                )
+                false
+              }
+            }
+            if write_result {
+              rewritten = rewritten[:start].to_string() +
+                relative_path +
+                rewritten[end:].to_string()
+              asset_count = asset_count + 1
+              asset_index = asset_index + 1
+              cursor = start + relative_path.length()
+            } else {
+              cursor = end
+            }
+          }
+          None => {
+            let message = "Failed to decode embedded data URI image asset."
+            warnings.push(message)
+            diagnostics.push(
+              @core.warning_diagnostic(
+                message,
+                Some(@core.Postprocess(Some("assets"))),
+                Some(@core.Generated("data-uri-image")),
+                Some(
+                  @core.Custom(
+                    "Verify the data URI uses a supported image media type and valid base64 payload.",
+                  ),
+                ),
+              ),
+            )
+            cursor = end
+          }
+        }
+      }
+      None => break
+    }
+  }
+
+  (rewritten, warnings, diagnostics, asset_count)
+}
+
+///|
+async fn write_asset_file(path : String, bytes : Bytes) -> Bool {
+  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  file.write(bytes)
+  file.close()
+  true
+}
+
+///|
+async fn ensure_directory_chain(path : String) -> Unit {
+  let normalized = normalize_asset_path(path)
+  let mut current = directory_prefix(normalized)
+  for segment in split_path_segments(normalized) {
+    current = join_segment(current, segment)
+    ignore(
+      @fs.mkdir(current, permission=0o755, recursive=true) catch {
+        _ => ()
+      },
+    )
+  }
+}
+
+///|
+fn decode_data_uri_asset(uri : String, index : Int) -> (String, Bytes)? {
+  if !uri.has_prefix("data:image/") {
+    return None
+  }
+  let comma = match find_substring(uri, ",", 0) {
+    Some(value) => value
+    None => return None
+  }
+  let header = uri[5:comma].to_string()
+  if !header.contains(";base64") {
+    return None
+  }
+  let media_type = match header.split(";").next() {
+    Some(value) => value.to_string()
+    None => return None
+  }
+  let payload = uri[comma + 1:].to_string()
+  let bytes = @base64.decode(payload, ignore_whitespace=true) catch {
+    _ => return None
+  }
+  let filename = "image-" +
+    index.to_string() +
+    "." +
+    image_extension(media_type)
+  Some((filename, bytes))
+}
+
+///|
+fn image_extension(media_type : String) -> String {
+  match media_type {
+    "image/png" => "png"
+    "image/jpeg" => "jpg"
+    "image/jpg" => "jpg"
+    "image/gif" => "gif"
+    "image/webp" => "webp"
+    "image/svg+xml" => "svg"
+    "image/x-icon" => "ico"
+    _ => "bin"
+  }
+}
+
+///|
+fn find_data_uri_end(text : String, start : Int) -> Int? {
+  let mut i = start
+  while i < text.length() {
+    let ch = text[i]
+    if ch == ')' ||
+      ch == ' ' ||
+      ch == '"' ||
+      ch == '\n' ||
+      ch == '\r' ||
+      ch == '\t' {
+      return Some(i)
+    }
+    i = i + 1
+  }
+  None
+}
+
+///|
+fn find_substring(text : String, needle : String, start : Int) -> Int? {
+  if start >= text.length() {
+    None
+  } else {
+    let tail = text[start:].to_string()
+    match tail.find(needle[:]) {
+      Some(pos) => Some(start + pos)
+      None => None
+    }
+  }
+}
+
+///|
+fn normalize_asset_path(path : String) -> String {
+  path.replace(old="\\", new="/")
+}
+
+///|
+fn join_asset_path(dir : String, name : String) -> String {
+  let normalized = normalize_asset_path(dir)
+  if normalized == "" {
+    name
+  } else if normalized.has_suffix("/") {
+    normalized + name
+  } else {
+    normalized + "/" + name
+  }
+}
+
+///|
+fn directory_prefix(path : String) -> String {
+  if path.length() >= 2 && path[1] == ':' {
+    path[0:2].to_string()
+  } else if path.has_prefix("/") {
+    "/"
+  } else {
+    ""
+  }
+}
+
+///|
+fn split_path_segments(path : String) -> Array[String] {
+  let normalized = normalize_asset_path(path)
+  let segments : Array[String] = []
+  let mut current = ""
+  let mut start = 0
+  if normalized.length() >= 2 && normalized[1] == ':' {
+    start = 2
+  } else if normalized.has_prefix("/") {
+    start = 1
+  }
+  let mut i = start
+  while i < normalized.length() {
+    let ch = normalized[i]
+    if ch == '/' {
+      if current != "" {
+        segments.push(current)
+        current = ""
+      }
+    } else {
+      current = current + ch.to_string()
+    }
+    i = i + 1
+  }
+  if current != "" {
+    segments.push(current)
+  }
+  segments
+}
+
+///|
+fn join_segment(current : String, segment : String) -> String {
+  if current == "" || current == "/" {
+    current + segment
+  } else {
+    current + "/" + segment
+  }
 }
 
 ///|
@@ -410,25 +737,6 @@ fn add_frontmatter(
 ///|
 fn escape_frontmatter(value : String) -> String {
   "\"" + value.replace(old="\"", new="\\\"") + "\""
-}
-
-///|
-fn format_engine_error(
-  category~ : String,
-  phase~ : String,
-  source~ : String,
-  message~ : String,
-  hint~ : String?,
-) -> String {
-  let mut result = "Error: " + category + "\n"
-  result = result + "  Phase: " + phase + "\n"
-  result = result + "  Source: " + source + "\n"
-  result = result + "  Message: " + message
-  match hint {
-    Some(value) => result = result + "\n  Hint: " + value
-    None => ()
-  }
-  result
 }
 
 ///|

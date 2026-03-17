@@ -50,15 +50,17 @@ pub async fn HtmlConverter::convert(input : String) -> @core.ConvertResult {
   metadata["format"] = "html"
   metadata["html_source"] = source_label
   let warnings = collect_html_warnings(html)
+  let diagnostics = html_warning_diagnostics(input, html)
   @core.ConvertResult::markdown_only(rendered_markdown, "html")
   .with_title(title)
   .with_metadata(metadata)
   .with_warnings(warnings)
+  .with_diagnostics(diagnostics)
   .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
 }
 
 ///|
-fn preprocess_html(html : String) -> String raise {
+fn preprocess_html(html : String) -> String {
   let mut result = html
   result = remove_tag_block(result, "script")
   result = remove_tag_block(result, "style")
@@ -66,7 +68,7 @@ fn preprocess_html(html : String) -> String raise {
 }
 
 ///|
-fn html_to_document(html : String, title : String?) -> @ast.Document raise {
+fn html_to_document(html : String, title : String?) -> @ast.Document {
   let blocks : Array[@ast.Block] = []
   let body = extract_body_html(html)
   let mut remaining = body
@@ -91,7 +93,7 @@ fn html_to_document(html : String, title : String?) -> @ast.Document raise {
 }
 
 ///|
-fn extract_body_html(html : String) -> String raise {
+fn extract_body_html(html : String) -> String {
   let lower = html.to_lower()
   match lower.find("<body") {
     Some(start) =>
@@ -108,7 +110,7 @@ fn extract_body_html(html : String) -> String raise {
 }
 
 ///|
-fn parse_next_html_block(html : String) -> (@ast.Block, String)? raise {
+fn parse_next_html_block(html : String) -> (@ast.Block, String)? {
   if html == "" {
     return None
   }
@@ -173,7 +175,7 @@ fn parse_next_html_block(html : String) -> (@ast.Block, String)? raise {
 fn parse_heading_html_block(
   html : String,
   level : Int,
-) -> (@ast.Block, String)? raise {
+) -> (@ast.Block, String)? {
   let tag = "h" + level.to_string()
   match take_tag_inner_html(html, tag) {
     Some((inner, rest)) =>
@@ -187,7 +189,7 @@ fn parse_wrapped_block(
   html : String,
   tag : String,
   build : (String) -> @ast.Block,
-) -> (@ast.Block, String)? raise {
+) -> (@ast.Block, String)? {
   match take_tag_inner_html(html, tag) {
     Some((inner, rest)) => {
       let content = inline_html_to_text(inner)
@@ -201,7 +203,7 @@ fn parse_wrapped_block(
 fn parse_list_html_block(
   html : String,
   ordered : Bool,
-) -> (@ast.Block, String)? raise {
+) -> (@ast.Block, String)? {
   let tag = if ordered { "ol" } else { "ul" }
   match take_tag_inner_html(html, tag) {
     Some((inner, rest)) => {
@@ -213,7 +215,7 @@ fn parse_list_html_block(
 }
 
 ///|
-fn parse_table_html_block(html : String) -> (@ast.Block, String)? raise {
+fn parse_table_html_block(html : String) -> (@ast.Block, String)? {
   match take_tag_inner_html(html, "table") {
     Some((inner, rest)) => {
       let rows = extract_table_rows(inner)
@@ -227,7 +229,7 @@ fn parse_table_html_block(html : String) -> (@ast.Block, String)? raise {
 }
 
 ///|
-fn take_tag_inner_html(html : String, tag : String) -> (String, String)? raise {
+fn take_tag_inner_html(html : String, tag : String) -> (String, String)? {
   let open = "<" + tag
   let close = "</" + tag + ">"
   match find_from(html.to_lower(), open, 0) {
@@ -249,7 +251,7 @@ fn take_tag_inner_html(html : String, tag : String) -> (String, String)? raise {
 }
 
 ///|
-fn extract_list_items(inner : String) -> Array[String] raise {
+fn extract_list_items(inner : String) -> Array[String] {
   let items : Array[String] = []
   let mut remaining = inner
   while remaining.trim() != "" {
@@ -275,7 +277,7 @@ fn extract_list_items(inner : String) -> Array[String] raise {
 }
 
 ///|
-fn extract_table_rows(inner : String) -> Array[Array[String]] raise {
+fn extract_table_rows(inner : String) -> Array[Array[String]] {
   let rows : Array[Array[String]] = []
   let mut remaining = inner
   while remaining.trim() != "" {
@@ -301,7 +303,7 @@ fn extract_table_rows(inner : String) -> Array[Array[String]] raise {
 }
 
 ///|
-fn inline_html_to_text(fragment : String) -> String raise {
+fn inline_html_to_text(fragment : String) -> String {
   let mut result = fragment
   result = convert_line_breaks(result)
   result = convert_links(result)
@@ -314,7 +316,7 @@ fn inline_html_to_text(fragment : String) -> String raise {
 }
 
 ///|
-fn plain_text_fragment(fragment : String) -> String raise {
+fn plain_text_fragment(fragment : String) -> String {
   inline_html_to_text(fragment)
 }
 
@@ -350,7 +352,7 @@ pub async fn convert_from_file(file_path : String) -> String {
 }
 
 ///|
-fn extract_title(html : String) -> String? raise {
+fn extract_title(html : String) -> String? {
   let lower = html.to_lower()
   match lower.find("<title") {
     Some(start) =>
@@ -389,13 +391,52 @@ fn collect_html_warnings(html : String) -> Array[String] {
   warnings
 }
 
+///|
+fn html_warning_diagnostics(
+  input : String,
+  html : String,
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  let lower = html.to_lower()
+  let source = if input.has_prefix("http://") || input.has_prefix("https://") {
+    @core.Url(input)
+  } else {
+    @core.File(input)
+  }
+  if lower.contains("<script") {
+    diagnostics.push(
+      @core.warning_diagnostic(
+        "Dropped <script> blocks during HTML conversion.",
+        Some(@core.Normalize(Some("preprocess"))),
+        Some(source),
+        Some(
+          @core.Custom(
+            "Scripts are intentionally removed before Markdown rendering.",
+          ),
+        ),
+      ),
+    )
+  }
+  if lower.contains("<style") {
+    diagnostics.push(
+      @core.warning_diagnostic(
+        "Dropped <style> blocks during HTML conversion.",
+        Some(@core.Normalize(Some("preprocess"))),
+        Some(source),
+        Some(@core.Custom("CSS is not preserved in Markdown output.")),
+      ),
+    )
+  }
+  diagnostics
+}
+
 // ============================================================================
 // Helper functions
 // ============================================================================
 
 ///|
 /// Find substring from a starting position
-fn find_from(haystack : String, needle : String, start : Int) -> Int? raise {
+fn find_from(haystack : String, needle : String, start : Int) -> Int? {
   if start >= haystack.length() {
     None
   } else {
@@ -409,7 +450,7 @@ fn find_from(haystack : String, needle : String, start : Int) -> Int? raise {
 
 ///|
 /// Remove script/style blocks with content
-fn remove_tag_block(html : String, tag_name : String) -> String raise {
+fn remove_tag_block(html : String, tag_name : String) -> String {
   let open_tag = "<" + tag_name
   let close_tag = "</" + tag_name
   let mut result = html
@@ -437,7 +478,7 @@ fn remove_tag_block(html : String, tag_name : String) -> String raise {
 
 ///|
 /// Remove HTML comments
-fn remove_comments(html : String) -> String raise {
+fn remove_comments(html : String) -> String {
   let mut result = html
   let mut found = true
 
@@ -462,7 +503,7 @@ fn remove_comments(html : String) -> String raise {
 
 ///|
 /// Convert line breaks
-fn convert_line_breaks(html : String) -> String raise {
+fn convert_line_breaks(html : String) -> String {
   let mut result = html
   result = result.replace(old="<br>", new="\n")
   result = result.replace(old="<br/>", new="\n")
@@ -472,7 +513,7 @@ fn convert_line_breaks(html : String) -> String raise {
 
 ///|
 /// Convert links
-fn convert_links(html : String) -> String raise {
+fn convert_links(html : String) -> String {
   let mut result = html
   let mut found = true
 
@@ -511,7 +552,7 @@ fn convert_links(html : String) -> String raise {
 
 ///|
 /// Convert images
-fn convert_images(html : String) -> String raise {
+fn convert_images(html : String) -> String {
   let mut result = html
   let mut found = true
 
@@ -547,7 +588,7 @@ fn convert_images(html : String) -> String raise {
 
 ///|
 /// Convert emphasis (italic)
-fn convert_emphasis(html : String) -> String raise {
+fn convert_emphasis(html : String) -> String {
   let mut result = html
   result = convert_em_tag(result, "<em>", "</em>")
   result = convert_em_tag(result, "<i>", "</i>")
@@ -555,7 +596,7 @@ fn convert_emphasis(html : String) -> String raise {
 }
 
 ///|
-fn convert_em_tag(html : String, open : String, close : String) -> String raise {
+fn convert_em_tag(html : String, open : String, close : String) -> String {
   let mut result = html
   let mut found = true
 
@@ -581,7 +622,7 @@ fn convert_em_tag(html : String, open : String, close : String) -> String raise 
 
 ///|
 /// Convert strong (bold)
-fn convert_strong(html : String) -> String raise {
+fn convert_strong(html : String) -> String {
   let mut result = html
   result = convert_em_tag(result, "<strong>", "</strong>")
   result = convert_em_tag(result, "<b>", "</b>")
@@ -590,7 +631,7 @@ fn convert_strong(html : String) -> String raise {
 
 ///|
 /// Convert code
-fn convert_code(html : String) -> String raise {
+fn convert_code(html : String) -> String {
   let mut result = html
   let mut found = true
 
@@ -615,7 +656,7 @@ fn convert_code(html : String) -> String raise {
 }
 
 ///|
-fn extract_table_cells(row_html : String) -> Array[String] raise {
+fn extract_table_cells(row_html : String) -> Array[String] {
   // Try th first, then td
   let th_cells = extract_cells_by_tag(row_html, "th")
   if th_cells.length() > 0 {
@@ -626,7 +667,7 @@ fn extract_table_cells(row_html : String) -> Array[String] raise {
 }
 
 ///|
-fn extract_cells_by_tag(html : String, tag : String) -> Array[String] raise {
+fn extract_cells_by_tag(html : String, tag : String) -> Array[String] {
   let cells : Array[String] = Array::new()
   let open_tag = "<" + tag
   let close_tag = "</" + tag
@@ -663,7 +704,7 @@ fn extract_cells_by_tag(html : String, tag : String) -> Array[String] raise {
 
 ///|
 /// Strip remaining HTML tags
-fn strip_remaining_tags(html : String) -> String raise {
+fn strip_remaining_tags(html : String) -> String {
   let mut result = html
   let mut found = true
 
@@ -687,7 +728,7 @@ fn strip_remaining_tags(html : String) -> String raise {
 
 ///|
 /// Clean up whitespace
-fn cleanup_whitespace(html : String) -> String raise {
+fn cleanup_whitespace(html : String) -> String {
   let mut result = html
 
   // Replace multiple newlines with double newline
@@ -700,7 +741,7 @@ fn cleanup_whitespace(html : String) -> String raise {
 
 ///|
 /// Extract attribute value from HTML tag
-fn extract_attribute(tag : String, attr_name : String) -> String raise {
+fn extract_attribute(tag : String, attr_name : String) -> String {
   let attr_pattern = attr_name + "=\""
   let attr_pattern_single = attr_name + "='"
 

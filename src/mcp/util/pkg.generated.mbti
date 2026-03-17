@@ -116,6 +116,7 @@ pub fn McpError::invalid_params(String, ErrorContext) -> Self
 pub fn McpError::invalid_request(String, ErrorContext) -> Self
 pub fn McpError::method_not_found(String, ErrorContext) -> Self
 pub fn McpError::parse_error(Int, String, ErrorContext) -> Self
+pub fn McpError::server_error(Int, String, String?, ErrorContext) -> Self
 pub fn McpError::to_jsonrpc_code(Self) -> Int
 pub fn McpError::tool_error(String, String, ErrorContext) -> Self
 
@@ -134,6 +135,9 @@ pub enum TaskState {
   Completed
   Failed(String)
 }
+pub fn TaskState::completed() -> Self
+pub fn TaskState::failed(String) -> Self
+pub fn TaskState::pending() -> Self
 
 // Type aliases
 

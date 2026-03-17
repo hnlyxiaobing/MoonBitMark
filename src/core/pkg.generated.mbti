@@ -4,25 +4,28 @@ package "moonbitlang/moonbitmark/src/core"
 // Values
 pub fn count_markdown_blocks(String) -> Int
 
-pub fn diagnostics_from_warnings(Array[String], String?, String?) -> Array[ConversionDiagnostic]
+pub fn diagnostics_from_warnings(Array[String], ConversionPhase?, DiagnosticSource?, hint? : DiagnosticHint) -> Array[ConversionDiagnostic]
 
-pub fn error_diagnostic(String, String, String?, String?, String?) -> ConversionDiagnostic
+pub fn error_diagnostic(ConversionError, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> ConversionDiagnostic
 
 pub fn stats_for_markdown(String, duration_ms? : Int, used_fallback? : Bool) -> ConvertStats
 
-pub fn warning_diagnostic(String, String, String?, String?, String?) -> ConversionDiagnostic
+pub fn warning_diagnostic(String, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> ConversionDiagnostic
 
 // Errors
 
 // Types and methods
 pub(all) struct ConversionDiagnostic {
   level : DiagnosticLevel
-  category : String
-  phase : String?
-  source : String?
+  error : ConversionError?
+  phase : ConversionPhase?
+  source : DiagnosticSource?
   message : String
-  hint : String?
+  hint : DiagnosticHint?
 }
+pub fn ConversionDiagnostic::category(Self) -> String
+pub fn ConversionDiagnostic::render(Self) -> String
+pub fn ConversionDiagnostic::with_defaults(Self, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> Self
 pub impl Eq for ConversionDiagnostic
 pub impl Show for ConversionDiagnostic
 pub impl ToJson for ConversionDiagnostic
@@ -35,9 +38,25 @@ pub(all) enum ConversionError {
   UnsupportedFeatureError(String, String)
   ConversionFailed(String, String)
 }
+pub fn ConversionError::category(Self) -> String
+pub fn ConversionError::message(Self) -> String
 pub impl Eq for ConversionError
 pub impl Show for ConversionError
 pub impl ToJson for ConversionError
+
+pub(all) enum ConversionPhase {
+  Detect(String?)
+  Load(String?)
+  Parse(String?)
+  Normalize(String?)
+  Render(String?)
+  Postprocess(String?)
+  Convert(String)
+}
+pub fn ConversionPhase::label(Self) -> String
+pub impl Eq for ConversionPhase
+pub impl Show for ConversionPhase
+pub impl ToJson for ConversionPhase
 
 pub(all) struct ConvertContext {
   keep_metadata : Bool
@@ -81,6 +100,18 @@ pub impl Eq for ConvertStats
 pub impl Show for ConvertStats
 pub impl ToJson for ConvertStats
 
+pub(all) enum DiagnosticHint {
+  CheckInputDetection
+  InspectSourceDocument
+  ProvideBytesSourceName
+  CheckArchiveIntegrity
+  Custom(String)
+}
+pub fn DiagnosticHint::message(Self) -> String
+pub impl Eq for DiagnosticHint
+pub impl Show for DiagnosticHint
+pub impl ToJson for DiagnosticHint
+
 pub(all) enum DiagnosticLevel {
   Info
   Warning
@@ -89,6 +120,19 @@ pub(all) enum DiagnosticLevel {
 pub impl Eq for DiagnosticLevel
 pub impl Show for DiagnosticLevel
 pub impl ToJson for DiagnosticLevel
+
+pub(all) enum DiagnosticSource {
+  Input(String)
+  File(String)
+  Url(String)
+  ArchiveEntry(String)
+  Bytes(String?)
+  Generated(String)
+}
+pub fn DiagnosticSource::label(Self) -> String
+pub impl Eq for DiagnosticSource
+pub impl Show for DiagnosticSource
+pub impl ToJson for DiagnosticSource
 
 pub(all) enum InputSource {
   FileInput(String, Bytes?)

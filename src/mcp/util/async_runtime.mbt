@@ -85,6 +85,21 @@ pub fn[T] Future::error(message : String) -> Future[T] {
 }
 
 ///|
+pub fn TaskState::pending() -> TaskState {
+  Pending
+}
+
+///|
+pub fn TaskState::completed() -> TaskState {
+  Completed
+}
+
+///|
+pub fn TaskState::failed(message : String) -> TaskState {
+  Failed(message)
+}
+
+///|
 pub fn[T] spawn(task_fn : () -> Result[T, String]) -> Future[T] {
   let event_loop = EventLoop::new()
   event_loop.submit(task_fn)

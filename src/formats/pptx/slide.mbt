@@ -5,12 +5,13 @@
 pub fn process_slides(
   archive : @libzip.ZipArchive,
   slide_refs : Array[SlideRef],
-) -> String {
+) -> (String, Array[String]) {
   let mut markdown = ""
+  let warnings : Array[String] = []
 
   // 如果没有幻灯片，返回提示
   if slide_refs.length() == 0 {
-    return "<!-- No slides found in presentation -->"
+    return ("<!-- No slides found in presentation -->", warnings)
   }
 
   for slide_ref in slide_refs {
@@ -21,32 +22,60 @@ pub fn process_slides(
     match @libzip.read_file_entry_decompressed(archive, slide_path) {
       Some(xml_bytes) => {
         let xml_string = @utf8.decode(xml_bytes) catch {
-          _ => return "<!-- Failed to decode slide \{slide_ref.slide_num} -->"
+          _ => "__PPTX_SLIDE_DECODE_ERROR__"
         }
-        let slide_md = process_slide_xml(xml_string, slide_ref.slide_num)
-        markdown = markdown + slide_md
+        if xml_string == "__PPTX_SLIDE_DECODE_ERROR__" {
+          warnings.push(
+            "Failed to decode slide XML as UTF-8: Slide \{slide_ref.slide_num} (\{slide_path}).",
+          )
+          markdown = markdown +
+            "<!-- Failed to decode slide \{slide_ref.slide_num} -->"
+        } else {
+          let (slide_md, slide_warning) = process_slide_xml(
+            xml_string,
+            slide_ref.slide_num,
+            slide_path,
+          )
+          match slide_warning {
+            Some(warning) => warnings.push(warning)
+            None => ()
+          }
+          markdown = markdown + slide_md
+        }
       }
-      None =>
+      None => {
         // 幻灯片文件不存在，跳过
+        warnings.push(
+          "Failed to read slide XML: Slide \{slide_ref.slide_num} (\{slide_path}).",
+        )
         markdown = markdown +
           "\n\n<!-- Slide \{slide_ref.slide_num}: Unable to read \{slide_path} -->\n"
+      }
     }
   }
 
-  markdown
+  (markdown, warnings)
 }
 
 ///|
 /// 处理单个幻灯片 XML
-fn process_slide_xml(xml : String, slide_num : Int) -> String {
+fn process_slide_xml(
+  xml : String,
+  slide_num : Int,
+  slide_path : String,
+) -> (String, String?) {
   match @xml.parse_xml(xml) {
     Ok(events) => {
       // 添加幻灯片分隔符
       let header = "\n\n<!-- Slide number: \{slide_num} -->\n"
       let content = extract_slide_content(events)
-      header + content
+      (header + content, None)
     }
-    Err(_) => "<!-- Slide \{slide_num}: Parse error -->\n"
+    Err(_) =>
+      (
+        "<!-- Slide \{slide_num}: Parse error -->\n",
+        Some("Failed to parse slide XML: Slide \{slide_num} (\{slide_path})."),
+      )
   }
 }
 

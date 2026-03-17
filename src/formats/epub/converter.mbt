@@ -141,20 +141,49 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
               let markdown = result.trim().to_string()
               let metadata = metadata_of_epub(epub_pkg.metadata, opf_path)
               let title = epub_pkg.metadata.title
+              let diagnostics = epub_warning_diagnostics(warnings)
               let doc = @ast.document_of_markdownish(markdown, title, metadata)
               let rendered_markdown = @ast.render_markdown(doc)
               @core.ConvertResult::markdown_only(rendered_markdown, "epub")
               .with_title(title)
               .with_metadata(metadata)
               .with_warnings(warnings)
+              .with_diagnostics(diagnostics)
               .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
             }
-            None => fail("Failed to read OPF file")
+            None =>
+              fail(
+                render_epub_failure(
+                  @core.ZipError("Failed to read OPF file", Some(opf_path)),
+                  Some(@core.Load(Some("opf"))),
+                  Some(@core.ArchiveEntry(opf_path)),
+                  Some(@core.CheckArchiveIntegrity),
+                ),
+              )
           }
         }
-        None => fail("Failed to read container.xml")
+        None =>
+          fail(
+            render_epub_failure(
+              @core.ZipError(
+                "Failed to read container.xml",
+                Some("META-INF/container.xml"),
+              ),
+              Some(@core.Load(Some("container"))),
+              Some(@core.ArchiveEntry("META-INF/container.xml")),
+              Some(@core.CheckArchiveIntegrity),
+            ),
+          )
       }
-    None => fail("Failed to open EPUB file as ZIP archive")
+    None =>
+      fail(
+        render_epub_failure(
+          @core.ZipError("Failed to open EPUB file as ZIP archive", None),
+          Some(@core.Load(Some("archive"))),
+          Some(@core.File(file_path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
   }
 }
 
@@ -168,7 +197,7 @@ fn parse_container_xml(data : Bytes) -> String raise {
       let mut i = 0
       while i < data.length() {
         let b = data[i]
-        result = result + Char::from_int(b.to_int()).to_string()
+        result = result + b.to_int().unsafe_to_char().to_string()
         i = i + 1
       }
       result
@@ -193,12 +222,38 @@ fn parse_container_xml(data : Bytes) -> String raise {
       }
 
       if opf_path == "" {
-        fail("Could not find OPF path in container.xml")
+        fail(
+          render_epub_failure(
+            @core.XmlParseError(
+              "Could not find OPF path in container.xml",
+              None,
+            ),
+            Some(@core.Parse(Some("container.xml"))),
+            Some(@core.ArchiveEntry("META-INF/container.xml")),
+            Some(
+              @core.Custom(
+                "Verify META-INF/container.xml declares a rootfile full-path.",
+              ),
+            ),
+          ),
+        )
       }
 
       opf_path
     }
-    Err(_) => fail("Failed to parse container.xml: parse error")
+    Err(_) =>
+      fail(
+        render_epub_failure(
+          @core.XmlParseError("Failed to parse container.xml", None),
+          Some(@core.Parse(Some("container.xml"))),
+          Some(@core.ArchiveEntry("META-INF/container.xml")),
+          Some(
+            @core.Custom(
+              "Inspect META-INF/container.xml for malformed XML or invalid encoding.",
+            ),
+          ),
+        ),
+      )
   }
 }
 
@@ -212,7 +267,7 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
       let mut i = 0
       while i < data.length() {
         let b = data[i]
-        result = result + Char::from_int(b.to_int()).to_string()
+        result = result + b.to_int().unsafe_to_char().to_string()
         i = i + 1
       }
       result
@@ -281,7 +336,17 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
 
       { metadata, manifest, spine, opf_dir: "" }
     }
-    Err(_) => fail("Failed to parse OPF file")
+    Err(_) =>
+      fail(
+        render_epub_failure(
+          @core.XmlParseError("Failed to parse OPF file", None),
+          Some(@core.Parse(Some("opf"))),
+          None,
+          Some(
+            @core.Custom("Inspect the OPF package document for malformed XML."),
+          ),
+        ),
+      )
   }
 }
 
@@ -295,7 +360,7 @@ fn parse_xhtml(data : Bytes) -> String {
       let mut i = 0
       while i < data.length() {
         let b = data[i]
-        result = result + Char::from_int(b.to_int()).to_string()
+        result = result + b.to_int().unsafe_to_char().to_string()
         i = i + 1
       }
       result
@@ -366,4 +431,49 @@ fn metadata_of_epub(
     metadata["author"] = metadata_source.authors.join(", ")
   }
   metadata
+}
+
+///|
+fn epub_warning_diagnostics(
+  warnings : Array[String],
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  for warning in warnings {
+    if warning.has_prefix("Missing spine resource in archive: ") {
+      let path = warning[35:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("spine-resource"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning.has_prefix("Missing manifest item for spine idref: ") {
+      let idref = warning[39:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("opf-manifest"))),
+          Some(@core.Generated(idref)),
+          Some(
+            @core.Custom(
+              "Check whether every spine idref has a matching manifest item in the OPF.",
+            ),
+          ),
+        ),
+      )
+    }
+  }
+  diagnostics
+}
+
+///|
+fn render_epub_failure(
+  error : @core.ConversionError,
+  phase : @core.ConversionPhase?,
+  source : @core.DiagnosticSource?,
+  hint : @core.DiagnosticHint?,
+) -> String {
+  @core.error_diagnostic(error, phase, source, hint).render()
 }

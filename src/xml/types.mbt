@@ -23,12 +23,6 @@ pub(all) struct XMLParserConfig {
 }
 
 ///|
-/// 默认配置
-fn XMLParserConfig::default() -> XMLParserConfig {
-  { encoding: "utf-8", buffer_size: 4096 }
-}
-
-///|
 /// XML 标记类型
 pub enum Token {
   /// 开始标签（标签名，属性映射）

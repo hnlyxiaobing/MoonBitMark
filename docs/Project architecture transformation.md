@@ -1,6 +1,6 @@
 # MoonBitMark 架构改造方案
 
-> **文档目的**：将 MoonBitMark 从"多格式转换工具"升级为"专业级文档转换引擎"
+> **文档目的**：将 MoonBitMark 从“多格式转换工具”升级为“专业级文档转换引擎”
 
 ---
 
@@ -11,8 +11,9 @@
 - [3. 三层系统架构](#3-三层系统架构)
 - [4. 分阶段改造方案](#4-分阶段改造方案)
 - [5. 架构改造任务跟踪](#5-架构改造任务跟踪)
-- [6. 实施优先级](#6-实施优先级)
-- [7. 改造前后对比](#7-改造前后对比)
+- [6. 当前整体进度汇报](#6-当前整体进度汇报)
+- [7. 实施优先级](#7-实施优先级)
+- [8. 改造前后对比](#8-改造前后对比)
 
 ---
 
@@ -20,33 +21,35 @@
 
 ### 1.1 核心问题：架构意图未落地
 
-> 你**已经开始设计架构了**，但项目真正运行时，**还没有按那套架构工作**。
+> 你已经开始设计架构了，但项目真正运行时，还没有按那套架构工作。
 
-仓库中已存在"架构意图"：
+仓库中原本已存在“架构意图”：
 
-| 组件 | 文件 | 状态 |
+| 组件 | 文件 | 初始状态 |
 |------|------|------|
-| 统一结果类型 | `src/core/types.mbt` | ✅ 已定义 `ConvertResult` |
-| 输入信息 | `src/core/types.mbt` | ✅ 已定义 `StreamInfo` |
-| 转换器接口 | `src/core/types.mbt` | ✅ 已定义 `DocumentConverter` trait |
-| 主引擎 | `src/core/engine.mbt` | ❌ 占位实现，仅返回 dummy |
+| 统一结果类型 | `src/core/types.mbt` | 已定义 `ConvertResult` |
+| 输入信息 | `src/core/types.mbt` | 已定义 `StreamInfo` |
+| 转换器接口 | `src/core/types.mbt` | 已定义 `DocumentConverter` trait |
+| 主引擎 | `src/core/engine.mbt` | 早期仅为占位实现 |
 
-### 1.2 实际运行现状
+### 1.2 旧实现的实际问题
 
-主程序 `cmd/main/main.mbt` 仍采用硬编码分支：
+主程序最初仍采用硬编码分支：
 
+```text
+.txt  -> TextConverter::convert
+.csv  -> CsvConverter::convert
+.docx -> DocxConverter::convert
+.epub -> EpubConverter::convert
+URL   -> HTML converter
 ```
-.txt  → TextConverter::convert
-.csv  → CsvConverter::convert
-.docx → DocxConverter::convert
-.epub → EpubConverter::convert
-URL   → HTML 转换器
-```
 
-**问题本质**：
+问题本质是：
 
-> 现在真正运行的系统，是"一个个转换器直接拼起来的工具"；
-> 而非"由统一引擎调度的一套文档转换框架"。
+- 系统真实运行路径不经过统一 engine
+- CLI 直接知道所有格式细节，分层失效
+- 错误、warning、metadata、stats 无法统一建模
+- 新增格式必须改 CLI 主流程
 
 ---
 
@@ -56,89 +59,80 @@ URL   → HTML 转换器
 
 | 现状 | 目标 |
 |------|------|
-| 多格式 Markdown 转换工具 | **MoonBit 文档转换内核** |
+| 多格式 Markdown 转换工具 | MoonBit 文档转换内核 |
 
-### 2.2 核心特征
+### 2.2 目标特征
 
 #### 特征 1：统一入口
 
-所有输入走一条主路径：
-
 ```mermaid
 flowchart TB
-    A[CLI / API] --> B[Input Loader]
+    A[CLI / API / MCP] --> B[Input Loader]
     B --> C[StreamInfo / InputSource]
     C --> D[Converter Engine]
     D --> E{Chosen Converter}
     E --> F[ConvertResult]
-    F --> G[Renderer / Writer]
+    F --> G[Renderer / Writer / Postprocess]
 ```
 
 #### 特征 2：统一转换器协议
 
-每个转换器实现同一接口：
-
 ```moonbit
 trait DocumentConverter {
   name() -> String
-  accepts(info: StreamInfo) -> Bool
-  convert(input: InputSource, ctx: ConvertContext) -> ConvertResult
+  priority() -> Int
+  accepts(info : StreamInfo) -> Bool
+  convert(input : InputSource, ctx : ConvertContext) -> ConvertResult
 }
 ```
 
 #### 特征 3：统一结果模型
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `markdown` | `String` | 转换后的 Markdown 文本 |
-| `title` | `String?` | 文档标题 |
-| `metadata` | `Map[String, String]` | 元数据 |
-| `warnings` | `Array[String]` | 警告信息 |
-| `assets` | `Array[Asset]` | 提取的资源文件 |
-| `stats` | `ConvertStats?` | 转换统计 |
+| 字段 | 作用 |
+|------|------|
+| `markdown` | 转换后的 Markdown 文本 |
+| `title` | 文档标题 |
+| `metadata` | 标准化元数据 |
+| `warnings` | 面向用户的降级提示 |
+| `diagnostics` | typed `phase/source/hint` 诊断 |
+| `stats` | 转换统计 |
 
 #### 特征 4：统一错误与诊断
 
-专业级错误信息应包含：
+目标错误形态：
 
 ```text
 Error: XmlParseError
-  ├─ Phase: epub/container
-  ├─ Source: META-INF/container.xml
-  ├─ Message: Invalid XML declaration encoding
-  └─ Hint: Try UTF-8 fallback or inspect archive integrity
+  Phase: epub/container
+  Source: META-INF/container.xml
+  Message: Invalid XML declaration encoding
+  Hint: Try UTF-8 fallback or inspect archive integrity
 ```
 
 #### 特征 5：统一扩展机制
 
-新增格式时只需"注册一个新的 converter"，无需修改 CLI 主函数。
+新增格式时，应只注册 converter，不再修改 CLI 主流程。
 
 ---
 
 ## 3. 三层系统架构
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
-│                    Frontends (前端层)                     │
-│  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐                     │
-│  │ CLI │  │ Web │  │ MCP │  │ API │                     │
-│  └──┬──┘  └─────┘  └─────┘  └─────┘                     │
-├─────┼───────────────────────────────────────────────────┤
-│     │              Core Engine (核心层)                  │
-│     ▼                                                    │
-│  ┌──────────────────────────────────────────┐           │
-│  │ • 输入识别 • 转换器注册 • 转换器选择      │           │
-│  │ • 统一错误 • 统一结果 • 统一诊断          │           │
-│  └──────────────────────────────────────────┘           │
+│                    Frontends (前端层)                  │
+│  CLI / Web / MCP / API                                │
 ├─────────────────────────────────────────────────────────┤
-│                Format Adapters (格式适配层)              │
-│  ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐     │
-│  │TXT │ │CSV │ │JSON│ │PDF │ │HTML│ │DOCX│ │... │     │
-│  └────┘ └────┘ └────┘ └────┘ └────┘ └────┘ └────┘     │
+│                 Core Engine (核心层)                  │
+│  输入识别 / converter 注册 / 选择 / diagnostics /      │
+│  stats / metadata / render / postprocess              │
+├─────────────────────────────────────────────────────────┤
+│              Format Adapters (格式适配层)             │
+│  TXT / CSV / JSON / PDF / HTML / DOCX / PPTX / XLSX / │
+│  EPUB / ...                                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**核心原则**：CLI 只是前端，不再是系统核心。
+核心原则：CLI 只是前端，不再是系统核心。
 
 ---
 
@@ -146,214 +140,50 @@ Error: XmlParseError
 
 ### 阶段一：架构意图落地
 
-#### 4.1.1 扩充 Core 类型定义
-
-**ConvertResult 升级**：
-
-```moonbit
-struct ConvertResult {
-  markdown: String
-  title: String?
-  metadata: Map[String, String]
-  warnings: Array[String]
-  source_type: String
-  stats: ConvertStats?
-}
-```
-
-**ConvertStats 结构**：
-
-| 字段 | 说明 |
-|------|------|
-| 字符数 | 文档总字符数 |
-| 段落数 | 段落/单元格/幻灯片数量 |
-| 耗时 | 转换耗时（毫秒） |
-| 降级处理 | 是否使用了降级方案 |
-
-#### 4.1.2 统一输入模型
-
-```moonbit
-enum InputSource {
-  FileInput(path: String, bytes: Bytes?)
-  UrlInput(url: String, fetched_html: String?)
-  BytesInput(name: String?, bytes: Bytes, mimetype: String?)
-}
-```
-
-#### 4.1.3 重写 DocumentConverter 接口
-
-```moonbit
-trait DocumentConverter {
-  name() -> String              // 转换器名称
-  priority() -> Int             // 优先级（高优先）
-  accepts(info: StreamInfo) -> Bool
-  convert(input: InputSource, ctx: ConvertContext) -> ConvertResult
-}
-```
-
-**ConvertContext 配置项**：
-
-- 是否保留 metadata
-- 是否输出调试日志
-- URL 抓取选项
-- 最大文件大小 / 超时
-- 资源输出目录
-- 输出模式（纯文本 / 标准 Markdown / 带 frontmatter）
-
-#### 4.1.4 实现 MarkItDown Engine
-
-| 职责 | 说明 |
-|------|------|
-| 注册转换器 | 维护 converters 列表 |
-| 识别输入 | 扩展名、MIME、URL、文件头特征 |
-| 选择转换器 | 遍历 `accepts()`，取 priority 最高 |
-| 执行转换 | 记录时间、捕获错误、补充 metadata |
-| 返回结果 | 供 CLI/Web/MCP 共同使用 |
-
----
+- 扩充 `ConvertResult`、`ConvertContext`、`InputSource`
+- 重写 `DocumentConverter` 接口
+- 新建独立 `src/engine/` 作为统一入口
+- 将 metadata / stats / diagnostics 统一纳入结果模型
 
 ### 阶段二：CLI 降级为前端
 
-| 改造前 | 改造后 |
-|--------|--------|
-| 解析参数 | 解析参数 |
-| 判断格式 | 调用 `engine.convert(...)` |
-| 调不同 converter | 渲染结果 / 写文件 |
-| 写文件 | |
-| 打印错误 | |
-
-> **核心变化**：CLI 不再知道 DOCX、EPUB、PPTX 的存在，只知道给引擎输入、拿结果、输出。
-
----
+- CLI 负责参数解析、调用 engine、写输出
+- CLI 不再直接判断 DOCX / EPUB / PPTX / XLSX 等格式细节
+- 前端参数通过 `ConvertContext` 透传给 engine
 
 ### 阶段三：引入 AST 中间表示
 
-#### 为什么需要 AST
-
-| 叙事升级 |
-|----------|
-| 各格式直接转 Markdown → **各格式转 Document AST → Renderer 输出 Markdown** |
-
-#### AST 设计
-
-**Block 级元素**：
-
-| 类型 | 字段 |
-|------|------|
-| Heading | `level: Int, text: String` |
-| Paragraph | `inlines: Array[Inline]` |
-| List | `items: Array[Block], ordered: Bool` |
-| CodeBlock | `lang: String, content: String` |
-| Quote | `blocks: Array[Block]` |
-| Table | `headers: Array[String], rows: Array[Array[String]]` |
-| HorizontalRule | — |
-
-**Inline 级元素**：
-
-`Text` | `Emphasis` | `Strong` | `Code` | `Link` | `Image` | `LineBreak`
-
-**Document 结构**：
-
-```moonbit
-struct Document {
-  title: String?
-  metadata: Map[String, String]
-  blocks: Array[Block]
-}
-```
-
-#### 接入策略
-
-**第一步**：HTML、DOCX、EPUB 先接入 AST（最具代表性）
-
-**第二步**：TXT/CSV/JSON/PPTX/XLSX 逐步跟进
-
----
+- 各格式从“直接拼 Markdown”逐步改为“转 Document AST，再交给 renderer”
+- 先接入 HTML / DOCX / EPUB，再逐步推广到更多格式
 
 ### 阶段四：诊断系统
 
-#### 错误分类
-
-```moonbit
-enum ConversionError {
-  InputError(message: String, source: String)
-  FormatDetectionError(message: String)
-  ZipError(message: String, file: String?)
-  XmlParseError(message: String, line: Int?)
-  UnsupportedFeatureError(feature: String, format: String)
-  ConversionError(message: String, phase: String)
-}
-```
-
-#### 错误信息结构
-
-| 字段 | 示例 |
-|------|------|
-| category | `XmlParseError` |
-| phase | `epub/container` |
-| source | `META-INF/container.xml` |
-| message | `Invalid XML declaration encoding` |
-| hint | `Try UTF-8 fallback or inspect archive integrity` |
-
-#### Warnings 机制
-
-以下情况应记录 warning 而非直接失败：
-
-- 某些样式丢失
-- 某张图片未导出
-- 某个工作表为空
-- 某个幻灯片备注未处理
-
----
+- warning 与 error 从字符串约定改为 typed diagnostics
+- `phase/source/hint` 不再靠调用方手写字符串拼接
+- engine 对标准化错误文本支持透传，而不是二次泛化包裹
 
 ### 阶段五：转换流水线
 
-```
-┌──────┐   ┌───────┐   ┌───────┐   ┌───────────┐   ┌────────┐   ┌─────────────┐
-│ Load │──▶│Detect │──▶│ Parse │──▶│ Normalize │──▶│ Render │──▶│ Postprocess │
-└──────┘   └───────┘   └───────┘   └───────────┘   └────────┘   └─────────────┘
+```text
+Load -> Detect -> Parse -> Normalize -> Render -> Postprocess
 ```
 
-| 阶段 | 职责 |
-|------|------|
-| Load | 读文件 / 拉 URL / 解 ZIP |
-| Detect | 扩展名、MIME、魔数、内部结构识别 |
-| Parse | 转成领域对象 / AST |
-| Normalize | 合并空白、清理无效节点、标题调整、表格对齐 |
-| Render | 输出 Markdown |
-| Postprocess | frontmatter、脚注、资源路径重写 |
+- Load：读文件 / 拉 URL / 解 archive
+- Detect：扩展名、MIME、内部结构识别
+- Parse：转领域对象 / AST
+- Normalize：空白、标题、表格等归一化
+- Render：输出 Markdown
+- Postprocess：frontmatter、资源路径改写、资产落盘
 
----
+### 阶段六：注册机制
 
-### 阶段六：插件注册机制
-
-```moonbit
-fn register_converters(engine: Engine) -> Engine {
-  engine
-    |> register(TextConverter)
-    |> register(CsvConverter)
-    |> register(JsonConverter)
-    |> register(PdfConverter)
-    |> register(HtmlConverter)
-    |> register(DocxConverter)
-    |> register(PptxConverter)
-    |> register(XlsxConverter)
-    |> register(EpubConverter)
-}
-```
-
-> 新增格式时，不改 engine 主体，只改注册表。
-
----
+- engine 内部已支持注册表与集中注册
+- 后续可继续抽象为独立插件边界
 
 ### 阶段七：资源与元数据输出
 
-#### 输出模式
-
-| 模式 | 输出 | 适用场景 |
-|------|------|----------|
-| 纯 Markdown | `output.md` | 日常使用 |
-| Markdown + Metadata | `output.md` + `output.meta.json` | 调试、MCP、评测 |
+- 输出模式支持普通 Markdown、纯文本、frontmatter
+- `asset_output_dir` 负责资源提取与路径回写
 
 ---
 
@@ -366,45 +196,94 @@ fn register_converters(engine: Engine) -> Engine {
 
 ### P0：必须做
 
-- [~] Core Engine 接管主流程
-  当前状态：已新增独立 `src/engine/` 包，由引擎负责输入识别、converter 注册、选择与调度执行；metadata 补全、frontmatter 输出、基础 diagnostics 合并与 stats 默认生成已接入，但统一 typed error 体系仍未完成。
+- [x] Core Engine 接管主流程
+  当前状态：已新增独立 `src/engine/` 包，由引擎负责输入识别、converter 注册、选择与调度执行，并统一做 metadata、stats、diagnostics、output mode 与 postprocess。
 - [x] CLI 只调用 engine
-  当前状态：`cmd/main/main.mbt` 已移除格式分支，改为调用引擎并输出 `ConvertResult.markdown`。
+  当前状态：`cmd/main/main.mbt` 已移除格式分支，改为解析参数后统一调用 engine。
 - [x] 所有 converter 返回 `ConvertResult`
-  当前状态：text/csv/json/pdf/html/docx/pptx/xlsx/epub 已统一返回 `ConvertResult`，并已普遍填充 title、metadata、warnings、stats 等结果字段。
+  当前状态：text/csv/json/pdf/html/docx/pptx/xlsx/epub 已统一返回 `ConvertResult`，并实际填充 markdown、title、metadata、warnings、stats 等字段。
 - [~] 统一错误/警告模型
-  当前状态：`warnings`、`diagnostics`、`ConversionDiagnostic` 已接入 `ConvertResult` 与 engine 汇总流程；warning 产出机制已在各 converter 初步落地，但 typed error 分类和统一 phase/source/hint 规范仍未全面接通。
+  当前状态：typed `ConversionDiagnostic`、`ConversionPhase`、`DiagnosticSource`、`DiagnosticHint` 已落地；engine 与 csv/docx/epub/html/pdf/pptx/xlsx 等主 converter 已接入统一链路。当前主缺口已不在顶层接口，而在部分次级 helper 与原生资源提取仍未完全统一进资产/诊断模型。
 
 ### P1：强烈建议
 
 - [~] HTML/DOCX/EPUB 接入 AST
-  当前状态：已新增 `src/ast/` 包与统一 renderer；HTML 已直接生成 AST block，DOCX/EPUB 已接入 `Document -> renderer` 流程，但二者仍经 markdown-ish 过渡层，尚未实现原生 XML/XHTML → AST 的直接映射。
-- [x] 转换 stats/metadata 输出
-  当前状态：`ConvertStats`、`ConvertContext`、`source_type` 等字段已建模并实际接入，各主要 converter 已补充基础 stats 与格式相关 metadata。
+  当前状态：已新增 `src/ast/` 与统一 renderer；HTML 已直接生成 AST block，DOCX/EPUB 已进入 `Document -> renderer` 主链路，但仍有局部 markdown-ish 过渡层。
+- [x] 转换 stats / metadata 输出
+  当前状态：`ConvertStats`、`ConvertContext`、`source_type`、主要 metadata 字段已实际接入主链路。
 - [~] Converter 注册表
-  当前状态：引擎已具备 `ConverterKind`、`ConverterRegistration`、`register/register_named` 等集中注册机制；但尚未抽象为独立插件包或外部可扩展注册入口。
+  当前状态：引擎内部已具备 `ConverterKind`、`ConverterRegistration`、`register/register_named` 等机制；外部插件式注册仍未开放。
 
 ### P2：冲刺加分
 
-- [ ] 支持 frontmatter 输出
-- [ ] 支持资源提取目录
+- [x] 支持 frontmatter 输出
+- [~] 支持资源提取目录
+  当前状态：engine 已支持把 Markdown 中的 `data:image/*;base64,...` 按 `asset_output_dir` 解码落盘，并回写相对链接；DOCX / EPUB / PPTX / XLSX 等 archive 类格式的原生图片与附件提取尚未统一接入。
 - [ ] Web demo / MCP 对接展示
 - [ ] Benchmark 和 diagnostics 展示
 
 ### 当前改造范围备注
 
-- 已完成的代码落点主要包括：
-  - `src/core/types.mbt`
-  - `src/engine/engine.mbt`
-  - `src/ast/*`
-  - `cmd/main/main.mbt`
-  - `src/mcp/handler/converter_bridge.mbt`
-  - 各 `src/formats/*/converter.mbt`
-- 当前已完成基本编译与测试验收。
-  - 已执行：`moon check`、多包 `moon test`、`moon fmt`、`moon info`
-  - 当前仍存在若干历史 warning，主要集中在 HTML 遗留 helper、EPUB 字符解码、PPTX parser、XLSX parser 与 libzip 兼容性问题。
+已落地的关键代码区域：
 
-## 6. 实施优先级
+- `src/core/types.mbt`
+- `src/engine/engine.mbt`
+- `src/ast/*`
+- `cmd/main/main.mbt`
+- 各 `src/formats/*/converter.mbt`
+- `src/formats/pptx/parser.mbt`
+- `src/formats/pptx/slide.mbt`
+- `src/libzip/*`
+- `src/xml/*`
+
+当前已完成的校验：
+
+- `moon info`
+- `moon fmt`
+- `moon check`
+- 多个 package 的 targeted `moon test`
+
+当前已知残留项：
+
+- 还没有把 archive 类格式的原生资源提取统一并入资产输出模型
+- AST 接入还没有推广到全部格式
+- MCP / Web 展示层仍未正式接入
+- 当前只剩 1 个工具链层面 warning：`src/engine/moon.pkg` 中 `moonbitlang/async` 为 async wbtest 所需，但仍被 MoonBit 判成 `unused_package`
+
+---
+
+## 6. 当前整体进度汇报
+
+截至 2026-03-17，可以把整体改造进度概括为：
+
+### 6.1 已完成的核心成果
+
+1. 统一 engine 已真正接管主流程。
+2. CLI 已退化为前端，不再承担格式判断与 converter 调度职责。
+3. `ConvertResult` / `ConvertContext` / typed diagnostics 已成为主链路标准模型。
+4. archive 类格式关键失败路径已能生成统一 `phase/source/hint` 错误信息。
+5. HTML、DOCX、EPUB 已接入 AST / renderer 主链路。
+6. `asset_output_dir` 已从 context 字段推进为真实后处理能力，可将 data URI 图片落盘。
+7. 历史 warning 已基本清空，只剩 1 个工具链层面 warning。
+
+### 6.2 还未完成但已明确的缺口
+
+1. 原生 archive 资源提取尚未统一并入资产模型。
+2. AST 仍未覆盖全部格式。
+3. 外部插件化注册、Web demo、MCP 正式能力仍未完成。
+4. diagnostics 展示、benchmark、开发者可视化工具仍欠缺。
+
+### 6.3 当前优先级判断
+
+从架构收益看，下一阶段最有价值的工作是：
+
+1. 统一 archive 格式的原生资源提取链路，把 DOCX / EPUB / PPTX / XLSX 的图片与附件真正接入 `assets`
+2. 继续把 AST 从 HTML / DOCX / EPUB 推广到更多格式
+3. 在此基础上再考虑 Web / MCP 展示层，而不是过早堆前端功能
+
+---
+
+## 7. 实施优先级
 
 ### P0：必须做
 
@@ -419,52 +298,54 @@ fn register_converters(engine: Engine) -> Engine {
 
 | 序号 | 任务 | 收益 |
 |------|------|------|
-| 5 | HTML/DOCX/EPUB 接入 AST | 系统创新点 |
-| 6 | 转换 stats/metadata 输出 | 提高展示说服力 |
+| 5 | HTML / DOCX / EPUB 接入 AST | 建立统一内容模型 |
+| 6 | stats / metadata 输出 | 提升调试与展示能力 |
 | 7 | Converter 注册表 | 体现扩展性 |
 
 ### P2：冲刺加分
 
 | 序号 | 任务 | 收益 |
 |------|------|------|
-| 8 | 支持 frontmatter 输出 | 专业度 |
-| 9 | 支持资源提取目录 | 完整性 |
-| 10 | Web demo / MCP 对接展示 | 演示效果 |
-| 11 | Benchmark 和 diagnostics 展示 | 性能可信度 |
+| 8 | frontmatter 输出 | 提升前端能力完整性 |
+| 9 | asset_output_dir | 资源输出完整性 |
+| 10 | Web / MCP 展示 | 演示效果 |
+| 11 | benchmark / diagnostics 展示 | 性能与工程可信度 |
 
 ---
 
-## 7. 改造前后对比
+## 8. 改造前后对比
 
 ### 改造前
 
-```
+```text
 CLI
- ├─ if txt  → TextConverter
- ├─ if csv  → CsvConverter
- ├─ if json → JsonConverter
- ├─ if docx → DocxConverter
- ├─ if epub → EpubConverter
+ ├─ if txt  -> TextConverter
+ ├─ if csv  -> CsvConverter
+ ├─ if json -> JsonConverter
+ ├─ if docx -> DocxConverter
+ ├─ if epub -> EpubConverter
  └─ ...
 ```
 
 ### 改造后
 
-```
+```text
 CLI
  └─ Engine.convert(input, context)
-      │
-      ├─ Detect input info
-      ├─ Choose converter (by priority)
-      ├─ Convert to AST / normalized doc
-      ├─ Render markdown
-      └─ Return ConvertResult
-            ├─ markdown: String
-            ├─ title: String?
-            ├─ metadata: Map
-            ├─ warnings: Array
-            └─ stats: ConvertStats?
+      -> detect input info
+      -> choose converter
+      -> convert to AST / normalized result
+      -> render markdown
+      -> postprocess output and assets
+      -> return ConvertResult
 ```
+
+改造后的稳定收益：
+
+- 前端与格式实现解耦
+- diagnostics / warnings / metadata / stats 可以统一生产与展示
+- output mode、frontmatter、asset_output_dir 这类前端能力可以在 engine 后处理阶段统一实现
+- 新增格式时，不再把复杂度堆回 CLI
 
 ---
 
@@ -475,11 +356,14 @@ CLI
 | 文件 | 职责 |
 |------|------|
 | `src/core/types.mbt` | 核心类型定义 |
-| `src/core/engine.mbt` | 转换引擎 |
+| `src/engine/engine.mbt` | 统一引擎与后处理 |
+| `src/ast/*` | AST 与 renderer |
 | `src/formats/*/converter.mbt` | 各格式转换器 |
-| `cmd/main/main.mbt` | CLI 入口 |
+| `cmd/main/main.mbt` | CLI 前端 |
 
 ### 相关文档
 
 - [已知问题](./KNOWN_ISSUES.md)
+- [架构改造经验总结](./Architecture%20refactor%20lessons%20learned.md)
+- [远程推送记录](./Remote%20push%20log.md)
 - [项目指南](../AGENTS.md)

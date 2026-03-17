@@ -56,7 +56,7 @@ pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
     Some(archive) =>
       // 解析 presentation.xml 获取幻灯片顺序
       match parse_presentation(archive) {
-        Ok(slide_ids) => {
+        Ok(slide_ids, parse_warnings) => {
           if slide_ids.length() == 0 {
             // 调试：检查文件列表
             let files = archive.list_entries()
@@ -64,24 +64,50 @@ pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
             for f in files {
               file_list = file_list + "[" + f + "] "
             }
-            fail("No slides found. \{file_list}")
+            fail(
+              render_pptx_failure(
+                @core.ConversionFailed(
+                  "No slides found. \{file_list}",
+                  "presentation",
+                ),
+                Some(@core.Parse(Some("ppt/presentation.xml"))),
+                Some(@core.ArchiveEntry("ppt/presentation.xml")),
+                Some(
+                  @core.Custom(
+                    "Verify that the PPTX contains slide references in ppt/presentation.xml.",
+                  ),
+                ),
+              ),
+            )
           }
           // 解析每张幻灯片并生成 Markdown
-          let markdown = process_slides(archive, slide_ids)
+          let (markdown, slide_warnings) = process_slides(archive, slide_ids)
           let final_markdown = markdown.trim().to_string()
           let metadata = Map::new()
           metadata["format"] = "pptx"
           metadata["slide_count"] = slide_ids.length().to_string()
-          let warnings = collect_pptx_warnings(final_markdown)
+          let warnings = collect_pptx_warnings(
+            final_markdown, parse_warnings, slide_warnings,
+          )
+          let diagnostics = pptx_warning_diagnostics(file_path, warnings)
           @core.ConvertResult::markdown_only(final_markdown, "pptx")
           .with_title(file_stem(file_path))
           .with_metadata(metadata)
           .with_warnings(warnings)
+          .with_diagnostics(diagnostics)
           .with_stats(Some(@core.stats_for_markdown(final_markdown)))
         }
-        Err(e) => fail("Failed to parse presentation: \{e}")
+        Err(e) => fail(render_pptx_parse_failure(e, file_path))
       }
-    None => fail("Failed to open PPTX file as ZIP archive")
+    None =>
+      fail(
+        render_pptx_failure(
+          @core.ZipError("Failed to open PPTX file as ZIP archive", None),
+          Some(@core.Load(Some("archive"))),
+          Some(@core.File(file_path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
   }
 }
 
@@ -96,8 +122,18 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 }
 
 ///|
-fn collect_pptx_warnings(markdown : String) -> Array[String] {
+fn collect_pptx_warnings(
+  markdown : String,
+  parse_warnings : Array[String],
+  slide_warnings : Array[String],
+) -> Array[String] {
   let warnings : Array[String] = []
+  for warning in parse_warnings {
+    warnings.push(warning)
+  }
+  for warning in slide_warnings {
+    warnings.push(warning)
+  }
   if markdown.contains("Unable to read") {
     warnings.push("Some slide XML files could not be read from the archive.")
   }
@@ -143,4 +179,171 @@ fn find_last_char(s : String, target : Char) -> Int? {
   } else {
     None
   }
+}
+
+///|
+fn pptx_warning_diagnostics(
+  file_path : String,
+  warnings : Array[String],
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  for warning in warnings {
+    if warning == "Some slide XML files could not be read from the archive." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("slides"))),
+          Some(@core.File(file_path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning == "Some slides could not be parsed as XML." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("slides"))),
+          Some(@core.File(file_path)),
+          Some(
+            @core.Custom("Inspect malformed slide XML inside the PPTX archive."),
+          ),
+        ),
+      )
+    } else if warning == "Some slides could not be decoded as UTF-8." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("slides"))),
+          Some(@core.File(file_path)),
+          Some(@core.Custom("Verify slide XML encoding and archive integrity.")),
+        ),
+      )
+    } else if warning == "Failed to read ppt/_rels/presentation.xml.rels." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("ppt/_rels/presentation.xml.rels"))),
+          Some(@core.ArchiveEntry("ppt/_rels/presentation.xml.rels")),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning ==
+      "Failed to decode ppt/_rels/presentation.xml.rels as UTF-8." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("ppt/_rels/presentation.xml.rels"))),
+          Some(@core.ArchiveEntry("ppt/_rels/presentation.xml.rels")),
+          Some(
+            @core.Custom(
+              "Verify the XML encoding of ppt/_rels/presentation.xml.rels before converting.",
+            ),
+          ),
+        ),
+      )
+    } else if warning == "Failed to parse ppt/_rels/presentation.xml.rels." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("ppt/_rels/presentation.xml.rels"))),
+          Some(@core.ArchiveEntry("ppt/_rels/presentation.xml.rels")),
+          Some(
+            @core.Custom(
+              "Inspect malformed relationship XML inside the PPTX archive.",
+            ),
+          ),
+        ),
+      )
+    } else if warning.has_prefix("Failed to read slide XML: ") {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("slide"))),
+          Some(@core.ArchiveEntry(extract_pptx_warning_path(warning))),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning.has_prefix("Failed to decode slide XML as UTF-8: ") {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("slide"))),
+          Some(@core.ArchiveEntry(extract_pptx_warning_path(warning))),
+          Some(@core.Custom("Verify slide XML encoding and archive integrity.")),
+        ),
+      )
+    } else if warning.has_prefix("Failed to parse slide XML: ") {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("slide"))),
+          Some(@core.ArchiveEntry(extract_pptx_warning_path(warning))),
+          Some(
+            @core.Custom("Inspect malformed slide XML inside the PPTX archive."),
+          ),
+        ),
+      )
+    }
+  }
+  diagnostics
+}
+
+///|
+fn extract_pptx_warning_path(message : String) -> String {
+  match find_last_char(message, '(') {
+    Some(start) =>
+      match find_last_char(message, ')') {
+        Some(end) =>
+          if end > start {
+            message[start + 1:end].to_string()
+          } else {
+            message
+          }
+        None => message
+      }
+    None => message
+  }
+}
+
+///|
+fn render_pptx_parse_failure(message : String, file_path : String) -> String {
+  if message.contains("presentation.xml") {
+    let is_parse = message.contains("parse")
+    let phase = if is_parse {
+      Some(@core.Parse(Some("ppt/presentation.xml")))
+    } else {
+      Some(@core.Load(Some("ppt/presentation.xml")))
+    }
+    let error = if is_parse {
+      @core.XmlParseError(message, None)
+    } else {
+      @core.ZipError(message, Some("ppt/presentation.xml"))
+    }
+    render_pptx_failure(
+      error,
+      phase,
+      Some(@core.ArchiveEntry("ppt/presentation.xml")),
+      Some(@core.CheckArchiveIntegrity),
+    )
+  } else {
+    render_pptx_failure(
+      @core.ConversionFailed(message, "presentation"),
+      Some(@core.Convert("pptx")),
+      Some(@core.File(file_path)),
+      Some(
+        @core.Custom(
+          "Inspect the PPTX archive and slide relationships for details.",
+        ),
+      ),
+    )
+  }
+}
+
+///|
+fn render_pptx_failure(
+  error : @core.ConversionError,
+  phase : @core.ConversionPhase?,
+  source : @core.DiagnosticSource?,
+  hint : @core.DiagnosticHint?,
+) -> String {
+  @core.error_diagnostic(error, phase, source, hint).render()
 }

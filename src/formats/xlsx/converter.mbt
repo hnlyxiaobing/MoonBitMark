@@ -54,28 +54,46 @@ pub async fn XlsxConverter::convert(file_path : String) -> @core.ConvertResult {
       // Parse workbook.xml to get sheet names
       let sheets = parse_workbook_sheets(archive)
       // Parse shared strings
-      let shared_strings = parse_shared_strings(archive)
+      let (shared_strings, helper_warnings_a) = parse_shared_strings(archive)
       // Parse each sheet and generate markdown
-      let markdown = generate_markdown(archive, sheets, shared_strings)
+      let (markdown, helper_warnings_b) = generate_markdown(
+        archive, sheets, shared_strings,
+      )
       let final_markdown = markdown.trim().to_string()
       let metadata = Map::new()
       metadata["format"] = "xlsx"
       metadata["sheet_count"] = sheets.length().to_string()
       metadata["shared_string_count"] = shared_strings.length().to_string()
       let warnings : Array[String] = []
+      for warning in helper_warnings_a {
+        warnings.push(warning)
+      }
+      for warning in helper_warnings_b {
+        warnings.push(warning)
+      }
       if sheets.length() == 0 {
         warnings.push("No sheets discovered in xl/workbook.xml.")
       }
       if final_markdown == "" {
         warnings.push("XLSX conversion produced empty Markdown output.")
       }
+      let diagnostics = xlsx_warning_diagnostics(file_path, warnings)
       @core.ConvertResult::markdown_only(final_markdown, "xlsx")
       .with_title(file_stem(file_path))
       .with_metadata(metadata)
       .with_warnings(warnings)
+      .with_diagnostics(diagnostics)
       .with_stats(Some(@core.stats_for_markdown(final_markdown)))
     }
-    None => fail("Failed to open XLSX file as ZIP archive")
+    None =>
+      fail(
+        render_xlsx_failure(
+          @core.ZipError("Failed to open XLSX file as ZIP archive", None),
+          Some(@core.Load(Some("archive"))),
+          Some(@core.File(file_path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
   }
 }
 
@@ -93,16 +111,56 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 /// Parse workbook.xml to get sheet names
 fn parse_workbook_sheets(
   archive : @libzip.ZipArchive,
-) -> Array[(String, String)] {
+) -> Array[(String, String)] raise {
   match @libzip.read_file_entry_decompressed(archive, "xl/workbook.xml") {
     Some(xml_bytes) => {
-      let xml_string = @utf8.decode(xml_bytes) catch { _ => return [] }
+      let xml_string = @utf8.decode(xml_bytes) catch {
+        _ =>
+          fail(
+            render_xlsx_failure(
+              @core.InputError(
+                "xl/workbook.xml contains invalid UTF-8 sequence",
+                Some("xl/workbook.xml"),
+              ),
+              Some(@core.Load(Some("xl/workbook.xml"))),
+              Some(@core.ArchiveEntry("xl/workbook.xml")),
+              Some(
+                @core.Custom(
+                  "Verify the XML encoding of xl/workbook.xml before converting.",
+                ),
+              ),
+            ),
+          )
+      }
       match @xml.parse_xml(xml_string) {
         Ok(events) => extract_sheet_info(events)
-        Err(_) => []
+        Err(_) =>
+          fail(
+            render_xlsx_failure(
+              @core.XmlParseError("Failed to parse xl/workbook.xml", None),
+              Some(@core.Parse(Some("xl/workbook.xml"))),
+              Some(@core.ArchiveEntry("xl/workbook.xml")),
+              Some(
+                @core.Custom(
+                  "Inspect malformed workbook XML inside the XLSX archive.",
+                ),
+              ),
+            ),
+          )
       }
     }
-    None => []
+    None =>
+      fail(
+        render_xlsx_failure(
+          @core.ZipError(
+            "Failed to read xl/workbook.xml",
+            Some("xl/workbook.xml"),
+          ),
+          Some(@core.Load(Some("xl/workbook.xml"))),
+          Some(@core.ArchiveEntry("xl/workbook.xml")),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
   }
 }
 
@@ -153,16 +211,20 @@ fn extract_sheet_info(
 
 ///|
 /// Parse sharedStrings.xml to get shared string array
-fn parse_shared_strings(archive : @libzip.ZipArchive) -> Array[String] {
+fn parse_shared_strings(
+  archive : @libzip.ZipArchive,
+) -> (Array[String], Array[String]) {
   match @libzip.read_file_entry_decompressed(archive, "xl/sharedStrings.xml") {
     Some(xml_bytes) => {
-      let xml_string = @utf8.decode(xml_bytes) catch { _ => return [] }
+      let xml_string = @utf8.decode(xml_bytes) catch {
+        _ => return ([], ["Failed to decode xl/sharedStrings.xml as UTF-8."])
+      }
       match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_shared_strings(events)
-        Err(_) => []
+        Ok(events) => (extract_shared_strings(events), [])
+        Err(_) => ([], ["Failed to parse xl/sharedStrings.xml."])
       }
     }
-    None => []
+    None => ([], [])
   }
 }
 
@@ -198,7 +260,6 @@ fn extract_shared_strings(events : Array[@xml.ParseEvent]) -> Array[String] {
         if in_t {
           current_string = current_string + evt.content
         }
-      _ => ()
     }
   }
 
@@ -211,9 +272,9 @@ fn generate_markdown(
   archive : @libzip.ZipArchive,
   sheets : Array[(String, String)],
   shared_strings : Array[String],
-) -> String {
+) -> (String, Array[String]) {
   // First, get sheet path mapping from workbook.xml.rels
-  let sheet_paths = parse_sheet_paths(archive)
+  let (sheet_paths, warnings) = parse_sheet_paths(archive)
 
   let markdown_parts : Array[String] = []
 
@@ -225,33 +286,47 @@ fn generate_markdown(
     let sheet_path = find_sheet_path(rid, sheet_paths)
     match sheet_path {
       Some(path) => {
-        let sheet_md = parse_worksheet_to_markdown(
+        let (sheet_md, sheet_warnings) = parse_worksheet_to_markdown(
           archive, path, sheet_name, shared_strings,
         )
+        for warning in sheet_warnings {
+          warnings.push(warning)
+        }
         let header = "## " + sheet_name + "\n\n"
         markdown_parts.push(header + sheet_md)
       }
-      None => ()
+      None =>
+        warnings.push(
+          "Missing worksheet relationship for sheet '\{sheet_name}' (r:id=\{rid}).",
+        )
     }
     idx = idx + 1
   }
 
-  markdown_parts.join("\n\n")
+  (markdown_parts.join("\n\n"), warnings)
 }
 
 ///|
 /// Parse workbook.xml.rels to get r:id -> sheet path mapping
-fn parse_sheet_paths(archive : @libzip.ZipArchive) -> Map[String, String] {
+fn parse_sheet_paths(
+  archive : @libzip.ZipArchive,
+) -> (Map[String, String], Array[String]) {
   match
     @libzip.read_file_entry_decompressed(archive, "xl/_rels/workbook.xml.rels") {
     Some(xml_bytes) => {
-      let xml_string = @utf8.decode(xml_bytes) catch { _ => return Map::new() }
+      let xml_string = @utf8.decode(xml_bytes) catch {
+        _ =>
+          return (
+            Map::new(),
+            ["Failed to decode xl/_rels/workbook.xml.rels as UTF-8."],
+          )
+      }
       match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_sheet_paths(events)
-        Err(_) => Map::new()
+        Ok(events) => (extract_sheet_paths(events), [])
+        Err(_) => (Map::new(), ["Failed to parse xl/_rels/workbook.xml.rels."])
       }
     }
-    None => Map::new()
+    None => (Map::new(), ["Failed to read xl/_rels/workbook.xml.rels."])
   }
 }
 
@@ -296,7 +371,7 @@ fn parse_worksheet_to_markdown(
   sheet_path : String,
   sheet_name : String,
   shared_strings : Array[String],
-) -> String {
+) -> (String, Array[String]) {
   // Ensure path starts with xl/
   let full_path = if sheet_path.has_prefix("xl/") {
     sheet_path
@@ -306,16 +381,26 @@ fn parse_worksheet_to_markdown(
 
   match @libzip.read_file_entry_decompressed(archive, full_path) {
     Some(xml_bytes) => {
-      let xml_string = @utf8.decode(xml_bytes) catch { _ => return "" }
+      let xml_string = @utf8.decode(xml_bytes) catch {
+        _ =>
+          return (
+            "",
+            [
+              "Failed to decode worksheet XML as UTF-8: \{sheet_name} (\{full_path}).",
+            ],
+          )
+      }
       match @xml.parse_xml(xml_string) {
         Ok(events) => {
           let sheet_data = extract_sheet_data(events, shared_strings)
-          sheet_data_to_markdown(sheet_data)
+          (sheet_data_to_markdown(sheet_data), [])
         }
-        Err(_) => ""
+        Err(_) =>
+          ("", ["Failed to parse worksheet XML: \{sheet_name} (\{full_path})."])
       }
     }
-    None => ""
+    None =>
+      ("", ["Failed to read worksheet XML: \{sheet_name} (\{full_path})."])
   }
 }
 
@@ -406,7 +491,6 @@ fn extract_sheet_data(
         } else if in_inline_t {
           current_content = current_content + evt.content
         }
-      _ => ()
     }
   }
 
@@ -571,4 +655,177 @@ fn find_last_char(s : String, target : Char) -> Int? {
   } else {
     None
   }
+}
+
+///|
+fn xlsx_warning_diagnostics(
+  file_path : String,
+  warnings : Array[String],
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  for warning in warnings {
+    if warning == "No sheets discovered in xl/workbook.xml." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("xl/workbook.xml"))),
+          Some(@core.ArchiveEntry("xl/workbook.xml")),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning == "XLSX conversion produced empty Markdown output." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Render(Some("markdown"))),
+          Some(@core.File(file_path)),
+          Some(
+            @core.Custom(
+              "Check whether the workbook contains visible sheet data.",
+            ),
+          ),
+        ),
+      )
+    } else if warning == "Failed to decode xl/sharedStrings.xml as UTF-8." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("xl/sharedStrings.xml"))),
+          Some(@core.ArchiveEntry("xl/sharedStrings.xml")),
+          Some(
+            @core.Custom(
+              "Verify the XML encoding of xl/sharedStrings.xml before converting.",
+            ),
+          ),
+        ),
+      )
+    } else if warning == "Failed to parse xl/sharedStrings.xml." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("xl/sharedStrings.xml"))),
+          Some(@core.ArchiveEntry("xl/sharedStrings.xml")),
+          Some(
+            @core.Custom(
+              "Inspect malformed shared strings XML inside the XLSX archive.",
+            ),
+          ),
+        ),
+      )
+    } else if warning == "Failed to read xl/_rels/workbook.xml.rels." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("xl/_rels/workbook.xml.rels"))),
+          Some(@core.ArchiveEntry("xl/_rels/workbook.xml.rels")),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning == "Failed to decode xl/_rels/workbook.xml.rels as UTF-8." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("xl/_rels/workbook.xml.rels"))),
+          Some(@core.ArchiveEntry("xl/_rels/workbook.xml.rels")),
+          Some(
+            @core.Custom(
+              "Verify the XML encoding of xl/_rels/workbook.xml.rels before converting.",
+            ),
+          ),
+        ),
+      )
+    } else if warning == "Failed to parse xl/_rels/workbook.xml.rels." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("xl/_rels/workbook.xml.rels"))),
+          Some(@core.ArchiveEntry("xl/_rels/workbook.xml.rels")),
+          Some(
+            @core.Custom(
+              "Inspect malformed workbook relationship XML inside the XLSX archive.",
+            ),
+          ),
+        ),
+      )
+    } else if warning.has_prefix("Missing worksheet relationship for sheet '") {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("xl/_rels/workbook.xml.rels"))),
+          Some(@core.ArchiveEntry("xl/_rels/workbook.xml.rels")),
+          Some(
+            @core.Custom(
+              "Verify workbook relationship entries for the missing worksheet mapping.",
+            ),
+          ),
+        ),
+      )
+    } else if warning.has_prefix("Failed to read worksheet XML: ") {
+      let path = extract_warning_path(warning)
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("worksheet"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning.has_prefix("Failed to decode worksheet XML as UTF-8: ") {
+      let path = extract_warning_path(warning)
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("worksheet"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(
+            @core.Custom(
+              "Verify worksheet XML encoding before converting the sheet.",
+            ),
+          ),
+        ),
+      )
+    } else if warning.has_prefix("Failed to parse worksheet XML: ") {
+      let path = extract_warning_path(warning)
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("worksheet"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(
+            @core.Custom(
+              "Inspect malformed worksheet XML inside the XLSX archive.",
+            ),
+          ),
+        ),
+      )
+    }
+  }
+  diagnostics
+}
+
+///|
+fn extract_warning_path(message : String) -> String {
+  match find_last_char(message, '(') {
+    Some(start) =>
+      match find_last_char(message, ')') {
+        Some(end) =>
+          if end > start {
+            message[start + 1:end].to_string()
+          } else {
+            message
+          }
+        None => message
+      }
+    None => message
+  }
+}
+
+///|
+fn render_xlsx_failure(
+  error : @core.ConversionError,
+  phase : @core.ConversionPhase?,
+  source : @core.DiagnosticSource?,
+  hint : @core.DiagnosticHint?,
+) -> String {
+  @core.error_diagnostic(error, phase, source, hint).render()
 }

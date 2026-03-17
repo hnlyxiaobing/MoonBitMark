@@ -9,14 +9,13 @@ import {
 // Values
 pub fn parse_presentation(@libzip.ZipArchive) -> ParseResult
 
-pub fn process_slides(@libzip.ZipArchive, Array[SlideRef]) -> String
+pub fn process_slides(@libzip.ZipArchive, Array[SlideRef]) -> (String, Array[String])
 
 // Errors
-type PPTXError
 
 // Types and methods
 pub enum ParseResult {
-  Ok(Array[SlideRef])
+  Ok(Array[SlideRef], Array[String])
   Err(String)
 }
 

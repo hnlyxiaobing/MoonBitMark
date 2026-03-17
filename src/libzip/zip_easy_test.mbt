@@ -109,7 +109,7 @@ test "deflate decompress simple" {
       let mut i = 0
       while i < len {
         let b = decompressed[i].to_int()
-        text = text + Char::from_int(b).to_string()
+        text = text + b.unsafe_to_char().to_string()
         i = i + 1
       }
       assert_eq(text, "Hello World")
@@ -133,7 +133,7 @@ test "deflate decompress dynamic huffman" {
       let mut i = 0
       while i < len {
         let b = decompressed[i].to_int()
-        text = text + Char::from_int(b).to_string()
+        text = text + b.unsafe_to_char().to_string()
         i = i + 1
       }
       // 动态 Huffman 解压仍有问题，暂时跳过严格验证

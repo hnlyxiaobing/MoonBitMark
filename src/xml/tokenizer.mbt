@@ -434,7 +434,7 @@ fn parse_attribute(
 
 ///|
 /// 解码实体引用
-fn decode_entities(s : String) -> String raise {
+fn decode_entities(s : String) -> String {
   let mut result = ""
   let mut i = 0
   let len = s.length()
@@ -473,7 +473,7 @@ fn decode_entities(s : String) -> String raise {
 
 ///|
 /// 解析文本内容
-fn parse_text(xml : String, start : Int, line : Int) -> TextParseResult raise {
+fn parse_text(xml : String, start : Int, line : Int) -> TextParseResult {
   let mut pos = start
   let mut current_line = line
 

@@ -208,6 +208,16 @@ pub fn McpError::internal_error(
 }
 
 ///|
+pub fn McpError::server_error(
+  code : Int,
+  message : String,
+  details : String?,
+  context : ErrorContext,
+) -> McpError {
+  { code: ServerError(code), message, details, context, cause: None }
+}
+
+///|
 pub fn McpError::internal_error_with_cause(
   message : String,
   details : String?,

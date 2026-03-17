@@ -18,3 +18,15 @@ test "html direct ast document" {
   )
   inspect(doc.blocks.length(), content="3")
 }
+
+///|
+test "html warning diagnostics carry typed source" {
+  let diagnostics = html_warning_diagnostics(
+    "https://example.com", "<style>a{}</style><script>x()</script>",
+  )
+  inspect(diagnostics.length(), content="2")
+  inspect(
+    diagnostics[0].render(),
+    content="Error: ConverterWarning\n  Phase: normalize/preprocess\n  Source: https://example.com\n  Message: Dropped <script> blocks during HTML conversion.\n  Hint: Scripts are intentionally removed before Markdown rendering.",
+  )
+}

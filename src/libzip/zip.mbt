@@ -102,9 +102,7 @@ fn read_uint16_le(buffer : Bytes, offset : Int) -> UInt {
 /// 解析单个中央目录条目
 fn parse_central_dir_entry(buffer : Bytes, offset : Int) -> ZipEntry {
   // Central Directory Header 固定部分 46 字节
-  let name_len = read_uint16_le(buffer, offset + 28).to_int()
-  let extra_len = read_uint16_le(buffer, offset + 30).to_int()
-  let comment_len = read_uint16_le(buffer, offset + 32).to_int()
+  let name_len = read_uint16_le(buffer, offset + 28).reinterpret_as_int()
 
   // 读取文件名
   let name_start = offset + 46
@@ -112,10 +110,10 @@ fn parse_central_dir_entry(buffer : Bytes, offset : Int) -> ZipEntry {
 
   ZipEntry::{
     name,
-    compression_method: read_uint16_le(buffer, offset + 10).to_int(),
-    compressed_size: read_uint32_le(buffer, offset + 20).to_int(),
-    uncompressed_size: read_uint32_le(buffer, offset + 24).to_int(),
-    data_offset: read_uint32_le(buffer, offset + 42).to_int(),
+    compression_method: read_uint16_le(buffer, offset + 10).reinterpret_as_int(),
+    compressed_size: read_uint32_le(buffer, offset + 20).reinterpret_as_int(),
+    uncompressed_size: read_uint32_le(buffer, offset + 24).reinterpret_as_int(),
+    data_offset: read_uint32_le(buffer, offset + 42).reinterpret_as_int(),
     crc32: read_uint32_le(buffer, offset + 16),
   }
 }
@@ -124,9 +122,9 @@ fn parse_central_dir_entry(buffer : Bytes, offset : Int) -> ZipEntry {
 /// 获取中央目录条目大小
 fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
   46 +
-  read_uint16_le(buffer, offset + 28).to_int() +
-  read_uint16_le(buffer, offset + 30).to_int() +
-  read_uint16_le(buffer, offset + 32).to_int()
+  read_uint16_le(buffer, offset + 28).reinterpret_as_int() +
+  read_uint16_le(buffer, offset + 30).reinterpret_as_int() +
+  read_uint16_le(buffer, offset + 32).reinterpret_as_int()
 }
 
 ///|
@@ -142,7 +140,7 @@ fn bytes_to_string(buffer : Bytes, offset : Int, len : Int) -> String {
       while i < bytes.length() {
         let b = bytes[i]
         // 简单地将字节转为字符
-        result = result + Char::from_int(b.to_int()).to_string()
+        result = result + b.to_int().unsafe_to_char().to_string()
         i = i + 1
       }
       result
@@ -166,8 +164,8 @@ pub fn read_file_entry(archive : ZipArchive, name : String) -> Bytes? {
       // 读取文件数据
       let data_start = entry.data_offset +
         30 +
-        read_uint16_le(archive.data, entry.data_offset + 26).to_int() +
-        read_uint16_le(archive.data, entry.data_offset + 28).to_int()
+        read_uint16_le(archive.data, entry.data_offset + 26).reinterpret_as_int() +
+        read_uint16_le(archive.data, entry.data_offset + 28).reinterpret_as_int()
       Some(
         archive.data[data_start:data_start + entry.compressed_size].to_bytes(),
       )
@@ -226,18 +224,14 @@ pub fn read_file_entry_decompressed(
         read_uint16_le(archive.data, entry.data_offset + 28).reinterpret_as_int()
       let compressed_data = archive.data[data_start:data_start +
       entry.compressed_size].to_bytes()
+      ignore(entry.uncompressed_size)
+      ignore(entry.crc32)
 
       // 根据压缩方法处理
-      // compression_method: 0 = Store (无压缩), 8 = Deflate
-      if entry.compression_method == 0 {
-        // Store - 无压缩
-        Some(compressed_data)
-      } else if entry.compression_method == 8 {
-        // Deflate 压缩
-        deflate_decompress(compressed_data)
-      } else {
-        // 不支持的压缩方法
-        None
+      match compression_method_from_int(entry.compression_method) {
+        Store(_) => Some(compressed_data)
+        Deflate(_) => deflate_decompress(compressed_data)
+        Unknown(_) => None
       }
     }
     None => None

@@ -27,6 +27,36 @@ pub(all) enum DiagnosticLevel {
 } derive(Show, Eq, ToJson)
 
 ///|
+pub(all) enum ConversionPhase {
+  Detect(String?)
+  Load(String?)
+  Parse(String?)
+  Normalize(String?)
+  Render(String?)
+  Postprocess(String?)
+  Convert(String)
+} derive(Show, Eq, ToJson)
+
+///|
+pub(all) enum DiagnosticSource {
+  Input(String)
+  File(String)
+  Url(String)
+  ArchiveEntry(String)
+  Bytes(String?)
+  Generated(String)
+} derive(Show, Eq, ToJson)
+
+///|
+pub(all) enum DiagnosticHint {
+  CheckInputDetection
+  InspectSourceDocument
+  ProvideBytesSourceName
+  CheckArchiveIntegrity
+  Custom(String)
+} derive(Show, Eq, ToJson)
+
+///|
 pub(all) enum ConversionError {
   InputError(String, String?)
   FormatDetectionError(String)
@@ -39,11 +69,11 @@ pub(all) enum ConversionError {
 ///|
 pub(all) struct ConversionDiagnostic {
   level : DiagnosticLevel
-  category : String
-  phase : String?
-  source : String?
+  error : ConversionError?
+  phase : ConversionPhase?
+  source : DiagnosticSource?
   message : String
-  hint : String?
+  hint : DiagnosticHint?
 } derive(Show, Eq, ToJson)
 
 ///|
@@ -206,16 +236,152 @@ pub fn stats_for_markdown(
 }
 
 ///|
+pub fn ConversionPhase::label(self : ConversionPhase) -> String {
+  match self {
+    Detect(detail) => format_phase_label("detect", detail)
+    Load(detail) => format_phase_label("load", detail)
+    Parse(detail) => format_phase_label("parse", detail)
+    Normalize(detail) => format_phase_label("normalize", detail)
+    Render(detail) => format_phase_label("render", detail)
+    Postprocess(detail) => format_phase_label("postprocess", detail)
+    Convert(name) => "convert/" + name
+  }
+}
+
+///|
+fn format_phase_label(stage : String, detail : String?) -> String {
+  match detail {
+    Some(value) => stage + "/" + value
+    None => stage
+  }
+}
+
+///|
+pub fn DiagnosticSource::label(self : DiagnosticSource) -> String {
+  match self {
+    Input(name) => name
+    File(path) => path
+    Url(url) => url
+    ArchiveEntry(path) => path
+    Bytes(name) =>
+      match name {
+        Some(value) => value
+        None => "<bytes>"
+      }
+    Generated(name) => name
+  }
+}
+
+///|
+pub fn DiagnosticHint::message(self : DiagnosticHint) -> String {
+  match self {
+    CheckInputDetection => "Check the file extension, URL, or MIME information."
+    InspectSourceDocument =>
+      "Inspect the source document or run with debug context."
+    ProvideBytesSourceName =>
+      "Provide a source name for bytes input so format detection can proceed."
+    CheckArchiveIntegrity =>
+      "Inspect archive integrity and verify the expected internal entries exist."
+    Custom(message) => message
+  }
+}
+
+///|
+pub fn ConversionError::category(self : ConversionError) -> String {
+  match self {
+    InputError(_, _) => "InputError"
+    FormatDetectionError(_) => "FormatDetectionError"
+    ZipError(_, _) => "ZipError"
+    XmlParseError(_, _) => "XmlParseError"
+    UnsupportedFeatureError(_, _) => "UnsupportedFeatureError"
+    ConversionFailed(_, _) => "ConversionFailed"
+  }
+}
+
+///|
+pub fn ConversionError::message(self : ConversionError) -> String {
+  match self {
+    InputError(message, detail) =>
+      match detail {
+        Some(value) => message + " (" + value + ")"
+        None => message
+      }
+    FormatDetectionError(message) => message
+    ZipError(message, file) =>
+      match file {
+        Some(value) => message + " (" + value + ")"
+        None => message
+      }
+    XmlParseError(message, line) =>
+      match line {
+        Some(value) => message + " (line " + value.to_string() + ")"
+        None => message
+      }
+    UnsupportedFeatureError(feature, format) =>
+      "Unsupported feature: " + feature + " (" + format + ")"
+    ConversionFailed(message, _) => message
+  }
+}
+
+///|
+pub fn ConversionDiagnostic::category(self : ConversionDiagnostic) -> String {
+  match self.error {
+    Some(error) => error.category()
+    None => "ConverterWarning"
+  }
+}
+
+///|
+pub fn ConversionDiagnostic::with_defaults(
+  self : ConversionDiagnostic,
+  phase : ConversionPhase?,
+  source : DiagnosticSource?,
+  hint : DiagnosticHint?,
+) -> ConversionDiagnostic {
+  let next_phase = match self.phase {
+    Some(existing) => Some(existing)
+    None => phase
+  }
+  let next_source = match self.source {
+    Some(existing) => Some(existing)
+    None => source
+  }
+  let next_hint = match self.hint {
+    Some(existing) => Some(existing)
+    None => hint
+  }
+  { ..self, phase: next_phase, source: next_source, hint: next_hint }
+}
+
+///|
+pub fn ConversionDiagnostic::render(self : ConversionDiagnostic) -> String {
+  let mut result = "Error: " + self.category() + "\n"
+  match self.phase {
+    Some(phase) => result = result + "  Phase: " + phase.label() + "\n"
+    None => ()
+  }
+  match self.source {
+    Some(source) => result = result + "  Source: " + source.label() + "\n"
+    None => ()
+  }
+  result = result + "  Message: " + self.message
+  match self.hint {
+    Some(hint) => result = result + "\n  Hint: " + hint.message()
+    None => ()
+  }
+  result
+}
+
+///|
 pub fn warning_diagnostic(
-  category : String,
   message : String,
-  phase : String?,
-  source : String?,
-  hint : String?,
+  phase : ConversionPhase?,
+  source : DiagnosticSource?,
+  hint : DiagnosticHint?,
 ) -> ConversionDiagnostic {
   ConversionDiagnostic::{
     level: Warning,
-    category,
+    error: None,
     phase,
     source,
     message,
@@ -225,26 +391,32 @@ pub fn warning_diagnostic(
 
 ///|
 pub fn error_diagnostic(
-  category : String,
-  message : String,
-  phase : String?,
-  source : String?,
-  hint : String?,
+  error : ConversionError,
+  phase : ConversionPhase?,
+  source : DiagnosticSource?,
+  hint : DiagnosticHint?,
 ) -> ConversionDiagnostic {
-  ConversionDiagnostic::{ level: Error, category, phase, source, message, hint }
+  let message = error.message()
+  ConversionDiagnostic::{
+    level: Error,
+    error: Some(error),
+    phase,
+    source,
+    message,
+    hint,
+  }
 }
 
 ///|
 pub fn diagnostics_from_warnings(
   warnings : Array[String],
-  phase : String?,
-  source : String?,
+  phase : ConversionPhase?,
+  source : DiagnosticSource?,
+  hint? : DiagnosticHint = Custom("Inspect the converter output for details."),
 ) -> Array[ConversionDiagnostic] {
   let diagnostics : Array[ConversionDiagnostic] = []
   for warning in warnings {
-    diagnostics.push(
-      warning_diagnostic("ConverterWarning", warning, phase, source, None),
-    )
+    diagnostics.push(warning_diagnostic(warning, phase, source, Some(hint)))
   }
   diagnostics
 }

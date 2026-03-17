@@ -1,163 +1,175 @@
 # MoonBitMark
 
-用 MoonBit 编写的文档转 Markdown 工具，目标是复刻并逐步逼近上游 `MarkItDown` 的核心文档转换能力，同时保持纯 MoonBit 实现路径。
+MoonBitMark 是一个用 MoonBit 实现的文档转换引擎，目标是以纯 MoonBit 方式提供接近 `MarkItDown` 核心体验的多格式转 Markdown 能力。
+
+当前项目已经从“CLI 里硬编码分支调用各 converter”推进到“前端调用 engine，engine 统一做识别、选择、转换、诊断与后处理”的架构。主链路可用，核心改造已进入收口阶段。
 
 ## 当前状态
 
-当前主模块已经恢复到可维护状态：
+截至 2026-03-17，整体改造进度可以概括为：
 
-- `moon check` 可以通过
-- 在 Windows + MSVC 环境下，`moon test` 可以通过
-- 主 CLI `cmd/main` 可用
-- `src/mcp/` 与 `cmd/mcp-server/` 目前保留为实验代码，但不参与主模块构建
+- P0 已基本完成：engine 已接管主流程，CLI 已降级为前端，所有主 converter 已统一返回 `ConvertResult`
+- P1 大部分已完成：AST / renderer 已接入 HTML、DOCX、EPUB 主链路，stats / metadata / 注册表已落地
+- P2 部分完成：已支持 frontmatter 输出，`asset_output_dir` 已能将 Markdown 中的 `data:image/*;base64,...` 真实落盘并回写相对链接
+- 当前 `moon check` 可通过；只剩 1 个工具链层面的历史 warning：`src/engine/moon.pkg` 中 `moonbitlang/async` 为 async wbtest 所需，但仍被 MoonBit 判成 `unused_package`
 
-## 当前已实现功能
-
-主 CLI 当前支持这些输入：
+## 已实现输入格式
 
 | 输入类型 | 状态 | 当前行为 |
 |------|------|------|
 | TXT | 已实现 | 直接读取文本 |
 | CSV | 已实现 | 转为 Markdown 表格 |
 | JSON | 已实现 | 包装为 `json` 代码块 |
-| PDF | 已实现 | 基于 `bobzhang/mbtpdf` 提取文本，并做基础后处理 |
-| HTML | 已实现 | 支持本地 HTML 文件 |
-| URL | 已实现 | 支持 `http://` / `https://`，交给 HTML 转换器 |
-| DOCX | 已实现 | 通过 `libzip` + `xml` 提取段落、标题、简单列表文本 |
-| PPTX | 已实现 | 通过 `libzip` + `xml` 提取幻灯片文本 |
+| PDF | 已实现 | 基于 `bobzhang/mbtpdf` 提取文本并做基础后处理 |
+| HTML | 已实现 | 支持本地 HTML 与 URL 输入 |
+| DOCX | 已实现 | 通过 `libzip` + `xml` 提取正文、标题、基础列表与 metadata |
+| PPTX | 已实现 | 通过 `libzip` + `xml` 提取幻灯片文本，并补充 typed diagnostics |
 | XLSX | 已实现 | 支持多工作表、共享字符串，输出 Markdown 表格 |
-| EPUB | 已实现 | 提取书籍元数据和 spine 文本内容 |
+| EPUB | 已实现 | 提取书籍元数据与 spine 文本内容 |
 
-## 与上游 MarkItDown 的差距
-
-本项目当前只覆盖了上游 `MarkItDown` 的一部分核心能力，主要差距如下：
-
-| 能力 | 上游 MarkItDown | 当前 MoonBitMark |
-|------|------|------|
-| PDF / DOCX / PPTX / XLSX / HTML / EPUB | 支持 | 支持 |
-| TXT / CSV / JSON | 支持 | 支持 |
-| XML 文件转换 | 支持文本类输入的一部分 | 尚未作为独立输入格式接入 CLI |
-| ZIP 遍历转换 | 支持 | 未实现 |
-| 图片 OCR / EXIF | 支持或可通过插件支持 | 未实现 |
-| 音频转写 | 支持 | 未实现 |
-| YouTube / RSS / Bing / Wikipedia 等特殊 URL 转换器 | 支持 | 未实现 |
-| Outlook `.msg` / 旧版 `.xls` / notebook 等 | 支持 | 未实现 |
-| 插件体系 | 支持 | 未实现 |
-| MCP 服务 | 上游作为独立包维护 | 当前仓库仅保留实验代码，未作为正式可发布能力 |
-
-换句话说，MoonBitMark 当前更接近一个“纯 MoonBit 文档转换器核心子集”，而不是完整对齐上游全部生态能力。
-
-## 当前实现边界
-
-- PDF：以文本提取为主，不含 OCR。
-- HTML：不支持 JavaScript 渲染。
-- DOCX：当前以文本提取为主，不保留完整富文本样式。
-- PPTX：当前以文本提取为主，不处理动画、图片等复杂元素。
-- XLSX：不做公式计算，不完整支持复杂样式。
-- EPUB：以元数据和正文文本提取为主。
-- MCP：源码仍在仓库中，但未接入当前主模块构建。
-
-## 已完成的工程修复
-
-这次整理后，项目有这些关键修复：
-
-- 修正了 README 中已经失真的版本、状态和构建说明。
-- 修正了 `moon.mod.json` 中过时的项目描述。
-- 清理了会让主模块构建直接失败的 MCP 包配置。
-- 将未完成的 MCP 子项目从主模块构建图中移除，避免影响 `moon check` / `moon test`。
-- 保留 `src/mcp/` 代码用于后续拆分独立模块，而不是继续污染主转换器模块。
-- 在本机 Windows 用户环境中切换到了 MSVC 编译链，避免 `moonbitlang/async` 测试阶段错误落到 MinGW。
-
-## Windows 构建说明
-
-当前项目在 Windows 下应使用 MSVC，而不是 MinGW。
-
-本机现已验证可用的 MSVC 路径为：
+## 当前架构
 
 ```text
-C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\cl.exe
+CLI / Frontend
+  -> src/engine
+     -> 输入识别 / converter 注册 / converter 选择
+     -> 统一 ConvertContext / ConvertResult
+     -> typed diagnostics / error 透传
+     -> AST render / output postprocess
+     -> asset_output_dir data URI 资源落盘
+  -> src/formats/*
 ```
 
-如果你刚修改过环境变量，记得重新打开终端再执行 `moon` 命令。
+核心职责分层：
+
+- `cmd/main/`：参数解析、调用 engine、写输出
+- `src/engine/`：输入识别、转换器注册、结果归一化、错误/诊断合并、输出后处理
+- `src/core/`：`ConvertResult`、`ConvertContext`、typed diagnostics/error 等核心类型
+- `src/ast/`：统一 AST 与 Markdown renderer
+- `src/formats/*/`：各格式 adapter / parser / converter
+
+## 当前 CLI
+
+主 CLI 已支持：
+
+```text
+main.exe <input> [output]
+  --frontmatter
+  --plain-text
+  --no-metadata
+  --asset-dir <dir>
+  --debug
+  --help
+```
+
+说明：
+
+- `--frontmatter`：输出带 YAML frontmatter 的 Markdown
+- `--plain-text`：输出纯文本模式
+- `--no-metadata`：关闭 metadata 输出
+- `--asset-dir <dir>`：将 Markdown 中的 `data:image/*;base64,...` 资源落盘到指定目录，并把链接改写为相对路径
+- `--debug`：输出调试信息
 
 ## 使用方式
 
 ### 构建
 
-推荐使用项目脚本：
+推荐在 Windows + MSVC 环境下构建：
 
 ```bat
-scripts\build.bat
-scripts\build.bat --debug
+scripts\build_msvc.bat
 ```
 
-或直接运行：
+或手动执行：
 
 ```bash
 moon build --target native --release
 ```
 
-### 测试
-
-推荐使用项目脚本：
-
-```bat
-scripts\test.bat
-scripts\test.bat --update
-```
-
-或直接运行：
-
-```bash
-moon test
-moon test --update
-```
-
-### 转换文件
+### 运行
 
 ```bash
 _build/native/release/build/cmd/main/main.exe input.txt
 _build/native/release/build/cmd/main/main.exe input.docx output.md
-_build/native/release/build/cmd/main/main.exe https://example.com output.md
+_build/native/release/build/cmd/main/main.exe --frontmatter input.epub output.md
+_build/native/release/build/cmd/main/main.exe --asset-dir assets input.html output.md
 ```
 
-### CLI 支持的输入
+### 校验与开发
 
-```text
-.txt .csv .json .pdf .html .htm .docx .pptx .xlsx .epub
-http://...
-https://...
+```bash
+moon check
+moon test
+moon test src/engine
+moon fmt
+moon info
 ```
+
+推荐在提交前执行：
+
+```bash
+moon info
+moon fmt
+moon check
+```
+
+## 与上游 MarkItDown 的差距
+
+MoonBitMark 当前已经覆盖一批核心文档格式，但还不是完整对齐上游生态的替代品。
+
+| 能力 | 上游 MarkItDown | 当前 MoonBitMark |
+|------|------|------|
+| TXT / CSV / JSON | 支持 | 支持 |
+| PDF / HTML / DOCX / PPTX / XLSX / EPUB | 支持 | 支持 |
+| typed diagnostics / engine 统一调度 | 有成熟实现 | 已完成主链路 |
+| 图片 OCR / EXIF | 支持或可插件化 | 未实现 |
+| 音频转写 | 支持 | 未实现 |
+| 特殊 URL converter | 支持 | 未实现 |
+| ZIP 遍历转换 | 支持 | 未实现 |
+| 插件体系 | 支持 | 仅内部注册表，未开放为外部插件机制 |
+| MCP 服务 | 独立维护 | 当前仓库仍为实验代码 |
+
+## 当前边界与剩余缺口
+
+- HTML：不支持 JavaScript 渲染
+- PDF：以文本提取为主，不包含 OCR
+- DOCX / PPTX / XLSX / EPUB：已统一接入 typed failure 主链路，但原生图片等资源仍未统一进入资产导出模型
+- `asset_output_dir`：当前只保证 engine 后处理阶段对 Markdown 内嵌 data URI 图片真实落盘；archive 类格式的原生资源提取仍待接入
+- MCP：源码仍在仓库，但未作为正式发布能力接入主模块
 
 ## 项目结构
 
 ```text
 src/
-├── core/       核心类型和转换逻辑
+├── ast/        Document AST 与 Markdown renderer
+├── core/       ConvertResult / ConvertContext / diagnostics 等核心类型
+├── engine/     统一引擎与主转换流水线
 ├── libzip/     纯 MoonBit ZIP / Deflate 实现
 ├── xml/        纯 MoonBit XML 解析器
-├── formats/    各格式转换器
-│   ├── text/
-│   ├── csv/
-│   ├── json/
-│   ├── pdf/
-│   ├── html/
-│   ├── docx/
-│   ├── pptx/
-│   ├── xlsx/
-│   └── epub/
-└── mcp/        MCP 实验代码（当前不参与主模块构建）
+├── formats/    各格式 converter
+└── mcp/        MCP 实验代码
+
+cmd/
+├── main/       CLI 前端
+└── mcp-server/ MCP 实验入口
 ```
 
-## 开发命令
+## 关键改造成果
 
-```bash
-moon check
-moon test
-moon test --update
-moon fmt
-moon info
-```
+- CLI 已不再直接分支判断格式，而是统一调用 engine
+- `ConvertResult` / `ConvertContext` / typed diagnostics 已成为主链路模型
+- archive 类格式的关键失败路径已能生成统一 `phase/source/hint` 诊断信息
+- HTML、DOCX、EPUB 已接入 AST / renderer 主链路
+- `asset_output_dir` 已落地为真实资源落盘流程，而不是保留字段
+- 项目历史 warning 已集中清理，目前只剩 1 个工具链层面 warning
+
+## 相关文档
+
+- [架构改造方案与进度](docs/Project%20architecture%20transformation.md)
+- [架构改造经验总结](docs/Architecture%20refactor%20lessons%20learned.md)
+- [远程推送记录](docs/Remote%20push%20log.md)
+- [已知问题](docs/KNOWN_ISSUES.md)
+- [开发指南](AGENTS.md)
 
 ## 依赖
 

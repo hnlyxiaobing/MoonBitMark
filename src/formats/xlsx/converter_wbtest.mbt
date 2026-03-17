@@ -2,3 +2,41 @@
 test "xlsx file stem helper" {
   inspect(file_stem("sheets/demo.xlsx"), content="Some(\"demo\")")
 }
+
+///|
+test "xlsx warning diagnostics include workbook source" {
+  let diagnostics = xlsx_warning_diagnostics("book.xlsx", [
+    "No sheets discovered in xl/workbook.xml.", "XLSX conversion produced empty Markdown output.",
+  ])
+  inspect(diagnostics.length(), content="2")
+  inspect(
+    diagnostics[0].render(),
+    content="Error: ConverterWarning\n  Phase: parse/xl/workbook.xml\n  Source: xl/workbook.xml\n  Message: No sheets discovered in xl/workbook.xml.\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+  )
+}
+
+///|
+test "xlsx worksheet warning diagnostics target archive entry" {
+  let diagnostics = xlsx_warning_diagnostics("book.xlsx", [
+    "Failed to parse worksheet XML: Sheet1 (xl/worksheets/sheet1.xml).",
+  ])
+  inspect(diagnostics.length(), content="1")
+  inspect(
+    diagnostics[0].render(),
+    content="Error: ConverterWarning\n  Phase: parse/worksheet\n  Source: xl/worksheets/sheet1.xml\n  Message: Failed to parse worksheet XML: Sheet1 (xl/worksheets/sheet1.xml).\n  Hint: Inspect malformed worksheet XML inside the XLSX archive.",
+  )
+}
+
+///|
+test "xlsx typed failure render targets workbook xml" {
+  let rendered = render_xlsx_failure(
+    @core.ZipError("Failed to read xl/workbook.xml", Some("xl/workbook.xml")),
+    Some(@core.Load(Some("xl/workbook.xml"))),
+    Some(@core.ArchiveEntry("xl/workbook.xml")),
+    Some(@core.CheckArchiveIntegrity),
+  )
+  inspect(
+    rendered,
+    content="Error: ZipError\n  Phase: load/xl/workbook.xml\n  Source: xl/workbook.xml\n  Message: Failed to read xl/workbook.xml (xl/workbook.xml)\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+  )
+}

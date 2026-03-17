@@ -11,7 +11,7 @@ pub struct SlideRef {
 ///|
 /// 解析结果类型
 pub enum ParseResult {
-  Ok(Array[SlideRef])
+  Ok(Array[SlideRef], Array[String])
   Err(String)
 }
 
@@ -19,7 +19,7 @@ pub enum ParseResult {
 /// 解析 presentation.xml 获取幻灯片顺序
 pub fn parse_presentation(archive : @libzip.ZipArchive) -> ParseResult {
   // 首先解析关系文件获取 r:id -> slide_path 映射
-  let relations = parse_relations(archive)
+  let (relations, warnings) = parse_relations(archive)
 
   // 读取 presentation.xml
   match @libzip.read_file_entry_decompressed(archive, "ppt/presentation.xml") {
@@ -35,7 +35,7 @@ pub fn parse_presentation(archive : @libzip.ZipArchive) -> ParseResult {
           if slide_refs.length() == 0 {
             Err("No sldId found in presentation.xml")
           } else {
-            Ok(slide_refs)
+            Ok(slide_refs, warnings)
           }
         }
         Err(_) => Err("Failed to parse presentation.xml")
@@ -47,23 +47,33 @@ pub fn parse_presentation(archive : @libzip.ZipArchive) -> ParseResult {
 
 ///|
 /// 解析关系文件
-fn parse_relations(archive : @libzip.ZipArchive) -> Map[String, String] {
+fn parse_relations(
+  archive : @libzip.ZipArchive,
+) -> (Map[String, String], Array[String]) {
   let relations : Map[String, String] = Map::new()
+  let warnings : Array[String] = []
 
   match
     @libzip.read_file_entry_decompressed(
       archive, "ppt/_rels/presentation.xml.rels",
     ) {
     Some(xml_bytes) => {
-      let xml_string = @utf8.decode(xml_bytes) catch { _ => return relations }
+      let xml_string = @utf8.decode(xml_bytes) catch {
+        _ =>
+          return (
+            relations,
+            ["Failed to decode ppt/_rels/presentation.xml.rels as UTF-8."],
+          )
+      }
       match @xml.parse_xml(xml_string) {
         Ok(events) => extract_relations(events, relations)
-        Err(_) => ()
+        Err(_) =>
+          warnings.push("Failed to parse ppt/_rels/presentation.xml.rels.")
       }
     }
-    None => ()
+    None => warnings.push("Failed to read ppt/_rels/presentation.xml.rels.")
   }
-  relations
+  (relations, warnings)
 }
 
 ///|
@@ -148,19 +158,19 @@ fn extract_slide_refs(
     match event {
       @xml.ElementStart(evt) => {
         let name = evt.name
-        let local = strip_ns_prefix(name)
+        let local_name = strip_ns_prefix(name)
         // 调试：检查所有元素
         // 检查 sldIdLst 和 sldId
-        if local == "sldIdLst" {
+        if local_name == "sldIdLst" {
           ctx.in_sld_id_lst = true
-        } else if local == "sldId" && ctx.in_sld_id_lst {
+        } else if local_name == "sldId" && ctx.in_sld_id_lst {
           // 处理 sldId 元素
           handle_sld_id_element(ctx, evt)
         }
       }
       @xml.ElementEnd(evt) => {
-        let local = strip_ns_prefix(evt.name)
-        if local == "sldIdLst" {
+        let local_name = strip_ns_prefix(evt.name)
+        if local_name == "sldIdLst" {
           ctx.in_sld_id_lst = false
         }
       }
@@ -196,55 +206,6 @@ fn handle_sld_id_element(
       })
     }
     None => ()
-  }
-}
-
-///|
-/// 处理 presentation.xml 元素开始 (已弃用)
-fn handle_presentation_element_start(
-  ctx : PresentationContext,
-  evt : @xml.ElementStartEvent,
-) -> Unit {
-  let local_name = strip_ns_prefix(evt.name)
-
-  if local_name == "sldIdLst" {
-    ctx.in_sld_id_lst = true
-  } else if local_name == "sldId" && ctx.in_sld_id_lst {
-    // 提取 r:id 属性
-    // 注意：r:id 可能存储为 "r:id" 而不是带命名空间的完整形式
-    let r_id_val = match evt.attributes.get("r:id") {
-      Some(v) => Some(v)
-      None => evt.attributes.get("rId") // 有些文件可能用 rId
-    }
-
-    match r_id_val {
-      Some(r_id) => {
-        ctx.slide_num = ctx.slide_num + 1
-        // 从关系中获取实际路径
-        let slide_path = match ctx.relations.get(r_id) {
-          Some(path) => path.to_string()
-          None => "ppt/slides/slide\{ctx.slide_num}.xml"
-        }
-        ctx.slide_refs.push(SlideRef::{
-          slide_num: ctx.slide_num,
-          r_id: r_id.to_string(),
-          slide_path,
-        })
-      }
-      None => ()
-    }
-  }
-}
-
-///|
-/// 处理 presentation.xml 元素结束
-fn handle_presentation_element_end(
-  ctx : PresentationContext,
-  name : String,
-) -> Unit {
-  let local_name = strip_ns_prefix(name)
-  if local_name == "sldIdLst" {
-    ctx.in_sld_id_lst = false
   }
 }
 

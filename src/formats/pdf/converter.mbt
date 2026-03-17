@@ -66,7 +66,7 @@ fn is_partial_numbering(s : String) -> Bool {
   // Check if rest contains only digits using simple iteration
   let mut i = 1
   while i < s.length() {
-    let c = s.at(i) catch { _ => return false }
+    let c = s.at(i)
     if c < 48 || c > 57 { // ASCII '0' = 48, '9' = 57
       return false
     }
@@ -136,6 +136,7 @@ pub async fn PdfConverter::convert(file_path : String) -> @core.ConvertResult {
   if normalized != merged {
     warnings.push("Merged partial numbering lines during PDF post-processing.")
   }
+  let diagnostics = pdf_warning_diagnostics(file_path, normalized, merged)
   let page_breaks = count_occurrences(merged, "\n\n---\n\n")
   if page_breaks > 0 {
     metadata["page_break_count"] = page_breaks.to_string()
@@ -146,6 +147,7 @@ pub async fn PdfConverter::convert(file_path : String) -> @core.ConvertResult {
   .with_title(file_stem(file_path))
   .with_metadata(metadata)
   .with_warnings(warnings)
+  .with_diagnostics(diagnostics)
   .with_stats(Some(@core.stats_for_markdown(merged)))
 }
 
@@ -202,4 +204,28 @@ fn find_last_char(s : String, target : Char) -> Int? {
   } else {
     None
   }
+}
+
+///|
+fn pdf_warning_diagnostics(
+  file_path : String,
+  normalized : String,
+  merged : String,
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  if normalized != merged {
+    diagnostics.push(
+      @core.warning_diagnostic(
+        "Merged partial numbering lines during PDF post-processing.",
+        Some(@core.Postprocess(Some("numbering-merge"))),
+        Some(@core.File(file_path)),
+        Some(
+          @core.Custom(
+            "Review merged numbering if the PDF relies on strict line boundaries.",
+          ),
+        ),
+      ),
+    )
+  }
+  diagnostics
 }

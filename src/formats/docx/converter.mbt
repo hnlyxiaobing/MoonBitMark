@@ -59,9 +59,24 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
         Some(xml_bytes) => {
           // 解析 XML 并提取文本（正确 UTF-8 解码，避免 to_string() 返回调试格式）
           let xml_string = @utf8.decode(xml_bytes) catch {
-            _ => fail("document.xml contains invalid UTF-8 sequence")
+            _ =>
+              fail(
+                render_docx_failure(
+                  @core.InputError(
+                    "document.xml contains invalid UTF-8 sequence",
+                    Some("word/document.xml"),
+                  ),
+                  Some(@core.Load(Some("word/document.xml"))),
+                  Some(@core.ArchiveEntry("word/document.xml")),
+                  Some(
+                    @core.Custom(
+                      "Verify the XML encoding of word/document.xml before converting.",
+                    ),
+                  ),
+                ),
+              )
           }
-          let markdown = extract_text_from_docx_xml(xml_string)
+          let markdown = extract_text_from_docx_xml(xml_string, file_path)
           let final_markdown = markdown.trim().to_string()
           let metadata = Map::new()
           metadata["format"] = "docx"
@@ -70,6 +85,7 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
           if final_markdown == "" {
             warnings.push("No text content extracted from word/document.xml.")
           }
+          let diagnostics = docx_warning_diagnostics(file_path, final_markdown)
           let title = file_stem(file_path)
           let doc = @ast.document_of_markdownish(
             final_markdown, title, metadata,
@@ -79,11 +95,31 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
           .with_title(title)
           .with_metadata(metadata)
           .with_warnings(warnings)
+          .with_diagnostics(diagnostics)
           .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
         }
-        None => fail("Failed to read document.xml from DOCX")
+        None =>
+          fail(
+            render_docx_failure(
+              @core.ZipError(
+                "Failed to read document.xml from DOCX",
+                Some("word/document.xml"),
+              ),
+              Some(@core.Load(Some("word/document.xml"))),
+              Some(@core.ArchiveEntry("word/document.xml")),
+              Some(@core.CheckArchiveIntegrity),
+            ),
+          )
       }
-    None => fail("Failed to open DOCX file as ZIP archive")
+    None =>
+      fail(
+        render_docx_failure(
+          @core.ZipError("Failed to open DOCX file as ZIP archive", None),
+          Some(@core.Load(Some("archive"))),
+          Some(@core.File(file_path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
   }
 }
 
@@ -99,14 +135,29 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 
 ///|
 /// 从 DOCX 的 XML 中提取文本内容
-fn extract_text_from_docx_xml(xml : String) -> String {
+fn extract_text_from_docx_xml(
+  xml : String,
+  _file_path : String,
+) -> String raise {
   match @xml.parse_xml(xml) {
     Ok(events) => {
       // 解析 XML 事件，提取文本内容
       let result = process_docx_events(events)
       result
     }
-    Err(_) => ""
+    Err(_) =>
+      fail(
+        render_docx_failure(
+          @core.XmlParseError("Failed to parse word/document.xml", None),
+          Some(@core.Parse(Some("word/document.xml"))),
+          Some(@core.ArchiveEntry("word/document.xml")),
+          Some(
+            @core.Custom(
+              "Inspect malformed XML in word/document.xml inside the DOCX archive.",
+            ),
+          ),
+        ),
+      )
   }
 }
 
@@ -294,4 +345,37 @@ fn find_last_char(s : String, target : Char) -> Int? {
   } else {
     None
   }
+}
+
+///|
+fn docx_warning_diagnostics(
+  _file_path : String,
+  markdown : String,
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  if markdown == "" {
+    diagnostics.push(
+      @core.warning_diagnostic(
+        "No text content extracted from word/document.xml.",
+        Some(@core.Parse(Some("word/document.xml"))),
+        Some(@core.ArchiveEntry("word/document.xml")),
+        Some(
+          @core.Custom(
+            "Verify the DOCX contains visible text in word/document.xml.",
+          ),
+        ),
+      ),
+    )
+  }
+  diagnostics
+}
+
+///|
+fn render_docx_failure(
+  error : @core.ConversionError,
+  phase : @core.ConversionPhase?,
+  source : @core.DiagnosticSource?,
+  hint : @core.DiagnosticHint?,
+) -> String {
+  @core.error_diagnostic(error, phase, source, hint).render()
 }
