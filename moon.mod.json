@@ -5,9 +5,9 @@
     "moonbitlang/async": "0.16.7",
     "bobzhang/mbtpdf": "0.1.1"
   },
-  "readme": "README.mbt.md",
-  "repository": "https://github.com/moonbitlang/moonbitmark",
-  "license": "MIT",
+  "readme": "README.md",
+  "repository": "https://github.com/hnlyxiaobing/MoonBitMark",
+  "license": "Apache-2.0",
   "keywords": [
     "markdown",
     "converter",
@@ -15,6 +15,6 @@
     "docx",
     "word"
   ],
-  "description": "Convert various file formats to Markdown - MoonBit implementation",
+  "description": "Convert documents and URLs to Markdown with a MoonBit engine",
   "preferred-target": "native"
 }

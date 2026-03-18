@@ -18,6 +18,7 @@ pub(all) struct ConvertResult {
   assets : Array[OutputAsset]
   source_type : String
   stats : ConvertStats?
+  document : @ast.Document?
 } derive(Show, Eq, ToJson)
 
 ///|
@@ -109,6 +110,7 @@ pub fn ConvertResult::markdown_only(
     assets: [],
     source_type,
     stats: None,
+    document: None,
   }
 }
 
@@ -158,6 +160,14 @@ pub fn ConvertResult::with_stats(
   stats : ConvertStats?,
 ) -> ConvertResult {
   { ..self, stats, }
+}
+
+///|
+pub fn ConvertResult::with_document(
+  self : ConvertResult,
+  document : @ast.Document?,
+) -> ConvertResult {
+  { ..self, document, }
 }
 
 ///|
@@ -448,6 +458,10 @@ pub fn ConvertResult::debug_report(self : ConvertResult) -> String {
   lines.push("warnings: " + self.warnings.length().to_string())
   lines.push("diagnostics: " + self.diagnostics.length().to_string())
   lines.push("assets: " + self.assets.length().to_string())
+  match self.document {
+    Some(_) => lines.push("ast: present")
+    None => lines.push("ast: none")
+  }
   if self.metadata.length() == 0 {
     lines.push("metadata: none")
   } else {

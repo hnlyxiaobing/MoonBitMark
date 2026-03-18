@@ -1,7 +1,5 @@
 {
   "native": {
-    "cc": "cl.exe",
-    "cc-flags": "/I C:/vcpkg/installed/x64-windows/include /I C:/vcpkg/installed/x64-windows/include",
-    "link-flags": "/LIBPATH:C:/vcpkg/installed/x64-windows/lib"
+    "cc": "cl.exe"
   }
 }

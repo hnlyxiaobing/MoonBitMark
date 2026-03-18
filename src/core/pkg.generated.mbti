@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "moonbitlang/moonbitmark/src/core"
 
+import {
+  "moonbitlang/moonbitmark/src/ast",
+}
+
 // Values
 pub fn count_markdown_blocks(String) -> Int
 
@@ -82,11 +86,13 @@ pub(all) struct ConvertResult {
   assets : Array[OutputAsset]
   source_type : String
   stats : ConvertStats?
+  document : @ast.Document?
 }
 pub fn ConvertResult::debug_report(Self) -> String
 pub fn ConvertResult::markdown_only(String, String) -> Self
 pub fn ConvertResult::with_assets(Self, Array[OutputAsset]) -> Self
 pub fn ConvertResult::with_diagnostics(Self, Array[ConversionDiagnostic]) -> Self
+pub fn ConvertResult::with_document(Self, @ast.Document?) -> Self
 pub fn ConvertResult::with_metadata(Self, Map[String, String]) -> Self
 pub fn ConvertResult::with_stats(Self, ConvertStats?) -> Self
 pub fn ConvertResult::with_title(Self, String?) -> Self

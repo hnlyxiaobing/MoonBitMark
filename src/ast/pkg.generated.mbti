@@ -6,7 +6,11 @@ pub fn document_of_markdownish(String, String?, Map[String, String]) -> Document
 
 pub fn parse_markdownish_block(String) -> Block
 
+pub fn render_inlines(Array[Inline]) -> String
+
 pub fn render_markdown(Document) -> String
+
+pub fn text_heading(Int, String) -> Block
 
 pub fn text_paragraph(String) -> Block
 
@@ -14,7 +18,7 @@ pub fn text_paragraph(String) -> Block
 
 // Types and methods
 pub(all) enum Block {
-  Heading(Int, String)
+  Heading(Int, Array[Inline])
   Paragraph(Array[Inline])
   List(Array[String], Bool)
   Quote(Array[String])
@@ -37,6 +41,12 @@ pub impl ToJson for Document
 
 pub(all) enum Inline {
   Text(String)
+  Emphasis(Array[Inline])
+  Strong(Array[Inline])
+  Link(Array[Inline], String)
+  Image(String, String)
+  Code(String)
+  LineBreak
 }
 pub impl Eq for Inline
 pub impl Show for Inline

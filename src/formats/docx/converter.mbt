@@ -28,36 +28,31 @@ pub fn DocxConverter::accepts(info : @core.StreamInfo) -> Bool {
 ///|
 /// Convert a DOCX file to Markdown
 pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
-  // 读取 DOCX 文件内容
   let file = @fs.open(file_path, mode=ReadOnly)
   let all_bytes : Array[Byte] = Array::new()
 
-  // 读取文件内容
   while true {
     let buffer : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
     let bytes_read = file.read(buffer)
     if bytes_read == 0 {
       break
     }
-    // 将读取的数据添加到数组
-    let mut i = 0
-    while i < bytes_read {
+    for i in 0..<bytes_read {
       all_bytes.push(buffer[i])
-      i = i + 1
     }
   }
   file.close()
 
-  // 将 Array[Byte] 转换为 Bytes
   let bytes = bytes_from_array(all_bytes)
 
-  // 使用纯 MoonBit libzip 打开 ZIP
   match @libzip.ZipArchive::open(bytes) {
-    Some(archive) =>
-      // 读取 word/document.xml
+    Some(archive) => {
+      let relationships = parse_docx_relationships(archive)
+      let (assets, asset_warnings, asset_placeholders) = extract_docx_media_assets(
+        archive,
+      )
       match @libzip.read_file_entry_decompressed(archive, "word/document.xml") {
         Some(xml_bytes) => {
-          // 解析 XML 并提取文本（正确 UTF-8 解码，避免 to_string() 返回调试格式）
           let xml_string = @utf8.decode(xml_bytes) catch {
             _ =>
               fail(
@@ -76,25 +71,23 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
                 ),
               )
           }
-          let content_blocks = extract_blocks_from_docx_xml(
-            xml_string, file_path,
+          let (content_blocks, docx_warnings) = extract_blocks_from_docx_xml(
+            xml_string, relationships, asset_placeholders,
           )
           let metadata = Map::new()
           metadata["format"] = "docx"
           metadata["container"] = "zip"
-          let (assets, asset_warnings) = extract_docx_media_assets(archive)
           let warnings : Array[String] = []
           if content_blocks.length() == 0 && assets.length() == 0 {
             warnings.push("No text content extracted from word/document.xml.")
           }
+          for warning in docx_warnings {
+            warnings.push(warning)
+          }
           for warning in asset_warnings {
             warnings.push(warning)
           }
-          let diagnostics = docx_warning_diagnostics(
-            file_path,
-            content_blocks.length() == 0 && assets.length() == 0,
-            asset_warnings,
-          )
+          let diagnostics = docx_warning_diagnostics(file_path, warnings)
           let title = file_stem(file_path)
           let blocks = append_docx_asset_blocks(content_blocks, assets)
           let doc = @ast.Document::{ title, metadata, blocks }
@@ -106,6 +99,7 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
           .with_diagnostics(diagnostics)
           .with_assets(assets)
           .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
+          .with_document(Some(doc))
         }
         None =>
           fail(
@@ -120,6 +114,7 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
             ),
           )
       }
+    }
     None =>
       fail(
         render_docx_failure(
@@ -133,7 +128,7 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
 }
 
 ///|
-/// 将 Array[Byte] 转换为 Bytes
+/// Convert Array[Byte] to Bytes
 fn bytes_from_array(arr : Array[Byte]) -> Bytes {
   let buf = @buffer.new()
   for b in arr {
@@ -145,10 +140,11 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 ///|
 fn extract_blocks_from_docx_xml(
   xml : String,
-  _file_path : String,
-) -> Array[@ast.Block] raise {
+  relationships : Map[String, String],
+  asset_placeholders : Map[String, String],
+) -> (Array[@ast.Block], Array[String]) raise {
   match @xml.parse_xml(xml) {
-    Ok(events) => process_docx_events(events)
+    Ok(events) => process_docx_events(events, relationships, asset_placeholders)
     Err(_) =>
       fail(
         render_docx_failure(
@@ -166,25 +162,48 @@ fn extract_blocks_from_docx_xml(
 }
 
 ///|
-/// DOCX 解析上下文
 priv struct DocxContext {
+  relationships : Map[String, String]
+  asset_placeholders : Map[String, String]
   mut in_paragraph : Bool
+  mut in_paragraph_properties : Bool
+  mut in_run_properties : Bool
   mut in_text : Bool
   mut current_text : String
+  mut current_inlines : Array[@ast.Inline]
   mut heading_level : Int
   mut in_list : Bool
+  mut run_bold : Bool
+  mut run_italic : Bool
+  mut current_hyperlink : String?
+  mut pending_image_alt : String?
   blocks : Array[@ast.Block]
+  warnings : Array[String]
 }
 
 ///|
-fn process_docx_events(events : Array[@xml.ParseEvent]) -> Array[@ast.Block] {
+fn process_docx_events(
+  events : Array[@xml.ParseEvent],
+  relationships : Map[String, String],
+  asset_placeholders : Map[String, String],
+) -> (Array[@ast.Block], Array[String]) {
   let ctx = DocxContext::{
+    relationships,
+    asset_placeholders,
     in_paragraph: false,
+    in_paragraph_properties: false,
+    in_run_properties: false,
     in_text: false,
     current_text: "",
+    current_inlines: [],
     heading_level: 0,
     in_list: false,
+    run_bold: false,
+    run_italic: false,
+    current_hyperlink: None,
+    pending_image_alt: None,
     blocks: [],
+    warnings: [],
   }
 
   for event in events {
@@ -199,111 +218,381 @@ fn process_docx_events(events : Array[@xml.ParseEvent]) -> Array[@ast.Block] {
     }
   }
 
-  ctx.blocks
+  finalize_docx_paragraph(ctx)
+  (ctx.blocks, ctx.warnings)
 }
 
 ///|
-/// 处理元素开始
 fn handle_element_start(
   ctx : DocxContext,
   name : String,
   attrs : Map[String, String],
 ) -> Unit {
-  // 处理命名空间前缀 (如 w:t -> t)
   let local_name = strip_namespace(name)
 
   if local_name == "p" {
-    ctx.in_paragraph = true
-    ctx.heading_level = 0
-    ctx.in_list = false
-
-    // 检查段落样式
-    match attrs.get("w:val") {
-      Some(style) =>
-        if style.has_prefix("Heading") {
-          // 提取标题级别
-          let level = parse_heading_level(style)
-          ctx.heading_level = level
-        } else if style.has_prefix("List") {
-          ctx.in_list = true
-        }
-      None => ()
-    }
+    begin_docx_paragraph(ctx)
+  } else if local_name == "pPr" {
+    ctx.in_paragraph_properties = true
+  } else if local_name == "r" {
+    begin_docx_run(ctx)
+  } else if local_name == "rPr" {
+    ctx.in_run_properties = true
   } else if local_name == "t" {
     ctx.in_text = true
   } else if local_name == "tab" {
     ctx.current_text = ctx.current_text + "\t"
-  } else if local_name == "br" {
-    ctx.current_text = ctx.current_text + "\n"
-  }
-}
-
-///|
-/// 解析标题级别
-fn parse_heading_level(style : String) -> Int {
-  // Heading1, Heading2, etc.
-  if style.length() > 7 {
-    // 获取第8个字符
-    let ch = style[7]
-    match ch {
-      '1' => 1
-      '2' => 2
-      '3' => 3
-      '4' => 4
-      '5' => 5
-      '6' => 6
-      '7' => 7
-      '8' => 8
-      '9' => 9
-      _ => 1
+  } else if local_name == "br" || local_name == "cr" {
+    flush_docx_text(ctx)
+    ctx.current_inlines.push(@ast.LineBreak)
+  } else if local_name == "pStyle" && ctx.in_paragraph_properties {
+    let style = map_get_any(attrs, ["w:val", "val"])
+    apply_docx_paragraph_style(ctx, style)
+  } else if local_name == "numPr" && ctx.in_paragraph_properties {
+    ctx.in_list = true
+  } else if local_name == "b" && ctx.in_run_properties {
+    ctx.run_bold = true
+  } else if local_name == "i" && ctx.in_run_properties {
+    ctx.run_italic = true
+  } else if ctx.in_run_properties && is_unsupported_docx_run_style(local_name) {
+    push_warning_once(
+      ctx.warnings,
+      "Dropped unsupported DOCX run style: " + local_name,
+    )
+  } else if local_name == "hyperlink" {
+    ctx.current_hyperlink = resolve_docx_hyperlink(ctx.relationships, attrs)
+    if ctx.current_hyperlink == None {
+      match map_get_any(attrs, ["r:id", "id"]) {
+        Some(rid) =>
+          push_warning_once(
+            ctx.warnings,
+            "Missing DOCX hyperlink target: " + rid,
+          )
+        None => ()
+      }
     }
-  } else {
-    1
+  } else if local_name == "docPr" {
+    ctx.pending_image_alt = docx_image_alt(attrs)
+  } else if local_name == "blip" {
+    handle_docx_blip(ctx, attrs)
   }
 }
 
 ///|
-/// 处理元素结束
 fn handle_element_end(ctx : DocxContext, name : String) -> Unit {
   let local_name = strip_namespace(name)
 
   if local_name == "p" {
-    ctx.in_paragraph = false
-
-    if ctx.current_text.length() > 0 {
-      if ctx.heading_level > 0 {
-        ctx.blocks.push(@ast.Heading(ctx.heading_level, ctx.current_text))
-      } else if ctx.in_list {
-        ctx.blocks.push(@ast.List([ctx.current_text], false))
-      } else {
-        ctx.blocks.push(@ast.text_paragraph(ctx.current_text))
-      }
-      ctx.current_text = ""
-    }
-
-    ctx.heading_level = 0
-    ctx.in_list = false
+    finalize_docx_paragraph(ctx)
+  } else if local_name == "pPr" {
+    ctx.in_paragraph_properties = false
+  } else if local_name == "r" {
+    flush_docx_text(ctx)
+    ctx.in_run_properties = false
+  } else if local_name == "rPr" {
+    ctx.in_run_properties = false
   } else if local_name == "t" {
     ctx.in_text = false
+  } else if local_name == "hyperlink" {
+    flush_docx_text(ctx)
+    ctx.current_hyperlink = None
   }
 }
 
 ///|
-/// 移除 XML 命名空间前缀
+fn begin_docx_paragraph(ctx : DocxContext) -> Unit {
+  finalize_docx_paragraph(ctx)
+  ctx.in_paragraph = true
+  ctx.in_paragraph_properties = false
+  ctx.current_inlines = []
+  ctx.current_text = ""
+  ctx.heading_level = 0
+  ctx.in_list = false
+  ctx.current_hyperlink = None
+  ctx.pending_image_alt = None
+}
+
+///|
+fn begin_docx_run(ctx : DocxContext) -> Unit {
+  flush_docx_text(ctx)
+  ctx.in_run_properties = false
+  ctx.in_text = false
+  ctx.current_text = ""
+  ctx.run_bold = false
+  ctx.run_italic = false
+}
+
+///|
+fn finalize_docx_paragraph(ctx : DocxContext) -> Unit {
+  if !ctx.in_paragraph {
+    return
+  }
+  flush_docx_text(ctx)
+  if ctx.current_inlines.length() > 0 {
+    if ctx.heading_level > 0 {
+      ctx.blocks.push(@ast.Heading(ctx.heading_level, ctx.current_inlines))
+    } else if ctx.in_list {
+      ctx.blocks.push(
+        @ast.List([@ast.render_inlines(ctx.current_inlines)], false),
+      )
+    } else {
+      ctx.blocks.push(@ast.Paragraph(ctx.current_inlines))
+    }
+  }
+  ctx.in_paragraph = false
+  ctx.current_inlines = []
+  ctx.current_text = ""
+  ctx.heading_level = 0
+  ctx.in_list = false
+  ctx.current_hyperlink = None
+}
+
+///|
+fn flush_docx_text(ctx : DocxContext) -> Unit {
+  if ctx.current_text == "" {
+    return
+  }
+  let text = ctx.current_text
+  ctx.current_text = ""
+  let base : @ast.Inline = @ast.Text(text)
+  let styled = apply_docx_run_style(base, ctx.run_bold, ctx.run_italic)
+  let linked = match ctx.current_hyperlink {
+    Some(url) if url != "" => @ast.Link([styled], url)
+    _ => styled
+  }
+  ctx.current_inlines.push(linked)
+}
+
+///|
+fn apply_docx_run_style(
+  base : @ast.Inline,
+  bold : Bool,
+  italic : Bool,
+) -> @ast.Inline {
+  let with_italic = if italic { @ast.Emphasis([base]) } else { base }
+  if bold {
+    @ast.Strong([with_italic])
+  } else {
+    with_italic
+  }
+}
+
+///|
+fn apply_docx_paragraph_style(ctx : DocxContext, style : String?) -> Unit {
+  match style {
+    Some(value) => {
+      let lowered = value.to_lower().to_string()
+      if lowered.has_prefix("heading") {
+        ctx.heading_level = parse_heading_level(value)
+      } else if lowered.contains("list") {
+        ctx.in_list = true
+      }
+    }
+    None => ()
+  }
+}
+
+///|
+fn parse_heading_level(style : String) -> Int {
+  let mut digits = ""
+  for ch in style {
+    if ch >= '0' && ch <= '9' {
+      digits = digits + ch.to_string()
+    }
+  }
+  if digits == "" {
+    return 1
+  }
+  let level = parse_decimal_digits(digits)
+  if level <= 0 {
+    1
+  } else if level > 6 {
+    6
+  } else {
+    level
+  }
+}
+
+///|
+fn parse_decimal_digits(text : String) -> Int {
+  let mut value = 0
+  for ch in text {
+    value = value * 10 + (ch.to_int() - '0'.to_int())
+  }
+  value
+}
+
+///|
+fn handle_docx_blip(ctx : DocxContext, attrs : Map[String, String]) -> Unit {
+  flush_docx_text(ctx)
+  let rid = map_get_any(attrs, ["r:embed", "embed"])
+  match rid {
+    Some(value) =>
+      match ctx.relationships.get(value) {
+        Some(target) =>
+          match ctx.asset_placeholders.get(target) {
+            Some(placeholder) => {
+              let alt = match ctx.pending_image_alt {
+                Some(text) if text != "" => text
+                _ => file_name_only(target)
+              }
+              ctx.current_inlines.push(@ast.Image(alt, placeholder))
+              ctx.pending_image_alt = None
+            }
+            None =>
+              push_warning_once(
+                ctx.warnings,
+                "DOCX image reference did not resolve to extracted asset: " +
+                target,
+              )
+          }
+        None =>
+          push_warning_once(
+            ctx.warnings,
+            "Missing DOCX relationship target: " + value,
+          )
+      }
+    None => ()
+  }
+}
+
+///|
+fn resolve_docx_hyperlink(
+  relationships : Map[String, String],
+  attrs : Map[String, String],
+) -> String? {
+  match map_get_any(attrs, ["r:id", "id"]) {
+    Some(rid) => relationships.get(rid)
+    None => None
+  }
+}
+
+///|
+fn parse_docx_relationships(
+  archive : @libzip.ZipArchive,
+) -> Map[String, String] {
+  match
+    @libzip.read_file_entry_decompressed(
+      archive, "word/_rels/document.xml.rels",
+    ) {
+    Some(bytes) => {
+      let xml_string = @utf8.decode(bytes) catch { _ => return Map::new() }
+      match @xml.parse_xml(xml_string) {
+        Ok(events) => extract_docx_relationships(events)
+        Err(_) => Map::new()
+      }
+    }
+    None => Map::new()
+  }
+}
+
+///|
+fn extract_docx_relationships(
+  events : Array[@xml.ParseEvent],
+) -> Map[String, String] {
+  let relationships : Map[String, String] = Map::new()
+  for event in events {
+    match event {
+      @xml.ElementStart(evt) => {
+        let local_name = strip_namespace(evt.name)
+        if local_name == "Relationship" {
+          match
+            (
+              map_get_any(evt.attributes, ["Id"]),
+              map_get_any(evt.attributes, ["Target"]),
+            ) {
+            (Some(id), Some(target)) => {
+              let target_mode = map_get_any(evt.attributes, ["TargetMode"])
+              let resolved = match target_mode {
+                Some(mode) if mode == "External" => target
+                _ => resolve_archive_target("word", target)
+              }
+              relationships[id] = resolved
+            }
+            _ => ()
+          }
+        }
+      }
+      _ => ()
+    }
+  }
+  relationships
+}
+
+///|
+fn resolve_archive_target(base_dir : String, target : String) -> String {
+  if target.contains("://") || target.has_prefix("#") {
+    return target
+  }
+  let segments = split_path_segments(base_dir)
+  for part in split_path_segments(target) {
+    if part == "." || part == "" {
+      continue
+    }
+    if part == ".." {
+      ignore(segments.pop())
+    } else {
+      segments.push(part)
+    }
+  }
+  segments.join("/")
+}
+
+///|
+fn split_path_segments(path : String) -> Array[String] {
+  let segments : Array[String] = []
+  for part in path.replace(old="\\", new="/").split("/").to_array() {
+    if part != "" {
+      segments.push(part.to_string())
+    }
+  }
+  segments
+}
+
+///|
+fn map_get_any(map : Map[String, String], keys : Array[String]) -> String? {
+  for key in keys {
+    match map.get(key) {
+      Some(value) => return Some(value)
+      None => ()
+    }
+  }
+  None
+}
+
+///|
+fn is_unsupported_docx_run_style(local_name : String) -> Bool {
+  local_name == "u" ||
+  local_name == "strike" ||
+  local_name == "highlight" ||
+  local_name == "color" ||
+  local_name == "smallCaps" ||
+  local_name == "vertAlign"
+}
+
+///|
+fn push_warning_once(warnings : Array[String], warning : String) -> Unit {
+  for existing in warnings {
+    if existing == warning {
+      return
+    }
+  }
+  warnings.push(warning)
+}
+
+///|
 fn strip_namespace(name : String) -> String {
   match name.find(":") {
-    Some(pos) => {
-      // 从 pos+1 开始到结尾
-      let mut result = ""
-      let mut i = pos + 1
-      while i < name.length() {
-        let ch = name[i]
-        result = result + ch.to_string()
-        i = i + 1
-      }
-      result
-    }
+    Some(pos) => name[pos + 1:].to_string()
     None => name
+  }
+}
+
+///|
+fn docx_image_alt(attrs : Map[String, String]) -> String? {
+  match map_get_any(attrs, ["descr", "title", "name"]) {
+    Some(value) if value != "" => Some(value)
+    _ => None
   }
 }
 
@@ -322,6 +611,15 @@ fn file_stem(path : String) -> String? {
         None
       }
     None => if basename != "" { Some(basename) } else { None }
+  }
+}
+
+///|
+fn file_name_only(path : String) -> String {
+  let normalized = path.replace(old="\\", new="/")
+  match find_last_char(normalized, '/') {
+    Some(index) => normalized[index + 1:].to_string()
+    None => normalized
   }
 }
 
@@ -345,9 +643,10 @@ fn find_last_char(s : String, target : Char) -> Int? {
 ///|
 fn extract_docx_media_assets(
   archive : @libzip.ZipArchive,
-) -> (Array[@core.OutputAsset], Array[String]) {
+) -> (Array[@core.OutputAsset], Array[String], Map[String, String]) {
   let assets : Array[@core.OutputAsset] = []
   let warnings : Array[String] = []
+  let placeholders : Map[String, String] = Map::new()
   let mut index = 1
   for entry in archive.list_entries() {
     if entry.has_prefix("word/media/") {
@@ -357,20 +656,22 @@ fn extract_docx_media_assets(
             index.to_string() +
             "." +
             path_extension(entry)
+          let placeholder = docx_asset_placeholder(index)
           assets.push(@core.OutputAsset::{
-            placeholder: docx_asset_placeholder(index),
+            placeholder,
             filename,
             bytes,
             source: Some(@core.ArchiveEntry(entry)),
             hint: Some(@core.CheckArchiveIntegrity),
           })
+          placeholders[entry] = placeholder
           index = index + 1
         }
         None => warnings.push("Failed to extract DOCX asset: " + entry)
       }
     }
   }
-  (assets, warnings)
+  (assets, warnings, placeholders)
 }
 
 ///|
@@ -385,13 +686,9 @@ fn append_docx_asset_blocks(
   if result.length() > 0 {
     result.push(@ast.HorizontalRule)
   }
-  result.push(@ast.Heading(2, "Embedded Assets"))
+  result.push(@ast.text_heading(2, "Embedded Assets"))
   for asset in assets {
-    result.push(
-      @ast.text_paragraph(
-        "![" + asset.filename + "](" + asset.placeholder + ")",
-      ),
-    )
+    result.push(@ast.Paragraph([@ast.Image(asset.filename, asset.placeholder)]))
   }
   result
 }
@@ -417,27 +714,70 @@ fn path_extension(path : String) -> String {
 ///|
 fn docx_warning_diagnostics(
   _file_path : String,
-  no_content : Bool,
   warnings : Array[String],
 ) -> Array[@core.ConversionDiagnostic] {
   let diagnostics : Array[@core.ConversionDiagnostic] = []
-  if no_content {
-    diagnostics.push(
-      @core.warning_diagnostic(
-        "No text content extracted from word/document.xml.",
-        Some(@core.Parse(Some("word/document.xml"))),
-        Some(@core.ArchiveEntry("word/document.xml")),
-        Some(
-          @core.Custom(
-            "Verify the DOCX contains visible text in word/document.xml.",
+  for warning in warnings {
+    if warning == "No text content extracted from word/document.xml." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("word/document.xml"))),
+          Some(@core.ArchiveEntry("word/document.xml")),
+          Some(
+            @core.Custom(
+              "Verify the DOCX contains visible text in word/document.xml.",
+            ),
           ),
         ),
-      ),
-    )
-  }
-  for warning in warnings {
-    if warning.has_prefix("Failed to extract DOCX asset: ") {
+      )
+    } else if warning.has_prefix("Failed to extract DOCX asset: ") {
       let path = warning[29:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("word/media"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning.has_prefix("Dropped unsupported DOCX run style: ") {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Normalize(Some("word/document.xml"))),
+          Some(@core.ArchiveEntry("word/document.xml")),
+          Some(
+            @core.Custom(
+              "Formatting not representable in the current Markdown AST was omitted.",
+            ),
+          ),
+        ),
+      )
+    } else if warning.has_prefix("Missing DOCX hyperlink target: ") {
+      let rid = warning[31:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("document.xml.rels"))),
+          Some(@core.Generated(rid)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning.has_prefix("Missing DOCX relationship target: ") {
+      let rid = warning[34:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("document.xml.rels"))),
+          Some(@core.Generated(rid)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    } else if warning.has_prefix(
+        "DOCX image reference did not resolve to extracted asset: ",
+      ) {
+      let path = warning[56:].to_string()
       diagnostics.push(
         @core.warning_diagnostic(
           warning,

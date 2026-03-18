@@ -25,7 +25,7 @@ pub fn HtmlConverter::accepts(info : @core.StreamInfo) -> Bool {
       match info.extension {
         Some(ext) => {
           let ext_lower = ext.to_lower().to_string()
-          ext_lower == ".html" || ext_lower == ".htm"
+          ext_lower == ".html" || ext_lower == ".htm" || ext_lower == ".xhtml"
         }
         _ => false
       }
@@ -35,7 +35,6 @@ pub fn HtmlConverter::accepts(info : @core.StreamInfo) -> Bool {
 ///|
 /// Convert function - converts HTML to Markdown (supports files and URLs)
 pub async fn HtmlConverter::convert(input : String) -> @core.ConvertResult {
-  // Check if input is a URL
   let (html, source_label) = if input.has_prefix("http://") ||
     input.has_prefix("https://") {
     (convert_from_url(input), "url")
@@ -43,8 +42,7 @@ pub async fn HtmlConverter::convert(input : String) -> @core.ConvertResult {
     (convert_from_file(input), "file")
   }
   let title = extract_title(html)
-  let cleaned_html = preprocess_html(html)
-  let doc = html_to_document(cleaned_html, title)
+  let doc = html_to_document(html, title)
   let rendered_markdown = @ast.render_markdown(doc)
   let metadata = Map::new()
   metadata["format"] = "html"
@@ -57,6 +55,7 @@ pub async fn HtmlConverter::convert(input : String) -> @core.ConvertResult {
   .with_warnings(warnings)
   .with_diagnostics(diagnostics)
   .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
+  .with_document(Some(doc))
 }
 
 ///|
@@ -68,9 +67,15 @@ fn preprocess_html(html : String) -> String {
 }
 
 ///|
-fn html_to_document(html : String, title : String?) -> @ast.Document {
+pub fn html_to_document(html : String, title : String?) -> @ast.Document {
+  let blocks = html_to_blocks(html)
+  @ast.Document::{ title, metadata: {}, blocks }
+}
+
+///|
+pub fn html_to_blocks(html : String) -> Array[@ast.Block] {
   let blocks : Array[@ast.Block] = []
-  let body = extract_body_html(html)
+  let body = extract_body_html(preprocess_html(html))
   let mut remaining = body
   while remaining.trim() != "" {
     let trimmed = remaining.trim_start().to_string()
@@ -89,7 +94,7 @@ fn html_to_document(html : String, title : String?) -> @ast.Document {
       }
     }
   }
-  @ast.Document::{ title, metadata: {}, blocks }
+  blocks
 }
 
 ///|
@@ -133,19 +138,13 @@ fn parse_next_html_block(html : String) -> (@ast.Block, String)? {
     return parse_heading_html_block(html, 6)
   }
   if html.has_prefix("<p") {
-    return parse_wrapped_block(html, "p", content => {
-      @ast.text_paragraph(content)
-    })
+    return parse_paragraph_html_block(html, "p")
   }
   if html.has_prefix("<blockquote") {
-    return parse_wrapped_block(html, "blockquote", content => {
-      @ast.Quote(content.split("\n").to_array().map(line => line.to_string()))
-    })
+    return parse_blockquote_html_block(html)
   }
   if html.has_prefix("<pre") {
-    return parse_wrapped_block(html, "pre", content => {
-      @ast.CodeBlock(None, content)
-    })
+    return parse_pre_html_block(html)
   }
   if html.has_prefix("<ul") {
     return parse_list_html_block(html, false)
@@ -164,9 +163,7 @@ fn parse_next_html_block(html : String) -> (@ast.Block, String)? {
     return Some((@ast.HorizontalRule, rest))
   }
   if html.has_prefix("<div") {
-    return parse_wrapped_block(html, "div", content => {
-      @ast.text_paragraph(content)
-    })
+    return parse_paragraph_html_block(html, "div")
   }
   None
 }
@@ -179,21 +176,61 @@ fn parse_heading_html_block(
   let tag = "h" + level.to_string()
   match take_tag_inner_html(html, tag) {
     Some((inner, rest)) =>
-      Some((@ast.Heading(level, inline_html_to_text(inner)), rest))
+      Some((@ast.Heading(level, inline_html_to_inlines(inner)), rest))
     None => None
   }
 }
 
 ///|
-fn parse_wrapped_block(
+fn parse_paragraph_html_block(
   html : String,
   tag : String,
-  build : (String) -> @ast.Block,
 ) -> (@ast.Block, String)? {
   match take_tag_inner_html(html, tag) {
+    Some((inner, rest)) =>
+      Some((@ast.Paragraph(inline_html_to_inlines(inner)), rest))
+    None => None
+  }
+}
+
+///|
+fn parse_blockquote_html_block(html : String) -> (@ast.Block, String)? {
+  match take_tag_inner_html(html, "blockquote") {
     Some((inner, rest)) => {
-      let content = inline_html_to_text(inner)
-      Some((build(content), rest))
+      let content = render_inline_markdown(inline_html_to_inlines(inner))
+      Some(
+        (
+          @ast.Quote(
+            content.split("\n").to_array().map(line => line.to_string()),
+          ),
+          rest,
+        ),
+      )
+    }
+    None => None
+  }
+}
+
+///|
+fn parse_pre_html_block(html : String) -> (@ast.Block, String)? {
+  match take_tag_inner_html(html, "pre") {
+    Some((inner, rest)) => {
+      let trimmed = inner.trim().to_string()
+      match take_tag_parts(trimmed, "code") {
+        Some((open_tag, code_inner, _)) => {
+          let lang = code_language_from_tag(open_tag)
+          let content = decode_html_entities(strip_remaining_tags(code_inner))
+            .trim()
+            .to_string()
+          Some((@ast.CodeBlock(lang, content), rest))
+        }
+        None => {
+          let content = decode_html_entities(strip_remaining_tags(inner))
+            .trim()
+            .to_string()
+          Some((@ast.CodeBlock(None, content), rest))
+        }
+      }
     }
     None => None
   }
@@ -230,6 +267,14 @@ fn parse_table_html_block(html : String) -> (@ast.Block, String)? {
 
 ///|
 fn take_tag_inner_html(html : String, tag : String) -> (String, String)? {
+  match take_tag_parts(html, tag) {
+    Some((_, inner, rest)) => Some((inner, rest))
+    None => None
+  }
+}
+
+///|
+fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
   let open = "<" + tag
   let close = "</" + tag + ">"
   match find_from(html.to_lower(), open, 0) {
@@ -238,9 +283,10 @@ fn take_tag_inner_html(html : String, tag : String) -> (String, String)? {
         Some(open_end) =>
           match find_from(html.to_lower(), close, open_end + 1) {
             Some(close_start) => {
+              let open_tag = html[start:open_end + 1].to_string()
               let inner = html[open_end + 1:close_start].to_string()
               let rest = html[close_start + close.length():].to_string()
-              Some((inner, rest))
+              Some((open_tag, inner, rest))
             }
             None => None
           }
@@ -263,7 +309,7 @@ fn extract_list_items(inner : String) -> Array[String] {
             match find_from(lower, "</li>", open_end + 1) {
               Some(close_start) => {
                 let item = remaining[open_end + 1:close_start].to_string()
-                items.push(inline_html_to_text(item))
+                items.push(render_inline_markdown(inline_html_to_inlines(item)))
                 remaining = remaining[close_start + 5:].to_string()
               }
               None => break
@@ -303,39 +349,161 @@ fn extract_table_rows(inner : String) -> Array[Array[String]] {
 }
 
 ///|
-fn inline_html_to_text(fragment : String) -> String {
-  let mut result = fragment
-  result = convert_line_breaks(result)
-  result = convert_links(result)
-  result = convert_images(result)
-  result = convert_emphasis(result)
-  result = convert_strong(result)
-  result = convert_code(result)
-  result = strip_remaining_tags(result)
-  cleanup_whitespace(result)
+fn inline_html_to_inlines(fragment : String) -> Array[@ast.Inline] {
+  let inlines : Array[@ast.Inline] = []
+  let mut cursor = 0
+  while cursor < fragment.length() {
+    if fragment[cursor] == '<' {
+      match parse_known_inline(fragment, cursor) {
+        Some((parsed, next_cursor)) => {
+          for inline in parsed {
+            inlines.push(inline)
+          }
+          cursor = next_cursor
+        }
+        None =>
+          match find_from(fragment, ">", cursor) {
+            Some(end) => cursor = end + 1
+            None => {
+              push_text_inline(inlines, fragment[cursor:].to_string())
+              break
+            }
+          }
+      }
+    } else {
+      let next_tag = match find_from(fragment, "<", cursor) {
+        Some(pos) => pos
+        None => fragment.length()
+      }
+      push_text_inline(inlines, fragment[cursor:next_tag].to_string())
+      cursor = next_tag
+    }
+  }
+  inlines
+}
+
+///|
+fn parse_known_inline(
+  fragment : String,
+  cursor : Int,
+) -> (Array[@ast.Inline], Int)? {
+  let remaining = fragment[cursor:].to_string()
+  let lower = remaining.to_lower()
+  if lower.has_prefix("<br") {
+    return match find_from(remaining, ">", 0) {
+      Some(end) => Some(([@ast.LineBreak], cursor + end + 1))
+      None => None
+    }
+  }
+  if lower.has_prefix("<img") {
+    return match find_from(remaining, ">", 0) {
+      Some(end) => {
+        let open_tag = remaining[0:end + 1].to_string()
+        let src = extract_attribute(open_tag, "src")
+        let alt = extract_attribute(open_tag, "alt")
+        Some(([@ast.Image(alt, src)], cursor + end + 1))
+      }
+      None => None
+    }
+  }
+  if lower.has_prefix("<strong") {
+    return wrap_inline_children(remaining, cursor, "strong", children => {
+      @ast.Strong(children)
+    })
+  }
+  if lower.has_prefix("<b") {
+    return wrap_inline_children(remaining, cursor, "b", children => {
+      @ast.Strong(children)
+    })
+  }
+  if lower.has_prefix("<em") {
+    return wrap_inline_children(remaining, cursor, "em", children => {
+      @ast.Emphasis(children)
+    })
+  }
+  if lower.has_prefix("<i") {
+    return wrap_inline_children(remaining, cursor, "i", children => {
+      @ast.Emphasis(children)
+    })
+  }
+  if lower.has_prefix("<a") {
+    return match take_tag_parts(remaining, "a") {
+      Some((open_tag, inner, rest)) => {
+        let href = extract_attribute(open_tag, "href")
+        let children = inline_html_to_inlines(inner)
+        let parsed = if href == "" {
+          children
+        } else {
+          [@ast.Link(children, href)]
+        }
+        Some((parsed, cursor + remaining.length() - rest.length()))
+      }
+      None => None
+    }
+  }
+  if lower.has_prefix("<code") {
+    return match take_tag_parts(remaining, "code") {
+      Some((_, inner, rest)) => {
+        let content = decode_html_entities(strip_remaining_tags(inner))
+        Some(
+          ([@ast.Code(content)], cursor + remaining.length() - rest.length()),
+        )
+      }
+      None => None
+    }
+  }
+  None
+}
+
+///|
+fn wrap_inline_children(
+  remaining : String,
+  cursor : Int,
+  tag : String,
+  wrap : (Array[@ast.Inline]) -> @ast.Inline,
+) -> (Array[@ast.Inline], Int)? {
+  match take_tag_parts(remaining, tag) {
+    Some((_, inner, rest)) => {
+      let children = inline_html_to_inlines(inner)
+      Some(([wrap(children)], cursor + remaining.length() - rest.length()))
+    }
+    None => None
+  }
+}
+
+///|
+fn push_text_inline(inlines : Array[@ast.Inline], text : String) -> Unit {
+  let decoded = decode_html_entities(text)
+  if decoded == "" {
+    return
+  }
+  match inlines {
+    [.., @ast.Text(last)] => {
+      ignore(inlines.pop())
+      inlines.push(@ast.Text(last + decoded))
+    }
+    _ => inlines.push(@ast.Text(decoded))
+  }
+}
+
+///|
+fn render_inline_markdown(inlines : Array[@ast.Inline]) -> String {
+  @ast.render_inlines(inlines).replace(old="  \n", new="\n")
 }
 
 ///|
 fn plain_text_fragment(fragment : String) -> String {
-  inline_html_to_text(fragment)
+  render_inline_markdown(inline_html_to_inlines(fragment)).trim().to_string()
 }
 
 ///|
 /// Convert from URL
 pub async fn convert_from_url(url : String) -> String {
-  // Fetch HTML from URL using @http.get()
   let (response, data) = @http.get(url)
-
-  // Check response status
   if response.code != 200 {
     fail("HTTP request failed with status code: " + response.code.to_string())
   }
-
-  // Convert Data to String using .text() method (UTF-8 decoded)
-  let html = data.text()
-
-  // Convert to Markdown
-  html
+  data.text()
 }
 
 ///|
@@ -430,12 +598,7 @@ fn html_warning_diagnostics(
   diagnostics
 }
 
-// ============================================================================
-// Helper functions
-// ============================================================================
-
 ///|
-/// Find substring from a starting position
 fn find_from(haystack : String, needle : String, start : Int) -> Int? {
   if start >= haystack.length() {
     None
@@ -449,7 +612,6 @@ fn find_from(haystack : String, needle : String, start : Int) -> Int? {
 }
 
 ///|
-/// Remove script/style blocks with content
 fn remove_tag_block(html : String, tag_name : String) -> String {
   let open_tag = "<" + tag_name
   let close_tag = "</" + tag_name
@@ -477,7 +639,6 @@ fn remove_tag_block(html : String, tag_name : String) -> String {
 }
 
 ///|
-/// Remove HTML comments
 fn remove_comments(html : String) -> String {
   let mut result = html
   let mut found = true
@@ -502,162 +663,7 @@ fn remove_comments(html : String) -> String {
 }
 
 ///|
-/// Convert line breaks
-fn convert_line_breaks(html : String) -> String {
-  let mut result = html
-  result = result.replace(old="<br>", new="\n")
-  result = result.replace(old="<br/>", new="\n")
-  result = result.replace(old="<br />", new="\n")
-  result
-}
-
-///|
-/// Convert links
-fn convert_links(html : String) -> String {
-  let mut result = html
-  let mut found = true
-
-  while found {
-    let lower_result = result.to_lower()
-    match lower_result.find("<a ") {
-      Some(idx) =>
-        match find_from(result, ">", idx) {
-          Some(tag_end_idx) => {
-            let tag_content = result[idx:tag_end_idx + 1].to_string()
-            let href = extract_attribute(tag_content, "href")
-            let content_start = tag_end_idx + 1
-            match find_from(lower_result, "</a>", content_start) {
-              Some(end_idx) => {
-                let link_text = result[content_start:end_idx].to_string()
-                let markdown_link = if href != "" {
-                  "[" + link_text + "](" + href + ")"
-                } else {
-                  link_text
-                }
-                let before = result[:idx].to_string()
-                let after = result[end_idx + 4:].to_string()
-                result = before + markdown_link + after
-              }
-              None => found = false
-            }
-          }
-          None => found = false
-        }
-      None => found = false
-    }
-  }
-
-  result
-}
-
-///|
-/// Convert images
-fn convert_images(html : String) -> String {
-  let mut result = html
-  let mut found = true
-
-  while found {
-    let lower_result = result.to_lower()
-    match lower_result.find("<img") {
-      Some(idx) =>
-        match find_from(result, ">", idx) {
-          Some(tag_end_idx) => {
-            let tag_content = result[idx:tag_end_idx + 1].to_string()
-            let src = extract_attribute(tag_content, "src")
-            let alt = extract_attribute(tag_content, "alt")
-            let title = extract_attribute(tag_content, "title")
-
-            let mut img_markdown = "!" + "[" + alt + "](" + src
-            if title != "" {
-              img_markdown = img_markdown + " \"" + title + "\""
-            }
-            img_markdown = img_markdown + ")"
-
-            let before = result[:idx].to_string()
-            let after = result[tag_end_idx + 1:].to_string()
-            result = before + img_markdown + after
-          }
-          None => found = false
-        }
-      None => found = false
-    }
-  }
-
-  result
-}
-
-///|
-/// Convert emphasis (italic)
-fn convert_emphasis(html : String) -> String {
-  let mut result = html
-  result = convert_em_tag(result, "<em>", "</em>")
-  result = convert_em_tag(result, "<i>", "</i>")
-  result
-}
-
-///|
-fn convert_em_tag(html : String, open : String, close : String) -> String {
-  let mut result = html
-  let mut found = true
-
-  while found {
-    let lower_result = result.to_lower()
-    match lower_result.find(open[:]) {
-      Some(idx) =>
-        match find_from(lower_result, close, idx) {
-          Some(end_idx) => {
-            let content = result[idx + open.length():end_idx].to_string()
-            let before = result[:idx].to_string()
-            let after = result[end_idx + close.length():].to_string()
-            result = before + "*" + content + "*" + after
-          }
-          None => found = false
-        }
-      None => found = false
-    }
-  }
-
-  result
-}
-
-///|
-/// Convert strong (bold)
-fn convert_strong(html : String) -> String {
-  let mut result = html
-  result = convert_em_tag(result, "<strong>", "</strong>")
-  result = convert_em_tag(result, "<b>", "</b>")
-  result
-}
-
-///|
-/// Convert code
-fn convert_code(html : String) -> String {
-  let mut result = html
-  let mut found = true
-
-  while found {
-    let lower_result = result.to_lower()
-    match lower_result.find("<code>") {
-      Some(idx) =>
-        match find_from(lower_result, "</code>", idx) {
-          Some(end_idx) => {
-            let content = result[idx + 7:end_idx].to_string()
-            let before = result[:idx].to_string()
-            let after = result[end_idx + 8:].to_string()
-            result = before + "`" + content + "`" + after
-          }
-          None => found = false
-        }
-      None => found = false
-    }
-  }
-
-  result
-}
-
-///|
 fn extract_table_cells(row_html : String) -> Array[String] {
-  // Try th first, then td
   let th_cells = extract_cells_by_tag(row_html, "th")
   if th_cells.length() > 0 {
     th_cells
@@ -683,11 +689,12 @@ fn extract_cells_by_tag(html : String, tag : String) -> Array[String] {
             let content_start = tag_end_idx + 1
             match find_from(lower_remaining, close_tag, content_start) {
               Some(end_idx) => {
-                let content = remaining[content_start:end_idx]
-                  .to_string()
+                let content = remaining[content_start:end_idx].to_string()
+                cells.push(
+                  render_inline_markdown(inline_html_to_inlines(content))
                   .trim()
-                  .to_string()
-                cells.push(content)
+                  .to_string(),
+                )
                 remaining = remaining[end_idx + close_tag.length():].to_string()
               }
               None => found = false
@@ -703,7 +710,6 @@ fn extract_cells_by_tag(html : String, tag : String) -> Array[String] {
 }
 
 ///|
-/// Strip remaining HTML tags
 fn strip_remaining_tags(html : String) -> String {
   let mut result = html
   let mut found = true
@@ -727,20 +733,6 @@ fn strip_remaining_tags(html : String) -> String {
 }
 
 ///|
-/// Clean up whitespace
-fn cleanup_whitespace(html : String) -> String {
-  let mut result = html
-
-  // Replace multiple newlines with double newline
-  result = result.replace(old="\n\n\n", new="\n\n")
-  result = result.replace(old="\n\n\n", new="\n\n")
-  result = result.replace(old="\n\n\n", new="\n\n")
-
-  result.trim().to_string()
-}
-
-///|
-/// Extract attribute value from HTML tag
 fn extract_attribute(tag : String, attr_name : String) -> String {
   let attr_pattern = attr_name + "=\""
   let attr_pattern_single = attr_name + "='"
@@ -766,5 +758,27 @@ fn extract_attribute(tag : String, attr_name : String) -> String {
         }
         None => ""
       }
+  }
+}
+
+///|
+fn decode_html_entities(text : String) -> String {
+  let mut result = text
+  result = result.replace(old="&nbsp;", new=" ")
+  result = result.replace(old="&amp;", new="&")
+  result = result.replace(old="&lt;", new="<")
+  result = result.replace(old="&gt;", new=">")
+  result = result.replace(old="&quot;", new="\"")
+  result = result.replace(old="&#39;", new="'")
+  result
+}
+
+///|
+fn code_language_from_tag(tag : String) -> String? {
+  let class_name = extract_attribute(tag, "class")
+  if class_name.has_prefix("language-") {
+    Some(class_name[9:].to_string())
+  } else {
+    None
   }
 }

@@ -15,9 +15,39 @@ pub(all) enum ConverterKind {
 
 ///|
 pub(all) struct ConverterRegistration {
-  kind : ConverterKind
   name : String
   priority : Int
+  hint : @core.DiagnosticHint
+  accepts : (@core.StreamInfo) -> Bool
+  convert : async (@core.InputSource) -> @core.ConvertResult
+}
+
+///|
+pub(all) struct DetectionResult {
+  converter_name : String
+  stream_info : @core.StreamInfo
+} derive(Show, Eq, ToJson)
+
+///|
+pub fn DetectionResult::render(self : DetectionResult) -> String {
+  let lines : Array[String] = ["converter: " + self.converter_name]
+  match self.stream_info.extension {
+    Some(value) => lines.push("extension: " + value)
+    None => ()
+  }
+  match self.stream_info.mimetype {
+    Some(value) => lines.push("mimetype: " + value)
+    None => ()
+  }
+  match self.stream_info.filename {
+    Some(value) => lines.push("filename: " + value)
+    None => ()
+  }
+  match self.stream_info.url {
+    Some(value) => lines.push("url: " + value)
+    None => ()
+  }
+  lines.join("\n")
 }
 
 ///|
@@ -59,6 +89,24 @@ pub fn MarkItDown::detect_converter_name(
 }
 
 ///|
+pub async fn MarkItDown::detect(
+  self : MarkItDown,
+  input : String,
+) -> DetectionResult {
+  self.detect_source(@core.InputSource::from_string(input))
+}
+
+///|
+pub async fn MarkItDown::detect_source(
+  self : MarkItDown,
+  input : @core.InputSource,
+) -> DetectionResult {
+  let info = detect_stream_info(input)
+  let converter = self.select_converter(info)
+  DetectionResult::{ converter_name: converter.name, stream_info: info }
+}
+
+///|
 pub async fn MarkItDown::convert(
   self : MarkItDown,
   input : String,
@@ -73,7 +121,7 @@ pub async fn MarkItDown::convert_source(
   input : @core.InputSource,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
-  let info = stream_info_of_input(input)
+  let info = detect_stream_info(input)
   let input_source = diagnostic_source_of_input(input)
   let converter = self.select_converter(info) catch {
     err =>
@@ -87,7 +135,7 @@ pub async fn MarkItDown::convert_source(
       )
   }
 
-  let raw_result = run_converter(converter, input) catch {
+  let raw_result = (converter.convert)(input) catch {
     err =>
       if is_rendered_diagnostic(err.to_string()) {
         fail(err.to_string())
@@ -97,7 +145,7 @@ pub async fn MarkItDown::convert_source(
             @core.ConversionFailed(err.to_string(), converter.name),
             Some(@core.Convert(converter.name)),
             Some(input_source),
-            Some(fallback_hint_for_converter(converter)),
+            Some(converter.hint),
           ),
         )
       }
@@ -113,7 +161,7 @@ pub fn MarkItDown::select_converter(
 ) -> ConverterRegistration raise {
   let mut selected : ConverterRegistration? = None
   for converter in self.converters {
-    if accepts_converter(converter, info) {
+    if (converter.accepts)(info) {
       match selected {
         Some(current) =>
           if converter.priority > current.priority {
@@ -127,36 +175,6 @@ pub fn MarkItDown::select_converter(
   match selected {
     Some(converter) => converter
     None => fail("Unsupported input: " + describe_stream_info(info))
-  }
-}
-
-///|
-fn stream_info_of_input(input : @core.InputSource) -> @core.StreamInfo {
-  match input {
-    @core.FileInput(path, _) =>
-      @core.StreamInfo::{
-        mimetype: None,
-        extension: file_extension(path),
-        filename: file_name(path),
-        url: None,
-        charset: None,
-      }
-    @core.UrlInput(url, _) =>
-      @core.StreamInfo::{
-        mimetype: Some("text/html"),
-        extension: file_extension(url),
-        filename: file_name(url),
-        url: Some(url),
-        charset: None,
-      }
-    @core.BytesInput(name, _, mimetype) =>
-      @core.StreamInfo::{
-        mimetype,
-        extension: option_extension(name),
-        filename: name,
-        url: None,
-        charset: None,
-      }
   }
 }
 
@@ -240,28 +258,7 @@ fn find_last_char(s : String, target : Char) -> Int? {
 }
 
 ///|
-fn accepts_converter(
-  converter : ConverterRegistration,
-  info : @core.StreamInfo,
-) -> Bool {
-  match converter.kind {
-    Docx => @docx.DocxConverter::accepts(info)
-    Epub => @epub.EpubConverter::accepts(info)
-    Pptx => @pptx.PptxConverter::accepts(info)
-    Xlsx => @xlsx.XlsxConverter::accepts(info)
-    Pdf => @pdf.PdfConverter::accepts(info)
-    Html => @html.HtmlConverter::accepts(info)
-    Json => @json.JsonConverter::accepts(info)
-    Csv => @csv.CsvConverter::accepts(info)
-    Text => @text.TextConverter::accepts(info)
-  }
-}
-
-///|
-async fn run_converter(
-  converter : ConverterRegistration,
-  input : @core.InputSource,
-) -> @core.ConvertResult {
+fn resolve_input_name(input : @core.InputSource) -> String raise {
   let input_name = match input {
     @core.FileInput(path, _) => path
     @core.UrlInput(url, _) => url
@@ -283,17 +280,7 @@ async fn run_converter(
       }
   }
 
-  match converter.kind {
-    Docx => @docx.DocxConverter::convert(input_name)
-    Epub => @epub.EpubConverter::convert(input_name)
-    Pptx => @pptx.PptxConverter::convert(input_name)
-    Xlsx => @xlsx.XlsxConverter::convert(input_name)
-    Pdf => @pdf.PdfConverter::convert(input_name)
-    Html => @html.HtmlConverter::convert(input_name)
-    Json => @json.JsonConverter::convert(input_name)
-    Csv => @csv.CsvConverter::convert(input_name)
-    Text => @text.TextConverter::convert(input_name)
-  }
+  input_name
 }
 
 ///|
@@ -378,6 +365,7 @@ async fn finalize_result(
     assets: raw_result.assets,
     source_type: raw_result.source_type,
     stats,
+    document: raw_result.document,
   }
 }
 
@@ -426,7 +414,7 @@ fn merge_diagnostics(
   let diagnostics : Array[@core.ConversionDiagnostic] = []
   let fallback_phase = Some(@core.Convert(converter.name))
   let fallback_source = Some(diagnostic_source_of_input(input))
-  let fallback_hint = fallback_hint_for_converter(converter)
+  let fallback_hint = converter.hint
   for diagnostic in raw_diagnostics {
     let normalized = diagnostic.with_defaults(
       fallback_phase,
@@ -459,23 +447,6 @@ fn push_unique_diagnostic(
     }
   }
   diagnostics.push(diagnostic)
-}
-
-///|
-fn fallback_hint_for_converter(
-  converter : ConverterRegistration,
-) -> @core.DiagnosticHint {
-  match converter.kind {
-    Docx => @core.CheckArchiveIntegrity
-    Epub => @core.CheckArchiveIntegrity
-    Pptx => @core.CheckArchiveIntegrity
-    Xlsx => @core.CheckArchiveIntegrity
-    Pdf => @core.InspectSourceDocument
-    Html => @core.InspectSourceDocument
-    Json => @core.InspectSourceDocument
-    Csv => @core.InspectSourceDocument
-    Text => @core.InspectSourceDocument
-  }
 }
 
 ///|
@@ -851,20 +822,168 @@ fn default_registration(
   kind : ConverterKind,
   priority : Int,
 ) -> ConverterRegistration {
-  ConverterRegistration::{ kind, name: converter_name(kind), priority }
+  match kind {
+    Docx =>
+      ConverterRegistration::{
+        name: "docx",
+        priority,
+        hint: @core.CheckArchiveIntegrity,
+        accepts: accepts_docx,
+        convert: convert_docx,
+      }
+    Epub =>
+      ConverterRegistration::{
+        name: "epub",
+        priority,
+        hint: @core.CheckArchiveIntegrity,
+        accepts: accepts_epub,
+        convert: convert_epub,
+      }
+    Pptx =>
+      ConverterRegistration::{
+        name: "pptx",
+        priority,
+        hint: @core.CheckArchiveIntegrity,
+        accepts: accepts_pptx,
+        convert: convert_pptx,
+      }
+    Xlsx =>
+      ConverterRegistration::{
+        name: "xlsx",
+        priority,
+        hint: @core.CheckArchiveIntegrity,
+        accepts: accepts_xlsx,
+        convert: convert_xlsx,
+      }
+    Pdf =>
+      ConverterRegistration::{
+        name: "pdf",
+        priority,
+        hint: @core.InspectSourceDocument,
+        accepts: accepts_pdf,
+        convert: convert_pdf,
+      }
+    Html =>
+      ConverterRegistration::{
+        name: "html",
+        priority,
+        hint: @core.InspectSourceDocument,
+        accepts: accepts_html,
+        convert: convert_html,
+      }
+    Json =>
+      ConverterRegistration::{
+        name: "json",
+        priority,
+        hint: @core.InspectSourceDocument,
+        accepts: accepts_json,
+        convert: convert_json,
+      }
+    Csv =>
+      ConverterRegistration::{
+        name: "csv",
+        priority,
+        hint: @core.InspectSourceDocument,
+        accepts: accepts_csv,
+        convert: convert_csv,
+      }
+    Text =>
+      ConverterRegistration::{
+        name: "text",
+        priority,
+        hint: @core.InspectSourceDocument,
+        accepts: accepts_text,
+        convert: convert_text,
+      }
+  }
 }
 
 ///|
-fn converter_name(kind : ConverterKind) -> String {
-  match kind {
-    Docx => "docx"
-    Epub => "epub"
-    Pptx => "pptx"
-    Xlsx => "xlsx"
-    Pdf => "pdf"
-    Html => "html"
-    Json => "json"
-    Csv => "csv"
-    Text => "text"
-  }
+fn accepts_docx(info : @core.StreamInfo) -> Bool {
+  @docx.DocxConverter::accepts(info)
+}
+
+///|
+fn accepts_epub(info : @core.StreamInfo) -> Bool {
+  @epub.EpubConverter::accepts(info)
+}
+
+///|
+fn accepts_pptx(info : @core.StreamInfo) -> Bool {
+  @pptx.PptxConverter::accepts(info)
+}
+
+///|
+fn accepts_xlsx(info : @core.StreamInfo) -> Bool {
+  @xlsx.XlsxConverter::accepts(info)
+}
+
+///|
+fn accepts_pdf(info : @core.StreamInfo) -> Bool {
+  @pdf.PdfConverter::accepts(info)
+}
+
+///|
+fn accepts_html(info : @core.StreamInfo) -> Bool {
+  @html.HtmlConverter::accepts(info)
+}
+
+///|
+fn accepts_json(info : @core.StreamInfo) -> Bool {
+  @json.JsonConverter::accepts(info)
+}
+
+///|
+fn accepts_csv(info : @core.StreamInfo) -> Bool {
+  @csv.CsvConverter::accepts(info)
+}
+
+///|
+fn accepts_text(info : @core.StreamInfo) -> Bool {
+  @text.TextConverter::accepts(info)
+}
+
+///|
+async fn convert_docx(input : @core.InputSource) -> @core.ConvertResult {
+  @docx.DocxConverter::convert(resolve_input_name(input))
+}
+
+///|
+async fn convert_epub(input : @core.InputSource) -> @core.ConvertResult {
+  @epub.EpubConverter::convert(resolve_input_name(input))
+}
+
+///|
+async fn convert_pptx(input : @core.InputSource) -> @core.ConvertResult {
+  @pptx.PptxConverter::convert(resolve_input_name(input))
+}
+
+///|
+async fn convert_xlsx(input : @core.InputSource) -> @core.ConvertResult {
+  @xlsx.XlsxConverter::convert(resolve_input_name(input))
+}
+
+///|
+async fn convert_pdf(input : @core.InputSource) -> @core.ConvertResult {
+  @pdf.PdfConverter::convert(resolve_input_name(input))
+}
+
+///|
+async fn convert_html(input : @core.InputSource) -> @core.ConvertResult {
+  @html.HtmlConverter::convert(resolve_input_name(input))
+}
+
+///|
+async fn convert_json(input : @core.InputSource) -> @core.ConvertResult {
+  @json.JsonConverter::convert(resolve_input_name(input))
+}
+
+///|
+async fn convert_csv(input : @core.InputSource) -> @core.ConvertResult {
+  @csv.CsvConverter::convert(resolve_input_name(input))
+}
+
+///|
+async fn convert_text(input : @core.InputSource) -> @core.ConvertResult {
+  @text.TextConverter::convert(resolve_input_name(input))
 }

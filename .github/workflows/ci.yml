@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  native-check-and-test:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up MSVC developer shell
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set up vcpkg dependencies
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'C:\vcpkg')) {
+            git clone https://github.com/microsoft/vcpkg C:\vcpkg
+          }
+          & C:\vcpkg\bootstrap-vcpkg.bat
+          & C:\vcpkg\vcpkg.exe install libzip expat:x64-windows
+
+      - name: Set up MoonBit
+        shell: bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          moon version --all
+          moon update
+
+      - name: moon check
+        shell: pwsh
+        run: moon check
+
+      - name: moon test
+        shell: pwsh
+        run: moon test
+
+      - name: CLI smoke test
+        shell: pwsh
+        run: |
+          moon run cmd/main -- tests/test_data/test.txt tests/output/ci-smoke.txt.md
+          moon run cmd/main -- tests/test_data/test.html tests/output/ci-smoke.html.md
+          if (!(Test-Path 'tests/output/ci-smoke.txt.md')) {
+            throw 'Missing tests/output/ci-smoke.txt.md'
+          }
+          if (!(Test-Path 'tests/output/ci-smoke.html.md')) {
+            throw 'Missing tests/output/ci-smoke.html.md'
+          }

@@ -2,6 +2,7 @@
 package "moonbitlang/moonbitmark/src/formats/html"
 
 import {
+  "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/core",
 }
 
@@ -9,6 +10,10 @@ import {
 pub async fn convert_from_file(String) -> String
 
 pub async fn convert_from_url(String) -> String
+
+pub fn html_to_blocks(String) -> Array[@ast.Block]
+
+pub fn html_to_document(String, String?) -> @ast.Document
 
 // Errors
 

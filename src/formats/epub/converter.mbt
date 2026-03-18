@@ -138,6 +138,7 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
               .with_diagnostics(diagnostics)
               .with_assets(assets)
               .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
+              .with_document(Some(doc))
             }
             None =>
               fail(
@@ -342,7 +343,7 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
 fn build_epub_blocks(metadata : EpubMetadata) -> Array[@ast.Block] {
   let blocks : Array[@ast.Block] = []
   match metadata.title {
-    Some(title) if title != "" => blocks.push(@ast.Heading(1, title))
+    Some(title) if title != "" => blocks.push(@ast.text_heading(1, title))
     _ => ()
   }
   match metadata.authors {
@@ -358,10 +359,8 @@ fn build_epub_blocks(metadata : EpubMetadata) -> Array[@ast.Block] {
 
 ///|
 fn parse_xhtml_blocks(data : Bytes) -> Array[@ast.Block] {
-  // 使用 UTF-8 解码
   let xml_string = @utf8.decode(data) catch {
     _ => {
-      // 回退：逐字节转换
       let mut result = ""
       let mut i = 0
       while i < data.length() {
@@ -372,109 +371,7 @@ fn parse_xhtml_blocks(data : Bytes) -> Array[@ast.Block] {
       result
     }
   }
-  match @xml.parse_xml(xml_string) {
-    Ok(events) => extract_xhtml_blocks(events)
-    Err(_) => []
-  }
-}
-
-///|
-priv struct EpubXhtmlContext {
-  mut in_body : Bool
-  mut current_tag : String?
-  mut current_text : String
-  blocks : Array[@ast.Block]
-}
-
-///|
-fn extract_xhtml_blocks(events : Array[@xml.ParseEvent]) -> Array[@ast.Block] {
-  let ctx = EpubXhtmlContext::{
-    in_body: false,
-    current_tag: None,
-    current_text: "",
-    blocks: [],
-  }
-  for event in events {
-    match event {
-      @xml.ElementStart(evt) => handle_xhtml_element_start(ctx, evt.name)
-      @xml.ElementEnd(evt) => handle_xhtml_element_end(ctx, evt.name)
-      @xml.TextContent(evt) =>
-        if ctx.in_body {
-          match ctx.current_tag {
-            Some(_) => ctx.current_text = ctx.current_text + evt.content
-            None => ()
-          }
-        }
-    }
-  }
-  ctx.blocks
-}
-
-///|
-fn handle_xhtml_element_start(ctx : EpubXhtmlContext, name : String) -> Unit {
-  let local_name = strip_ns_prefix(name)
-  if local_name == "body" {
-    ctx.in_body = true
-    return
-  }
-  if !ctx.in_body {
-    return
-  }
-  match local_name {
-    "h1" => begin_xhtml_text_block(ctx, "h1")
-    "h2" => begin_xhtml_text_block(ctx, "h2")
-    "h3" => begin_xhtml_text_block(ctx, "h3")
-    "p" => begin_xhtml_text_block(ctx, "p")
-    "br" =>
-      match ctx.current_tag {
-        Some(_) => ctx.current_text = ctx.current_text + "\n"
-        None => ()
-      }
-    _ => ()
-  }
-}
-
-///|
-fn begin_xhtml_text_block(ctx : EpubXhtmlContext, tag : String) -> Unit {
-  finalize_xhtml_block(ctx)
-  ctx.current_tag = Some(tag)
-  ctx.current_text = ""
-}
-
-///|
-fn handle_xhtml_element_end(ctx : EpubXhtmlContext, name : String) -> Unit {
-  let local_name = strip_ns_prefix(name)
-  if local_name == "body" {
-    finalize_xhtml_block(ctx)
-    ctx.in_body = false
-    return
-  }
-  match ctx.current_tag {
-    Some(tag) if tag == local_name => finalize_xhtml_block(ctx)
-    _ => ()
-  }
-}
-
-///|
-fn finalize_xhtml_block(ctx : EpubXhtmlContext) -> Unit {
-  let text = ctx.current_text.trim().to_string()
-  match ctx.current_tag {
-    Some("h1") if text != "" => ctx.blocks.push(@ast.Heading(1, text))
-    Some("h2") if text != "" => ctx.blocks.push(@ast.Heading(2, text))
-    Some("h3") if text != "" => ctx.blocks.push(@ast.Heading(3, text))
-    Some("p") if text != "" => ctx.blocks.push(@ast.text_paragraph(text))
-    _ => ()
-  }
-  ctx.current_tag = None
-  ctx.current_text = ""
-}
-
-///|
-fn strip_ns_prefix(name : String) -> String {
-  match name.find(":") {
-    Some(pos) => name[pos + 1:].to_string()
-    None => name
-  }
+  @html.html_to_blocks(xml_string)
 }
 
 ///|
@@ -570,7 +467,7 @@ fn append_epub_asset_blocks(
   if result.length() > 0 {
     result.push(@ast.HorizontalRule)
   }
-  result.push(@ast.Heading(2, "Embedded Assets"))
+  result.push(@ast.text_heading(2, "Embedded Assets"))
   for asset in assets {
     if is_image_asset_filename(asset.filename) {
       result.push(

@@ -4,12 +4,34 @@ test "render markdown document" {
     title: Some("Demo"),
     metadata: {},
     blocks: [
-      Heading(1, "Demo"),
-      text_paragraph("hello"),
+      text_heading(1, "Demo"),
+      Paragraph([
+        Text("hello "),
+        Strong([Text("world")]),
+        Text(" "),
+        Link([Text("site")], "https://example.com"),
+      ]),
       List(["a", "b"], false),
     ],
   }
-  inspect(@ast.render_markdown(doc), content="# Demo\n\nhello\n\n- a\n- b")
+  inspect(
+    @ast.render_markdown(doc),
+    content="# Demo\n\nhello **world** [site](https://example.com)\n\n- a\n- b",
+  )
+}
+
+///|
+test "render inline variants" {
+  inspect(
+    @ast.render_inlines([
+      Emphasis([Text("one")]),
+      Text(" "),
+      Code("x = 1"),
+      LineBreak,
+      Image("alt", "image.png"),
+    ]),
+    content="*one* `x = 1`  \n![alt](image.png)",
+  )
 }
 
 ///|

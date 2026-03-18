@@ -23,17 +23,30 @@ pub(all) enum ConverterKind {
 }
 
 pub(all) struct ConverterRegistration {
-  kind : ConverterKind
   name : String
   priority : Int
+  hint : @core.DiagnosticHint
+  accepts : (@core.StreamInfo) -> Bool
+  convert : async (@core.InputSource) -> @core.ConvertResult
 }
+
+pub(all) struct DetectionResult {
+  converter_name : String
+  stream_info : @core.StreamInfo
+}
+pub fn DetectionResult::render(Self) -> String
+pub impl Eq for DetectionResult
+pub impl Show for DetectionResult
+pub impl ToJson for DetectionResult
 
 pub(all) struct MarkItDown {
   converters : Array[ConverterRegistration]
 }
 pub async fn MarkItDown::convert(Self, String, ctx? : @core.ConvertContext) -> @core.ConvertResult
 pub async fn MarkItDown::convert_source(Self, @core.InputSource, ctx? : @core.ConvertContext) -> @core.ConvertResult
+pub async fn MarkItDown::detect(Self, String) -> DetectionResult
 pub fn MarkItDown::detect_converter_name(Self, String) -> String raise
+pub async fn MarkItDown::detect_source(Self, @core.InputSource) -> DetectionResult
 pub fn MarkItDown::new() -> Self
 pub fn MarkItDown::register(Self, ConverterRegistration) -> Self
 pub fn MarkItDown::register_named(Self, ConverterKind, Int) -> Self

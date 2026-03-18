@@ -44,6 +44,7 @@ pub async fn TextConverter::convert(file_path : String) -> @core.ConvertResult {
   .with_title(title)
   .with_metadata(metadata)
   .with_stats(Some(@core.stats_for_markdown(markdown)))
+  .with_document(Some(doc))
 }
 
 ///|

@@ -105,6 +105,7 @@ pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
           .with_diagnostics(diagnostics)
           .with_assets(assets)
           .with_stats(Some(@core.stats_for_markdown(markdown_with_assets)))
+          .with_document(Some(doc))
         }
         Err(e) => fail(render_pptx_parse_failure(e, file_path))
       }

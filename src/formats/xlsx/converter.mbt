@@ -94,6 +94,7 @@ pub async fn XlsxConverter::convert(file_path : String) -> @core.ConvertResult {
       .with_diagnostics(diagnostics)
       .with_assets(assets)
       .with_stats(Some(@core.stats_for_markdown(markdown_with_assets)))
+      .with_document(Some(doc))
     }
     None =>
       fail(
@@ -298,7 +299,7 @@ fn generate_blocks(
         for warning in sheet_warnings {
           warnings.push(warning)
         }
-        blocks.push(@ast.Heading(2, sheet_name))
+        blocks.push(@ast.text_heading(2, sheet_name))
         for block in sheet_blocks {
           blocks.push(block)
         }

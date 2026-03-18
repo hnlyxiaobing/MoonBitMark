@@ -47,7 +47,7 @@ fn parse_heading_block(chunk : String) -> Block {
     }
   }
   let text = chunk[index:].trim().to_string()
-  Heading(level, text)
+  Heading(level, [Text(text)])
 }
 
 ///|

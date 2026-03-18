@@ -87,7 +87,7 @@ fn extract_slide_blocks(
     in_text: false,
     current_text: "",
     is_title: false,
-    blocks: [@ast.Heading(2, "Slide " + slide_num.to_string())],
+    blocks: [@ast.text_heading(2, "Slide " + slide_num.to_string())],
   }
 
   for event in events {
@@ -143,7 +143,7 @@ fn handle_slide_element_end(ctx : SlideContext, name : String) -> Unit {
   } else if local_name == "p" {
     if ctx.current_text.length() > 0 {
       if ctx.is_title {
-        ctx.blocks.push(@ast.Heading(3, ctx.current_text))
+        ctx.blocks.push(@ast.text_heading(3, ctx.current_text))
       } else {
         ctx.blocks.push(@ast.text_paragraph(ctx.current_text))
       }

@@ -151,6 +151,7 @@ pub async fn PdfConverter::convert(file_path : String) -> @core.ConvertResult {
   .with_warnings(warnings)
   .with_diagnostics(diagnostics)
   .with_stats(Some(@core.stats_for_markdown(markdown)))
+  .with_document(Some(doc))
 }
 
 ///|
