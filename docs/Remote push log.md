@@ -68,9 +68,47 @@ moon check
 moon test src/engine
 ```
 
-推送后的下一步建议：
+本次推送前的下一步建议：
 
 1. 统一 DOCX / EPUB / PPTX / XLSX 的原生资源提取链路
 2. 继续把 AST 推广到更多格式
 3. 在主链路稳定后再推进 Web / MCP 展示层
+
+---
+
+## 2026-03-18
+
+- 分支：main
+- 主题：修复路径分割 bug 与完善项目文档
+
+本次推送包含的核心修改：
+
+1. 路径分割 bug 修复
+   - `src/engine/engine.mbt` 中 `split_path_segments` 函数存在 UTF-8 多字节字符处理错误
+   - 原代码使用 `ch.to_string()` 会将单个字节转为字符，导致非 ASCII 字符（如中文）被错误拆分
+   - 修复：改用 `normalized[i:i + 1].to_string()` 进行正确的子串切片
+
+2. 测试增强
+   - `src/engine/engine_wbtest.mbt` 添加测试验证 `materialize_data_uri_assets` 不会创建杂散目录
+   - 之前该函数可能因路径分割 bug 创建以 Unicode 码点数字命名的错误目录
+
+3. 文档更新
+   - `AGENTS.md` 添加 Repo-Scoped Skills 使用说明
+   - 指导 AI 助手正确使用项目内置的 `.codex/skills/` 技能
+
+4. 工程配置
+   - `.gitignore` 添加 `.codex/` 目录
+
+本次推送前验证：
+
+```bash
+moon info && moon fmt
+moon check
+moon test src/engine
+```
+
+推送后的下一步建议：
+
+1. 继续完善 AST 渲染链路
+2. 推进更多格式的 converter 改造
 
