@@ -145,6 +145,23 @@ suberror MyError { NotFound, InvalidInput(String) }
   prefer assertion tests. You can use `moon coverage analyze > uncovered.log` to
   see which parts of your code are not covered by tests.
 
+## Repo-Scoped Skills
+
+- This repo includes project-scoped skills under `.codex/skills/`.
+- When working in this repository, prefer explicitly invoking them with
+  `$skill-name` in your prompt when the task matches.
+- Common examples:
+  - `$moonbit-agent-guide` for general MoonBit development, testing, and `moon`
+    tooling workflows.
+  - `$moonbit-refactoring` for package-local refactors, renames, and code
+    reorganization.
+  - `$moonbit-lang` for MoonBit language rules, syntax, and type-system
+    questions.
+  - `$moonbit-spec-test-development` or `$moonbit-extract-spec-test` for
+    spec-driven development and test extraction workflows.
+- Repo-scoped skills are preferred over user-global variants when both exist,
+  because they can be pinned and updated together with this repository.
+
 ## Dependencies
 
 - `moonbitlang/async` - File system, HTTP client

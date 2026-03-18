@@ -679,7 +679,7 @@ fn split_path_segments(path : String) -> Array[String] {
         current = ""
       }
     } else {
-      current = current + ch.to_string()
+      current = current + normalized[i:i + 1].to_string()
     }
     i = i + 1
   }
