@@ -16,7 +16,7 @@ test "epub warning diagnostics classify spine issues" {
   inspect(diagnostics.length(), content="2")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: load/spine-resource\n  Source: OPS/chapter1.xhtml\n  Message: Missing spine resource in archive: OPS/chapter1.xhtml\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+    content="Warning: ConverterWarning\n  Phase: load/spine-resource\n  Source: OPS/chapter1.xhtml\n  Message: Missing spine resource in archive: OPS/chapter1.xhtml\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
   )
 }
 
@@ -28,7 +28,7 @@ test "epub warning diagnostics classify asset extraction issues" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: load/asset\n  Source: OPS/images/cover.jpg\n  Message: Failed to extract EPUB asset: OPS/images/cover.jpg\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+    content="Warning: ConverterWarning\n  Phase: load/asset\n  Source: OPS/images/cover.jpg\n  Message: Failed to extract EPUB asset: OPS/images/cover.jpg\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
   )
 }
 

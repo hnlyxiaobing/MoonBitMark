@@ -428,13 +428,12 @@ fn merge_diagnostics(
   let fallback_source = Some(diagnostic_source_of_input(input))
   let fallback_hint = fallback_hint_for_converter(converter)
   for diagnostic in raw_diagnostics {
-    diagnostics.push(
-      diagnostic.with_defaults(
-        fallback_phase,
-        fallback_source,
-        Some(fallback_hint),
-      ),
+    let normalized = diagnostic.with_defaults(
+      fallback_phase,
+      fallback_source,
+      Some(fallback_hint),
     )
+    push_unique_diagnostic(diagnostics, normalized)
   }
   for
     diagnostic in @core.diagnostics_from_warnings(
@@ -443,9 +442,23 @@ fn merge_diagnostics(
       fallback_source,
       hint=fallback_hint,
     ) {
-    diagnostics.push(diagnostic)
+    push_unique_diagnostic(diagnostics, diagnostic)
   }
   diagnostics
+}
+
+///|
+fn push_unique_diagnostic(
+  diagnostics : Array[@core.ConversionDiagnostic],
+  diagnostic : @core.ConversionDiagnostic,
+) -> Unit {
+  for existing in diagnostics {
+    if existing.level == diagnostic.level &&
+      existing.message == diagnostic.message {
+      return
+    }
+  }
+  diagnostics.push(diagnostic)
 }
 
 ///|

@@ -10,6 +10,6 @@ test "csv warning diagnostics render markdown phase" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: render/markdown\n  Source: empty.csv\n  Message: CSV input produced empty Markdown output.\n  Hint: Check whether the CSV contains at least one non-empty row.",
+    content="Warning: ConverterWarning\n  Phase: render/markdown\n  Source: empty.csv\n  Message: CSV input produced empty Markdown output.\n  Hint: Check whether the CSV contains at least one non-empty row.",
   )
 }

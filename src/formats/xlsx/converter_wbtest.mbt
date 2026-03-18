@@ -11,7 +11,7 @@ test "xlsx warning diagnostics include workbook source" {
   inspect(diagnostics.length(), content="2")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: parse/xl/workbook.xml\n  Source: xl/workbook.xml\n  Message: No sheets discovered in xl/workbook.xml.\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+    content="Warning: ConverterWarning\n  Phase: parse/xl/workbook.xml\n  Source: xl/workbook.xml\n  Message: No sheets discovered in xl/workbook.xml.\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
   )
 }
 
@@ -23,7 +23,7 @@ test "xlsx worksheet warning diagnostics target archive entry" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: parse/worksheet\n  Source: xl/worksheets/sheet1.xml\n  Message: Failed to parse worksheet XML: Sheet1 (xl/worksheets/sheet1.xml).\n  Hint: Inspect malformed worksheet XML inside the XLSX archive.",
+    content="Warning: ConverterWarning\n  Phase: parse/worksheet\n  Source: xl/worksheets/sheet1.xml\n  Message: Failed to parse worksheet XML: Sheet1 (xl/worksheets/sheet1.xml).\n  Hint: Inspect malformed worksheet XML inside the XLSX archive.",
   )
 }
 
@@ -35,7 +35,7 @@ test "xlsx asset warning diagnostics target archive entry" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: load/asset\n  Source: xl/media/image1.png\n  Message: Failed to extract XLSX asset: xl/media/image1.png\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+    content="Warning: ConverterWarning\n  Phase: load/asset\n  Source: xl/media/image1.png\n  Message: Failed to extract XLSX asset: xl/media/image1.png\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
   )
 }
 

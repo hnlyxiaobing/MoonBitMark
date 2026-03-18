@@ -10,6 +10,6 @@ test "pdf warning diagnostics render postprocess phase" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: postprocess/numbering-merge\n  Source: spec.pdf\n  Message: Merged partial numbering lines during PDF post-processing.\n  Hint: Review merged numbering if the PDF relies on strict line boundaries.",
+    content="Warning: ConverterWarning\n  Phase: postprocess/numbering-merge\n  Source: spec.pdf\n  Message: Merged partial numbering lines during PDF post-processing.\n  Hint: Review merged numbering if the PDF relies on strict line boundaries.",
   )
 }

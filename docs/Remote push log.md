@@ -119,3 +119,40 @@ moon test src/engine
 - 删除对应 async wbtest，保留同步 engine 白盒检查
 - moon check 已无已知 warning / error
 - 同步刷新 README 与架构状态文档
+
+## 2026-03-18 (diagnostics debug report)
+
+- 分支：main
+- 主题：补强 diagnostics 渲染语义、CLI debug 输出与相关测试/文档
+
+本次推送包含的核心修改：
+
+1. 诊断渲染语义修正
+   - `src/core/types.mbt` 为 `DiagnosticLevel` 增加 `label()`
+   - `ConversionDiagnostic::render()` 不再一律输出 `Error:`，而是根据实际级别输出 `Info:` / `Warning:` / `Error:`
+
+2. 开发者调试输出补强
+   - `src/core/types.mbt` 新增 `ConvertStats::render()`、`render_diagnostics_report()`、`ConvertResult::debug_report()`
+   - `cmd/main/main.mbt` 在 `--debug` 模式下输出结构化 debug report，便于直接查看 stats、diagnostics、assets 与 metadata
+
+3. engine 诊断去重
+   - `src/engine/engine.mbt` 在合并 converter 原始 diagnostics 与 warning 派生 diagnostics 时做去重
+   - 避免同一 warning 同时以字符串 warning 和 typed diagnostic 镜像进入最终结果造成重复展示
+
+4. 测试与接口刷新
+   - 更新 `src/core/core_test.mbt`、`src/engine/engine_wbtest.mbt`
+   - 同步修正 `csv/docx/epub/html/pdf/pptx/xlsx` 白盒测试中 warning diagnostics 的期望文案
+   - 刷新 `src/core/pkg.generated.mbti`
+
+5. 工程与文档补充
+   - `.gitignore` 忽略 `prompt.txt`
+   - 刷新本文件与架构状态文档，记录 diagnostics 展示能力已有阶段性落地
+
+本次推送前验证：
+
+```bash
+moon check
+moon test
+moon info
+moon fmt
+```

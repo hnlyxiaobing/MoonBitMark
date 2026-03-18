@@ -8,6 +8,8 @@ pub fn diagnostics_from_warnings(Array[String], ConversionPhase?, DiagnosticSour
 
 pub fn error_diagnostic(ConversionError, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> ConversionDiagnostic
 
+pub fn render_diagnostics_report(Array[ConversionDiagnostic]) -> String
+
 pub fn stats_for_markdown(String, duration_ms? : Int, used_fallback? : Bool) -> ConvertStats
 
 pub fn warning_diagnostic(String, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> ConversionDiagnostic
@@ -81,6 +83,7 @@ pub(all) struct ConvertResult {
   source_type : String
   stats : ConvertStats?
 }
+pub fn ConvertResult::debug_report(Self) -> String
 pub fn ConvertResult::markdown_only(String, String) -> Self
 pub fn ConvertResult::with_assets(Self, Array[OutputAsset]) -> Self
 pub fn ConvertResult::with_diagnostics(Self, Array[ConversionDiagnostic]) -> Self
@@ -98,6 +101,7 @@ pub(all) struct ConvertStats {
   duration_ms : Int?
   used_fallback : Bool
 }
+pub fn ConvertStats::render(Self) -> String
 pub impl Eq for ConvertStats
 pub impl Show for ConvertStats
 pub impl ToJson for ConvertStats
@@ -119,6 +123,7 @@ pub(all) enum DiagnosticLevel {
   Warning
   Error
 }
+pub fn DiagnosticLevel::label(Self) -> String
 pub impl Eq for DiagnosticLevel
 pub impl Show for DiagnosticLevel
 pub impl ToJson for DiagnosticLevel

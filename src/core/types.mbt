@@ -37,6 +37,15 @@ pub(all) enum DiagnosticLevel {
 } derive(Show, Eq, ToJson)
 
 ///|
+pub fn DiagnosticLevel::label(self : DiagnosticLevel) -> String {
+  match self {
+    Info => "Info"
+    Warning => "Warning"
+    Error => "Error"
+  }
+}
+
+///|
 pub(all) enum ConversionPhase {
   Detect(String?)
   Load(String?)
@@ -374,7 +383,7 @@ pub fn ConversionDiagnostic::with_defaults(
 
 ///|
 pub fn ConversionDiagnostic::render(self : ConversionDiagnostic) -> String {
-  let mut result = "Error: " + self.category() + "\n"
+  let mut result = self.level.label() + ": " + self.category() + "\n"
   match self.phase {
     Some(phase) => result = result + "  Phase: " + phase.label() + "\n"
     None => ()
@@ -389,6 +398,66 @@ pub fn ConversionDiagnostic::render(self : ConversionDiagnostic) -> String {
     None => ()
   }
   result
+}
+
+///|
+pub fn ConvertStats::render(self : ConvertStats) -> String {
+  let parts : Array[String] = [
+    "chars=" + self.char_count.to_string(),
+    "blocks=" + self.block_count.to_string(),
+  ]
+  match self.duration_ms {
+    Some(value) => parts.push("duration_ms=" + value.to_string())
+    None => ()
+  }
+  if self.used_fallback {
+    parts.push("used_fallback=true")
+  }
+  parts.join(", ")
+}
+
+///|
+pub fn render_diagnostics_report(
+  diagnostics : Array[ConversionDiagnostic],
+) -> String {
+  if diagnostics.length() == 0 {
+    "Diagnostics: none"
+  } else {
+    let lines : Array[String] = ["Diagnostics:"]
+    for diagnostic in diagnostics {
+      lines.push(diagnostic.render())
+    }
+    lines.join("\n")
+  }
+}
+
+///|
+pub fn ConvertResult::debug_report(self : ConvertResult) -> String {
+  let lines : Array[String] = [
+    "ConvertResult Debug Report",
+    "source_type: " + self.source_type,
+  ]
+  match self.title {
+    Some(value) => lines.push("title: " + value)
+    None => ()
+  }
+  match self.stats {
+    Some(stats) => lines.push("stats: " + stats.render())
+    None => ()
+  }
+  lines.push("warnings: " + self.warnings.length().to_string())
+  lines.push("diagnostics: " + self.diagnostics.length().to_string())
+  lines.push("assets: " + self.assets.length().to_string())
+  if self.metadata.length() == 0 {
+    lines.push("metadata: none")
+  } else {
+    lines.push("metadata:")
+    for key, value in self.metadata {
+      lines.push("  " + key + ": " + value)
+    }
+  }
+  lines.push(render_diagnostics_report(self.diagnostics))
+  lines.join("\n")
 }
 
 ///|

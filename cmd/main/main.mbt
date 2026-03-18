@@ -120,6 +120,10 @@ async fn main {
         file.write(bytes)
         file.close()
         println("Converted: " + options.input + " -> " + path)
+        if options.ctx.debug {
+          println("")
+          println(result.debug_report())
+        }
       }
       None => println(result.markdown)
     }

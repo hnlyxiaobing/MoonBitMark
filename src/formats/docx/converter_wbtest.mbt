@@ -9,7 +9,7 @@ test "docx warning diagnostics target document xml" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: parse/word/document.xml\n  Source: word/document.xml\n  Message: No text content extracted from word/document.xml.\n  Hint: Verify the DOCX contains visible text in word/document.xml.",
+    content="Warning: ConverterWarning\n  Phase: parse/word/document.xml\n  Source: word/document.xml\n  Message: No text content extracted from word/document.xml.\n  Hint: Verify the DOCX contains visible text in word/document.xml.",
   )
 }
 

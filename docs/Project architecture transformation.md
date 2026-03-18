@@ -221,7 +221,8 @@ Load -> Detect -> Parse -> Normalize -> Render -> Postprocess
   当前状态：engine 已支持把 converter 返回的 `OutputAsset` 统一落盘，并处理 Markdown 中的 `data:image/*;base64,...` 回写相对链接；DOCX / EPUB / PPTX / XLSX 已统一把 archive 内原生图片与附件接入 `assets`，由 engine 统一写盘与回写相对链接。
 - [~] Web demo / MCP 对接展示
   当前状态：Web demo 仍未开始；MCP 已新增 `src/mcp/` 与 `cmd/mcp-server`，具备 `initialize`、`tools/list`、`tools/call` 与 `convert_to_markdown` 的基础链路，但仍属于最小可用集成，尚未补齐更多工具、展示与集成验证。
-- [ ] Benchmark 和 diagnostics 展示
+- [~] Benchmark 和 diagnostics 展示
+  当前状态：benchmark 仍未开始，但 CLI 已可在 `--debug` 模式下输出 `ConvertResult` 的结构化 debug report，包含 stats、diagnostics、assets 与 metadata 摘要，diagnostics 展示已进入可直接使用的初始形态。
 
 ### 当前改造范围备注
 
@@ -248,7 +249,7 @@ Load -> Detect -> Parse -> Normalize -> Render -> Postprocess
 
 - 主线 converter 已不再依赖 `document_of_markdownish(...)`，但 AST 包仍保留 `markdownish` 兼容工具
 - Web 展示层仍未接入；MCP 仅为最小可用能力，尚未扩展更多工具与集成验证
-- diagnostics / benchmark / 开发者可视化仍未成体系
+- benchmark / 开发者可视化仍未成体系；diagnostics 展示已具备 CLI `--debug` 初始能力，但仍缺少更细致的聚合视图与专门展示层
 - 当前 `moon check` 已无已知 warning / error
 
 ---
@@ -273,13 +274,13 @@ Load -> Detect -> Parse -> Normalize -> Render -> Postprocess
 
 1. 主线 AST 输出链路已经打通，但 AST 包内仍保留 `markdownish` 兼容工具，后续可继续评估是否缩小其职责或转为仅测试辅助。
 2. 外部插件化注册与 Web demo 仍未完成；MCP 虽已接入，但还不是完整产品化能力。
-3. diagnostics 展示、benchmark、开发者可视化工具仍欠缺。
+3. benchmark 与开发者可视化工具仍欠缺；diagnostics 展示已有 CLI `--debug` 基础能力，但距离完整展示层仍有差距。
 
 ### 6.3 当前优先级判断
 
 从架构收益看，下一阶段最有价值的工作是：
 
-1. 继续细化 typed diagnostics 的分类质量与展示能力，而不是只停留在统一结构层
+1. 继续细化 typed diagnostics 的分类质量与展示能力，在已有 CLI `--debug` report 基础上补更好的聚合视图与前端展示
 2. 补全 MCP 的工具面与集成验证，或正式启动 Web demo，形成可演示前端层
 3. 在此基础上补 benchmark、诊断展示与开发者可视化工具，提升工程可信度
 

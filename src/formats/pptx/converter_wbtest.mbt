@@ -14,7 +14,7 @@ test "pptx warning diagnostics render parse phase" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: parse/slides\n  Source: slides.pptx\n  Message: Some slides could not be parsed as XML.\n  Hint: Inspect malformed slide XML inside the PPTX archive.",
+    content="Warning: ConverterWarning\n  Phase: parse/slides\n  Source: slides.pptx\n  Message: Some slides could not be parsed as XML.\n  Hint: Inspect malformed slide XML inside the PPTX archive.",
   )
 }
 
@@ -26,7 +26,7 @@ test "pptx relation warning diagnostics target archive entry" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: parse/ppt/_rels/presentation.xml.rels\n  Source: ppt/_rels/presentation.xml.rels\n  Message: Failed to parse ppt/_rels/presentation.xml.rels.\n  Hint: Inspect malformed relationship XML inside the PPTX archive.",
+    content="Warning: ConverterWarning\n  Phase: parse/ppt/_rels/presentation.xml.rels\n  Source: ppt/_rels/presentation.xml.rels\n  Message: Failed to parse ppt/_rels/presentation.xml.rels.\n  Hint: Inspect malformed relationship XML inside the PPTX archive.",
   )
 }
 
@@ -38,7 +38,7 @@ test "pptx asset warning diagnostics target archive entry" {
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),
-    content="Error: ConverterWarning\n  Phase: load/asset\n  Source: ppt/media/image1.png\n  Message: Failed to extract PPTX asset: ppt/media/image1.png\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+    content="Warning: ConverterWarning\n  Phase: load/asset\n  Source: ppt/media/image1.png\n  Message: Failed to extract PPTX asset: ppt/media/image1.png\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
   )
 }
 
