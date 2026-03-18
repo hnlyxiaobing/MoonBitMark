@@ -90,12 +90,12 @@ warning 多的时候，新的真实问题很容易被淹没。尤其在 typed di
 
 ## 8. MoonBit async / package warning 仍有工具链边角，需要实事求是记录
 
-当前 `src/engine/moon.pkg` 中保留 `moonbitlang/async`，是因为 async wbtest 需要它；但 MoonBit 仍会将其判为 `unused_package`。这类 warning 不属于业务架构问题，而是工具链边角。
+历史上 `src/engine/moon.pkg` 曾因 async wbtest 需要 `moonbitlang/async` 而触发 `unused_package` warning。当前已通过移除该包内 async wbtest 并收敛依赖解决，`moon check` 已无该 warning。
 
 经验上应这样处理：
 
 - 如果它确实影响运行或校验，就解决
-- 如果它是工具链误判，但依赖真实必需，就在文档中明确记录，不要为了“表面 0 warning”去做反直觉代码
+- 如果它是工具链误判且短期无法规避，就在文档中明确记录；一旦能用更简单、语义更清晰的方式消除它，应及时回收这类历史妥协
 
 ## 9. 后续推进建议
 

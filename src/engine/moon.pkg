@@ -9,7 +9,6 @@ import {
   "moonbitlang/moonbitmark/src/formats/pptx",
   "moonbitlang/moonbitmark/src/formats/xlsx",
   "moonbitlang/moonbitmark/src/formats/epub",
-  "moonbitlang/async",
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/base64",
 }

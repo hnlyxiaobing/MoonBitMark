@@ -141,14 +141,43 @@ pub async fn PdfConverter::convert(file_path : String) -> @core.ConvertResult {
   if page_breaks > 0 {
     metadata["page_break_count"] = page_breaks.to_string()
   }
+  let title = file_stem(file_path)
+  let doc = pdf_to_document(merged, title, metadata)
+  let markdown = @ast.render_markdown(doc)
 
-  // Return as Markdown
-  @core.ConvertResult::markdown_only(merged, "pdf")
-  .with_title(file_stem(file_path))
+  @core.ConvertResult::markdown_only(markdown, "pdf")
+  .with_title(title)
   .with_metadata(metadata)
   .with_warnings(warnings)
   .with_diagnostics(diagnostics)
-  .with_stats(Some(@core.stats_for_markdown(merged)))
+  .with_stats(Some(@core.stats_for_markdown(markdown)))
+}
+
+///|
+fn pdf_to_document(
+  text : String,
+  title : String?,
+  metadata : Map[String, String],
+) -> @ast.Document {
+  let blocks : Array[@ast.Block] = []
+  let pages = text.split("\n\n---\n\n").to_array()
+  let mut index = 0
+  while index < pages.length() {
+    let page = pages[index].trim().to_string()
+    if page != "" {
+      for paragraph in page.split("\n\n").to_array() {
+        let trimmed = paragraph.trim().to_string()
+        if trimmed != "" {
+          blocks.push(@ast.text_paragraph(trimmed))
+        }
+      }
+    }
+    if index + 1 < pages.length() {
+      blocks.push(@ast.HorizontalRule)
+    }
+    index = index + 1
+  }
+  @ast.Document::{ title, metadata, blocks }
 }
 
 ///|

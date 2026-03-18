@@ -112,3 +112,10 @@ moon test src/engine
 1. 继续完善 AST 渲染链路
 2. 推进更多格式的 converter 改造
 
+
+
+## 2026-03-18 (warning cleanup)
+- 移除 src/engine 包内仅为 async wbtest 存在的 moonbitlang/async 依赖
+- 删除对应 async wbtest，保留同步 engine 白盒检查
+- moon check 已无已知 warning / error
+- 同步刷新 README 与架构状态文档

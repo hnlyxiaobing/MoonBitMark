@@ -309,24 +309,42 @@ async fn finalize_result(
   } else {
     Map::new()
   }
-  let rendered_markdown = render_output_mode(
+  let markdown_with_assets = materialize_output_assets(
     raw_result.markdown,
+    raw_result.assets,
+  )
+  let rendered_markdown = render_output_mode(
+    markdown_with_assets,
     raw_result.title,
     metadata,
     ctx.output_mode,
   )
-  let (asset_markdown, asset_warnings, asset_diagnostics, asset_count) = match
-    ctx.asset_output_dir {
-    Some(dir) => materialize_data_uri_assets(rendered_markdown, dir)
+  let (
+    embedded_markdown,
+    embedded_warnings,
+    embedded_diagnostics,
+    embedded_count,
+  ) = match ctx.asset_output_dir {
+    Some(dir) =>
+      materialize_embedded_assets(rendered_markdown, raw_result.assets, dir)
     None => (rendered_markdown, [], [], 0)
+  }
+  let (asset_markdown, asset_warnings, asset_diagnostics, data_uri_asset_count) = match
+    ctx.asset_output_dir {
+    Some(dir) => materialize_data_uri_assets(embedded_markdown, dir)
+    None => (embedded_markdown, [], [], 0)
   }
   let warnings : Array[String] = []
   for warning in raw_result.warnings {
     warnings.push(warning)
   }
+  for warning in embedded_warnings {
+    warnings.push(warning)
+  }
   for warning in asset_warnings {
     warnings.push(warning)
   }
+  let asset_count = embedded_count + data_uri_asset_count
   if asset_count > 0 {
     metadata["asset_count"] = asset_count.to_string()
     match ctx.asset_output_dir {
@@ -340,6 +358,9 @@ async fn finalize_result(
     converter,
     input,
   )
+  for diagnostic in embedded_diagnostics {
+    diagnostics.push(diagnostic)
+  }
   for diagnostic in asset_diagnostics {
     diagnostics.push(diagnostic)
   }
@@ -354,6 +375,7 @@ async fn finalize_result(
     metadata,
     warnings,
     diagnostics,
+    assets: raw_result.assets,
     source_type: raw_result.source_type,
     stats,
   }
@@ -456,6 +478,64 @@ fn render_engine_failure(
 ///|
 fn is_rendered_diagnostic(message : String) -> Bool {
   message.has_prefix("Error: ") && message.contains("\n  Message: ")
+}
+
+///|
+fn materialize_output_assets(
+  markdown : String,
+  assets : Array[@core.OutputAsset],
+) -> String {
+  let mut rewritten = markdown
+  for asset in assets {
+    rewritten = rewritten.replace(
+      old=asset.placeholder,
+      new="moonbitmark-asset://" + asset.filename,
+    )
+  }
+  rewritten
+}
+
+///|
+async fn materialize_embedded_assets(
+  markdown : String,
+  assets : Array[@core.OutputAsset],
+  asset_output_dir : String,
+) -> (String, Array[String], Array[@core.ConversionDiagnostic], Int) {
+  let mut rewritten = markdown
+  let warnings : Array[String] = []
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  let normalized_dir = normalize_asset_path(asset_output_dir)
+  let mut asset_count = 0
+  ensure_directory_chain(asset_output_dir)
+  for asset in assets {
+    let relative_path = normalized_dir + "/" + asset.filename
+    let disk_path = join_asset_path(asset_output_dir, asset.filename)
+    let write_result = write_asset_file(disk_path, asset.bytes) catch {
+      err => {
+        let message = "Failed to write asset file: " + relative_path
+        warnings.push(message)
+        diagnostics.push(
+          @core.warning_diagnostic(
+            message,
+            Some(@core.Postprocess(Some("assets"))),
+            asset.source,
+            Some(
+              match asset.hint {
+                Some(hint) => hint
+                None => @core.Custom(err.to_string())
+              },
+            ),
+          ),
+        )
+        false
+      }
+    }
+    if write_result {
+      rewritten = rewritten.replace(old=asset.placeholder, new=relative_path)
+      asset_count = asset_count + 1
+    }
+  }
+  (rewritten, warnings, diagnostics, asset_count)
 }
 
 ///|

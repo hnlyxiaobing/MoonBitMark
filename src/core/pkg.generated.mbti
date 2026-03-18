@@ -77,10 +77,12 @@ pub(all) struct ConvertResult {
   metadata : Map[String, String]
   warnings : Array[String]
   diagnostics : Array[ConversionDiagnostic]
+  assets : Array[OutputAsset]
   source_type : String
   stats : ConvertStats?
 }
 pub fn ConvertResult::markdown_only(String, String) -> Self
+pub fn ConvertResult::with_assets(Self, Array[OutputAsset]) -> Self
 pub fn ConvertResult::with_diagnostics(Self, Array[ConversionDiagnostic]) -> Self
 pub fn ConvertResult::with_metadata(Self, Map[String, String]) -> Self
 pub fn ConvertResult::with_stats(Self, ConvertStats?) -> Self
@@ -145,6 +147,17 @@ pub fn InputSource::name(Self) -> String?
 pub impl Eq for InputSource
 pub impl Show for InputSource
 pub impl ToJson for InputSource
+
+pub(all) struct OutputAsset {
+  placeholder : String
+  filename : String
+  bytes : Bytes
+  source : DiagnosticSource?
+  hint : DiagnosticHint?
+}
+pub impl Eq for OutputAsset
+pub impl Show for OutputAsset
+pub impl ToJson for OutputAsset
 
 pub(all) enum OutputMode {
   PlainText

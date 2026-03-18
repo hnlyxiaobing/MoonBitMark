@@ -30,7 +30,7 @@
 | 统一结果类型 | `src/core/types.mbt` | 已定义 `ConvertResult` |
 | 输入信息 | `src/core/types.mbt` | 已定义 `StreamInfo` |
 | 转换器接口 | `src/core/types.mbt` | 已定义 `DocumentConverter` trait |
-| 主引擎 | `src/core/engine.mbt` | 早期仅为占位实现 |
+| 主引擎 | `src/engine/engine.mbt` | 早期仅为占位实现 |
 
 ### 1.2 旧实现的实际问题
 
@@ -203,12 +203,12 @@ Load -> Detect -> Parse -> Normalize -> Render -> Postprocess
 - [x] 所有 converter 返回 `ConvertResult`
   当前状态：text/csv/json/pdf/html/docx/pptx/xlsx/epub 已统一返回 `ConvertResult`，并实际填充 markdown、title、metadata、warnings、stats 等字段。
 - [~] 统一错误/警告模型
-  当前状态：typed `ConversionDiagnostic`、`ConversionPhase`、`DiagnosticSource`、`DiagnosticHint` 已落地；engine 与 csv/docx/epub/html/pdf/pptx/xlsx 等主 converter 已接入统一链路。当前主缺口已不在顶层接口，而在部分次级 helper 与原生资源提取仍未完全统一进资产/诊断模型。
+  当前状态：typed `ConversionDiagnostic`、`ConversionPhase`、`DiagnosticSource`、`DiagnosticHint` 已落地；engine 与主要 converter 已接入统一链路。当前主缺口已不在顶层接口，而在错误分类粒度、诊断展示与开发者可视化层。
 
 ### P1：强烈建议
 
 - [~] HTML/DOCX/EPUB 接入 AST
-  当前状态：已新增 `src/ast/` 与统一 renderer；HTML 已直接生成 AST block，DOCX/EPUB 已进入 `Document -> renderer` 主链路，但仍有局部 markdown-ish 过渡层。
+  当前状态：已新增 `src/ast/` 与统一 renderer；HTML 已直接生成 AST block，DOCX/EPUB 与 text/csv/json/pdf/pptx/xlsx 也都已进入 `Document -> renderer` 主链路。当前 `markdownish` 主要只剩 AST 包内的兼容工具与测试用途，不再是主线 converter 的依赖。
 - [x] 转换 stats / metadata 输出
   当前状态：`ConvertStats`、`ConvertContext`、`source_type`、主要 metadata 字段已实际接入主链路。
 - [~] Converter 注册表
@@ -217,9 +217,10 @@ Load -> Detect -> Parse -> Normalize -> Render -> Postprocess
 ### P2：冲刺加分
 
 - [x] 支持 frontmatter 输出
-- [~] 支持资源提取目录
-  当前状态：engine 已支持把 Markdown 中的 `data:image/*;base64,...` 按 `asset_output_dir` 解码落盘，并回写相对链接；DOCX / EPUB / PPTX / XLSX 等 archive 类格式的原生图片与附件提取尚未统一接入。
-- [ ] Web demo / MCP 对接展示
+- [x] 支持资源提取目录
+  当前状态：engine 已支持把 converter 返回的 `OutputAsset` 统一落盘，并处理 Markdown 中的 `data:image/*;base64,...` 回写相对链接；DOCX / EPUB / PPTX / XLSX 已统一把 archive 内原生图片与附件接入 `assets`，由 engine 统一写盘与回写相对链接。
+- [~] Web demo / MCP 对接展示
+  当前状态：Web demo 仍未开始；MCP 已新增 `src/mcp/` 与 `cmd/mcp-server`，具备 `initialize`、`tools/list`、`tools/call` 与 `convert_to_markdown` 的基础链路，但仍属于最小可用集成，尚未补齐更多工具、展示与集成验证。
 - [ ] Benchmark 和 diagnostics 展示
 
 ### 当前改造范围备注
@@ -245,16 +246,16 @@ Load -> Detect -> Parse -> Normalize -> Render -> Postprocess
 
 当前已知残留项：
 
-- 还没有把 archive 类格式的原生资源提取统一并入资产输出模型
-- AST 接入还没有推广到全部格式
-- MCP / Web 展示层仍未正式接入
-- 当前只剩 1 个工具链层面 warning：`src/engine/moon.pkg` 中 `moonbitlang/async` 为 async wbtest 所需，但仍被 MoonBit 判成 `unused_package`
+- 主线 converter 已不再依赖 `document_of_markdownish(...)`，但 AST 包仍保留 `markdownish` 兼容工具
+- Web 展示层仍未接入；MCP 仅为最小可用能力，尚未扩展更多工具与集成验证
+- diagnostics / benchmark / 开发者可视化仍未成体系
+- 当前 `moon check` 已无已知 warning / error
 
 ---
 
 ## 6. 当前整体进度汇报
 
-截至 2026-03-17，可以把整体改造进度概括为：
+截至 2026-03-18，可以把整体改造进度概括为：
 
 ### 6.1 已完成的核心成果
 
@@ -262,24 +263,25 @@ Load -> Detect -> Parse -> Normalize -> Render -> Postprocess
 2. CLI 已退化为前端，不再承担格式判断与 converter 调度职责。
 3. `ConvertResult` / `ConvertContext` / typed diagnostics 已成为主链路标准模型。
 4. archive 类格式关键失败路径已能生成统一 `phase/source/hint` 错误信息。
-5. HTML、DOCX、EPUB 已接入 AST / renderer 主链路。
-6. `asset_output_dir` 已从 context 字段推进为真实后处理能力，可将 data URI 图片落盘。
-7. 历史 warning 已基本清空，只剩 1 个工具链层面 warning。
+5. HTML、DOCX、EPUB 已接入 AST / renderer 主链路，text/csv/json/pdf/pptx/xlsx 也已切到 AST/renderer 输出链路。
+6. `asset_output_dir` 已从 context 字段推进为真实后处理能力，可将 converter 产出的 `OutputAsset` 与 data URI 图片落盘。
+7. DOCX / EPUB / PPTX / XLSX 已统一把 archive 内原生图片与附件接入 `assets`，不再只有 data URI 或单格式特例。
+8. MCP 基础服务链路已落地，能够通过独立入口把 engine 暴露为 `convert_to_markdown` 工具。
+9. 当前 `moon check` 已无已知 warning / error。
 
 ### 6.2 还未完成但已明确的缺口
 
-1. 原生 archive 资源提取尚未统一并入资产模型。
-2. AST 仍未覆盖全部格式。
-3. 外部插件化注册、Web demo、MCP 正式能力仍未完成。
-4. diagnostics 展示、benchmark、开发者可视化工具仍欠缺。
+1. 主线 AST 输出链路已经打通，但 AST 包内仍保留 `markdownish` 兼容工具，后续可继续评估是否缩小其职责或转为仅测试辅助。
+2. 外部插件化注册与 Web demo 仍未完成；MCP 虽已接入，但还不是完整产品化能力。
+3. diagnostics 展示、benchmark、开发者可视化工具仍欠缺。
 
 ### 6.3 当前优先级判断
 
 从架构收益看，下一阶段最有价值的工作是：
 
-1. 统一 archive 格式的原生资源提取链路，把 DOCX / EPUB / PPTX / XLSX 的图片与附件真正接入 `assets`
-2. 继续把 AST 从 HTML / DOCX / EPUB 推广到更多格式
-3. 在此基础上再考虑 Web / MCP 展示层，而不是过早堆前端功能
+1. 继续细化 typed diagnostics 的分类质量与展示能力，而不是只停留在统一结构层
+2. 补全 MCP 的工具面与集成验证，或正式启动 Web demo，形成可演示前端层
+3. 在此基础上补 benchmark、诊断展示与开发者可视化工具，提升工程可信度
 
 ---
 

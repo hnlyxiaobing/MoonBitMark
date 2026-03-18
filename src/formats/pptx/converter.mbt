@@ -81,21 +81,30 @@ pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
             )
           }
           // 解析每张幻灯片并生成 Markdown
-          let (markdown, slide_warnings) = process_slides(archive, slide_ids)
-          let final_markdown = markdown.trim().to_string()
+          let (slide_blocks, slide_warnings) = process_slides(
+            archive, slide_ids,
+          )
           let metadata = Map::new()
           metadata["format"] = "pptx"
           metadata["slide_count"] = slide_ids.length().to_string()
+          let (assets, asset_warnings) = extract_pptx_assets(archive)
           let warnings = collect_pptx_warnings(
-            final_markdown, parse_warnings, slide_warnings,
+            parse_warnings, slide_warnings, asset_warnings,
+          )
+          let title = file_stem(file_path)
+          let doc = @ast.Document::{ title, metadata, blocks: slide_blocks }
+          let rendered_markdown = @ast.render_markdown(doc)
+          let markdown_with_assets = append_pptx_asset_gallery(
+            rendered_markdown, assets,
           )
           let diagnostics = pptx_warning_diagnostics(file_path, warnings)
-          @core.ConvertResult::markdown_only(final_markdown, "pptx")
-          .with_title(file_stem(file_path))
+          @core.ConvertResult::markdown_only(markdown_with_assets, "pptx")
+          .with_title(title)
           .with_metadata(metadata)
           .with_warnings(warnings)
           .with_diagnostics(diagnostics)
-          .with_stats(Some(@core.stats_for_markdown(final_markdown)))
+          .with_assets(assets)
+          .with_stats(Some(@core.stats_for_markdown(markdown_with_assets)))
         }
         Err(e) => fail(render_pptx_parse_failure(e, file_path))
       }
@@ -123,9 +132,9 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 
 ///|
 fn collect_pptx_warnings(
-  markdown : String,
   parse_warnings : Array[String],
   slide_warnings : Array[String],
+  asset_warnings : Array[String],
 ) -> Array[String] {
   let warnings : Array[String] = []
   for warning in parse_warnings {
@@ -134,16 +143,89 @@ fn collect_pptx_warnings(
   for warning in slide_warnings {
     warnings.push(warning)
   }
-  if markdown.contains("Unable to read") {
-    warnings.push("Some slide XML files could not be read from the archive.")
-  }
-  if markdown.contains("Parse error") {
-    warnings.push("Some slides could not be parsed as XML.")
-  }
-  if markdown.contains("Failed to decode slide") {
-    warnings.push("Some slides could not be decoded as UTF-8.")
+  for warning in asset_warnings {
+    warnings.push(warning)
   }
   warnings
+}
+
+///|
+fn extract_pptx_assets(
+  archive : @libzip.ZipArchive,
+) -> (Array[@core.OutputAsset], Array[String]) {
+  let assets : Array[@core.OutputAsset] = []
+  let warnings : Array[String] = []
+  let mut index = 1
+  for entry in archive.list_entries() {
+    if entry.has_prefix("ppt/media/") || entry.has_prefix("ppt/embeddings/") {
+      match @libzip.read_file_entry_decompressed(archive, entry) {
+        Some(bytes) => {
+          let prefix = if entry.has_prefix("ppt/media/") {
+            "pptx-image-"
+          } else {
+            "pptx-attachment-"
+          }
+          let filename = prefix +
+            index.to_string() +
+            "." +
+            path_extension(entry)
+          assets.push(@core.OutputAsset::{
+            placeholder: pptx_asset_placeholder(index),
+            filename,
+            bytes,
+            source: Some(@core.ArchiveEntry(entry)),
+            hint: Some(@core.CheckArchiveIntegrity),
+          })
+          index = index + 1
+        }
+        None => warnings.push("Failed to extract PPTX asset: " + entry)
+      }
+    }
+  }
+  (assets, warnings)
+}
+
+///|
+fn append_pptx_asset_gallery(
+  markdown : String,
+  assets : Array[@core.OutputAsset],
+) -> String {
+  if assets.length() == 0 {
+    return markdown
+  }
+  let lines : Array[String] = []
+  if markdown != "" {
+    lines.push(markdown)
+    lines.push("")
+  }
+  lines.push("## Embedded Assets")
+  lines.push("")
+  for asset in assets {
+    if asset.filename.has_prefix("pptx-image-") {
+      lines.push("![" + asset.filename + "](" + asset.placeholder + ")")
+    } else {
+      lines.push("- [" + asset.filename + "](" + asset.placeholder + ")")
+    }
+  }
+  lines.join("\n")
+}
+
+///|
+fn pptx_asset_placeholder(index : Int) -> String {
+  "moonbitmark-raw://pptx/" + index.to_string()
+}
+
+///|
+fn path_extension(path : String) -> String {
+  match find_last_char(path, '.') {
+    Some(index) =>
+      if index + 1 < path.length() {
+        path[index + 1:].to_lower().to_string()
+      } else {
+        "bin"
+      }
+    None => "bin"
+  }
 }
 
 ///|
@@ -280,6 +362,16 @@ fn pptx_warning_diagnostics(
           Some(
             @core.Custom("Inspect malformed slide XML inside the PPTX archive."),
           ),
+        ),
+      )
+    } else if warning.has_prefix("Failed to extract PPTX asset: ") {
+      let path = warning[30:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("asset"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(@core.CheckArchiveIntegrity),
         ),
       )
     }

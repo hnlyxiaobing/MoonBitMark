@@ -42,18 +42,20 @@ pub async fn CsvConverter::convert(file_path : String) -> @core.ConvertResult {
     }
   }
   file.close()
-  let markdown = csv_to_markdown(content)
+  let title = file_stem(file_path)
   let metadata = Map::new()
   metadata["format"] = "csv"
   metadata["row_count"] = csv_row_count(content).to_string()
   metadata["column_count"] = csv_column_count(content).to_string()
+  let doc = csv_to_document(content, title, metadata)
+  let markdown = @ast.render_markdown(doc)
   let warnings : Array[String] = []
   if markdown == "" {
     warnings.push("CSV input produced empty Markdown output.")
   }
   let diagnostics = csv_warning_diagnostics(file_path, markdown)
   @core.ConvertResult::markdown_only(markdown, "csv")
-  .with_title(file_stem(file_path))
+  .with_title(title)
   .with_metadata(metadata)
   .with_warnings(warnings)
   .with_diagnostics(diagnostics)
@@ -61,36 +63,30 @@ pub async fn CsvConverter::convert(file_path : String) -> @core.ConvertResult {
 }
 
 ///|
-/// Helper function to convert CSV content to Markdown
-fn csv_to_markdown(csv : String) -> String {
-  let lines = csv.split("\n")
-  let lines_array = lines.to_array()
-  if lines_array.length() == 0 {
-    return ""
+fn csv_to_document(
+  csv : String,
+  title : String?,
+  metadata : Map[String, String],
+) -> @ast.Document {
+  let blocks : Array[@ast.Block] = []
+  let rows = parse_csv_rows(csv)
+  match rows {
+    [header, .. tail] => blocks.push(@ast.Table(header, tail.to_array()))
+    [] => ()
   }
+  @ast.Document::{ title, metadata, blocks }
+}
 
-  let markdown_lines = Array::new()
-  let mut is_header = true
-
-  for line in lines_array {
+///|
+fn parse_csv_rows(csv : String) -> Array[Array[String]] {
+  let rows : Array[Array[String]] = []
+  for line in csv.split("\n").to_array() {
     if line.trim() == "" {
       continue
     }
-
-    let cells_iter = line.split(",")
-    let cells_array = cells_iter.to_array()
-    let row = "| " + cells_array.join(" | ") + " |"
-    markdown_lines.push(row)
-
-    if is_header {
-      let separators = cells_array.map(fn(_) { "---" })
-      let separator = "| " + separators.join(" | ") + " |"
-      markdown_lines.push(separator)
-      is_header = false
-    }
+    rows.push(line.split(",").to_array().map(cell => cell.to_string()))
   }
-
-  markdown_lines.join("\n")
+  rows
 }
 
 ///|

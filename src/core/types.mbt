@@ -15,8 +15,18 @@ pub(all) struct ConvertResult {
   metadata : Map[String, String]
   warnings : Array[String]
   diagnostics : Array[ConversionDiagnostic]
+  assets : Array[OutputAsset]
   source_type : String
   stats : ConvertStats?
+} derive(Show, Eq, ToJson)
+
+///|
+pub(all) struct OutputAsset {
+  placeholder : String
+  filename : String
+  bytes : Bytes
+  source : DiagnosticSource?
+  hint : DiagnosticHint?
 } derive(Show, Eq, ToJson)
 
 ///|
@@ -87,6 +97,7 @@ pub fn ConvertResult::markdown_only(
     metadata: Map::new(),
     warnings: [],
     diagnostics: [],
+    assets: [],
     source_type,
     stats: None,
   }
@@ -122,6 +133,14 @@ pub fn ConvertResult::with_diagnostics(
   diagnostics : Array[ConversionDiagnostic],
 ) -> ConvertResult {
   { ..self, diagnostics, }
+}
+
+///|
+pub fn ConvertResult::with_assets(
+  self : ConvertResult,
+  assets : Array[OutputAsset],
+) -> ConvertResult {
+  { ..self, assets, }
 }
 
 ///|

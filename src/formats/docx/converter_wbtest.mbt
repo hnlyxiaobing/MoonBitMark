@@ -5,7 +5,7 @@ test "docx file stem helper" {
 
 ///|
 test "docx warning diagnostics target document xml" {
-  let diagnostics = docx_warning_diagnostics("demo.docx", "")
+  let diagnostics = docx_warning_diagnostics("demo.docx", true, [])
   inspect(diagnostics.length(), content="1")
   inspect(
     diagnostics[0].render(),

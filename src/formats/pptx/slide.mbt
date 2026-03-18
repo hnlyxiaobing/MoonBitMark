@@ -5,20 +5,16 @@
 pub fn process_slides(
   archive : @libzip.ZipArchive,
   slide_refs : Array[SlideRef],
-) -> (String, Array[String]) {
-  let mut markdown = ""
+) -> (Array[@ast.Block], Array[String]) {
+  let blocks : Array[@ast.Block] = []
   let warnings : Array[String] = []
 
-  // 如果没有幻灯片，返回提示
   if slide_refs.length() == 0 {
-    return ("<!-- No slides found in presentation -->", warnings)
+    return (blocks, warnings)
   }
 
   for slide_ref in slide_refs {
-    // 使用关系文件中获取的路径
     let slide_path = slide_ref.slide_path
-
-    // 读取幻灯片内容
     match @libzip.read_file_entry_decompressed(archive, slide_path) {
       Some(xml_bytes) => {
         let xml_string = @utf8.decode(xml_bytes) catch {
@@ -28,10 +24,8 @@ pub fn process_slides(
           warnings.push(
             "Failed to decode slide XML as UTF-8: Slide \{slide_ref.slide_num} (\{slide_path}).",
           )
-          markdown = markdown +
-            "<!-- Failed to decode slide \{slide_ref.slide_num} -->"
         } else {
-          let (slide_md, slide_warning) = process_slide_xml(
+          let (slide_blocks, slide_warning) = process_slide_xml(
             xml_string,
             slide_ref.slide_num,
             slide_path,
@@ -40,21 +34,19 @@ pub fn process_slides(
             Some(warning) => warnings.push(warning)
             None => ()
           }
-          markdown = markdown + slide_md
+          for block in slide_blocks {
+            blocks.push(block)
+          }
         }
       }
-      None => {
-        // 幻灯片文件不存在，跳过
+      None =>
         warnings.push(
           "Failed to read slide XML: Slide \{slide_ref.slide_num} (\{slide_path}).",
         )
-        markdown = markdown +
-          "\n\n<!-- Slide \{slide_ref.slide_num}: Unable to read \{slide_path} -->\n"
-      }
     }
   }
 
-  (markdown, warnings)
+  (blocks, warnings)
 }
 
 ///|
@@ -63,17 +55,15 @@ fn process_slide_xml(
   xml : String,
   slide_num : Int,
   slide_path : String,
-) -> (String, String?) {
+) -> (Array[@ast.Block], String?) {
   match @xml.parse_xml(xml) {
     Ok(events) => {
-      // 添加幻灯片分隔符
-      let header = "\n\n<!-- Slide number: \{slide_num} -->\n"
-      let content = extract_slide_content(events)
-      (header + content, None)
+      let blocks = extract_slide_blocks(events, slide_num)
+      (blocks, None)
     }
     Err(_) =>
       (
-        "<!-- Slide \{slide_num}: Parse error -->\n",
+        [],
         Some("Failed to parse slide XML: Slide \{slide_num} (\{slide_path})."),
       )
   }
@@ -84,18 +74,20 @@ fn process_slide_xml(
 priv struct SlideContext {
   mut in_text : Bool
   mut current_text : String
-  mut result : String
   mut is_title : Bool
+  blocks : Array[@ast.Block]
 }
 
 ///|
-/// 从幻灯片 XML 事件中提取内容
-fn extract_slide_content(events : Array[@xml.ParseEvent]) -> String {
+fn extract_slide_blocks(
+  events : Array[@xml.ParseEvent],
+  slide_num : Int,
+) -> Array[@ast.Block] {
   let ctx = SlideContext::{
     in_text: false,
     current_text: "",
-    result: "",
     is_title: false,
+    blocks: [@ast.Heading(2, "Slide " + slide_num.to_string())],
   }
 
   for event in events {
@@ -109,7 +101,7 @@ fn extract_slide_content(events : Array[@xml.ParseEvent]) -> String {
     }
   }
 
-  ctx.result
+  ctx.blocks
 }
 
 ///|
@@ -151,9 +143,9 @@ fn handle_slide_element_end(ctx : SlideContext, name : String) -> Unit {
   } else if local_name == "p" {
     if ctx.current_text.length() > 0 {
       if ctx.is_title {
-        ctx.result = ctx.result + "# " + ctx.current_text + "\n\n"
+        ctx.blocks.push(@ast.Heading(3, ctx.current_text))
       } else {
-        ctx.result = ctx.result + ctx.current_text + "\n\n"
+        ctx.blocks.push(@ast.text_paragraph(ctx.current_text))
       }
     }
     ctx.current_text = ""

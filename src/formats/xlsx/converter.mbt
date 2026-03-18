@@ -56,14 +56,14 @@ pub async fn XlsxConverter::convert(file_path : String) -> @core.ConvertResult {
       // Parse shared strings
       let (shared_strings, helper_warnings_a) = parse_shared_strings(archive)
       // Parse each sheet and generate markdown
-      let (markdown, helper_warnings_b) = generate_markdown(
+      let (blocks, helper_warnings_b) = generate_blocks(
         archive, sheets, shared_strings,
       )
-      let final_markdown = markdown.trim().to_string()
       let metadata = Map::new()
       metadata["format"] = "xlsx"
       metadata["sheet_count"] = sheets.length().to_string()
       metadata["shared_string_count"] = shared_strings.length().to_string()
+      let (assets, asset_warnings) = extract_xlsx_assets(archive)
       let warnings : Array[String] = []
       for warning in helper_warnings_a {
         warnings.push(warning)
@@ -71,19 +71,29 @@ pub async fn XlsxConverter::convert(file_path : String) -> @core.ConvertResult {
       for warning in helper_warnings_b {
         warnings.push(warning)
       }
+      for warning in asset_warnings {
+        warnings.push(warning)
+      }
       if sheets.length() == 0 {
         warnings.push("No sheets discovered in xl/workbook.xml.")
       }
-      if final_markdown == "" {
+      let title = file_stem(file_path)
+      let doc = @ast.Document::{ title, metadata, blocks }
+      let rendered_markdown = @ast.render_markdown(doc)
+      if rendered_markdown == "" {
         warnings.push("XLSX conversion produced empty Markdown output.")
       }
+      let markdown_with_assets = append_xlsx_asset_gallery(
+        rendered_markdown, assets,
+      )
       let diagnostics = xlsx_warning_diagnostics(file_path, warnings)
-      @core.ConvertResult::markdown_only(final_markdown, "xlsx")
-      .with_title(file_stem(file_path))
+      @core.ConvertResult::markdown_only(markdown_with_assets, "xlsx")
+      .with_title(title)
       .with_metadata(metadata)
       .with_warnings(warnings)
       .with_diagnostics(diagnostics)
-      .with_stats(Some(@core.stats_for_markdown(final_markdown)))
+      .with_assets(assets)
+      .with_stats(Some(@core.stats_for_markdown(markdown_with_assets)))
     }
     None =>
       fail(
@@ -267,33 +277,31 @@ fn extract_shared_strings(events : Array[@xml.ParseEvent]) -> Array[String] {
 }
 
 ///|
-/// Generate Markdown from all sheets
-fn generate_markdown(
+/// Generate AST blocks from all sheets
+fn generate_blocks(
   archive : @libzip.ZipArchive,
   sheets : Array[(String, String)],
   shared_strings : Array[String],
-) -> (String, Array[String]) {
-  // First, get sheet path mapping from workbook.xml.rels
+) -> (Array[@ast.Block], Array[String]) {
   let (sheet_paths, warnings) = parse_sheet_paths(archive)
+  let blocks : Array[@ast.Block] = []
 
-  let markdown_parts : Array[String] = []
-
-  // Iterate over sheets array
   let mut idx = 0
   while idx < sheets.length() {
     let (sheet_name, rid) = sheets[idx]
-    // Find sheet path by r:id
     let sheet_path = find_sheet_path(rid, sheet_paths)
     match sheet_path {
       Some(path) => {
-        let (sheet_md, sheet_warnings) = parse_worksheet_to_markdown(
+        let (sheet_blocks, sheet_warnings) = parse_worksheet_to_blocks(
           archive, path, sheet_name, shared_strings,
         )
         for warning in sheet_warnings {
           warnings.push(warning)
         }
-        let header = "## " + sheet_name + "\n\n"
-        markdown_parts.push(header + sheet_md)
+        blocks.push(@ast.Heading(2, sheet_name))
+        for block in sheet_blocks {
+          blocks.push(block)
+        }
       }
       None =>
         warnings.push(
@@ -303,7 +311,7 @@ fn generate_markdown(
     idx = idx + 1
   }
 
-  (markdown_parts.join("\n\n"), warnings)
+  (blocks, warnings)
 }
 
 ///|
@@ -365,14 +373,12 @@ fn find_sheet_path(rid : String, paths : Map[String, String]) -> String? {
 }
 
 ///|
-/// Parse a single worksheet and convert to Markdown
-fn parse_worksheet_to_markdown(
+fn parse_worksheet_to_blocks(
   archive : @libzip.ZipArchive,
   sheet_path : String,
   sheet_name : String,
   shared_strings : Array[String],
-) -> (String, Array[String]) {
-  // Ensure path starts with xl/
+) -> (Array[@ast.Block], Array[String]) {
   let full_path = if sheet_path.has_prefix("xl/") {
     sheet_path
   } else {
@@ -384,7 +390,7 @@ fn parse_worksheet_to_markdown(
       let xml_string = @utf8.decode(xml_bytes) catch {
         _ =>
           return (
-            "",
+            [],
             [
               "Failed to decode worksheet XML as UTF-8: \{sheet_name} (\{full_path}).",
             ],
@@ -393,14 +399,14 @@ fn parse_worksheet_to_markdown(
       match @xml.parse_xml(xml_string) {
         Ok(events) => {
           let sheet_data = extract_sheet_data(events, shared_strings)
-          (sheet_data_to_markdown(sheet_data), [])
+          (sheet_data_to_blocks(sheet_data), [])
         }
         Err(_) =>
-          ("", ["Failed to parse worksheet XML: \{sheet_name} (\{full_path})."])
+          ([], ["Failed to parse worksheet XML: \{sheet_name} (\{full_path})."])
       }
     }
     None =>
-      ("", ["Failed to read worksheet XML: \{sheet_name} (\{full_path})."])
+      ([], ["Failed to read worksheet XML: \{sheet_name} (\{full_path})."])
   }
 }
 
@@ -570,38 +576,26 @@ fn cell_ref_to_col_index(cell_ref : String) -> Int {
 }
 
 ///|
-/// Convert sheet data to Markdown table
-fn sheet_data_to_markdown(data : SheetData) -> String {
+fn sheet_data_to_blocks(data : SheetData) -> Array[@ast.Block] {
+  let blocks : Array[@ast.Block] = []
   if data.rows.is_empty() {
-    return "*(Empty sheet)*"
+    blocks.push(@ast.text_paragraph("*(Empty sheet)*"))
+    return blocks
   }
-
-  let mut markdown = ""
   let col_count = data.max_cols
-
-  // Generate rows
-  let mut row_idx = 0
+  let normalized_rows : Array[Array[String]] = []
   for row in data.rows {
-    // Extend row to match max columns
     let extended_row = row
     while extended_row.length() < col_count {
       extended_row.push("")
     }
-
-    // Format row
-    let row_str = "| " + extended_row.join(" | ") + " |"
-    markdown = markdown + row_str + "\n"
-
-    // Add separator after first row (header)
-    if row_idx == 0 && data.rows.length() > 1 {
-      let separator = "| " + Array::make(col_count, "---").join(" | ") + " |"
-      markdown = markdown + separator + "\n"
-    }
-
-    row_idx = row_idx + 1
+    normalized_rows.push(extended_row)
   }
-
-  markdown.trim().to_string()
+  match normalized_rows {
+    [header, .. tail] => blocks.push(@ast.Table(header, tail.to_array()))
+    [] => ()
+  }
+  blocks
 }
 
 ///|
@@ -654,6 +648,85 @@ fn find_last_char(s : String, target : Char) -> Int? {
     Some(found)
   } else {
     None
+  }
+}
+
+///|
+fn extract_xlsx_assets(
+  archive : @libzip.ZipArchive,
+) -> (Array[@core.OutputAsset], Array[String]) {
+  let assets : Array[@core.OutputAsset] = []
+  let warnings : Array[String] = []
+  let mut index = 1
+  for entry in archive.list_entries() {
+    if entry.has_prefix("xl/media/") || entry.has_prefix("xl/embeddings/") {
+      match @libzip.read_file_entry_decompressed(archive, entry) {
+        Some(bytes) => {
+          let prefix = if entry.has_prefix("xl/media/") {
+            "xlsx-image-"
+          } else {
+            "xlsx-attachment-"
+          }
+          let filename = prefix +
+            index.to_string() +
+            "." +
+            path_extension(entry)
+          assets.push(@core.OutputAsset::{
+            placeholder: xlsx_asset_placeholder(index),
+            filename,
+            bytes,
+            source: Some(@core.ArchiveEntry(entry)),
+            hint: Some(@core.CheckArchiveIntegrity),
+          })
+          index = index + 1
+        }
+        None => warnings.push("Failed to extract XLSX asset: " + entry)
+      }
+    }
+  }
+  (assets, warnings)
+}
+
+///|
+fn append_xlsx_asset_gallery(
+  markdown : String,
+  assets : Array[@core.OutputAsset],
+) -> String {
+  if assets.length() == 0 {
+    return markdown
+  }
+  let lines : Array[String] = []
+  if markdown != "" {
+    lines.push(markdown)
+    lines.push("")
+  }
+  lines.push("## Embedded Assets")
+  lines.push("")
+  for asset in assets {
+    if asset.filename.has_prefix("xlsx-image-") {
+      lines.push("![" + asset.filename + "](" + asset.placeholder + ")")
+    } else {
+      lines.push("- [" + asset.filename + "](" + asset.placeholder + ")")
+    }
+  }
+  lines.join("\n")
+}
+
+///|
+fn xlsx_asset_placeholder(index : Int) -> String {
+  "moonbitmark-raw://xlsx/" + index.to_string()
+}
+
+///|
+fn path_extension(path : String) -> String {
+  match find_last_char(path, '.') {
+    Some(index) =>
+      if index + 1 < path.length() {
+        path[index + 1:].to_lower().to_string()
+      } else {
+        "bin"
+      }
+    None => "bin"
   }
 }
 
@@ -796,6 +869,16 @@ fn xlsx_warning_diagnostics(
               "Inspect malformed worksheet XML inside the XLSX archive.",
             ),
           ),
+        ),
+      )
+    } else if warning.has_prefix("Failed to extract XLSX asset: ") {
+      let path = warning[30:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("asset"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(@core.CheckArchiveIntegrity),
         ),
       )
     }

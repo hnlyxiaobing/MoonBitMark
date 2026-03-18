@@ -28,6 +28,18 @@ test "xlsx worksheet warning diagnostics target archive entry" {
 }
 
 ///|
+test "xlsx asset warning diagnostics target archive entry" {
+  let diagnostics = xlsx_warning_diagnostics("book.xlsx", [
+    "Failed to extract XLSX asset: xl/media/image1.png",
+  ])
+  inspect(diagnostics.length(), content="1")
+  inspect(
+    diagnostics[0].render(),
+    content="Error: ConverterWarning\n  Phase: load/asset\n  Source: xl/media/image1.png\n  Message: Failed to extract XLSX asset: xl/media/image1.png\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+  )
+}
+
+///|
 test "xlsx typed failure render targets workbook xml" {
   let rendered = render_xlsx_failure(
     @core.ZipError("Failed to read xl/workbook.xml", Some("xl/workbook.xml")),

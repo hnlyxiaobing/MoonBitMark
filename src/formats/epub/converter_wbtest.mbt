@@ -21,6 +21,18 @@ test "epub warning diagnostics classify spine issues" {
 }
 
 ///|
+test "epub warning diagnostics classify asset extraction issues" {
+  let diagnostics = epub_warning_diagnostics([
+    "Failed to extract EPUB asset: OPS/images/cover.jpg",
+  ])
+  inspect(diagnostics.length(), content="1")
+  inspect(
+    diagnostics[0].render(),
+    content="Error: ConverterWarning\n  Phase: load/asset\n  Source: OPS/images/cover.jpg\n  Message: Failed to extract EPUB asset: OPS/images/cover.jpg\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
+  )
+}
+
+///|
 test "epub typed failure render includes archive source" {
   let rendered = render_epub_failure(
     @core.ZipError(

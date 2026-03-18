@@ -41,22 +41,28 @@ pub async fn JsonConverter::convert(file_path : String) -> @core.ConvertResult {
     }
   }
   file.close()
-  let final_trimmed = content.trim_end()
-  // Use Unicode escape for backtick: U+0060
-  let bt = "\u{0060}"
-  let triple_bt = bt + bt + bt
-  let markdown = triple_bt +
-    " json\n" +
-    final_trimmed.to_string() +
-    "\n" +
-    triple_bt
+  let title = file_stem(file_path)
   let metadata = Map::new()
   metadata["format"] = "json"
   metadata["render_mode"] = "code_fence"
+  let doc = json_to_document(content, title, metadata)
+  let markdown = @ast.render_markdown(doc)
   @core.ConvertResult::markdown_only(markdown, "json")
-  .with_title(file_stem(file_path))
+  .with_title(title)
   .with_metadata(metadata)
   .with_stats(Some(@core.stats_for_markdown(markdown)))
+}
+
+///|
+fn json_to_document(
+  content : String,
+  title : String?,
+  metadata : Map[String, String],
+) -> @ast.Document {
+  let blocks : Array[@ast.Block] = [
+    @ast.CodeBlock(Some("json"), content.trim_end().to_string()),
+  ]
+  @ast.Document::{ title, metadata, blocks }
 }
 
 ///|

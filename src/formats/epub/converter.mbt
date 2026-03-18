@@ -12,15 +12,6 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 }
 
 ///|
-/// 从 Option[String] 获取标题，默认为空字符串
-fn get_title(title : String?) -> String {
-  match title {
-    Some(t) => t
-    None => ""
-  }
-}
-
-///|
 /// Helper function to find the last occurrence of a character
 
 ///|
@@ -96,21 +87,7 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
             Some(opf_data) => {
               let epub_pkg = parse_opf(opf_data)
               let warnings : Array[String] = []
-
-              // Build content
-              let mut result = "# "
-              result = result + get_title(epub_pkg.metadata.title) + "\n\n"
-
-              // Add metadata
-              match epub_pkg.metadata.authors {
-                authors if authors.length() > 0 =>
-                  result = result + "**Author:** " + authors[0] + "\n\n"
-                _ => ignore(())
-              }
-              match epub_pkg.metadata.language {
-                Some(lang) => result = result + "**Language:** " + lang + "\n\n"
-                None => ignore(())
-              }
+              let blocks = build_epub_blocks(epub_pkg.metadata)
 
               // Process spine items
               for item in epub_pkg.spine {
@@ -124,7 +101,9 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
                     }
                     match @libzip.read_file_entry_decompressed(zip, full_path) {
                       Some(content) =>
-                        result = result + parse_xhtml(content) + "\n\n"
+                        for block in parse_xhtml_blocks(content) {
+                          blocks.push(block)
+                        }
                       None =>
                         warnings.push(
                           "Missing spine resource in archive: " + full_path,
@@ -138,17 +117,26 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
                 }
               }
 
-              let markdown = result.trim().to_string()
               let metadata = metadata_of_epub(epub_pkg.metadata, opf_path)
               let title = epub_pkg.metadata.title
+              let (assets, asset_warnings) = extract_epub_assets(
+                zip,
+                epub_pkg.manifest,
+                opf_dir,
+              )
+              for warning in asset_warnings {
+                warnings.push(warning)
+              }
               let diagnostics = epub_warning_diagnostics(warnings)
-              let doc = @ast.document_of_markdownish(markdown, title, metadata)
+              let final_blocks = append_epub_asset_blocks(blocks, assets)
+              let doc = @ast.Document::{ title, metadata, blocks: final_blocks }
               let rendered_markdown = @ast.render_markdown(doc)
               @core.ConvertResult::markdown_only(rendered_markdown, "epub")
               .with_title(title)
               .with_metadata(metadata)
               .with_warnings(warnings)
               .with_diagnostics(diagnostics)
+              .with_assets(assets)
               .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
             }
             None =>
@@ -351,7 +339,25 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
 }
 
 ///|
-fn parse_xhtml(data : Bytes) -> String {
+fn build_epub_blocks(metadata : EpubMetadata) -> Array[@ast.Block] {
+  let blocks : Array[@ast.Block] = []
+  match metadata.title {
+    Some(title) if title != "" => blocks.push(@ast.Heading(1, title))
+    _ => ()
+  }
+  match metadata.authors {
+    [author, ..] => blocks.push(@ast.text_paragraph("**Author:** " + author))
+    [] => ()
+  }
+  match metadata.language {
+    Some(lang) => blocks.push(@ast.text_paragraph("**Language:** " + lang))
+    None => ()
+  }
+  blocks
+}
+
+///|
+fn parse_xhtml_blocks(data : Bytes) -> Array[@ast.Block] {
   // 使用 UTF-8 解码
   let xml_string = @utf8.decode(data) catch {
     _ => {
@@ -367,35 +373,107 @@ fn parse_xhtml(data : Bytes) -> String {
     }
   }
   match @xml.parse_xml(xml_string) {
-    Ok(events) => {
-      let mut result = ""
-      let mut in_body = false
+    Ok(events) => extract_xhtml_blocks(events)
+    Err(_) => []
+  }
+}
 
-      for event in events {
-        match event {
-          @xml.ElementStart(evt) => {
-            if evt.name == "body" {
-              in_body = true
-            }
-            if in_body {
-              match evt.name {
-                "h1" => result = result + "\n# "
-                "h2" => result = result + "\n## "
-                "h3" => result = result + "\n### "
-                "p" => result = result + "\n\n"
-                "br" => result = result + "\n"
-                _ => ignore(())
-              }
-            }
+///|
+priv struct EpubXhtmlContext {
+  mut in_body : Bool
+  mut current_tag : String?
+  mut current_text : String
+  blocks : Array[@ast.Block]
+}
+
+///|
+fn extract_xhtml_blocks(events : Array[@xml.ParseEvent]) -> Array[@ast.Block] {
+  let ctx = EpubXhtmlContext::{
+    in_body: false,
+    current_tag: None,
+    current_text: "",
+    blocks: [],
+  }
+  for event in events {
+    match event {
+      @xml.ElementStart(evt) => handle_xhtml_element_start(ctx, evt.name)
+      @xml.ElementEnd(evt) => handle_xhtml_element_end(ctx, evt.name)
+      @xml.TextContent(evt) =>
+        if ctx.in_body {
+          match ctx.current_tag {
+            Some(_) => ctx.current_text = ctx.current_text + evt.content
+            None => ()
           }
-          @xml.ElementEnd(evt) => if evt.name == "body" { in_body = false }
-          @xml.TextContent(evt) => if in_body { result = result + evt.content }
         }
-      }
-
-      result.trim().to_string()
     }
-    Err(_) => ""
+  }
+  ctx.blocks
+}
+
+///|
+fn handle_xhtml_element_start(ctx : EpubXhtmlContext, name : String) -> Unit {
+  let local_name = strip_ns_prefix(name)
+  if local_name == "body" {
+    ctx.in_body = true
+    return
+  }
+  if !ctx.in_body {
+    return
+  }
+  match local_name {
+    "h1" => begin_xhtml_text_block(ctx, "h1")
+    "h2" => begin_xhtml_text_block(ctx, "h2")
+    "h3" => begin_xhtml_text_block(ctx, "h3")
+    "p" => begin_xhtml_text_block(ctx, "p")
+    "br" =>
+      match ctx.current_tag {
+        Some(_) => ctx.current_text = ctx.current_text + "\n"
+        None => ()
+      }
+    _ => ()
+  }
+}
+
+///|
+fn begin_xhtml_text_block(ctx : EpubXhtmlContext, tag : String) -> Unit {
+  finalize_xhtml_block(ctx)
+  ctx.current_tag = Some(tag)
+  ctx.current_text = ""
+}
+
+///|
+fn handle_xhtml_element_end(ctx : EpubXhtmlContext, name : String) -> Unit {
+  let local_name = strip_ns_prefix(name)
+  if local_name == "body" {
+    finalize_xhtml_block(ctx)
+    ctx.in_body = false
+    return
+  }
+  match ctx.current_tag {
+    Some(tag) if tag == local_name => finalize_xhtml_block(ctx)
+    _ => ()
+  }
+}
+
+///|
+fn finalize_xhtml_block(ctx : EpubXhtmlContext) -> Unit {
+  let text = ctx.current_text.trim().to_string()
+  match ctx.current_tag {
+    Some("h1") if text != "" => ctx.blocks.push(@ast.Heading(1, text))
+    Some("h2") if text != "" => ctx.blocks.push(@ast.Heading(2, text))
+    Some("h3") if text != "" => ctx.blocks.push(@ast.Heading(3, text))
+    Some("p") if text != "" => ctx.blocks.push(@ast.text_paragraph(text))
+    _ => ()
+  }
+  ctx.current_tag = None
+  ctx.current_text = ""
+}
+
+///|
+fn strip_ns_prefix(name : String) -> String {
+  match name.find(":") {
+    Some(pos) => name[pos + 1:].to_string()
+    None => name
   }
 }
 
@@ -434,6 +512,130 @@ fn metadata_of_epub(
 }
 
 ///|
+fn extract_epub_assets(
+  archive : @libzip.ZipArchive,
+  manifest : Map[String, ManifestItem],
+  opf_dir : String,
+) -> (Array[@core.OutputAsset], Array[String]) {
+  let assets : Array[@core.OutputAsset] = []
+  let warnings : Array[String] = []
+  let mut index = 1
+  for _, item in manifest {
+    if is_epub_asset_media_type(item.media_type) {
+      let archive_path = if opf_dir == "" {
+        item.href
+      } else {
+        opf_dir + "/" + item.href
+      }
+      match @libzip.read_file_entry_decompressed(archive, archive_path) {
+        Some(bytes) => {
+          let filename = "epub-asset-" +
+            index.to_string() +
+            "." +
+            asset_extension(item.href, item.media_type)
+          assets.push(@core.OutputAsset::{
+            placeholder: epub_asset_placeholder(index),
+            filename,
+            bytes,
+            source: Some(@core.ArchiveEntry(archive_path)),
+            hint: Some(@core.CheckArchiveIntegrity),
+          })
+          index = index + 1
+        }
+        None => warnings.push("Failed to extract EPUB asset: " + archive_path)
+      }
+    }
+  }
+  (assets, warnings)
+}
+
+///|
+fn is_epub_asset_media_type(media_type : String) -> Bool {
+  media_type.has_prefix("image/") ||
+  media_type.has_prefix("audio/") ||
+  media_type.has_prefix("video/") ||
+  media_type == "application/pdf" ||
+  media_type == "application/octet-stream"
+}
+
+///|
+fn append_epub_asset_blocks(
+  blocks : Array[@ast.Block],
+  assets : Array[@core.OutputAsset],
+) -> Array[@ast.Block] {
+  if assets.length() == 0 {
+    return blocks
+  }
+  let result = blocks
+  if result.length() > 0 {
+    result.push(@ast.HorizontalRule)
+  }
+  result.push(@ast.Heading(2, "Embedded Assets"))
+  for asset in assets {
+    if is_image_asset_filename(asset.filename) {
+      result.push(
+        @ast.text_paragraph(
+          "![" + asset.filename + "](" + asset.placeholder + ")",
+        ),
+      )
+    } else {
+      result.push(
+        @ast.List(
+          ["[" + asset.filename + "](" + asset.placeholder + ")"],
+          false,
+        ),
+      )
+    }
+  }
+  result
+}
+
+///|
+fn epub_asset_placeholder(index : Int) -> String {
+  "moonbitmark-raw://epub/" + index.to_string()
+}
+
+///|
+fn asset_extension(path : String, media_type : String) -> String {
+  match find_last_char(path, '.') {
+    Some(index) =>
+      if index + 1 < path.length() {
+        path[index + 1:].to_lower().to_string()
+      } else {
+        media_type_extension(media_type)
+      }
+    None => media_type_extension(media_type)
+  }
+}
+
+///|
+fn media_type_extension(media_type : String) -> String {
+  match media_type {
+    "image/jpeg" => "jpg"
+    "image/jpg" => "jpg"
+    "image/png" => "png"
+    "image/gif" => "gif"
+    "image/webp" => "webp"
+    "image/svg+xml" => "svg"
+    "audio/mpeg" => "mp3"
+    "audio/mp4" => "m4a"
+    "video/mp4" => "mp4"
+    "application/pdf" => "pdf"
+    _ => "bin"
+  }
+}
+
+///|
+fn is_image_asset_filename(filename : String) -> Bool {
+  filename.has_suffix(".png") ||
+  filename.has_suffix(".jpg") ||
+  filename.has_suffix(".jpeg") ||
+  filename.has_suffix(".gif") ||
+  filename.has_suffix(".webp") ||
+  filename.has_suffix(".svg")
+}
+
+///|
 fn epub_warning_diagnostics(
   warnings : Array[String],
 ) -> Array[@core.ConversionDiagnostic] {
@@ -461,6 +663,16 @@ fn epub_warning_diagnostics(
               "Check whether every spine idref has a matching manifest item in the OPF.",
             ),
           ),
+        ),
+      )
+    } else if warning.has_prefix("Failed to extract EPUB asset: ") {
+      let path = warning[30:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("asset"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(@core.CheckArchiveIntegrity),
         ),
       )
     }

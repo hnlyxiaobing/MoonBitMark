@@ -76,26 +76,35 @@ pub async fn DocxConverter::convert(file_path : String) -> @core.ConvertResult {
                 ),
               )
           }
-          let markdown = extract_text_from_docx_xml(xml_string, file_path)
-          let final_markdown = markdown.trim().to_string()
+          let content_blocks = extract_blocks_from_docx_xml(
+            xml_string, file_path,
+          )
           let metadata = Map::new()
           metadata["format"] = "docx"
           metadata["container"] = "zip"
+          let (assets, asset_warnings) = extract_docx_media_assets(archive)
           let warnings : Array[String] = []
-          if final_markdown == "" {
+          if content_blocks.length() == 0 && assets.length() == 0 {
             warnings.push("No text content extracted from word/document.xml.")
           }
-          let diagnostics = docx_warning_diagnostics(file_path, final_markdown)
-          let title = file_stem(file_path)
-          let doc = @ast.document_of_markdownish(
-            final_markdown, title, metadata,
+          for warning in asset_warnings {
+            warnings.push(warning)
+          }
+          let diagnostics = docx_warning_diagnostics(
+            file_path,
+            content_blocks.length() == 0 && assets.length() == 0,
+            asset_warnings,
           )
+          let title = file_stem(file_path)
+          let blocks = append_docx_asset_blocks(content_blocks, assets)
+          let doc = @ast.Document::{ title, metadata, blocks }
           let rendered_markdown = @ast.render_markdown(doc)
           @core.ConvertResult::markdown_only(rendered_markdown, "docx")
           .with_title(title)
           .with_metadata(metadata)
           .with_warnings(warnings)
           .with_diagnostics(diagnostics)
+          .with_assets(assets)
           .with_stats(Some(@core.stats_for_markdown(rendered_markdown)))
         }
         None =>
@@ -134,17 +143,12 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 }
 
 ///|
-/// 从 DOCX 的 XML 中提取文本内容
-fn extract_text_from_docx_xml(
+fn extract_blocks_from_docx_xml(
   xml : String,
   _file_path : String,
-) -> String raise {
+) -> Array[@ast.Block] raise {
   match @xml.parse_xml(xml) {
-    Ok(events) => {
-      // 解析 XML 事件，提取文本内容
-      let result = process_docx_events(events)
-      result
-    }
+    Ok(events) => process_docx_events(events)
     Err(_) =>
       fail(
         render_docx_failure(
@@ -169,19 +173,18 @@ priv struct DocxContext {
   mut current_text : String
   mut heading_level : Int
   mut in_list : Bool
-  mut result : String
+  blocks : Array[@ast.Block]
 }
 
 ///|
-/// 处理 DOCX XML 事件
-fn process_docx_events(events : Array[@xml.ParseEvent]) -> String {
+fn process_docx_events(events : Array[@xml.ParseEvent]) -> Array[@ast.Block] {
   let ctx = DocxContext::{
     in_paragraph: false,
     in_text: false,
     current_text: "",
     heading_level: 0,
     in_list: false,
-    result: "",
+    blocks: [],
   }
 
   for event in events {
@@ -196,7 +199,7 @@ fn process_docx_events(events : Array[@xml.ParseEvent]) -> String {
     }
   }
 
-  ctx.result
+  ctx.blocks
 }
 
 ///|
@@ -268,20 +271,12 @@ fn handle_element_end(ctx : DocxContext, name : String) -> Unit {
     ctx.in_paragraph = false
 
     if ctx.current_text.length() > 0 {
-      // 添加标题标记
       if ctx.heading_level > 0 {
-        let mut prefix = ""
-        let mut i = 0
-        while i < ctx.heading_level {
-          prefix = prefix + "#"
-          i = i + 1
-        }
-        ctx.result = ctx.result + prefix + " " + ctx.current_text + "\n\n"
+        ctx.blocks.push(@ast.Heading(ctx.heading_level, ctx.current_text))
       } else if ctx.in_list {
-        // 添加列表标记
-        ctx.result = ctx.result + "- " + ctx.current_text + "\n\n"
+        ctx.blocks.push(@ast.List([ctx.current_text], false))
       } else {
-        ctx.result = ctx.result + ctx.current_text + "\n\n"
+        ctx.blocks.push(@ast.text_paragraph(ctx.current_text))
       }
       ctx.current_text = ""
     }
@@ -348,12 +343,85 @@ fn find_last_char(s : String, target : Char) -> Int? {
 }
 
 ///|
+fn extract_docx_media_assets(
+  archive : @libzip.ZipArchive,
+) -> (Array[@core.OutputAsset], Array[String]) {
+  let assets : Array[@core.OutputAsset] = []
+  let warnings : Array[String] = []
+  let mut index = 1
+  for entry in archive.list_entries() {
+    if entry.has_prefix("word/media/") {
+      match @libzip.read_file_entry_decompressed(archive, entry) {
+        Some(bytes) => {
+          let filename = "docx-image-" +
+            index.to_string() +
+            "." +
+            path_extension(entry)
+          assets.push(@core.OutputAsset::{
+            placeholder: docx_asset_placeholder(index),
+            filename,
+            bytes,
+            source: Some(@core.ArchiveEntry(entry)),
+            hint: Some(@core.CheckArchiveIntegrity),
+          })
+          index = index + 1
+        }
+        None => warnings.push("Failed to extract DOCX asset: " + entry)
+      }
+    }
+  }
+  (assets, warnings)
+}
+
+///|
+fn append_docx_asset_blocks(
+  blocks : Array[@ast.Block],
+  assets : Array[@core.OutputAsset],
+) -> Array[@ast.Block] {
+  if assets.length() == 0 {
+    return blocks
+  }
+  let result = blocks
+  if result.length() > 0 {
+    result.push(@ast.HorizontalRule)
+  }
+  result.push(@ast.Heading(2, "Embedded Assets"))
+  for asset in assets {
+    result.push(
+      @ast.text_paragraph(
+        "![" + asset.filename + "](" + asset.placeholder + ")",
+      ),
+    )
+  }
+  result
+}
+
+///|
+fn docx_asset_placeholder(index : Int) -> String {
+  "moonbitmark-raw://docx/" + index.to_string()
+}
+
+///|
+fn path_extension(path : String) -> String {
+  match find_last_char(path, '.') {
+    Some(index) =>
+      if index + 1 < path.length() {
+        path[index + 1:].to_lower().to_string()
+      } else {
+        "bin"
+      }
+    None => "bin"
+  }
+}
+
+///|
 fn docx_warning_diagnostics(
   _file_path : String,
-  markdown : String,
+  no_content : Bool,
+  warnings : Array[String],
 ) -> Array[@core.ConversionDiagnostic] {
   let diagnostics : Array[@core.ConversionDiagnostic] = []
-  if markdown == "" {
+  if no_content {
     diagnostics.push(
       @core.warning_diagnostic(
         "No text content extracted from word/document.xml.",
@@ -366,6 +434,19 @@ fn docx_warning_diagnostics(
         ),
       ),
     )
+  }
+  for warning in warnings {
+    if warning.has_prefix("Failed to extract DOCX asset: ") {
+      let path = warning[29:].to_string()
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Load(Some("word/media"))),
+          Some(@core.ArchiveEntry(path)),
+          Some(@core.CheckArchiveIntegrity),
+        ),
+      )
+    }
   }
   diagnostics
 }

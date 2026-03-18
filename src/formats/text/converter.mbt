@@ -34,14 +34,32 @@ pub async fn TextConverter::convert(file_path : String) -> @core.ConvertResult {
     content = content + line + "\n"
   }
   file.close()
-  let markdown = content
+  let title = file_stem(file_path)
   let metadata = Map::new()
   metadata["format"] = "plain_text"
-  metadata["line_count"] = count_lines(markdown).to_string()
+  metadata["line_count"] = count_lines(content).to_string()
+  let doc = text_to_document(content, title, metadata)
+  let markdown = @ast.render_markdown(doc)
   @core.ConvertResult::markdown_only(markdown, "text")
-  .with_title(file_stem(file_path))
+  .with_title(title)
   .with_metadata(metadata)
   .with_stats(Some(@core.stats_for_markdown(markdown)))
+}
+
+///|
+fn text_to_document(
+  content : String,
+  title : String?,
+  metadata : Map[String, String],
+) -> @ast.Document {
+  let blocks : Array[@ast.Block] = []
+  for chunk in content.split("\n\n").to_array() {
+    let trimmed = chunk.trim().to_string()
+    if trimmed != "" {
+      blocks.push(@ast.text_paragraph(trimmed))
+    }
+  }
+  @ast.Document::{ title, metadata, blocks }
 }
 
 ///|
