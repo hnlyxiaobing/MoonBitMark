@@ -1,23 +1,27 @@
 {
-  "id": "pptx_quarterly_review",
+  "id": "pptx_simple",
   "format": "pptx",
   "tier": "quality",
-  "input": "tests/conversion_eval/fixtures/inputs/pptx/quarterly_review.pptx",
-  "description": "验证标题、项目符号、顺序和关键数字。",
-  "must_include": ["Q1 Review", "Revenue", "Next Steps"],
-  "must_not_include": ["Click to add title", "Click to add text"],
-  "min_chars": 100,
-  "min_lines": 8,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pptx_quarterly_review.md",
-  "golden_ast": "tests/conversion_eval/fixtures/expected/ast/pptx_quarterly_review.json",
-  "golden_metadata": "tests/conversion_eval/fixtures/expected/metadata/pptx_quarterly_review.json",
+  "input": "tests/conversion_eval/fixtures/inputs/pptx/simple.pptx",
+  "description": "Slide titles and bullet text should stay grouped by slide order.",
+  "must_include": ["Title Slide", "With a subtitle", "Things to think about"],
+  "must_not_include": ["Slide Master", "PowerPoint Presentation"],
+  "min_chars": 80,
+  "min_lines": 6,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pptx_simple.md",
+  "reference_builder": "pptx",
   "checks": {
     "anchors": true,
     "golden_markdown": true,
     "ast_compare": true,
     "table_compare": false,
-    "metadata_check": true,
-    "text_order": true,
-    "diagnostics_check": true
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.25,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.35,
+    "ast_similarity": 0.15,
+    "text_order": 0.15
   }
 }

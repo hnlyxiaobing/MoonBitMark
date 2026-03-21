@@ -11,7 +11,7 @@
     },
     "tier": {
       "type": "string",
-      "enum": ["smoke", "quality", "edge", "regression"]
+      "enum": ["smoke", "quality", "edge", "regression", "regressions"]
     },
     "input": {"type": "string"},
     "description": {"type": "string"},
@@ -20,11 +20,35 @@
     "min_chars": {"type": "integer", "minimum": 0},
     "min_lines": {"type": "integer", "minimum": 0},
     "golden_markdown": {"type": "string"},
-    "golden_ast": {"type": "string"},
-    "golden_metadata": {"type": "string"},
-    "golden_table": {"type": "string"},
-    "checks": {"type": "object"},
-    "weights": {"type": "object"},
+    "reference_builder": {
+      "type": "string",
+      "enum": ["copy", "csv", "docx", "epub", "html", "json", "pptx", "text", "xlsx"]
+    },
+    "reference_source": {"type": "string"},
+    "checks": {
+      "type": "object",
+      "properties": {
+        "anchors": {"type": "boolean"},
+        "golden_markdown": {"type": "boolean"},
+        "ast_compare": {"type": "boolean"},
+        "table_compare": {"type": "boolean"},
+        "text_order": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "weights": {
+      "type": "object",
+      "properties": {
+        "anchors": {"type": "number", "minimum": 0},
+        "noise_control": {"type": "number", "minimum": 0},
+        "length": {"type": "number", "minimum": 0},
+        "markdown_similarity": {"type": "number", "minimum": 0},
+        "ast_similarity": {"type": "number", "minimum": 0},
+        "table_similarity": {"type": "number", "minimum": 0},
+        "text_order": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
     "notes": {"type": "string"}
   },
   "additionalProperties": false

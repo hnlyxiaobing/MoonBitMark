@@ -1,23 +1,27 @@
 {
-  "id": "xlsx_multi_sheet_budget",
+  "id": "xlsx_test_01",
   "format": "xlsx",
   "tier": "quality",
-  "input": "tests/conversion_eval/fixtures/inputs/xlsx/multi_sheet_budget.xlsx",
-  "description": "验证多工作表、关键表头、合并单元格降级和关键数值。",
-  "must_include": ["Summary", "Marketing", "Total Budget"],
-  "must_not_include": ["#REF!"],
-  "min_chars": 120,
+  "input": "tests/conversion_eval/fixtures/inputs/xlsx/test_01.xlsx",
+  "description": "Workbook relationships, shared strings, and multi-sheet tables should render deterministically.",
+  "must_include": ["Sheet1", "Sheet2", "Sheet3", "col-1", "header (f)"],
+  "must_not_include": ["undefined", "xl/workbook.xml"],
+  "min_chars": 150,
   "min_lines": 10,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/xlsx_multi_sheet_budget.md",
-  "golden_table": "tests/conversion_eval/fixtures/expected/tables/xlsx_multi_sheet_budget.json",
-  "golden_metadata": "tests/conversion_eval/fixtures/expected/metadata/xlsx_multi_sheet_budget.json",
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/xlsx_test_01.md",
+  "reference_builder": "xlsx",
   "checks": {
     "anchors": true,
     "golden_markdown": true,
-    "ast_compare": false,
+    "ast_compare": true,
     "table_compare": true,
-    "metadata_check": true,
-    "text_order": false,
-    "diagnostics_check": true
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.15,
+    "table_similarity": 0.25
   }
 }

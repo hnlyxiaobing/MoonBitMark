@@ -1,23 +1,27 @@
 {
-  "id": "html_article_sidebar_noise",
+  "id": "html_simple_table",
   "format": "html",
   "tier": "quality",
-  "input": "tests/conversion_eval/fixtures/inputs/html/article_sidebar_noise.html",
-  "description": "验证正文提取、侧边栏噪声抑制和链接/强调保留。",
-  "must_include": ["Main Article Title", "Key takeaway", "example.com"],
-  "must_not_include": ["Subscribe now", "Related posts", "Cookie settings"],
-  "min_chars": 150,
-  "min_lines": 10,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/html_article_sidebar_noise.md",
-  "golden_ast": "tests/conversion_eval/fixtures/expected/ast/html_article_sidebar_noise.json",
-  "golden_metadata": "tests/conversion_eval/fixtures/expected/metadata/html_article_sidebar_noise.json",
+  "input": "tests/conversion_eval/fixtures/inputs/html/simple_table.html",
+  "description": "HTML table extraction should keep headings, paragraphs, and table cells without HTML remnants.",
+  "must_include": ["Simple Table Test", "Sample Data Table", "Laptop", "Summary Statistics"],
+  "must_not_include": ["<table", "<div", "function("],
+  "min_chars": 100,
+  "min_lines": 8,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/html_simple_table.md",
+  "reference_builder": "html",
   "checks": {
     "anchors": true,
     "golden_markdown": true,
     "ast_compare": true,
-    "table_compare": false,
-    "metadata_check": true,
-    "text_order": false,
-    "diagnostics_check": true
+    "table_compare": true,
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.15,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.15,
+    "table_similarity": 0.2
   }
 }

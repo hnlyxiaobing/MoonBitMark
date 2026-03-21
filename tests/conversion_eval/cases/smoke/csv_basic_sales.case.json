@@ -1,22 +1,27 @@
 {
-  "id": "csv_basic_sales",
+  "id": "csv_stanley_cups",
   "format": "csv",
   "tier": "smoke",
-  "input": "tests/conversion_eval/fixtures/inputs/csv/basic_sales.csv",
-  "description": "验证基础表格转 Markdown 表格，不丢标题和关键金额。",
-  "must_include": ["Region", "Revenue", "North", "1200"],
-  "must_not_include": ["NaN", "undefined"],
+  "input": "tests/conversion_eval/fixtures/inputs/csv/stanley_cups.csv",
+  "description": "Compact CSV benchmark file that should become one stable Markdown table.",
+  "must_include": ["Stanley Cups", "Maple Leafs", "TOR"],
+  "must_not_include": ["undefined", "<table"],
   "min_chars": 40,
   "min_lines": 4,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/csv_basic_sales.md",
-  "golden_table": "tests/conversion_eval/fixtures/expected/tables/csv_basic_sales.json",
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/csv_stanley_cups.md",
+  "reference_builder": "csv",
   "checks": {
     "anchors": true,
     "golden_markdown": true,
-    "ast_compare": false,
+    "ast_compare": true,
     "table_compare": true,
-    "metadata_check": false,
-    "text_order": false,
-    "diagnostics_check": false
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.25,
+    "noise_control": 0.15,
+    "markdown_similarity": 0.35,
+    "ast_similarity": 0.1,
+    "table_similarity": 0.15
   }
 }

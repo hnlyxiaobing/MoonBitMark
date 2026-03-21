@@ -1,23 +1,27 @@
 {
-  "id": "epub_novel_with_images",
+  "id": "epub_winter_sports",
   "format": "epub",
   "tier": "quality",
-  "input": "tests/conversion_eval/fixtures/inputs/epub/novel_with_images.epub",
-  "description": "验证书籍标题、章节顺序、强调、链接和图片导出。",
-  "must_include": ["Chapter 1", "Chapter 2", "Prologue"],
-  "must_not_include": ["META-INF", "container.xml"],
-  "min_chars": 200,
-  "min_lines": 20,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/epub_novel_with_images.md",
-  "golden_ast": "tests/conversion_eval/fixtures/expected/ast/epub_novel_with_images.json",
-  "golden_metadata": "tests/conversion_eval/fixtures/expected/metadata/epub_novel_with_images.json",
+  "input": "tests/conversion_eval/fixtures/inputs/epub/winter_sports.epub",
+  "description": "EPUB spine traversal should preserve title, author context, and long-form chapter content.",
+  "must_include": ["Winter Sports in Switzerland", "Project Gutenberg", "E. F. Benson"],
+  "must_not_include": ["META-INF", "container.xml", "content.opf"],
+  "min_chars": 400,
+  "min_lines": 12,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/epub_winter_sports.md",
+  "reference_builder": "epub",
   "checks": {
     "anchors": true,
     "golden_markdown": true,
     "ast_compare": true,
     "table_compare": false,
-    "metadata_check": true,
-    "text_order": true,
-    "diagnostics_check": true
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "length": 0.1,
+    "markdown_similarity": 0.4,
+    "ast_similarity": 0.2
   }
 }

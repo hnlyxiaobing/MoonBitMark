@@ -162,6 +162,62 @@ suberror MyError { NotFound, InvalidInput(String) }
 - Repo-scoped skills are preferred over user-global variants when both exist,
   because they can be pinned and updated together with this repository.
 
+## Commit And Push Workflow
+
+- When a development round is complete and the user asks to submit the work, use
+  `$moonbitmark-commit-push` to finish the repository state.
+- Before committing, inspect `git status --short`, `git diff --stat`, and
+  `git diff --name-status` so the commit message is based on the actual change
+  scope instead of guessed from filenames alone.
+- Run validation that matches the changed files before committing. For MoonBit
+  source/package changes, prefer `moon info`, `moon fmt`, and `moon test`. For
+  non-MoonBit changes, run the most relevant lightweight verification available.
+- Write commit messages in imperative mood with a concise subject line and a
+  short body that names the main change areas and any important verification.
+- Avoid vague subjects such as `update files`, `misc fixes`, or `cleanup`.
+- Stage the intended repository changes, create the commit with the generated
+  message, and push the current branch to the configured remote.
+- Do not amend, force-push, or rewrite history unless the user explicitly asks
+  for it.
+- If the worktree contains changes that appear unrelated to the current task and
+  the intended commit scope cannot be determined safely, stop and ask the user
+  before creating the commit.
+
+### Commit Skill
+
+- `$moonbitmark-commit-push` is the repo-scoped skill for the final
+  `status -> validation -> commit message -> commit -> push` workflow.
+- Use it when the user asks to "提交", "commit", "push", "提交并推送", or any
+  equivalent finalization request.
+
+## Commit And Push Workflow
+
+- When a development round is complete and the user asks to submit the work, use
+  `$moonbitmark-commit-push` to finish the repository state.
+- Before committing, inspect `git status --short`, `git diff --stat`, and
+  `git diff --name-status` so the commit message is based on the actual change
+  scope instead of guessed from filenames alone.
+- Run validation that matches the changed files before committing. For MoonBit
+  source/package changes, prefer `moon info`, `moon fmt`, and `moon test`. For
+  non-MoonBit changes, run the most relevant lightweight verification available.
+- Write commit messages in imperative mood with a concise subject line and a
+  short body that names the main change areas and any important verification.
+- Avoid vague subjects such as `update files`, `misc fixes`, or `cleanup`.
+- Stage the intended repository changes, create the commit with the generated
+  message, and push the current branch to the configured remote.
+- Do not amend, force-push, or rewrite history unless the user explicitly asks
+  for it.
+- If the worktree contains changes that appear unrelated to the current task and
+  the intended commit scope cannot be determined safely, stop and ask the user
+  before creating the commit.
+
+### Commit Skill
+
+- `$moonbitmark-commit-push` is the repo-scoped skill for the final
+  `status -> validation -> commit message -> commit -> push` workflow.
+- Use it when the user asks to "提交", "commit", "push", "提交并推送", or any
+  equivalent finalization request.
+
 ## Dependencies
 
 - `moonbitlang/async` - File system, HTTP client

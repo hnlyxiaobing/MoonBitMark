@@ -1,0 +1,23 @@
+{
+  "id": "pdf_right_to_left",
+  "format": "pdf",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/right_to_left_01.pdf",
+  "description": "Right-to-left PDF sample for checking Unicode stability and non-empty extraction.",
+  "must_include": ["Python", "R", "ةغلب"],
+  "must_not_include": ["\uFFFD", "<html"],
+  "min_chars": 200,
+  "min_lines": 2,
+  "checks": {
+    "anchors": true,
+    "golden_markdown": false,
+    "ast_compare": false,
+    "table_compare": false,
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.45,
+    "noise_control": 0.3,
+    "length": 0.25
+  }
+}

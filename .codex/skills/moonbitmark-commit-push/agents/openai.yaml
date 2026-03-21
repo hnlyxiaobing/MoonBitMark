@@ -1,0 +1,4 @@
+interface:
+  display_name: "MoonBitMark Commit Push"
+  short_description: "Commit and push MoonBitMark task changes"
+  default_prompt: "Use $moonbitmark-commit-push to validate, commit, and push the current MoonBitMark changes."

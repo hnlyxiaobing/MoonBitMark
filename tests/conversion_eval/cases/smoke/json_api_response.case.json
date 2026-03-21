@@ -1,21 +1,26 @@
 {
-  "id": "json_api_response",
+  "id": "json_simple",
   "format": "json",
   "tier": "smoke",
-  "input": "tests/conversion_eval/fixtures/inputs/json/api_response.json",
-  "description": "验证 JSON 键值转文本时不丢关键字段。",
-  "must_include": ["status", "user", "items", "true"],
-  "must_not_include": ["undefined"],
-  "min_chars": 50,
-  "min_lines": 5,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/json_api_response.md",
+  "input": "tests/conversion_eval/fixtures/inputs/json/simple.json",
+  "description": "JSON should remain lossless and stay inside a Markdown code fence.",
+  "must_include": ["These are a few of my favorite things:", "Parrots", "Analysis"],
+  "must_not_include": ["Traceback", "<html"],
+  "min_chars": 200,
+  "min_lines": 8,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/json_simple.md",
+  "reference_builder": "json",
   "checks": {
     "anchors": true,
     "golden_markdown": true,
-    "ast_compare": false,
+    "ast_compare": true,
     "table_compare": false,
-    "metadata_check": false,
-    "text_order": false,
-    "diagnostics_check": false
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.55,
+    "ast_similarity": 0.15
   }
 }

@@ -1,15 +1,14 @@
 # Scripts
 
-后续建议把脚本放在这里，例如：
+此目录当前使用一个主入口脚本：
 
-- `run_smoke.ps1`
-- `run_quality.ps1`
-- `update_golden.ps1`
-- `compare_with_markitdown.ps1`
-- `compare_with_docling.ps1`
+- `run_eval.py`
 
-第一阶段只需要先实现：
+支持的子命令：
 
-- 读取 `cases/**/*.case.json`
-- 调用 MoonBitMark CLI
-- 产出 `reports/latest/*.json`
+- `sync`：同步 benchmark 子集到 `fixtures/inputs/`
+- `prepare`：生成/刷新 reference markdown
+- `run`：执行 MoonBitMark 评测并输出报告
+- `all`：按 `sync -> prepare -> run` 全流程执行
+
+推荐直接通过仓库根目录的 `scripts/run_conversion_eval.ps1` 调用。

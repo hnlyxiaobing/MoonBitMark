@@ -1,0 +1,27 @@
+{
+  "id": "docx_unit_test_lists",
+  "format": "docx",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/docx/unit_test_lists.docx",
+  "description": "List-heavy DOCX sample for validating ordered grouping and nested bullet retention.",
+  "must_include": ["Test Document", "Test 1:", "List item 1", "List item a", "List item 1.1"],
+  "must_not_include": ["w:document", "xmlns:w", "Normal.dotm"],
+  "min_chars": 120,
+  "min_lines": 10,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/docx_unit_test_lists.md",
+  "reference_builder": "docx",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.2,
+    "text_order": 0.2
+  }
+}

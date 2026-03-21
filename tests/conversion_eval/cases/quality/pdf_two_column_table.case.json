@@ -1,23 +1,24 @@
 {
-  "id": "pdf_two_column_table",
+  "id": "pdf_multi_page",
   "format": "pdf",
   "tier": "quality",
-  "input": "tests/conversion_eval/fixtures/inputs/pdf/two_column_table.pdf",
-  "description": "验证双栏文本顺序、表格和关键锚点提取。",
-  "must_include": ["Abstract", "Methods", "Results", "Conclusion"],
-  "must_not_include": ["Acrobat", "Print to PDF"],
-  "min_chars": 200,
-  "min_lines": 15,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pdf_two_column_table.md",
-  "golden_table": "tests/conversion_eval/fixtures/expected/tables/pdf_two_column_table.json",
-  "golden_metadata": "tests/conversion_eval/fixtures/expected/metadata/pdf_two_column_table.json",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/multi_page.pdf",
+  "description": "Multi-page PDF should keep long-form prose, section breaks, and key anchors across pages.",
+  "must_include": ["The Evolution of the Word Processor", "Google Docs (2006)", "Track Changes"],
+  "must_not_include": ["\uFFFD", "Acrobat", "<html"],
+  "min_chars": 1200,
+  "min_lines": 20,
   "checks": {
     "anchors": true,
-    "golden_markdown": true,
+    "golden_markdown": false,
     "ast_compare": false,
-    "table_compare": true,
-    "metadata_check": true,
-    "text_order": true,
-    "diagnostics_check": true
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.35,
+    "noise_control": 0.25,
+    "length": 0.2,
+    "text_order": 0.2
   }
 }

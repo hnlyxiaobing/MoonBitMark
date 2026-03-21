@@ -1,0 +1,60 @@
+{
+  "benchmark_root_hint": "D:/MySoftware/MoonBit/python-text-extraction-libs-benchmarks",
+  "sources": [
+    {
+      "id": "csv_stanley_cups",
+      "source": "test_documents/csv_json_yaml/stanley-cups.csv",
+      "dest": "tests/conversion_eval/fixtures/inputs/csv/stanley_cups.csv"
+    },
+    {
+      "id": "json_simple",
+      "source": "test_documents/csv_json_yaml/simple.json",
+      "dest": "tests/conversion_eval/fixtures/inputs/json/simple.json"
+    },
+    {
+      "id": "text_fake_text",
+      "source": "test_documents/text/fake-text.txt",
+      "dest": "tests/conversion_eval/fixtures/inputs/text/fake_text.txt"
+    },
+    {
+      "id": "html_simple_table",
+      "source": "test_documents/html/simple-table.html",
+      "dest": "tests/conversion_eval/fixtures/inputs/html/simple_table.html"
+    },
+    {
+      "id": "docx_unit_test_headers",
+      "source": "test_documents/office/unit_test_headers.docx",
+      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers.docx"
+    },
+    {
+      "id": "docx_unit_test_lists",
+      "source": "test_documents/office/unit_test_lists.docx",
+      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_lists.docx"
+    },
+    {
+      "id": "epub_winter_sports",
+      "source": "test_documents/office/winter-sports.epub",
+      "dest": "tests/conversion_eval/fixtures/inputs/epub/winter_sports.epub"
+    },
+    {
+      "id": "pdf_multi_page",
+      "source": "test_documents/pdfs/multi_page.pdf",
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/multi_page.pdf"
+    },
+    {
+      "id": "pdf_right_to_left",
+      "source": "test_documents/pdfs/right_to_left_01.pdf",
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/right_to_left_01.pdf"
+    },
+    {
+      "id": "pptx_simple",
+      "source": "test_documents/office/simple.pptx",
+      "dest": "tests/conversion_eval/fixtures/inputs/pptx/simple.pptx"
+    },
+    {
+      "id": "xlsx_test_01",
+      "source": "test_documents/office/test-01.xlsx",
+      "dest": "tests/conversion_eval/fixtures/inputs/xlsx/test_01.xlsx"
+    }
+  ]
+}

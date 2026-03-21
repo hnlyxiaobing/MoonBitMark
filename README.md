@@ -97,14 +97,10 @@ main.exe [options] <input> [output]
 Windows native 构建依赖：
 
 - MSVC Build Tools 2022
-- `vcpkg`
-- 环境变量 `VCPKG_ROOT`
-- 可选环境变量 `VCPKG_TRIPLET`，默认 `x64-windows`
 
 推荐命令：
 
 ```bat
-set VCPKG_ROOT=C:\vcpkg
 scripts\build.bat
 scripts\test.bat
 ```
@@ -175,7 +171,7 @@ pwsh -File scripts/benchmark.ps1 -InputPath <your-input-file> -Iterations 10
 - CLI 已支持 `--diag-json`、`--detect-only` 与 `--dump-ast`
 - diagnostics / metadata / stats / AST 已统一为主干协议
 - 提供了最小 demo 与 benchmark 脚本
-- Windows native 构建已去掉仓库内绝对 vcpkg 路径
+- Windows native 构建与测试已不再依赖 `vcpkg` / `zip.lib` / `libexpat.lib`
 
 ## 已知限制
 

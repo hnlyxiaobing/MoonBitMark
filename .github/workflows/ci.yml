@@ -19,15 +19,6 @@ jobs:
       - name: Set up MSVC developer shell
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Set up vcpkg dependencies
-        shell: pwsh
-        run: |
-          if (!(Test-Path 'C:\vcpkg')) {
-            git clone https://github.com/microsoft/vcpkg C:\vcpkg
-          }
-          & C:\vcpkg\bootstrap-vcpkg.bat
-          & C:\vcpkg\vcpkg.exe install libzip expat:x64-windows
-
       - name: Set up MoonBit
         shell: bash
         run: |

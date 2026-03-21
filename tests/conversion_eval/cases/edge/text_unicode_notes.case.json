@@ -1,21 +1,28 @@
 {
-  "id": "text_unicode_notes",
+  "id": "text_fake_text",
   "format": "text",
   "tier": "edge",
-  "input": "tests/conversion_eval/fixtures/inputs/text/unicode_notes.txt",
-  "description": "验证 Unicode、空行和基本文本保持。",
-  "must_include": ["你好", "Résumé", "Δx"],
-  "must_not_include": ["�"],
-  "min_chars": 20,
-  "min_lines": 3,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/text_unicode_notes.md",
+  "input": "tests/conversion_eval/fixtures/inputs/text/fake_text.txt",
+  "description": "Plain text should preserve paragraphs and bullet-like lines without introducing markup noise.",
+  "must_include": ["This is a test document", "Doylestown, PA 18901", "Hamburgers are delicious"],
+  "must_not_include": ["\uFFFD", "<html"],
+  "min_chars": 80,
+  "min_lines": 5,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/text_fake_text.md",
+  "reference_builder": "text",
   "checks": {
     "anchors": true,
     "golden_markdown": true,
-    "ast_compare": false,
+    "ast_compare": true,
     "table_compare": false,
-    "metadata_check": false,
-    "text_order": false,
-    "diagnostics_check": false
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "length": 0.1,
+    "markdown_similarity": 0.35,
+    "ast_similarity": 0.15,
+    "text_order": 0.1
   }
 }

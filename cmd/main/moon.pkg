@@ -9,5 +9,4 @@ import {
 
 options(
   "is-main": true,
-  link: { "native": { "cc-link-flags": "zip.lib libexpat.lib" } },
 )
