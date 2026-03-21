@@ -8,6 +8,7 @@ import html
 from html.parser import HTMLParser
 import importlib.util
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -31,6 +32,18 @@ HISTORY_REPORT_DIR = EVAL_ROOT / "reports" / "history"
 SUPPORTED_FORMATS = {"csv", "docx", "epub", "html", "json", "pdf", "pptx", "text", "xlsx"}
 SUPPORTED_TIERS = {"smoke", "quality", "edge", "regression", "regressions"}
 SUPPORTED_REFERENCE_BUILDERS = {"copy", "csv", "docx", "epub", "html", "json", "pptx", "text", "xlsx"}
+BASELINE_SUPPORTED_FORMATS = {
+    "markitdown": {"csv", "docx", "epub", "html", "json", "pdf", "pptx", "text", "xlsx"},
+    "docling": {"csv", "docx", "html", "pdf", "pptx", "xlsx"},
+}
+DOCLING_INPUT_FORMATS = {
+    "csv": "CSV",
+    "docx": "DOCX",
+    "html": "HTML",
+    "pdf": "PDF",
+    "pptx": "PPTX",
+    "xlsx": "XLSX",
+}
 
 
 @dataclass
@@ -786,29 +799,76 @@ def pass_fail_summary(case: CaseSpec, metrics: dict[str, float]) -> dict[str, bo
     return summary
 
 
+def configure_stdio_utf8() -> None:
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is not None and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def baseline_availability(tool: str) -> bool:
     return importlib.util.find_spec(tool) is not None
 
 
-def compare_baseline(tool: str, input_path: Path, reference_markdown: str | None) -> tuple[float | None, str | None]:
+def baseline_supports_format(tool: str, format_name: str) -> bool:
+    return format_name in BASELINE_SUPPORTED_FORMATS.get(tool, set())
+
+
+def compare_baseline(
+    tool: str,
+    format_name: str,
+    input_path: Path,
+    reference_markdown: str | None,
+) -> tuple[float | None, str | None]:
     if tool == "markitdown":
         script = textwrap.dedent(
             """
             from markitdown import MarkItDown
             import sys
+            if hasattr(sys.stdout, "reconfigure"):
+                sys.stdout.reconfigure(encoding="utf-8", errors="replace")
             result = MarkItDown().convert(sys.argv[1])
             print(getattr(result, "text_content", str(result)))
             """
         ).strip()
     elif tool == "docling":
-        script = textwrap.dedent(
-            """
-            from docling.document_converter import DocumentConverter
-            import sys
-            result = DocumentConverter().convert(sys.argv[1])
-            print(result.document.export_to_markdown())
-            """
-        ).strip()
+        docling_format = DOCLING_INPUT_FORMATS.get(format_name)
+        if not docling_format:
+            return None, f"baseline does not support format: {format_name}"
+        if format_name == "pdf":
+            script = textwrap.dedent(
+                f"""
+                from docling.document_converter import DocumentConverter, PdfFormatOption
+                from docling.datamodel.base_models import InputFormat
+                from docling.datamodel.pipeline_options import PdfPipelineOptions
+                import sys
+                if hasattr(sys.stdout, "reconfigure"):
+                    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+                converter = DocumentConverter(
+                    allowed_formats=[InputFormat.{docling_format}],
+                    format_options={{
+                        InputFormat.{docling_format}: PdfFormatOption(
+                            pipeline_options=PdfPipelineOptions(do_ocr=False)
+                        )
+                    }},
+                )
+                result = converter.convert(sys.argv[1])
+                print(result.document.export_to_markdown())
+                """
+            ).strip()
+        else:
+            script = textwrap.dedent(
+                f"""
+                from docling.document_converter import DocumentConverter
+                from docling.datamodel.base_models import InputFormat
+                import sys
+                if hasattr(sys.stdout, "reconfigure"):
+                    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+                converter = DocumentConverter(allowed_formats=[InputFormat.{docling_format}])
+                result = converter.convert(sys.argv[1])
+                print(result.document.export_to_markdown())
+                """
+            ).strip()
     else:
         raise ValueError(tool)
 
@@ -819,6 +879,7 @@ def compare_baseline(tool: str, input_path: Path, reference_markdown: str | None
         text=True,
         encoding="utf-8",
         errors="replace",
+        env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
         timeout=90,
         check=False,
     )
@@ -874,8 +935,17 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
 
         baseline_result: dict[str, Any] = {}
         for tool in baseline_tools:
+            if not baseline_supports_format(tool, case.format):
+                baseline_result[tool] = {
+                    "available": True,
+                    "score": None,
+                    "error": None,
+                    "skipped": True,
+                    "reason": f"baseline does not support format: {case.format}",
+                }
+                continue
             baseline_attempts[tool] += 1
-            score_value, error = compare_baseline(tool, case.input_path(), reference_markdown)
+            score_value, error = compare_baseline(tool, case.format, case.input_path(), reference_markdown)
             if error:
                 baseline_errors[tool].append(f"{case.id}: {error}")
                 baseline_result[tool] = {"available": True, "score": None, "error": error}
@@ -1093,6 +1163,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    configure_stdio_utf8()
     parser = build_parser()
     args = parser.parse_args()
     args.func(args)

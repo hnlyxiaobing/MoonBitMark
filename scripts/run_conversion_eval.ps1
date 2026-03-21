@@ -1,6 +1,7 @@
 param(
   [string]$BenchmarkRoot = "D:\MySoftware\MoonBit\python-text-extraction-libs-benchmarks",
   [string]$Runner = "",
+  [string]$PythonExe = "python",
   [switch]$CompareBaselines,
   [switch]$RefreshReferences
 )
@@ -27,4 +28,6 @@ if ($RefreshReferences) {
   $args += "--refresh-references"
 }
 
-python @args
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
+& $PythonExe @args

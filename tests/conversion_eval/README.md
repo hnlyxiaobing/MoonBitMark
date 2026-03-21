@@ -21,6 +21,14 @@ python tests/conversion_eval/scripts/run_eval.py all `
   --benchmark-root D:\MySoftware\MoonBit\python-text-extraction-libs-benchmarks
 ```
 
+带 baseline 的推荐调用：
+
+```powershell
+./scripts/run_conversion_eval.ps1 `
+  -CompareBaselines `
+  -PythonExe C:\Users\hnlyh\.venvs\moonbitmark-baselines\Scripts\python.exe
+```
+
 ## 自动化流程
 
 1. 读取 `fixtures/source_manifest.json`
@@ -29,6 +37,38 @@ python tests/conversion_eval/scripts/run_eval.py all `
 4. 调用 MoonBitMark 可执行文件运行所有 case
 5. 计算锚点命中率、Markdown 相似度、结构相似度、表格相似度和顺序分数
 6. 输出 `reports/latest/report.json`、`reports/latest/summary.md`，并归档到 `reports/history/`
+
+## Baseline 说明
+
+- `--compare-baselines` 会在运行 MoonBitMark 评测的同时，调用当前 Python
+  解释器中的 `markitdown` 和 `docling`
+- baseline 是否可用，取决于运行 `run_eval.py` 的那个 Python 环境里是否真的
+  安装了对应包
+- Windows 控制台默认编码会影响 baseline 输出，本仓库脚本会强制设置
+  `PYTHONUTF8=1` 和 `PYTHONIOENCODING=utf-8`
+
+当前推荐的 baseline 环境是独立虚拟环境，例如：
+
+```powershell
+C:\Users\hnlyh\.venvs\moonbitmark-baselines\Scripts\python.exe
+```
+
+推荐安装方式：
+
+```powershell
+python -m venv C:\Users\hnlyh\.venvs\moonbitmark-baselines
+C:\Users\hnlyh\.venvs\moonbitmark-baselines\Scripts\python.exe -m pip install -U pip
+C:\Users\hnlyh\.venvs\moonbitmark-baselines\Scripts\python.exe -m pip install markitdown docling
+```
+
+baseline 的当前行为边界：
+
+- `markitdown`：会尝试当前评测集中的全部格式
+- `docling`：只尝试它当前支持的格式，当前评测集中实际会运行
+  `csv/docx/html/pdf/pptx/xlsx`
+- `docling` 对 `text/json/epub` 不做尝试，避免把“不支持的格式”误记成评测失败
+- `docling` 的 PDF baseline 会以 `do_ocr=False` 运行，避免为 OCR 路径下载额外模型
+- `docling` 首次处理 PDF 时仍可能拉取布局模型；如果网络受限，需要先在允许联网的环境里预热一次
 
 ## 目录说明
 
