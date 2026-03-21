@@ -1,0 +1,23 @@
+{
+  "id": "xlsx_multi_sheet_budget",
+  "format": "xlsx",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/xlsx/multi_sheet_budget.xlsx",
+  "description": "验证多工作表、关键表头、合并单元格降级和关键数值。",
+  "must_include": ["Summary", "Marketing", "Total Budget"],
+  "must_not_include": ["#REF!"],
+  "min_chars": 120,
+  "min_lines": 10,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/xlsx_multi_sheet_budget.md",
+  "golden_table": "tests/conversion_eval/fixtures/expected/tables/xlsx_multi_sheet_budget.json",
+  "golden_metadata": "tests/conversion_eval/fixtures/expected/metadata/xlsx_multi_sheet_budget.json",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": false,
+    "table_compare": true,
+    "metadata_check": true,
+    "text_order": false,
+    "diagnostics_check": true
+  }
+}

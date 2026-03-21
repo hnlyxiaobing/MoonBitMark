@@ -1,0 +1,21 @@
+{
+  "id": "json_api_response",
+  "format": "json",
+  "tier": "smoke",
+  "input": "tests/conversion_eval/fixtures/inputs/json/api_response.json",
+  "description": "验证 JSON 键值转文本时不丢关键字段。",
+  "must_include": ["status", "user", "items", "true"],
+  "must_not_include": ["undefined"],
+  "min_chars": 50,
+  "min_lines": 5,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/json_api_response.md",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": false,
+    "table_compare": false,
+    "metadata_check": false,
+    "text_order": false,
+    "diagnostics_check": false
+  }
+}

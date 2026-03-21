@@ -1,0 +1,30 @@
+{
+  "id": "docx_resume_rich",
+  "format": "docx",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/docx/resume_rich.docx",
+  "description": "验证标题、强调、链接、图片、基础表格和 metadata。",
+  "must_include": ["John Smith", "Work Experience", "Python", "john@example.com"],
+  "must_not_include": ["Normal.dotm", "Microsoft Word", "Click here to edit"],
+  "min_chars": 120,
+  "min_lines": 8,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/docx_resume_rich.md",
+  "golden_ast": "tests/conversion_eval/fixtures/expected/ast/docx_resume_rich.json",
+  "golden_metadata": "tests/conversion_eval/fixtures/expected/metadata/docx_resume_rich.json",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": false,
+    "metadata_check": true,
+    "text_order": false,
+    "diagnostics_check": true
+  },
+  "weights": {
+    "anchors": 0.2,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.3,
+    "metadata": 0.1,
+    "noise_control": 0.1
+  }
+}

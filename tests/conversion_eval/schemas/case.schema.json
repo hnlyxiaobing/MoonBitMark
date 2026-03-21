@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MoonBitMark Conversion Eval Case",
+  "type": "object",
+  "required": ["id", "format", "tier", "input", "checks"],
+  "properties": {
+    "id": {"type": "string"},
+    "format": {
+      "type": "string",
+      "enum": ["csv", "docx", "epub", "html", "json", "pdf", "pptx", "text", "xlsx"]
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["smoke", "quality", "edge", "regression"]
+    },
+    "input": {"type": "string"},
+    "description": {"type": "string"},
+    "must_include": {"type": "array", "items": {"type": "string"}},
+    "must_not_include": {"type": "array", "items": {"type": "string"}},
+    "min_chars": {"type": "integer", "minimum": 0},
+    "min_lines": {"type": "integer", "minimum": 0},
+    "golden_markdown": {"type": "string"},
+    "golden_ast": {"type": "string"},
+    "golden_metadata": {"type": "string"},
+    "golden_table": {"type": "string"},
+    "checks": {"type": "object"},
+    "weights": {"type": "object"},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

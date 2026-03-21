@@ -1,0 +1,22 @@
+{
+  "id": "csv_basic_sales",
+  "format": "csv",
+  "tier": "smoke",
+  "input": "tests/conversion_eval/fixtures/inputs/csv/basic_sales.csv",
+  "description": "验证基础表格转 Markdown 表格，不丢标题和关键金额。",
+  "must_include": ["Region", "Revenue", "North", "1200"],
+  "must_not_include": ["NaN", "undefined"],
+  "min_chars": 40,
+  "min_lines": 4,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/csv_basic_sales.md",
+  "golden_table": "tests/conversion_eval/fixtures/expected/tables/csv_basic_sales.json",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": false,
+    "table_compare": true,
+    "metadata_check": false,
+    "text_order": false,
+    "diagnostics_check": false
+  }
+}
