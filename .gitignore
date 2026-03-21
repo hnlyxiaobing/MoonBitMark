@@ -9,6 +9,7 @@ __pycache__/
 .codex/skills/*
 !.codex/skills/moonbitmark-commit-push/
 !.codex/skills/moonbitmark-commit-push/**
+.codex/vendor/*
 prompt.txt
 tests/conversion_eval/fixtures/inputs/**/*.csv
 tests/conversion_eval/fixtures/inputs/**/*.docx
