@@ -197,7 +197,11 @@ pwsh -File scripts/benchmark.ps1 -InputPath <your-input-file> -Iterations 10
 
 ## 相关文档
 
-- `docs/ProjectOptimization/`
+- `docs/README.md`
+- `docs/architecture.md`
+- `docs/development.md`
+- `docs/features/mcp.md`
+- `docs/features/ocr.md`
 - `docs/benchmark.md`
 - `docs/KNOWN_ISSUES.md`
 - `tests/test_report/TEST_REPORT.md`
