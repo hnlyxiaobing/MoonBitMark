@@ -23,6 +23,11 @@ fn print_usage() -> Unit {
   println(
     "  --asset-dir <dir> Write embedded image assets to the given directory",
   )
+  println("  --ocr <off|auto|force> Configure OCR strategy")
+  println("  --ocr-lang <lang> Set OCR language (default: eng)")
+  println("  --ocr-images     OCR embedded images in supported archive formats")
+  println("  --ocr-backend <backend> Select OCR backend (auto/mock/tesseract)")
+  println("  --ocr-timeout <ms> Set OCR backend timeout in milliseconds")
   println("  --diag-json       Print diagnostics/stats as JSON")
   println("  --detect-only     Only print detection result")
   println("  --dump-ast        Print AST JSON instead of Markdown")
@@ -34,6 +39,7 @@ fn print_usage() -> Unit {
   println("  - CSV (.csv)")
   println("  - JSON (.json)")
   println("  - PDF (.pdf)")
+  println("  - Images (.png, .jpg, .jpeg, .bmp, .gif, .tif, .tiff, .webp)")
   println("  - HTML (.html, .htm, .xhtml)")
   println("  - Word (.docx)")
   println("  - PowerPoint (.pptx)")
@@ -51,15 +57,16 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
   let mut dump_ast = false
   let mut asset_output_dir : String? = None
   let mut output_mode = @core.StandardMarkdown
+  let mut ocr_mode = @ocr.Off
+  let mut ocr_language = "eng"
+  let mut ocr_images = false
+  let mut ocr_backend : String? = None
+  let mut ocr_timeout_ms : Int? = None
   let positional : Array[String] = []
 
-  for i = 1, pending_asset_dir = false; i < args.length(); i = i + 1 {
+  let mut i = 1
+  while i < args.length() {
     let arg = args[i]
-    if pending_asset_dir {
-      asset_output_dir = Some(arg)
-      continue i + 1, false
-    }
-
     if positional.length() == 0 && arg.has_prefix("--") {
       match arg {
         "--frontmatter" => output_mode = @core.FrontMatterMarkdown
@@ -69,17 +76,57 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
         "--detect-only" => detect_only = true
         "--dump-ast" => dump_ast = true
         "--debug" => debug = true
-        "--asset-dir" => continue i + 1, true
+        "--ocr-images" => ocr_images = true
+        "--asset-dir" => {
+          if i + 1 >= args.length() {
+            fail("Missing directory after --asset-dir")
+          }
+          asset_output_dir = Some(args[i + 1])
+          i = i + 2
+          continue
+        }
+        "--ocr" => {
+          if i + 1 >= args.length() {
+            fail("Missing mode after --ocr")
+          }
+          ocr_mode = parse_ocr_mode(args[i + 1])
+          i = i + 2
+          continue
+        }
+        "--ocr-lang" => {
+          if i + 1 >= args.length() {
+            fail("Missing language after --ocr-lang")
+          }
+          ocr_language = args[i + 1]
+          i = i + 2
+          continue
+        }
+        "--ocr-backend" => {
+          if i + 1 >= args.length() {
+            fail("Missing backend after --ocr-backend")
+          }
+          ocr_backend = Some(args[i + 1])
+          i = i + 2
+          continue
+        }
+        "--ocr-timeout" => {
+          if i + 1 >= args.length() {
+            fail("Missing value after --ocr-timeout")
+          }
+          ocr_timeout_ms = Some(
+            parse_positive_int(args[i + 1], "--ocr-timeout"),
+          )
+          i = i + 2
+          continue
+        }
         _ => fail("Unknown option: " + arg)
       }
+      i = i + 1
       continue
     }
 
     positional.push(arg)
-  } nobreak {
-    if pending_asset_dir {
-      fail("Missing directory after --asset-dir")
-    }
+    i = i + 1
   }
 
   if positional.length() == 0 {
@@ -108,11 +155,43 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
       timeout_ms: None,
       asset_output_dir,
       output_mode,
+      ocr: @ocr.OcrConfig::{
+        mode: ocr_mode,
+        language: ocr_language,
+        enable_embedded_images: ocr_images,
+        backend: ocr_backend,
+        timeout_ms: ocr_timeout_ms,
+      },
     },
     diag_json,
     detect_only,
     dump_ast,
   }
+}
+
+///|
+fn parse_ocr_mode(value : String) -> @ocr.OcrMode raise {
+  match value.to_lower().to_string() {
+    "off" => @ocr.Off
+    "auto" => @ocr.Auto
+    "force" => @ocr.Force
+    _ => fail("Invalid OCR mode: " + value)
+  }
+}
+
+///|
+fn parse_positive_int(value : String, option_name : String) -> Int raise {
+  if value == "" {
+    fail("Missing integer value for " + option_name)
+  }
+  let mut result = 0
+  for ch in value {
+    if ch < '0' || ch > '9' {
+      fail("Invalid integer after " + option_name + ": " + value)
+    }
+    result = result * 10 + (ch.to_int() - '0'.to_int())
+  }
+  result
 }
 
 ///|

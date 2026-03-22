@@ -16,6 +16,7 @@ pub(all) enum ConverterKind {
   Pptx
   Xlsx
   Pdf
+  Image
   Html
   Json
   Csv
@@ -27,7 +28,7 @@ pub(all) struct ConverterRegistration {
   priority : Int
   hint : @core.DiagnosticHint
   accepts : (@core.StreamInfo) -> Bool
-  convert : async (@core.InputSource) -> @core.ConvertResult
+  convert : async (@core.InputSource, @core.ConvertContext) -> @core.ConvertResult
 }
 
 pub(all) struct DetectionResult {

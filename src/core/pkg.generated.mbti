@@ -3,6 +3,7 @@ package "moonbitlang/moonbitmark/src/core"
 
 import {
   "moonbitlang/moonbitmark/src/ast",
+  "moonbitlang/moonbitmark/src/capabilities/ocr",
 }
 
 // Values
@@ -71,6 +72,7 @@ pub(all) struct ConvertContext {
   timeout_ms : Int?
   asset_output_dir : String?
   output_mode : OutputMode
+  ocr : @ocr.OcrConfig
 }
 pub fn ConvertContext::default() -> Self
 pub impl Eq for ConvertContext

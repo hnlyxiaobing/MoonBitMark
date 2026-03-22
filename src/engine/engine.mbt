@@ -7,6 +7,7 @@ pub(all) enum ConverterKind {
   Pptx
   Xlsx
   Pdf
+  Image
   Html
   Json
   Csv
@@ -19,7 +20,7 @@ pub(all) struct ConverterRegistration {
   priority : Int
   hint : @core.DiagnosticHint
   accepts : (@core.StreamInfo) -> Bool
-  convert : async (@core.InputSource) -> @core.ConvertResult
+  convert : async (@core.InputSource, @core.ConvertContext) -> @core.ConvertResult
 }
 
 ///|
@@ -135,7 +136,7 @@ pub async fn MarkItDown::convert_source(
       )
   }
 
-  let raw_result = (converter.convert)(input) catch {
+  let raw_result = (converter.convert)(input, ctx) catch {
     err =>
       if is_rendered_diagnostic(err.to_string()) {
         fail(err.to_string())
@@ -811,6 +812,7 @@ fn register_default_converters(engine : MarkItDown) -> MarkItDown {
   .register_named(Pptx, 90)
   .register_named(Xlsx, 85)
   .register_named(Pdf, 80)
+  .register_named(Image, 75)
   .register_named(Html, 70)
   .register_named(Json, 50)
   .register_named(Csv, 40)
@@ -862,6 +864,14 @@ fn default_registration(
         hint: @core.InspectSourceDocument,
         accepts: accepts_pdf,
         convert: convert_pdf,
+      }
+    Image =>
+      ConverterRegistration::{
+        name: "image",
+        priority,
+        hint: @core.InspectSourceDocument,
+        accepts: accepts_image,
+        convert: convert_image,
       }
     Html =>
       ConverterRegistration::{
@@ -924,6 +934,11 @@ fn accepts_pdf(info : @core.StreamInfo) -> Bool {
 }
 
 ///|
+fn accepts_image(info : @core.StreamInfo) -> Bool {
+  @image.ImageConverter::accepts(info)
+}
+
+///|
 fn accepts_html(info : @core.StreamInfo) -> Bool {
   @html.HtmlConverter::accepts(info)
 }
@@ -944,46 +959,81 @@ fn accepts_text(info : @core.StreamInfo) -> Bool {
 }
 
 ///|
-async fn convert_docx(input : @core.InputSource) -> @core.ConvertResult {
-  @docx.DocxConverter::convert(resolve_input_name(input))
+async fn convert_docx(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @docx.DocxConverter::convert(resolve_input_name(input), ctx~)
 }
 
 ///|
-async fn convert_epub(input : @core.InputSource) -> @core.ConvertResult {
-  @epub.EpubConverter::convert(resolve_input_name(input))
+async fn convert_epub(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @epub.EpubConverter::convert(resolve_input_name(input), ctx~)
 }
 
 ///|
-async fn convert_pptx(input : @core.InputSource) -> @core.ConvertResult {
-  @pptx.PptxConverter::convert(resolve_input_name(input))
+async fn convert_pptx(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @pptx.PptxConverter::convert(resolve_input_name(input), ctx~)
 }
 
 ///|
-async fn convert_xlsx(input : @core.InputSource) -> @core.ConvertResult {
-  @xlsx.XlsxConverter::convert(resolve_input_name(input))
+async fn convert_xlsx(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @xlsx.XlsxConverter::convert(resolve_input_name(input), ctx~)
 }
 
 ///|
-async fn convert_pdf(input : @core.InputSource) -> @core.ConvertResult {
-  @pdf.PdfConverter::convert(resolve_input_name(input))
+async fn convert_pdf(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @pdf.PdfConverter::convert(resolve_input_name(input), ctx~)
 }
 
 ///|
-async fn convert_html(input : @core.InputSource) -> @core.ConvertResult {
-  @html.HtmlConverter::convert(resolve_input_name(input))
+async fn convert_image(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @image.ImageConverter::convert(resolve_input_name(input), ctx~)
 }
 
 ///|
-async fn convert_json(input : @core.InputSource) -> @core.ConvertResult {
-  @json.JsonConverter::convert(resolve_input_name(input))
+async fn convert_html(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @html.HtmlConverter::convert(resolve_input_name(input), ctx~)
 }
 
 ///|
-async fn convert_csv(input : @core.InputSource) -> @core.ConvertResult {
-  @csv.CsvConverter::convert(resolve_input_name(input))
+async fn convert_json(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @json.JsonConverter::convert(resolve_input_name(input), ctx~)
 }
 
 ///|
-async fn convert_text(input : @core.InputSource) -> @core.ConvertResult {
-  @text.TextConverter::convert(resolve_input_name(input))
+async fn convert_csv(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @csv.CsvConverter::convert(resolve_input_name(input), ctx~)
+}
+
+///|
+async fn convert_text(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  @text.TextConverter::convert(resolve_input_name(input), ctx~)
 }

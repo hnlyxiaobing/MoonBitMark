@@ -34,7 +34,11 @@ pub fn HtmlConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert function - converts HTML to Markdown (supports files and URLs)
-pub async fn HtmlConverter::convert(input : String) -> @core.ConvertResult {
+pub async fn HtmlConverter::convert(
+  input : String,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
+  ignore(ctx)
   let (html, source_label) = if input.has_prefix("http://") ||
     input.has_prefix("https://") {
     (convert_from_url(input), "url")

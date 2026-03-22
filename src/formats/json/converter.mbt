@@ -27,7 +27,11 @@ pub fn JsonConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert function - converts JSON to Markdown code block
-pub async fn JsonConverter::convert(file_path : String) -> @core.ConvertResult {
+pub async fn JsonConverter::convert(
+  file_path : String,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
+  ignore(ctx)
   let file = @fs.open(file_path, mode=ReadOnly)
   let mut content = ""
   let mut is_first = true

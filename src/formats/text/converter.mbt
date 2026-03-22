@@ -27,7 +27,11 @@ pub fn TextConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert function - reads file and returns content
-pub async fn TextConverter::convert(file_path : String) -> @core.ConvertResult {
+pub async fn TextConverter::convert(
+  file_path : String,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
+  ignore(ctx)
   let file = @fs.open(file_path, mode=ReadOnly)
   let mut content = ""
   while file.read_until("\n") is Some(line) {

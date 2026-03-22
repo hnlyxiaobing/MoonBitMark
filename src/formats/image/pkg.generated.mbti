@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/formats/image"
+
+import {
+  "moonbitlang/moonbitmark/src/core",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct ImageConverter {
+  dummy : Int
+}
+pub fn ImageConverter::accepts(@core.StreamInfo) -> Bool
+pub async fn ImageConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult
+pub fn ImageConverter::new() -> Self
+
+// Type aliases
+
+// Traits
+

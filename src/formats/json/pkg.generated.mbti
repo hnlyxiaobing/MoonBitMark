@@ -14,7 +14,7 @@ pub(all) struct JsonConverter {
   dummy : Int
 }
 pub fn JsonConverter::accepts(@core.StreamInfo) -> Bool
-pub async fn JsonConverter::convert(String) -> @core.ConvertResult
+pub async fn JsonConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult
 pub fn JsonConverter::new() -> Self
 
 // Type aliases

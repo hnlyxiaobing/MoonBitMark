@@ -18,6 +18,19 @@ test "parse args supports metadata and asset flags" {
 }
 
 ///|
+test "parse args supports ocr flags" {
+  let options = parse_args([
+    "moonbitmark", "--ocr", "force", "--ocr-lang", "chi_sim", "--ocr-images", "--ocr-backend",
+    "mock", "--ocr-timeout", "2500", "scan.png",
+  ])
+  inspect(options.ctx.ocr.mode, content="Force")
+  inspect(options.ctx.ocr.language, content="chi_sim")
+  inspect(options.ctx.ocr.enable_embedded_images, content="true")
+  inspect(options.ctx.ocr.backend, content="Some(\"mock\")")
+  inspect(options.ctx.ocr.timeout_ms, content="Some(2500)")
+}
+
+///|
 test "parse args supports detect and diagnostics flags" {
   let options = parse_args([
     "moonbitmark", "--detect-only", "--diag-json", "demo.html",
@@ -59,5 +72,15 @@ test "parse args rejects dump ast with detect only" {
   ])
   guard result is Err(_) else {
     fail("expected parse_args to reject dump-ast with detect-only")
+  }
+}
+
+///|
+test "parse args rejects invalid ocr mode" {
+  let result : Result[CliOptions, Error] = try? parse_args([
+    "moonbitmark", "--ocr", "sometimes", "demo.png",
+  ])
+  guard result is Err(_) else {
+    fail("expected parse_args to reject invalid ocr mode")
   }
 }

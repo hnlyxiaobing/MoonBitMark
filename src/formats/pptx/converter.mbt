@@ -27,7 +27,10 @@ pub fn PptxConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert a PPTX file to Markdown
-pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
+pub async fn PptxConverter::convert(
+  file_path : String,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
   // 读取 PPTX 文件内容
   let file = @fs.open(file_path, mode=ReadOnly)
   let all_bytes : Array[Byte] = Array::new()
@@ -87,15 +90,30 @@ pub async fn PptxConverter::convert(file_path : String) -> @core.ConvertResult {
           let metadata = Map::new()
           metadata["format"] = "pptx"
           metadata["slide_count"] = slide_ids.length().to_string()
+          metadata["ocr_mode"] = ctx.ocr.mode.label()
           let (assets, asset_warnings) = extract_pptx_assets(archive)
           let warnings = collect_pptx_warnings(
             parse_warnings, slide_warnings, asset_warnings,
           )
+          let (ocr_appendix, ocr_warnings, ocr_count, ocr_provider) = ocr_pptx_assets(
+            assets,
+            ctx.ocr,
+          )
+          for warning in ocr_warnings {
+            warnings.push(warning)
+          }
+          if ocr_count > 0 {
+            metadata["ocr_embedded_image_count"] = ocr_count.to_string()
+          }
+          match ocr_provider {
+            Some(provider) => metadata["ocr_provider"] = provider
+            None => ()
+          }
           let title = file_stem(file_path)
           let doc = @ast.Document::{ title, metadata, blocks: slide_blocks }
           let rendered_markdown = @ast.render_markdown(doc)
           let markdown_with_assets = append_pptx_asset_gallery(
-            rendered_markdown, assets,
+            rendered_markdown, assets, ocr_appendix,
           )
           let diagnostics = pptx_warning_diagnostics(file_path, warnings)
           @core.ConvertResult::markdown_only(markdown_with_assets, "pptx")
@@ -190,8 +208,9 @@ fn extract_pptx_assets(
 fn append_pptx_asset_gallery(
   markdown : String,
   assets : Array[@core.OutputAsset],
+  ocr_appendix : String,
 ) -> String {
-  if assets.length() == 0 {
+  if assets.length() == 0 && ocr_appendix == "" {
     return markdown
   }
   let lines : Array[String] = []
@@ -199,14 +218,22 @@ fn append_pptx_asset_gallery(
     lines.push(markdown)
     lines.push("")
   }
-  lines.push("## Embedded Assets")
-  lines.push("")
-  for asset in assets {
-    if asset.filename.has_prefix("pptx-image-") {
-      lines.push("![" + asset.filename + "](" + asset.placeholder + ")")
-    } else {
-      lines.push("- [" + asset.filename + "](" + asset.placeholder + ")")
+  if assets.length() > 0 {
+    lines.push("## Embedded Assets")
+    lines.push("")
+    for asset in assets {
+      if asset.filename.has_prefix("pptx-image-") {
+        lines.push("![" + asset.filename + "](" + asset.placeholder + ")")
+      } else {
+        lines.push("- [" + asset.filename + "](" + asset.placeholder + ")")
+      }
     }
+  }
+  if ocr_appendix != "" {
+    if lines.length() > 0 {
+      lines.push("")
+    }
+    lines.push(ocr_appendix)
   }
   lines.join("\n")
 }
@@ -375,9 +402,128 @@ fn pptx_warning_diagnostics(
           Some(@core.CheckArchiveIntegrity),
         ),
       )
+    } else if warning == "OCR requested but no available backend was found." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Convert("pptx")),
+          Some(@core.Generated("embedded-image")),
+          Some(
+            @core.Custom(
+              "Install a supported OCR backend or switch to --ocr-backend mock for tests.",
+            ),
+          ),
+        ),
+      )
+    } else if warning.has_prefix(
+        "OCR backend returned empty text for embedded asset: ",
+      ) {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Convert("pptx")),
+          Some(@core.Generated(warning[50:].to_string())),
+          Some(@core.InspectSourceDocument),
+        ),
+      )
+    } else if warning.has_prefix("OCR backend") {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Convert("pptx")),
+          Some(@core.Generated("embedded-image")),
+          Some(
+            @core.Custom("Inspect OCR bridge stderr or backend installation."),
+          ),
+        ),
+      )
     }
   }
   diagnostics
+}
+
+///|
+async fn ocr_pptx_assets(
+  assets : Array[@core.OutputAsset],
+  config : @ocr.OcrConfig,
+) -> (String, Array[String], Int, String?) {
+  let lines : Array[String] = []
+  let warnings : Array[String] = []
+  let mut count = 0
+  let mut provider : String? = None
+  if !config.should_process_embedded_images() {
+    return ("", warnings, count, provider)
+  }
+  for index, asset in assets {
+    if !asset.filename.has_prefix("pptx-image-") {
+      continue
+    }
+    let result = @ocr.recognize_image_bytes(
+      asset.bytes,
+      asset.filename,
+      config,
+      temp_stem="pptx-" + (index + 1).to_string(),
+    )
+    if result.attempted && !result.available {
+      push_unique_warning(
+        warnings, "OCR requested but no available backend was found.",
+      )
+    }
+    for warning in result.warnings {
+      push_unique_warning(warnings, warning)
+    }
+    if result.attempted && result.available && result.text == "" {
+      push_unique_warning(
+        warnings,
+        "OCR backend returned empty text for embedded asset: " + asset.filename,
+      )
+    }
+    if result.is_useful() {
+      if count == 0 {
+        lines.push("## Image OCR")
+        lines.push("")
+      }
+      lines.push("### " + asset.filename)
+      lines.push("")
+      for paragraph in split_ocr_paragraphs(result.text) {
+        lines.push(paragraph)
+        lines.push("")
+      }
+      count = count + 1
+      match provider {
+        Some(_) => ()
+        None => provider = result.provider
+      }
+    }
+  }
+  let appendix = lines.join("\n").trim().to_string()
+  (appendix, warnings, count, provider)
+}
+
+///|
+fn split_ocr_paragraphs(text : String) -> Array[String] {
+  let paragraphs : Array[String] = []
+  for chunk in text.replace(old="\r\n", new="\n").split("\n\n").to_array() {
+    let trimmed = chunk.trim().to_string()
+    if trimmed != "" {
+      paragraphs.push(trimmed)
+    }
+  }
+  if paragraphs.length() == 0 && text.trim() != "" {
+    [text.trim().to_string()]
+  } else {
+    paragraphs
+  }
+}
+
+///|
+fn push_unique_warning(warnings : Array[String], warning : String) -> Unit {
+  for existing in warnings {
+    if existing == warning {
+      return
+    }
+  }
+  warnings.push(warning)
 }
 
 ///|

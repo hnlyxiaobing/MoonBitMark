@@ -1,5 +1,6 @@
 import {
   "moonbitlang/core/env",
+  "moonbitlang/moonbitmark/src/capabilities/ocr",
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/engine",
   "moonbitlang/async/fs",

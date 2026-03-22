@@ -1,6 +1,7 @@
 import {
   "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/core",
+  "moonbitlang/moonbitmark/src/capabilities/ocr",
   "bobzhang/mbtpdf/pdfcrypt",
   "bobzhang/mbtpdf/pdfread",
   "bobzhang/mbtpdf/pdftext" @pdftextlib,

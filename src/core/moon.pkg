@@ -1,3 +1,4 @@
 import {
   "moonbitlang/moonbitmark/src/ast",
+  "moonbitlang/moonbitmark/src/capabilities/ocr",
 }

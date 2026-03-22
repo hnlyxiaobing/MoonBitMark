@@ -228,6 +228,7 @@ pub(all) struct ConvertContext {
   timeout_ms : Int?
   asset_output_dir : String?
   output_mode : OutputMode
+  ocr : @ocr.OcrConfig
 } derive(Show, Eq, ToJson)
 
 ///|
@@ -239,6 +240,7 @@ pub fn ConvertContext::default() -> ConvertContext {
     timeout_ms: None,
     asset_output_dir: None,
     output_mode: StandardMarkdown,
+    ocr: @ocr.OcrConfig::default(),
   }
 }
 

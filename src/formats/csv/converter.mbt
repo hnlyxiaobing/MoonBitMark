@@ -27,7 +27,11 @@ pub fn CsvConverter::accepts(info : @core.StreamInfo) -> Bool {
 
 ///|
 /// Convert function - converts CSV to Markdown table
-pub async fn CsvConverter::convert(file_path : String) -> @core.ConvertResult {
+pub async fn CsvConverter::convert(
+  file_path : String,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
+  ignore(ctx)
   let file = @fs.open(file_path, mode=ReadOnly)
   let mut content = ""
   let mut is_first = true

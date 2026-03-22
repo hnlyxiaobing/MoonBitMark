@@ -43,7 +43,10 @@ pub fn EpubConverter::accepts(info : @core.StreamInfo) -> Bool {
 }
 
 ///|
-pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
+pub async fn EpubConverter::convert(
+  file_path : String,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
   // 读取 EPUB 文件内容
   let file = @fs.open(file_path, mode=ReadOnly)
   let all_bytes : Array[Byte] = Array::new()
@@ -118,6 +121,7 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
               }
 
               let metadata = metadata_of_epub(epub_pkg.metadata, opf_path)
+              metadata["ocr_mode"] = ctx.ocr.mode.label()
               let title = epub_pkg.metadata.title
               let (assets, asset_warnings) = extract_epub_assets(
                 zip,
@@ -127,8 +131,24 @@ pub async fn EpubConverter::convert(file_path : String) -> @core.ConvertResult {
               for warning in asset_warnings {
                 warnings.push(warning)
               }
+              let (ocr_blocks, ocr_warnings, ocr_count, ocr_provider) = ocr_epub_assets(
+                assets,
+                ctx.ocr,
+              )
+              for warning in ocr_warnings {
+                warnings.push(warning)
+              }
+              if ocr_count > 0 {
+                metadata["ocr_embedded_image_count"] = ocr_count.to_string()
+              }
+              match ocr_provider {
+                Some(provider) => metadata["ocr_provider"] = provider
+                None => ()
+              }
               let diagnostics = epub_warning_diagnostics(warnings)
-              let final_blocks = append_epub_asset_blocks(blocks, assets)
+              let final_blocks = append_epub_asset_blocks(
+                blocks, assets, ocr_blocks,
+              )
               let doc = @ast.Document::{ title, metadata, blocks: final_blocks }
               let rendered_markdown = @ast.render_markdown(doc)
               @core.ConvertResult::markdown_only(rendered_markdown, "epub")
@@ -459,8 +479,9 @@ fn is_epub_asset_media_type(media_type : String) -> Bool {
 fn append_epub_asset_blocks(
   blocks : Array[@ast.Block],
   assets : Array[@core.OutputAsset],
+  ocr_blocks : Array[@ast.Block],
 ) -> Array[@ast.Block] {
-  if assets.length() == 0 {
+  if assets.length() == 0 && ocr_blocks.length() == 0 {
     return blocks
   }
   let result = blocks
@@ -483,6 +504,9 @@ fn append_epub_asset_blocks(
         ),
       )
     }
+  }
+  for block in ocr_blocks {
+    result.push(block)
   }
   result
 }
@@ -572,9 +596,124 @@ fn epub_warning_diagnostics(
           Some(@core.CheckArchiveIntegrity),
         ),
       )
+    } else if warning == "OCR requested but no available backend was found." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Convert("epub")),
+          Some(@core.Generated("embedded-image")),
+          Some(
+            @core.Custom(
+              "Install a supported OCR backend or switch to --ocr-backend mock for tests.",
+            ),
+          ),
+        ),
+      )
+    } else if warning.has_prefix(
+        "OCR backend returned empty text for embedded asset: ",
+      ) {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Convert("epub")),
+          Some(@core.Generated(warning[50:].to_string())),
+          Some(@core.InspectSourceDocument),
+        ),
+      )
+    } else if warning.has_prefix("OCR backend") {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Convert("epub")),
+          Some(@core.Generated("embedded-image")),
+          Some(
+            @core.Custom("Inspect OCR bridge stderr or backend installation."),
+          ),
+        ),
+      )
     }
   }
   diagnostics
+}
+
+///|
+async fn ocr_epub_assets(
+  assets : Array[@core.OutputAsset],
+  config : @ocr.OcrConfig,
+) -> (Array[@ast.Block], Array[String], Int, String?) {
+  let blocks : Array[@ast.Block] = []
+  let warnings : Array[String] = []
+  let mut count = 0
+  let mut provider : String? = None
+  if !config.should_process_embedded_images() {
+    return (blocks, warnings, count, provider)
+  }
+  for index, asset in assets {
+    if !is_image_asset_filename(asset.filename) {
+      continue
+    }
+    let result = @ocr.recognize_image_bytes(
+      asset.bytes,
+      asset.filename,
+      config,
+      temp_stem="epub-" + (index + 1).to_string(),
+    )
+    if result.attempted && !result.available {
+      push_unique_warning(
+        warnings, "OCR requested but no available backend was found.",
+      )
+    }
+    for warning in result.warnings {
+      push_unique_warning(warnings, warning)
+    }
+    if result.attempted && result.available && result.text == "" {
+      push_unique_warning(
+        warnings,
+        "OCR backend returned empty text for embedded asset: " + asset.filename,
+      )
+    }
+    if result.is_useful() {
+      if count == 0 {
+        blocks.push(@ast.text_heading(2, "Image OCR"))
+      }
+      blocks.push(@ast.text_heading(3, asset.filename))
+      for paragraph in split_ocr_paragraphs(result.text) {
+        blocks.push(@ast.text_paragraph(paragraph))
+      }
+      count = count + 1
+      match provider {
+        Some(_) => ()
+        None => provider = result.provider
+      }
+    }
+  }
+  (blocks, warnings, count, provider)
+}
+
+///|
+fn split_ocr_paragraphs(text : String) -> Array[String] {
+  let paragraphs : Array[String] = []
+  for chunk in text.replace(old="\r\n", new="\n").split("\n\n").to_array() {
+    let trimmed = chunk.trim().to_string()
+    if trimmed != "" {
+      paragraphs.push(trimmed)
+    }
+  }
+  if paragraphs.length() == 0 && text.trim() != "" {
+    [text.trim().to_string()]
+  } else {
+    paragraphs
+  }
+}
+
+///|
+fn push_unique_warning(warnings : Array[String], warning : String) -> Unit {
+  for existing in warnings {
+    if existing == warning {
+      return
+    }
+  }
+  warnings.push(warning)
 }
 
 ///|

@@ -14,7 +14,7 @@ pub(all) struct DocxConverter {
   dummy : Int
 }
 pub fn DocxConverter::accepts(@core.StreamInfo) -> Bool
-pub async fn DocxConverter::convert(String) -> @core.ConvertResult
+pub async fn DocxConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult
 pub fn DocxConverter::new() -> Self
 
 // Type aliases

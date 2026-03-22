@@ -15,4 +15,5 @@ declare pub fn EpubConverter::accepts(info : @core.StreamInfo) -> Bool
 /// Convert an EPUB file to Markdown string
 declare pub async fn EpubConverter::convert(
   file_path : String,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult

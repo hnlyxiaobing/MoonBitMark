@@ -115,7 +115,10 @@ fn merge_partial_numbering(text : String) -> String {
 ///|
 /// Convert function - extracts text from PDF and returns as Markdown
 /// Stage 4: With advanced post-processing (whitespace, MasterFormat merging)
-pub async fn PdfConverter::convert(file_path : String) -> @core.ConvertResult {
+pub async fn PdfConverter::convert(
+  file_path : String,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
   // Read PDF file
   let pdf = @pdfread.pdf_of_file(None, None, file_path)
 
@@ -136,7 +139,14 @@ pub async fn PdfConverter::convert(file_path : String) -> @core.ConvertResult {
   if normalized != merged {
     warnings.push("Merged partial numbering lines during PDF post-processing.")
   }
-  let diagnostics = pdf_warning_diagnostics(file_path, normalized, merged)
+  let pdf_ocr_warning = pdf_ocr_warning(ctx.ocr, merged)
+  match pdf_ocr_warning {
+    Some(warning) => warnings.push(warning)
+    None => ()
+  }
+  let diagnostics = pdf_warning_diagnostics(
+    file_path, normalized, merged, pdf_ocr_warning,
+  )
   let page_breaks = count_occurrences(merged, "\n\n---\n\n")
   if page_breaks > 0 {
     metadata["page_break_count"] = page_breaks.to_string()
@@ -241,6 +251,7 @@ fn pdf_warning_diagnostics(
   file_path : String,
   normalized : String,
   merged : String,
+  ocr_warning : String?,
 ) -> Array[@core.ConversionDiagnostic] {
   let diagnostics : Array[@core.ConversionDiagnostic] = []
   if normalized != merged {
@@ -257,5 +268,30 @@ fn pdf_warning_diagnostics(
       ),
     )
   }
+  match ocr_warning {
+    Some(warning) =>
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Convert("pdf")),
+          Some(@core.File(file_path)),
+          Some(
+            @core.Custom(
+              "Configure a PDF page-rendering OCR backend before expecting scanned-PDF fallback.",
+            ),
+          ),
+        ),
+      )
+    None => ()
+  }
   diagnostics
+}
+
+///|
+fn pdf_ocr_warning(config : @ocr.OcrConfig, extracted_text : String) -> String? {
+  if @ocr.should_attempt_for_native_text(config, extracted_text) {
+    Some("OCR skipped for PDF because no page-rendering backend is configured.")
+  } else {
+    None
+  }
 }
