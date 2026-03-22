@@ -1,0 +1,24 @@
+{
+  "id": "pdf_code_and_formula",
+  "format": "pdf",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/code_and_formula.pdf",
+  "description": "Code-and-formula PDF should keep section headings, listing markers, and code text in order.",
+  "must_include": ["JavaScript Code Example", "Listing 1", "function add", "Formula"],
+  "must_not_include": ["\uFFFD", "<html"],
+  "min_chars": 2200,
+  "min_lines": 25,
+  "checks": {
+    "anchors": true,
+    "golden_markdown": false,
+    "ast_compare": false,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.35,
+    "noise_control": 0.2,
+    "length": 0.25,
+    "text_order": 0.2
+  }
+}

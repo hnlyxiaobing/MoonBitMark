@@ -819,7 +819,7 @@ def compare_baseline(
     format_name: str,
     input_path: Path,
     reference_markdown: str | None,
-) -> tuple[float | None, str | None]:
+) -> tuple[float | None, str | None, int | None]:
     if tool == "markitdown":
         script = textwrap.dedent(
             """
@@ -834,7 +834,7 @@ def compare_baseline(
     elif tool == "docling":
         docling_format = DOCLING_INPUT_FORMATS.get(format_name)
         if not docling_format:
-            return None, f"baseline does not support format: {format_name}"
+            return None, f"baseline does not support format: {format_name}", None
         if format_name == "pdf":
             script = textwrap.dedent(
                 f"""
@@ -872,26 +872,34 @@ def compare_baseline(
     else:
         raise ValueError(tool)
 
-    completed = subprocess.run(
-        [sys.executable, "-c", script, str(input_path)],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
-        timeout=90,
-        check=False,
-    )
+    started = dt.datetime.now(dt.timezone.utc)
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-c", script, str(input_path)],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
+            timeout=90,
+            check=False,
+        )
+        finished = dt.datetime.now(dt.timezone.utc)
+        duration_ms = int((finished - started).total_seconds() * 1000)
+    except subprocess.TimeoutExpired:
+        finished = dt.datetime.now(dt.timezone.utc)
+        duration_ms = int((finished - started).total_seconds() * 1000)
+        return None, "baseline execution timed out", duration_ms
     if completed.returncode != 0:
         error = completed.stderr.strip() or completed.stdout.strip() or "baseline execution failed"
-        return None, error
+        return None, error, duration_ms
     output = normalize_markdown(completed.stdout)
     if reference_markdown:
         score = 0.6 * sequence_similarity(output, reference_markdown) + 0.4 * structure_similarity(output, reference_markdown)
     else:
         score = None
-    return score, None
+    return score, None, duration_ms
 
 
 def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references: bool, compare_baselines_flag: bool) -> dict[str, Any]:
@@ -902,6 +910,7 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
     baseline_tools = [tool for tool in ("markitdown", "docling") if compare_baselines_flag and baseline_availability(tool)]
     baseline_errors: dict[str, list[str]] = {tool: [] for tool in ("markitdown", "docling")}
     baseline_scores: dict[str, list[float]] = {tool: [] for tool in ("markitdown", "docling")}
+    baseline_durations: dict[str, list[int]] = {tool: [] for tool in ("markitdown", "docling")}
     baseline_attempts: dict[str, int] = {tool: 0 for tool in ("markitdown", "docling")}
     baseline_successes: dict[str, int] = {tool: 0 for tool in ("markitdown", "docling")}
 
@@ -945,15 +954,17 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
                 }
                 continue
             baseline_attempts[tool] += 1
-            score_value, error = compare_baseline(tool, case.format, case.input_path(), reference_markdown)
+            score_value, error, duration_ms = compare_baseline(tool, case.format, case.input_path(), reference_markdown)
             if error:
                 baseline_errors[tool].append(f"{case.id}: {error}")
-                baseline_result[tool] = {"available": True, "score": None, "error": error}
+                baseline_result[tool] = {"available": True, "score": None, "error": error, "duration_ms": duration_ms}
             else:
                 baseline_successes[tool] += 1
                 if score_value is not None:
                     baseline_scores[tool].append(score_value)
-                baseline_result[tool] = {"available": True, "score": score_value, "error": None}
+                if duration_ms is not None:
+                    baseline_durations[tool].append(duration_ms)
+                baseline_result[tool] = {"available": True, "score": score_value, "error": None, "duration_ms": duration_ms}
 
         results.append(
             {
@@ -978,9 +989,11 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
     for tool in ("markitdown", "docling"):
         available = tool in baseline_tools
         score_value = sum(baseline_scores[tool]) / len(baseline_scores[tool]) if baseline_scores[tool] else None
+        duration_value = sum(baseline_durations[tool]) / len(baseline_durations[tool]) if baseline_durations[tool] else None
         baseline_summary[tool] = {
             "available": available,
             "score": round(score_value, 4) if score_value is not None else None,
+            "average_duration_ms": round(duration_value, 1) if duration_value is not None else None,
             "success_count": baseline_successes[tool],
             "attempted_count": baseline_attempts[tool],
             "errors": baseline_errors[tool][:10],
@@ -1058,7 +1071,10 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
         if not data["available"]:
             lines.append(f"- `{tool}`: unavailable")
             continue
-        lines.append(f"- `{tool}`: attempted `{data['attempted_count']}`, succeeded `{data['success_count']}`, average score `{data['score']}`")
+        lines.append(
+            f"- `{tool}`: attempted `{data['attempted_count']}`, succeeded `{data['success_count']}`, "
+            f"average score `{data['score']}`, average duration `{data['average_duration_ms']}` ms"
+        )
         for error in data["errors"][:3]:
             lines.append(f"  - error: `{error}`")
     return "\n".join(lines) + "\n"

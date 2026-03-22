@@ -14,17 +14,24 @@
 - 某些 Office / EPUB 文件可能无法正常解压或转换失败
 - 排查这类问题时，应先确认样本是否走到了 Dynamic Huffman 分支
 
-## 2. PDF 仍以文本提取为主，没有内建页渲染 OCR fallback
+## 2. PDF 复杂文档已明显增强，但扫描件仍没有内建页渲染 OCR fallback
 
-- 相关文件: `src/formats/pdf/converter.mbt`
+- 相关文件: `src/formats/pdf/converter.mbt`、`src/formats/pdf/extract_native.mbt`、`src/formats/pdf/extract_bridge.mbt`
 - 影响范围: 扫描版 PDF 或几乎没有可提取文本的 PDF
 
-当前 PDF converter 会在请求 OCR 且原生文本不足时给出 diagnostics，但不会自动进行页渲染后 OCR。
+当前 PDF 已经具备：
+
+- `mbtpdf` 默认快速文本提取
+- 小型复杂文档的 `pdfminer` bridge fallback
+- 页级 route
+- 标题 / 列表 / 表格 / code / formula 的结构恢复
+
+但在扫描 PDF、近空文本层 PDF 上，converter 仍然只会给出 diagnostics，不会自动执行“页面渲染 -> OCR -> 结构恢复”的完整 recovery path。
 
 这意味着：
 
-- 文本型 PDF 效果正常
-- 扫描版 PDF 目前只能得到 warning / diagnostics，而不是完整 OCR fallback
+- 文本型和大部分数字化 PDF 现在效果已经明显优于旧实现
+- 扫描版 PDF 目前仍只能得到 warning / diagnostics，而不是完整 OCR fallback
 
 ## 3. Windows native 构建仍有部分编码告警
 

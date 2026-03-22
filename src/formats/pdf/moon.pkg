@@ -1,8 +1,15 @@
 import {
   "moonbitlang/moonbitmark/src/ast",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/process",
+  "moonbitlang/core/buffer",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/capabilities/ocr",
   "bobzhang/mbtpdf/pdfcrypt",
+  "bobzhang/mbtpdf/pdfpage",
   "bobzhang/mbtpdf/pdfread",
   "bobzhang/mbtpdf/pdftext" @pdftextlib,
 }

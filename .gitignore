@@ -21,6 +21,7 @@ tests/conversion_eval/fixtures/inputs/**/*.pptx
 tests/conversion_eval/fixtures/inputs/**/*.txt
 tests/conversion_eval/fixtures/inputs/**/*.xlsx
 tests/conversion_eval/fixtures/expected/markdown/*.md
+!tests/conversion_eval/fixtures/expected/markdown/pdf_*.md
 tests/conversion_eval/fixtures/expected/metadata/*.json
 tests/conversion_eval/reports/history/**
 tests/conversion_eval/reports/latest/**

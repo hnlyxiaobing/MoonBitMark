@@ -47,6 +47,31 @@
       "dest": "tests/conversion_eval/fixtures/inputs/pdf/right_to_left_01.pdf"
     },
     {
+      "id": "pdf_fake_memo",
+      "source": "test_documents/pdfs/fake-memo.pdf",
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/fake_memo.pdf"
+    },
+    {
+      "id": "pdf_embedded_images_tables",
+      "source": "test_documents/pdfs/embedded-images-tables.pdf",
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/embedded_images_tables.pdf"
+    },
+    {
+      "id": "pdf_code_and_formula",
+      "source": "test_documents/pdfs/code_and_formula.pdf",
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/code_and_formula.pdf"
+    },
+    {
+      "id": "pdf_slides_100g",
+      "source": "test_documents/pdfs/100G Networking Technology Overview - Slides - Toronto (August 2016).pdf",
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/slides_100g.pdf"
+    },
+    {
+      "id": "pdf_neural_networks_two_column",
+      "source": "test_documents/pdfs/A Brief Introduction to Neural Networks (neuronalenetze-en-zeta2-2col-dkrieselcom).pdf",
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/neural_networks_two_column.pdf"
+    },
+    {
       "id": "pptx_simple",
       "source": "test_documents/office/simple.pptx",
       "dest": "tests/conversion_eval/fixtures/inputs/pptx/simple.pptx"

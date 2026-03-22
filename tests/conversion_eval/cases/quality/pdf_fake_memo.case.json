@@ -1,0 +1,27 @@
+{
+  "id": "pdf_fake_memo",
+  "format": "pdf",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/fake_memo.pdf",
+  "description": "Simple memo PDF should preserve paragraph breaks, quantities, and sign-off lines.",
+  "must_include": ["May 5, 2023", "20,000 bottles of water", "Best Regards", "Mallori"],
+  "must_not_include": ["\uFFFD", "<html"],
+  "min_chars": 180,
+  "min_lines": 7,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pdf_fake_memo.md",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.15,
+    "noise_control": 0.1,
+    "length": 0.15,
+    "markdown_similarity": 0.35,
+    "ast_similarity": 0.15,
+    "text_order": 0.1
+  }
+}

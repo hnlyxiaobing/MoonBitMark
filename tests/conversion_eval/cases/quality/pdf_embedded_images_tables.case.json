@@ -1,0 +1,28 @@
+{
+  "id": "pdf_embedded_images_tables",
+  "format": "pdf",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/embedded_images_tables.pdf",
+  "description": "Scientific PDF with embedded images and a dense table should keep table structure and surrounding captions.",
+  "must_include": ["Table 1", "Potentiodynamic polarization data", "Corrosion rate", "Langmuir adsorption isotherm"],
+  "must_not_include": ["\uFFFD", "<html", "(cid:3)"],
+  "min_chars": 1200,
+  "min_lines": 15,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pdf_embedded_images_tables.md",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": true,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.1,
+    "noise_control": 0.1,
+    "length": 0.1,
+    "markdown_similarity": 0.25,
+    "ast_similarity": 0.2,
+    "table_similarity": 0.2,
+    "text_order": 0.05
+  }
+}

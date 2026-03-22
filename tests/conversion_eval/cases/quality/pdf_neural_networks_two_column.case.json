@@ -1,0 +1,23 @@
+{
+  "id": "pdf_neural_networks_two_column",
+  "format": "pdf",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/neural_networks_two_column.pdf",
+  "description": "Large two-column PDF should remain non-empty, preserve core front-matter anchors, and sustain long-form extraction.",
+  "must_include": ["A Brief Introduction to Neural Networks", "David Kriesel", "dkriesel.com"],
+  "must_not_include": ["\uFFFD", "<html"],
+  "min_chars": 50000,
+  "min_lines": 500,
+  "checks": {
+    "anchors": true,
+    "golden_markdown": false,
+    "ast_compare": false,
+    "table_compare": false,
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.4,
+    "noise_control": 0.25,
+    "length": 0.35
+  }
+}

@@ -75,5 +75,10 @@ cmd/
 ## 当前架构边界
 
 - HTML 不做 JavaScript 渲染。
-- PDF 主路径仍然是文本提取，不包含内建页渲染 OCR fallback。
+- PDF 已经从单文件流程重排为 `route -> extraction -> assembly -> diagnostics` 的多文件管线，当前主路径位于 `src/formats/pdf/` 下的 `converter.mbt`、`route.mbt`、`extract_native.mbt`、`extract_bridge.mbt`、`normalize.mbt`、`structure.mbt`、`assemble.mbt`、`diagnostics.mbt`。
+- PDF 当前默认能力仍以文本提取为主：
+  - `mbtpdf` 是默认快速路径
+  - 小型复杂文档可按启发式升级到 `pdfminer` bridge fallback
+  - 已有页级 route、结构恢复、table/code/formula 启发式和 metadata / diagnostics 闭环
+- PDF 仍然不包含内建页渲染 OCR fallback；扫描件恢复仍需后续 capability 层补齐。
 - `src/libzip/deflate.mbt` 的 Dynamic Huffman 仍有已知缺陷，见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。

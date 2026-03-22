@@ -8,17 +8,20 @@
   "must_not_include": ["\uFFFD", "Acrobat", "<html"],
   "min_chars": 1200,
   "min_lines": 20,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pdf_multi_page.md",
   "checks": {
     "anchors": true,
-    "golden_markdown": false,
-    "ast_compare": false,
+    "golden_markdown": true,
+    "ast_compare": true,
     "table_compare": false,
     "text_order": true
   },
   "weights": {
-    "anchors": 0.35,
-    "noise_control": 0.25,
-    "length": 0.2,
-    "text_order": 0.2
+    "anchors": 0.15,
+    "noise_control": 0.1,
+    "length": 0.1,
+    "markdown_similarity": 0.35,
+    "ast_similarity": 0.2,
+    "text_order": 0.1
   }
 }

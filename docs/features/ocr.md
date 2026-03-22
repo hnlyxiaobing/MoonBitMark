@@ -28,7 +28,8 @@ OCR 是一个独立能力层，入口在 `src/capabilities/ocr/`，通过 `Conve
 
 - 独立图片文件 OCR
 - DOCX / PPTX / EPUB 嵌图 OCR 补充
-- PDF 在启用 OCR 时会给出明确 diagnostics，但当前没有内建页渲染 OCR fallback
+- PDF 在启用 OCR 时会给出明确 diagnostics
+- PDF 当前已有 `mbtpdf` + `pdfminer` bridge 的文本提取/回退链路，但这仍不是页渲染 OCR fallback
 
 ## Backend 机制
 
@@ -52,5 +53,6 @@ MoonBit 侧通过 `scripts/ocr/bridge.py` 调外部 backend：
 ## 当前限制
 
 - 不支持内建 PDF 页渲染。
+- 不支持扫描 PDF 的自动“渲染页面 -> OCR -> 文档重组”闭环。
 - 不提供 bbox、版面分析或表格结构 OCR。
 - 不主动对 HTML 外链图片做 OCR。

@@ -1,0 +1,24 @@
+{
+  "id": "pdf_slides_100g",
+  "format": "pdf",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/slides_100g.pdf",
+  "description": "Slide-style PDF should preserve major slide headings and ordered topical flow.",
+  "must_include": ["100G Networking Technology Overview", "Why 100G now?", "100G Networking Technologies", "CFP vs QSFP28"],
+  "must_not_include": ["\uFFFD", "<html"],
+  "min_chars": 5000,
+  "min_lines": 90,
+  "checks": {
+    "anchors": true,
+    "golden_markdown": false,
+    "ast_compare": false,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.35,
+    "noise_control": 0.2,
+    "length": 0.25,
+    "text_order": 0.2
+  }
+}
