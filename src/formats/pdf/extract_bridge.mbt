@@ -51,7 +51,7 @@ async fn parse_pdf_bridge_response(
   exit_code : Int,
 ) -> PdfBridgeResponse {
   let json_text_result : Result[String, Error] = Ok(
-    read_pdf_bridge_utf8(output_path),
+    @core.read_utf8_file(output_path),
   ) catch {
     err => Err(err)
   }
@@ -59,7 +59,7 @@ async fn parse_pdf_bridge_response(
     Ok(text) => text
     Err(_) => {
       let stderr_text_result : Result[String, Error] = Ok(
-        read_pdf_bridge_utf8(stderr_path),
+        @core.read_utf8_file(stderr_path),
       ) catch {
         err => Err(err)
       }
@@ -112,22 +112,4 @@ async fn ensure_pdf_bridge_temp_dir(path : String) -> Unit {
 ///|
 async fn cleanup_pdf_bridge_file(path : String) -> Unit {
   ignore(@fs.remove(path) catch { _ => () })
-}
-
-///|
-async fn read_pdf_bridge_utf8(path : String) -> String {
-  let file = @fs.open(path, mode=ReadOnly)
-  let buffer = @buffer.new()
-  while true {
-    let chunk : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
-    let read = file.read(chunk)
-    if read == 0 {
-      break
-    }
-    for i in 0..<read {
-      buffer.write_byte(chunk[i])
-    }
-  }
-  file.close()
-  @utf8.decode(buffer.to_bytes())
 }

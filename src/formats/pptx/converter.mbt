@@ -31,28 +31,7 @@ pub async fn PptxConverter::convert(
   file_path : String,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
-  // 读取 PPTX 文件内容
-  let file = @fs.open(file_path, mode=ReadOnly)
-  let all_bytes : Array[Byte] = Array::new()
-
-  // 读取文件内容
-  while true {
-    let buffer : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
-    let bytes_read = file.read(buffer)
-    if bytes_read == 0 {
-      break
-    }
-    // 将读取的数据添加到数组
-    let mut i = 0
-    while i < bytes_read {
-      all_bytes.push(buffer[i])
-      i = i + 1
-    }
-  }
-  file.close()
-
-  // 将 Array[Byte] 转换为 Bytes
-  let bytes = bytes_from_array(all_bytes)
+  let bytes = @core.read_file_bytes(file_path)
 
   // 使用纯 MoonBit libzip 打开 ZIP
   match @libzip.ZipArchive::open(bytes) {
@@ -90,7 +69,6 @@ pub async fn PptxConverter::convert(
           let metadata = Map::new()
           metadata["format"] = "pptx"
           metadata["slide_count"] = slide_ids.length().to_string()
-          metadata["ocr_mode"] = ctx.ocr.mode.label()
           let (assets, asset_warnings) = extract_pptx_assets(archive)
           let warnings = collect_pptx_warnings(
             parse_warnings, slide_warnings, asset_warnings,
@@ -102,14 +80,13 @@ pub async fn PptxConverter::convert(
           for warning in ocr_warnings {
             warnings.push(warning)
           }
-          if ocr_count > 0 {
-            metadata["ocr_embedded_image_count"] = ocr_count.to_string()
-          }
-          match ocr_provider {
-            Some(provider) => metadata["ocr_provider"] = provider
-            None => ()
-          }
-          let title = file_stem(file_path)
+          @core.apply_ocr_metadata(
+            metadata,
+            ctx.ocr,
+            ocr_provider,
+            embedded_image_count=ocr_count,
+          )
+          let title = @core.file_stem(file_path)
           let doc = @ast.Document::{ title, metadata, blocks: slide_blocks }
           let rendered_markdown = @ast.render_markdown(doc)
           let markdown_with_assets = append_pptx_asset_gallery(
@@ -137,16 +114,6 @@ pub async fn PptxConverter::convert(
         ),
       )
   }
-}
-
-///|
-/// 将 Array[Byte] 转换为 Bytes
-fn bytes_from_array(arr : Array[Byte]) -> Bytes {
-  let buf = @buffer.new()
-  for b in arr {
-    buf.write_byte(b)
-  }
-  buf.to_bytes()
 }
 
 ///|
@@ -187,7 +154,7 @@ fn extract_pptx_assets(
           let filename = prefix +
             index.to_string() +
             "." +
-            path_extension(entry)
+            @core.path_extension(entry)
           assets.push(@core.OutputAsset::{
             placeholder: pptx_asset_placeholder(index),
             filename,
@@ -240,55 +207,7 @@ fn append_pptx_asset_gallery(
 
 ///|
 fn pptx_asset_placeholder(index : Int) -> String {
-  "moonbitmark-raw://pptx/" + index.to_string()
-}
-
-///|
-fn path_extension(path : String) -> String {
-  match find_last_char(path, '.') {
-    Some(index) =>
-      if index + 1 < path.length() {
-        path[index + 1:].to_lower().to_string()
-      } else {
-        "bin"
-      }
-    None => "bin"
-  }
-}
-
-///|
-fn file_stem(path : String) -> String? {
-  let normalized = path.replace(old="\\", new="/")
-  let basename = match find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
-    None => normalized
-  }
-  match find_last_char(basename, '.') {
-    Some(index) =>
-      if index > 0 {
-        Some(basename[0:index].to_string())
-      } else {
-        None
-      }
-    None => if basename != "" { Some(basename) } else { None }
-  }
-}
-
-///|
-fn find_last_char(s : String, target : Char) -> Int? {
-  let mut found = -1
-  let mut i = 0
-  for ch in s {
-    if ch == target {
-      found = i
-    }
-    i = i + 1
-  }
-  if found >= 0 {
-    Some(found)
-  } else {
-    None
-  }
+  @core.asset_placeholder("pptx", index)
 }
 
 ///|
@@ -392,51 +311,18 @@ fn pptx_warning_diagnostics(
           ),
         ),
       )
-    } else if warning.has_prefix("Failed to extract PPTX asset: ") {
-      let path = warning[30:].to_string()
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Load(Some("asset"))),
-          Some(@core.ArchiveEntry(path)),
-          Some(@core.CheckArchiveIntegrity),
-        ),
-      )
-    } else if warning == "OCR requested but no available backend was found." {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("pptx")),
-          Some(@core.Generated("embedded-image")),
-          Some(
-            @core.Custom(
-              "Install a supported OCR backend or switch to --ocr-backend mock for tests.",
-            ),
-          ),
-        ),
-      )
-    } else if warning.has_prefix(
-        "OCR backend returned empty text for embedded asset: ",
-      ) {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("pptx")),
-          Some(@core.Generated(warning[50:].to_string())),
-          Some(@core.InspectSourceDocument),
-        ),
-      )
-    } else if warning.has_prefix("OCR backend") {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("pptx")),
-          Some(@core.Generated("embedded-image")),
-          Some(
-            @core.Custom("Inspect OCR bridge stderr or backend installation."),
-          ),
-        ),
-      )
+    } else {
+      match
+        @core.archive_asset_warning_diagnostic(
+          warning, "Failed to extract PPTX asset: ",
+        ) {
+        Some(diagnostic) => diagnostics.push(diagnostic)
+        None =>
+          match @core.embedded_ocr_warning_diagnostic("pptx", warning) {
+            Some(diagnostic) => diagnostics.push(diagnostic)
+            None => ()
+          }
+      }
     }
   }
   diagnostics
@@ -465,17 +351,17 @@ async fn ocr_pptx_assets(
       temp_stem="pptx-" + (index + 1).to_string(),
     )
     if result.attempted && !result.available {
-      push_unique_warning(
-        warnings, "OCR requested but no available backend was found.",
+      @core.push_unique_warning(
+        warnings, @core.embedded_ocr_unavailable_warning,
       )
     }
     for warning in result.warnings {
-      push_unique_warning(warnings, warning)
+      @core.push_unique_warning(warnings, warning)
     }
     if result.attempted && result.available && result.text == "" {
-      push_unique_warning(
+      @core.push_unique_warning(
         warnings,
-        "OCR backend returned empty text for embedded asset: " + asset.filename,
+        @core.embedded_ocr_empty_warning(asset.filename),
       )
     }
     if result.is_useful() {
@@ -485,7 +371,7 @@ async fn ocr_pptx_assets(
       }
       lines.push("### " + asset.filename)
       lines.push("")
-      for paragraph in split_ocr_paragraphs(result.text) {
+      for paragraph in @core.split_ocr_paragraphs(result.text) {
         lines.push(paragraph)
         lines.push("")
       }
@@ -501,36 +387,10 @@ async fn ocr_pptx_assets(
 }
 
 ///|
-fn split_ocr_paragraphs(text : String) -> Array[String] {
-  let paragraphs : Array[String] = []
-  for chunk in text.replace(old="\r\n", new="\n").split("\n\n").to_array() {
-    let trimmed = chunk.trim().to_string()
-    if trimmed != "" {
-      paragraphs.push(trimmed)
-    }
-  }
-  if paragraphs.length() == 0 && text.trim() != "" {
-    [text.trim().to_string()]
-  } else {
-    paragraphs
-  }
-}
-
-///|
-fn push_unique_warning(warnings : Array[String], warning : String) -> Unit {
-  for existing in warnings {
-    if existing == warning {
-      return
-    }
-  }
-  warnings.push(warning)
-}
-
-///|
 fn extract_pptx_warning_path(message : String) -> String {
-  match find_last_char(message, '(') {
+  match @core.find_last_char(message, '(') {
     Some(start) =>
-      match find_last_char(message, ')') {
+      match @core.find_last_char(message, ')') {
         Some(end) =>
           if end > start {
             message[start + 1:end].to_string()

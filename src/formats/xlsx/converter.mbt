@@ -29,28 +29,7 @@ pub async fn XlsxConverter::convert(
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   ignore(ctx)
-  // Read XLSX file content
-  let file = @fs.open(file_path, mode=ReadOnly)
-  let all_bytes : Array[Byte] = Array::new()
-
-  // Read file content
-  while true {
-    let buffer : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
-    let bytes_read = file.read(buffer)
-    if bytes_read == 0 {
-      break
-    }
-    // Add read data to array
-    let mut i = 0
-    while i < bytes_read {
-      all_bytes.push(buffer[i])
-      i = i + 1
-    }
-  }
-  file.close()
-
-  // Convert Array[Byte] to Bytes
-  let bytes = bytes_from_array(all_bytes)
+  let bytes = @core.read_file_bytes(file_path)
 
   // Use pure MoonBit libzip to open ZIP
   match @libzip.ZipArchive::open(bytes) {
@@ -81,7 +60,7 @@ pub async fn XlsxConverter::convert(
       if sheets.length() == 0 {
         warnings.push("No sheets discovered in xl/workbook.xml.")
       }
-      let title = file_stem(file_path)
+      let title = @core.file_stem(file_path)
       let doc = @ast.Document::{ title, metadata, blocks }
       let rendered_markdown = @ast.render_markdown(doc)
       if rendered_markdown == "" {
@@ -110,16 +89,6 @@ pub async fn XlsxConverter::convert(
         ),
       )
   }
-}
-
-///|
-/// Convert Array[Byte] to Bytes
-fn bytes_from_array(arr : Array[Byte]) -> Bytes {
-  let buf = @buffer.new()
-  for b in arr {
-    buf.write_byte(b)
-  }
-  buf.to_bytes()
 }
 
 ///|
@@ -622,41 +591,6 @@ fn strip_namespace(name : String) -> String {
 }
 
 ///|
-fn file_stem(path : String) -> String? {
-  let normalized = path.replace(old="\\", new="/")
-  let basename = match find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
-    None => normalized
-  }
-  match find_last_char(basename, '.') {
-    Some(index) =>
-      if index > 0 {
-        Some(basename[0:index].to_string())
-      } else {
-        None
-      }
-    None => if basename != "" { Some(basename) } else { None }
-  }
-}
-
-///|
-fn find_last_char(s : String, target : Char) -> Int? {
-  let mut found = -1
-  let mut i = 0
-  for ch in s {
-    if ch == target {
-      found = i
-    }
-    i = i + 1
-  }
-  if found >= 0 {
-    Some(found)
-  } else {
-    None
-  }
-}
-
-///|
 fn extract_xlsx_assets(
   archive : @libzip.ZipArchive,
 ) -> (Array[@core.OutputAsset], Array[String]) {
@@ -675,7 +609,7 @@ fn extract_xlsx_assets(
           let filename = prefix +
             index.to_string() +
             "." +
-            path_extension(entry)
+            @core.path_extension(entry)
           assets.push(@core.OutputAsset::{
             placeholder: xlsx_asset_placeholder(index),
             filename,
@@ -720,19 +654,6 @@ fn append_xlsx_asset_gallery(
 ///|
 fn xlsx_asset_placeholder(index : Int) -> String {
   "moonbitmark-raw://xlsx/" + index.to_string()
-}
-
-///|
-fn path_extension(path : String) -> String {
-  match find_last_char(path, '.') {
-    Some(index) =>
-      if index + 1 < path.length() {
-        path[index + 1:].to_lower().to_string()
-      } else {
-        "bin"
-      }
-    None => "bin"
-  }
 }
 
 ///|
@@ -893,9 +814,9 @@ fn xlsx_warning_diagnostics(
 
 ///|
 fn extract_warning_path(message : String) -> String {
-  match find_last_char(message, '(') {
+  match @core.find_last_char(message, '(') {
     Some(start) =>
-      match find_last_char(message, ')') {
+      match @core.find_last_char(message, ')') {
         Some(end) =>
           if end > start {
             message[start + 1:end].to_string()

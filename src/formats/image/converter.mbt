@@ -25,8 +25,8 @@ pub async fn ImageConverter::convert(
   file_path : String,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
-  let bytes = read_file_bytes(file_path)
-  let asset_name = file_name_only(file_path)
+  let bytes = @core.read_file_bytes(file_path)
+  let asset_name = @core.file_name_only(file_path)
   let asset = @core.OutputAsset::{
     placeholder: image_asset_placeholder(),
     filename: asset_name,
@@ -41,15 +41,10 @@ pub async fn ImageConverter::convert(
   )
   let metadata = Map::new()
   metadata["format"] = "image"
-  metadata["ocr_mode"] = ctx.ocr.mode.label()
-  metadata["ocr_backend"] = ctx.ocr.backend_or_auto()
-  match ocr_result.provider {
-    Some(provider) if provider != "" => metadata["ocr_provider"] = provider
-    _ => ()
-  }
+  @core.apply_ocr_metadata(metadata, ctx.ocr, ocr_result.provider)
   let warnings = collect_image_warnings(ctx.ocr, ocr_result)
   let diagnostics = image_warning_diagnostics(file_path, warnings)
-  let title = file_stem(file_path)
+  let title = @core.file_stem(file_path)
   let doc = @ast.Document::{
     title,
     metadata,
@@ -77,27 +72,11 @@ fn image_blocks(
   ]
   if ocr_result.is_useful() {
     blocks.push(@ast.text_heading(2, "Recognized Text"))
-    for paragraph in split_ocr_paragraphs(ocr_result.text) {
+    for paragraph in @core.split_ocr_paragraphs(ocr_result.text) {
       blocks.push(@ast.text_paragraph(paragraph))
     }
   }
   blocks
-}
-
-///|
-fn split_ocr_paragraphs(text : String) -> Array[String] {
-  let parts : Array[String] = []
-  for chunk in text.replace(old="\r\n", new="\n").split("\n\n").to_array() {
-    let trimmed = chunk.trim().to_string()
-    if trimmed != "" {
-      parts.push(trimmed)
-    }
-  }
-  if parts.length() == 0 && text.trim() != "" {
-    [text.trim().to_string()]
-  } else {
-    parts
-  }
 }
 
 ///|
@@ -110,12 +89,10 @@ fn collect_image_warnings(
     warnings.push(warning)
   }
   if config.mode != @ocr.Off && ocr_result.attempted && !ocr_result.available {
-    push_unique_warning(
-      warnings, "OCR requested but no available backend was found.",
-    )
+    @core.push_unique_warning(warnings, @core.embedded_ocr_unavailable_warning)
   }
   if ocr_result.attempted && ocr_result.available && ocr_result.text == "" {
-    push_unique_warning(warnings, "OCR backend returned empty text.")
+    @core.push_unique_warning(warnings, "OCR backend returned empty text.")
   }
   warnings
 }
@@ -127,42 +104,9 @@ fn image_warning_diagnostics(
 ) -> Array[@core.ConversionDiagnostic] {
   let diagnostics : Array[@core.ConversionDiagnostic] = []
   for warning in warnings {
-    if warning == "OCR requested but no available backend was found." {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("image")),
-          Some(@core.File(file_path)),
-          Some(
-            @core.Custom(
-              "Install and expose a supported OCR backend such as tesseract, or switch to --ocr-backend mock for tests.",
-            ),
-          ),
-        ),
-      )
-    } else if warning == "OCR backend returned empty text." {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("image")),
-          Some(@core.File(file_path)),
-          Some(@core.InspectSourceDocument),
-        ),
-      )
-    } else if warning.has_prefix("OCR backend") ||
-      warning.has_prefix("tesseract") {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("image")),
-          Some(@core.File(file_path)),
-          Some(
-            @core.Custom(
-              "Inspect the OCR bridge stderr or backend installation.",
-            ),
-          ),
-        ),
-      )
+    match @core.file_ocr_warning_diagnostic("image", file_path, warning) {
+      Some(diagnostic) => diagnostics.push(diagnostic)
+      None => ()
     }
   }
   diagnostics
@@ -170,7 +114,7 @@ fn image_warning_diagnostics(
 
 ///|
 fn image_asset_placeholder() -> String {
-  "moonbitmark-raw://image/1"
+  @core.asset_placeholder("image", 1)
 }
 
 ///|
@@ -184,72 +128,4 @@ fn is_image_extension(ext : String) -> Bool {
   lowered == ".webp" ||
   lowered == ".tif" ||
   lowered == ".tiff"
-}
-
-///|
-async fn read_file_bytes(path : String) -> Bytes {
-  let file = @fs.open(path, mode=ReadOnly)
-  let buffer = @buffer.new()
-  while true {
-    let chunk : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
-    let read = file.read(chunk)
-    if read == 0 {
-      break
-    }
-    for i in 0..<read {
-      buffer.write_byte(chunk[i])
-    }
-  }
-  file.close()
-  buffer.to_bytes()
-}
-
-///|
-fn file_stem(path : String) -> String? {
-  let basename = file_name_only(path)
-  match find_last_char(basename, '.') {
-    Some(index) =>
-      if index > 0 {
-        Some(basename[0:index].to_string())
-      } else {
-        None
-      }
-    None => if basename != "" { Some(basename) } else { None }
-  }
-}
-
-///|
-fn file_name_only(path : String) -> String {
-  let normalized = path.replace(old="\\", new="/")
-  match find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
-    None => normalized
-  }
-}
-
-///|
-fn push_unique_warning(warnings : Array[String], warning : String) -> Unit {
-  for existing in warnings {
-    if existing == warning {
-      return
-    }
-  }
-  warnings.push(warning)
-}
-
-///|
-fn find_last_char(s : String, target : Char) -> Int? {
-  let mut found = -1
-  let mut i = 0
-  for ch in s {
-    if ch == target {
-      found = i
-    }
-    i = i + 1
-  }
-  if found >= 0 {
-    Some(found)
-  } else {
-    None
-  }
 }

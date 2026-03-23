@@ -2,36 +2,6 @@
 // Converts EPUB files to Markdown
 
 ///|
-/// 将 Array[Byte] 转换为 Bytes
-fn bytes_from_array(arr : Array[Byte]) -> Bytes {
-  let buf = @buffer.new()
-  for b in arr {
-    buf.write_byte(b)
-  }
-  buf.to_bytes()
-}
-
-///|
-/// Helper function to find the last occurrence of a character
-
-///|
-fn find_last_char(s : String, c : Char) -> Int? {
-  let mut idx = -1
-  let mut i = 0
-  for ch in s {
-    if ch == c {
-      idx = i
-    }
-    i = i + 1
-  }
-  if idx >= 0 {
-    Some(idx)
-  } else {
-    None
-  }
-}
-
-///|
 pub fn EpubConverter::accepts(info : @core.StreamInfo) -> Bool {
   match info.extension {
     Some(ext) => {
@@ -47,28 +17,7 @@ pub async fn EpubConverter::convert(
   file_path : String,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
-  // 读取 EPUB 文件内容
-  let file = @fs.open(file_path, mode=ReadOnly)
-  let all_bytes : Array[Byte] = Array::new()
-
-  // 读取文件内容
-  while true {
-    let buffer : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
-    let bytes_read = file.read(buffer)
-    if bytes_read == 0 {
-      break
-    }
-    // 将读取的数据添加到数组
-    let mut i = 0
-    while i < bytes_read {
-      all_bytes.push(buffer[i])
-      i = i + 1
-    }
-  }
-  file.close()
-
-  // 将 Array[Byte] 转换为 Bytes
-  let epub_data = bytes_from_array(all_bytes)
+  let epub_data = @core.read_file_bytes(file_path)
 
   // 使用纯 MoonBit libzip 打开 ZIP
   match @libzip.ZipArchive::open(epub_data) {
@@ -80,7 +29,7 @@ pub async fn EpubConverter::convert(
           let opf_path = parse_container_xml(container_data)
 
           // Get OPF directory
-          let opf_dir = match find_last_char(opf_path, '/') {
+          let opf_dir = match @core.find_last_char(opf_path, '/') {
             Some(idx) => opf_path[0:idx].to_string()
             None => ""
           }
@@ -121,7 +70,6 @@ pub async fn EpubConverter::convert(
               }
 
               let metadata = metadata_of_epub(epub_pkg.metadata, opf_path)
-              metadata["ocr_mode"] = ctx.ocr.mode.label()
               let title = epub_pkg.metadata.title
               let (assets, asset_warnings) = extract_epub_assets(
                 zip,
@@ -138,13 +86,12 @@ pub async fn EpubConverter::convert(
               for warning in ocr_warnings {
                 warnings.push(warning)
               }
-              if ocr_count > 0 {
-                metadata["ocr_embedded_image_count"] = ocr_count.to_string()
-              }
-              match ocr_provider {
-                Some(provider) => metadata["ocr_provider"] = provider
-                None => ()
-              }
+              @core.apply_ocr_metadata(
+                metadata,
+                ctx.ocr,
+                ocr_provider,
+                embedded_image_count=ocr_count,
+              )
               let diagnostics = epub_warning_diagnostics(warnings)
               let final_blocks = append_epub_asset_blocks(
                 blocks, assets, ocr_blocks,
@@ -694,12 +641,12 @@ fn append_epub_asset_blocks(
 
 ///|
 fn epub_asset_placeholder(index : Int) -> String {
-  "moonbitmark-raw://epub/" + index.to_string()
+  @core.asset_placeholder("epub", index)
 }
 
 ///|
 fn asset_extension(path : String, media_type : String) -> String {
-  match find_last_char(path, '.') {
+  match @core.find_last_char(path, '.') {
     Some(index) =>
       if index + 1 < path.length() {
         path[index + 1:].to_lower().to_string()
@@ -767,51 +714,18 @@ fn epub_warning_diagnostics(
           ),
         ),
       )
-    } else if warning.has_prefix("Failed to extract EPUB asset: ") {
-      let path = warning[30:].to_string()
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Load(Some("asset"))),
-          Some(@core.ArchiveEntry(path)),
-          Some(@core.CheckArchiveIntegrity),
-        ),
-      )
-    } else if warning == "OCR requested but no available backend was found." {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("epub")),
-          Some(@core.Generated("embedded-image")),
-          Some(
-            @core.Custom(
-              "Install a supported OCR backend or switch to --ocr-backend mock for tests.",
-            ),
-          ),
-        ),
-      )
-    } else if warning.has_prefix(
-        "OCR backend returned empty text for embedded asset: ",
-      ) {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("epub")),
-          Some(@core.Generated(warning[50:].to_string())),
-          Some(@core.InspectSourceDocument),
-        ),
-      )
-    } else if warning.has_prefix("OCR backend") {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("epub")),
-          Some(@core.Generated("embedded-image")),
-          Some(
-            @core.Custom("Inspect OCR bridge stderr or backend installation."),
-          ),
-        ),
-      )
+    } else {
+      match
+        @core.archive_asset_warning_diagnostic(
+          warning, "Failed to extract EPUB asset: ",
+        ) {
+        Some(diagnostic) => diagnostics.push(diagnostic)
+        None =>
+          match @core.embedded_ocr_warning_diagnostic("epub", warning) {
+            Some(diagnostic) => diagnostics.push(diagnostic)
+            None => ()
+          }
+      }
     }
   }
   diagnostics
@@ -840,17 +754,17 @@ async fn ocr_epub_assets(
       temp_stem="epub-" + (index + 1).to_string(),
     )
     if result.attempted && !result.available {
-      push_unique_warning(
-        warnings, "OCR requested but no available backend was found.",
+      @core.push_unique_warning(
+        warnings, @core.embedded_ocr_unavailable_warning,
       )
     }
     for warning in result.warnings {
-      push_unique_warning(warnings, warning)
+      @core.push_unique_warning(warnings, warning)
     }
     if result.attempted && result.available && result.text == "" {
-      push_unique_warning(
+      @core.push_unique_warning(
         warnings,
-        "OCR backend returned empty text for embedded asset: " + asset.filename,
+        @core.embedded_ocr_empty_warning(asset.filename),
       )
     }
     if result.is_useful() {
@@ -858,7 +772,7 @@ async fn ocr_epub_assets(
         blocks.push(@ast.text_heading(2, "Image OCR"))
       }
       blocks.push(@ast.text_heading(3, asset.filename))
-      for paragraph in split_ocr_paragraphs(result.text) {
+      for paragraph in @core.split_ocr_paragraphs(result.text) {
         blocks.push(@ast.text_paragraph(paragraph))
       }
       count = count + 1
@@ -869,32 +783,6 @@ async fn ocr_epub_assets(
     }
   }
   (blocks, warnings, count, provider)
-}
-
-///|
-fn split_ocr_paragraphs(text : String) -> Array[String] {
-  let paragraphs : Array[String] = []
-  for chunk in text.replace(old="\r\n", new="\n").split("\n\n").to_array() {
-    let trimmed = chunk.trim().to_string()
-    if trimmed != "" {
-      paragraphs.push(trimmed)
-    }
-  }
-  if paragraphs.length() == 0 && text.trim() != "" {
-    [text.trim().to_string()]
-  } else {
-    paragraphs
-  }
-}
-
-///|
-fn push_unique_warning(warnings : Array[String], warning : String) -> Unit {
-  for existing in warnings {
-    if existing == warning {
-      return
-    }
-  }
-  warnings.push(warning)
 }
 
 ///|

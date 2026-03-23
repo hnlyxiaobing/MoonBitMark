@@ -64,3 +64,22 @@ test "debug report includes stats diagnostics and ast state" {
     content="ConvertResult Debug Report\nsource_type: text\nstats: chars=5, blocks=1\nwarnings: 0\ndiagnostics: 1\nassets: 0\nast: present\nmetadata: none\nDiagnostics:\nWarning: ConverterWarning\n  Phase: normalize/html\n  Source: demo.html\n  Message: style dropped\n  Hint: Inspect the source document or run with debug context.",
   )
 }
+
+///|
+test "file helpers normalize basename and stem" {
+  inspect(
+    @core.file_name_only("docs\\nested/report.final.txt"),
+    content="report.final.txt",
+  )
+  inspect(
+    @core.file_stem("docs\\nested/report.final.txt"),
+    content="Some(\"report.final\")",
+  )
+  inspect(@core.path_extension("docs/nested/archive.DOCX"), content="docx")
+}
+
+///|
+test "find_last_char returns final index" {
+  inspect(@core.find_last_char("alpha/beta/gamma", '/'), content="Some(10)")
+  inspect(@core.find_last_char("no-delimiter", '/'), content="None")
+}

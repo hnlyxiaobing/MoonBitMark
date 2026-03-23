@@ -136,16 +136,7 @@ test "deflate decompress dynamic huffman" {
         text = text + b.unsafe_to_char().to_string()
         i = i + 1
       }
-      // 动态 Huffman 解压仍有问题，暂时跳过严格验证
-      // 只检查长度是否接近
-      if text.length() < original.length() - 10 ||
-        text.length() > original.length() + 10 {
-        fail(
-          "Decompressed length mismatch: got \{text.length()}, expected \{original.length()}",
-        )
-      }
-      // 跳过 assert_eq，只打印结果用于调试
-      println("Decompressed (first 50): \{text[0:50]}")
+      assert_eq(text, original)
     }
     None => fail("Deflate decompression failed")
   }

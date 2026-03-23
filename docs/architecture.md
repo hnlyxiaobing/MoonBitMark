@@ -81,4 +81,4 @@ cmd/
   - 小型复杂文档可按启发式升级到 `pdfminer` bridge fallback
   - 已有页级 route、结构恢复、table/code/formula 启发式和 metadata / diagnostics 闭环
 - PDF 仍然不包含内建页渲染 OCR fallback；扫描件恢复仍需后续 capability 层补齐。
-- `src/libzip/deflate.mbt` 的 Dynamic Huffman 仍有已知缺陷，见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
+- `src/libzip/deflate.mbt` 现在已覆盖 `Stored / Fixed Huffman / Dynamic Huffman` 三条路径，继续作为 Office / EPUB 容器解压的共享基础设施。

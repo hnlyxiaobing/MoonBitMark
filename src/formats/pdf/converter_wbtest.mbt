@@ -1,6 +1,6 @@
 ///|
 test "pdf helper file stem" {
-  inspect(file_stem("reports/spec.pdf"), content="Some(\"spec\")")
+  inspect(@core.file_stem("reports/spec.pdf"), content="Some(\"spec\")")
 }
 
 ///|

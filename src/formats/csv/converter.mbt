@@ -46,7 +46,7 @@ pub async fn CsvConverter::convert(
     }
   }
   file.close()
-  let title = file_stem(file_path)
+  let title = @core.file_stem(file_path)
   let metadata = Map::new()
   metadata["format"] = "csv"
   metadata["row_count"] = csv_row_count(content).to_string()
@@ -108,41 +108,6 @@ fn csv_column_count(csv : String) -> Int {
     }
   }
   0
-}
-
-///|
-fn file_stem(path : String) -> String? {
-  let normalized = path.replace(old="\\", new="/")
-  let basename = match find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
-    None => normalized
-  }
-  match find_last_char(basename, '.') {
-    Some(index) =>
-      if index > 0 {
-        Some(basename[0:index].to_string())
-      } else {
-        None
-      }
-    None => if basename != "" { Some(basename) } else { None }
-  }
-}
-
-///|
-fn find_last_char(s : String, target : Char) -> Int? {
-  let mut found = -1
-  let mut i = 0
-  for ch in s {
-    if ch == target {
-      found = i
-    }
-    i = i + 1
-  }
-  if found >= 0 {
-    Some(found)
-  } else {
-    None
-  }
 }
 
 ///|

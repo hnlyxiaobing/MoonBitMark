@@ -31,22 +31,7 @@ pub async fn DocxConverter::convert(
   file_path : String,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
-  let file = @fs.open(file_path, mode=ReadOnly)
-  let all_bytes : Array[Byte] = Array::new()
-
-  while true {
-    let buffer : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
-    let bytes_read = file.read(buffer)
-    if bytes_read == 0 {
-      break
-    }
-    for i in 0..<bytes_read {
-      all_bytes.push(buffer[i])
-    }
-  }
-  file.close()
-
-  let bytes = bytes_from_array(all_bytes)
+  let bytes = @core.read_file_bytes(file_path)
 
   match @libzip.ZipArchive::open(bytes) {
     Some(archive) => {
@@ -80,7 +65,6 @@ pub async fn DocxConverter::convert(
           let metadata = Map::new()
           metadata["format"] = "docx"
           metadata["container"] = "zip"
-          metadata["ocr_mode"] = ctx.ocr.mode.label()
           let warnings : Array[String] = []
           if content_blocks.length() == 0 && assets.length() == 0 {
             warnings.push("No text content extracted from word/document.xml.")
@@ -98,15 +82,14 @@ pub async fn DocxConverter::convert(
           for warning in ocr_warnings {
             warnings.push(warning)
           }
-          if ocr_count > 0 {
-            metadata["ocr_embedded_image_count"] = ocr_count.to_string()
-          }
-          match ocr_provider {
-            Some(provider) => metadata["ocr_provider"] = provider
-            None => ()
-          }
+          @core.apply_ocr_metadata(
+            metadata,
+            ctx.ocr,
+            ocr_provider,
+            embedded_image_count=ocr_count,
+          )
           let diagnostics = docx_warning_diagnostics(file_path, warnings)
-          let title = file_stem(file_path)
+          let title = @core.file_stem(file_path)
           let blocks = append_docx_asset_blocks(
             content_blocks, assets, ocr_blocks,
           )
@@ -145,16 +128,6 @@ pub async fn DocxConverter::convert(
         ),
       )
   }
-}
-
-///|
-/// Convert Array[Byte] to Bytes
-fn bytes_from_array(arr : Array[Byte]) -> Bytes {
-  let buf = @buffer.new()
-  for b in arr {
-    buf.write_byte(b)
-  }
-  buf.to_bytes()
 }
 
 ///|
@@ -275,7 +248,7 @@ fn handle_element_start(
   } else if local_name == "i" && ctx.in_run_properties {
     ctx.run_italic = true
   } else if ctx.in_run_properties && is_unsupported_docx_run_style(local_name) {
-    push_warning_once(
+    @core.push_unique_warning(
       ctx.warnings,
       "Dropped unsupported DOCX run style: " + local_name,
     )
@@ -284,7 +257,7 @@ fn handle_element_start(
     if ctx.current_hyperlink == None {
       match map_get_any(attrs, ["r:id", "id"]) {
         Some(rid) =>
-          push_warning_once(
+          @core.push_unique_warning(
             ctx.warnings,
             "Missing DOCX hyperlink target: " + rid,
           )
@@ -454,20 +427,20 @@ fn handle_docx_blip(ctx : DocxContext, attrs : Map[String, String]) -> Unit {
             Some(placeholder) => {
               let alt = match ctx.pending_image_alt {
                 Some(text) if text != "" => text
-                _ => file_name_only(target)
+                _ => @core.file_name_only(target)
               }
               ctx.current_inlines.push(@ast.Image(alt, placeholder))
               ctx.pending_image_alt = None
             }
             None =>
-              push_warning_once(
+              @core.push_unique_warning(
                 ctx.warnings,
                 "DOCX image reference did not resolve to extracted asset: " +
                 target,
               )
           }
         None =>
-          push_warning_once(
+          @core.push_unique_warning(
             ctx.warnings,
             "Missing DOCX relationship target: " + value,
           )
@@ -591,16 +564,6 @@ fn is_unsupported_docx_run_style(local_name : String) -> Bool {
 }
 
 ///|
-fn push_warning_once(warnings : Array[String], warning : String) -> Unit {
-  for existing in warnings {
-    if existing == warning {
-      return
-    }
-  }
-  warnings.push(warning)
-}
-
-///|
 fn strip_namespace(name : String) -> String {
   match name.find(":") {
     Some(pos) => name[pos + 1:].to_string()
@@ -613,50 +576,6 @@ fn docx_image_alt(attrs : Map[String, String]) -> String? {
   match map_get_any(attrs, ["descr", "title", "name"]) {
     Some(value) if value != "" => Some(value)
     _ => None
-  }
-}
-
-///|
-fn file_stem(path : String) -> String? {
-  let normalized = path.replace(old="\\", new="/")
-  let basename = match find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
-    None => normalized
-  }
-  match find_last_char(basename, '.') {
-    Some(index) =>
-      if index > 0 {
-        Some(basename[0:index].to_string())
-      } else {
-        None
-      }
-    None => if basename != "" { Some(basename) } else { None }
-  }
-}
-
-///|
-fn file_name_only(path : String) -> String {
-  let normalized = path.replace(old="\\", new="/")
-  match find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
-    None => normalized
-  }
-}
-
-///|
-fn find_last_char(s : String, target : Char) -> Int? {
-  let mut found = -1
-  let mut i = 0
-  for ch in s {
-    if ch == target {
-      found = i
-    }
-    i = i + 1
-  }
-  if found >= 0 {
-    Some(found)
-  } else {
-    None
   }
 }
 
@@ -675,7 +594,7 @@ fn extract_docx_media_assets(
           let filename = "docx-image-" +
             index.to_string() +
             "." +
-            path_extension(entry)
+            @core.path_extension(entry)
           let placeholder = docx_asset_placeholder(index)
           assets.push(@core.OutputAsset::{
             placeholder,
@@ -719,20 +638,7 @@ fn append_docx_asset_blocks(
 
 ///|
 fn docx_asset_placeholder(index : Int) -> String {
-  "moonbitmark-raw://docx/" + index.to_string()
-}
-
-///|
-fn path_extension(path : String) -> String {
-  match find_last_char(path, '.') {
-    Some(index) =>
-      if index + 1 < path.length() {
-        path[index + 1:].to_lower().to_string()
-      } else {
-        "bin"
-      }
-    None => "bin"
-  }
+  @core.asset_placeholder("docx", index)
 }
 
 ///|
@@ -755,96 +661,65 @@ fn docx_warning_diagnostics(
           ),
         ),
       )
-    } else if warning.has_prefix("Failed to extract DOCX asset: ") {
-      let path = warning[29:].to_string()
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Load(Some("word/media"))),
-          Some(@core.ArchiveEntry(path)),
-          Some(@core.CheckArchiveIntegrity),
-        ),
-      )
-    } else if warning.has_prefix("Dropped unsupported DOCX run style: ") {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Normalize(Some("word/document.xml"))),
-          Some(@core.ArchiveEntry("word/document.xml")),
-          Some(
-            @core.Custom(
-              "Formatting not representable in the current Markdown AST was omitted.",
-            ),
-          ),
-        ),
-      )
-    } else if warning.has_prefix("Missing DOCX hyperlink target: ") {
-      let rid = warning[31:].to_string()
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Load(Some("document.xml.rels"))),
-          Some(@core.Generated(rid)),
-          Some(@core.CheckArchiveIntegrity),
-        ),
-      )
-    } else if warning.has_prefix("Missing DOCX relationship target: ") {
-      let rid = warning[34:].to_string()
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Load(Some("document.xml.rels"))),
-          Some(@core.Generated(rid)),
-          Some(@core.CheckArchiveIntegrity),
-        ),
-      )
-    } else if warning.has_prefix(
-        "DOCX image reference did not resolve to extracted asset: ",
-      ) {
-      let path = warning[56:].to_string()
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Load(Some("word/media"))),
-          Some(@core.ArchiveEntry(path)),
-          Some(@core.CheckArchiveIntegrity),
-        ),
-      )
-    } else if warning == "OCR requested but no available backend was found." {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("docx")),
-          Some(@core.File("embedded-image")),
-          Some(
-            @core.Custom(
-              "Install a supported OCR backend or switch to --ocr-backend mock for tests.",
-            ),
-          ),
-        ),
-      )
-    } else if warning.has_prefix(
-        "OCR backend returned empty text for embedded asset: ",
-      ) {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("docx")),
-          Some(@core.Generated(warning[50:].to_string())),
-          Some(@core.InspectSourceDocument),
-        ),
-      )
-    } else if warning.has_prefix("OCR backend") {
-      diagnostics.push(
-        @core.warning_diagnostic(
-          warning,
-          Some(@core.Convert("docx")),
-          Some(@core.Generated("embedded-image")),
-          Some(
-            @core.Custom("Inspect OCR bridge stderr or backend installation."),
-          ),
-        ),
-      )
+    } else {
+      match
+        @core.archive_asset_warning_diagnostic(
+          warning, "Failed to extract DOCX asset: ",
+        ) {
+        Some(diagnostic) => diagnostics.push(diagnostic)
+        None =>
+          if warning.has_prefix("Dropped unsupported DOCX run style: ") {
+            diagnostics.push(
+              @core.warning_diagnostic(
+                warning,
+                Some(@core.Normalize(Some("word/document.xml"))),
+                Some(@core.ArchiveEntry("word/document.xml")),
+                Some(
+                  @core.Custom(
+                    "Formatting not representable in the current Markdown AST was omitted.",
+                  ),
+                ),
+              ),
+            )
+          } else if warning.has_prefix("Missing DOCX hyperlink target: ") {
+            let rid = warning[31:].to_string()
+            diagnostics.push(
+              @core.warning_diagnostic(
+                warning,
+                Some(@core.Load(Some("document.xml.rels"))),
+                Some(@core.Generated(rid)),
+                Some(@core.CheckArchiveIntegrity),
+              ),
+            )
+          } else if warning.has_prefix("Missing DOCX relationship target: ") {
+            let rid = warning[34:].to_string()
+            diagnostics.push(
+              @core.warning_diagnostic(
+                warning,
+                Some(@core.Load(Some("document.xml.rels"))),
+                Some(@core.Generated(rid)),
+                Some(@core.CheckArchiveIntegrity),
+              ),
+            )
+          } else if warning.has_prefix(
+              "DOCX image reference did not resolve to extracted asset: ",
+            ) {
+            let path = warning[56:].to_string()
+            diagnostics.push(
+              @core.warning_diagnostic(
+                warning,
+                Some(@core.Load(Some("word/media"))),
+                Some(@core.ArchiveEntry(path)),
+                Some(@core.CheckArchiveIntegrity),
+              ),
+            )
+          } else {
+            match @core.embedded_ocr_warning_diagnostic("docx", warning) {
+              Some(diagnostic) => diagnostics.push(diagnostic)
+              None => ()
+            }
+          }
+      }
     }
   }
   diagnostics
@@ -870,17 +745,17 @@ async fn ocr_docx_assets(
       temp_stem="docx-" + (index + 1).to_string(),
     )
     if result.attempted && !result.available {
-      push_warning_once(
-        warnings, "OCR requested but no available backend was found.",
+      @core.push_unique_warning(
+        warnings, @core.embedded_ocr_unavailable_warning,
       )
     }
     for warning in result.warnings {
-      push_warning_once(warnings, warning)
+      @core.push_unique_warning(warnings, warning)
     }
     if result.attempted && result.available && result.text == "" {
-      push_warning_once(
+      @core.push_unique_warning(
         warnings,
-        "OCR backend returned empty text for embedded asset: " + asset.filename,
+        @core.embedded_ocr_empty_warning(asset.filename),
       )
     }
     if result.is_useful() {
@@ -888,7 +763,7 @@ async fn ocr_docx_assets(
         blocks.push(@ast.text_heading(2, "Image OCR"))
       }
       blocks.push(@ast.text_heading(3, asset.filename))
-      for paragraph in split_ocr_paragraphs(result.text) {
+      for paragraph in @core.split_ocr_paragraphs(result.text) {
         blocks.push(@ast.text_paragraph(paragraph))
       }
       count = count + 1
@@ -899,22 +774,6 @@ async fn ocr_docx_assets(
     }
   }
   (blocks, warnings, count, provider)
-}
-
-///|
-fn split_ocr_paragraphs(text : String) -> Array[String] {
-  let paragraphs : Array[String] = []
-  for chunk in text.replace(old="\r\n", new="\n").split("\n\n").to_array() {
-    let trimmed = chunk.trim().to_string()
-    if trimmed != "" {
-      paragraphs.push(trimmed)
-    }
-  }
-  if paragraphs.length() == 0 && text.trim() != "" {
-    [text.trim().to_string()]
-  } else {
-    paragraphs
-  }
 }
 
 ///|

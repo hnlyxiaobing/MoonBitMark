@@ -694,18 +694,21 @@ fn fixedarray_slice(
 }
 
 ///|
-/// Huffman 树节点
-priv struct HuffmanNode {
-  mut symbol : Int
-  mut left : Int
-  mut right : Int
+/// Huffman 树
+priv struct HuffmanTree {
+  tables : FixedArray[Map[Int, Int]]
+  max_len : Int
 }
 
 ///|
-/// Huffman 树
-priv struct HuffmanTree {
-  nodes : FixedArray[HuffmanNode]
-  root : Int
+fn reverse_low_bits(code : Int, bit_count : Int) -> Int {
+  let mut result = 0
+  let mut remaining = code
+  for _ in 0..<bit_count {
+    result = (result << 1) | (remaining & 1)
+    remaining = remaining >> 1
+  }
+  result
 }
 
 ///|
@@ -732,67 +735,22 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
     next_code[bits] = code
   }
 
-  // 分配码字并记录
-  let codes : FixedArray[Int] = FixedArray::makei(lengths.length(), fn(_) { 0 })
-  let code_lens : FixedArray[Int] = FixedArray::makei(lengths.length(), fn(_) {
-    0
+  let tables : FixedArray[Map[Int, Int]] = FixedArray::makei(max_len + 1, fn(
+    _,
+  ) {
+    Map::new()
   })
 
   for i in 0..<lengths.length() {
     let len = lengths[i]
     if len > 0 && len <= max_len {
-      codes[i] = next_code[len]
-      code_lens[i] = len
+      let reversed_code = reverse_low_bits(next_code[len], len)
+      tables[len][reversed_code] = i
       next_code[len] = next_code[len] + 1
     }
   }
 
-  // 构建树 - 使用可变数组
-  let nodes : Array[HuffmanNode] = Array::new()
-  nodes.push(HuffmanNode::{ symbol: -1, left: -1, right: -1 }) // 根节点
-
-  for i in 0..<lengths.length() {
-    let len = code_lens[i]
-    if len == 0 {
-      continue
-    }
-
-    let mut node = 0
-    let code_val = codes[i]
-
-    for bit in 0..<len {
-      let b = (code_val >> (len - 1 - bit)) & 1
-      let current = nodes[node]
-
-      if b == 0 {
-        // 左分支
-        if current.left < 0 {
-          let new_node = HuffmanNode::{ symbol: -1, left: -1, right: -1 }
-          nodes.push(new_node)
-          nodes[node].left = nodes.length() - 1
-        }
-        node = nodes[node].left
-      } else {
-        // 右分支
-        if current.right < 0 {
-          let new_node = HuffmanNode::{ symbol: -1, left: -1, right: -1 }
-          nodes.push(new_node)
-          nodes[node].right = nodes.length() - 1
-        }
-        node = nodes[node].right
-      }
-    }
-
-    nodes[node].symbol = i
-  }
-
-  // 转换为 FixedArray
-  let node_count = nodes.length()
-  let fixed_nodes = FixedArray::makei(node_count, fn(i : Int) -> HuffmanNode {
-    nodes[i]
-  })
-
-  Ok(HuffmanTree::{ nodes: fixed_nodes, root: 0 })
+  Ok(HuffmanTree::{ tables, max_len })
 }
 
 ///|
@@ -801,36 +759,19 @@ fn decode_huffman(
   reader : BitReader,
   tree : HuffmanTree,
 ) -> Result[Int, String] {
-  let mut node_idx = tree.root
-  let mut found = false
-  let mut result = -1
-
-  while !found {
-    let current = tree.nodes[node_idx]
-
-    if current.symbol >= 0 {
-      found = true
-      result = current.symbol
-    } else {
-      let bit_result = reader.read_bits_reverse(1)
-      let bit = match bit_result {
-        Ok(v) => v
-        Err(e) => return Err(e)
-      }
-
-      if bit == 0 {
-        if current.left < 0 {
-          return Err("Invalid Huffman code")
-        }
-        node_idx = current.left
-      } else {
-        if current.right < 0 {
-          return Err("Invalid Huffman code")
-        }
-        node_idx = current.right
-      }
+  let mut code = 0
+  for bit_len in 1..<=tree.max_len {
+    let bit_result = reader.read_bits(1)
+    let bit = match bit_result {
+      Ok(v) => v
+      Err(e) => return Err(e)
+    }
+    code = code | (bit << (bit_len - 1))
+    match tree.tables[bit_len].get(code) {
+      Some(symbol) => return Ok(symbol)
+      None => ()
     }
   }
 
-  Ok(result)
+  Err("Invalid Huffman code")
 }

@@ -77,15 +77,16 @@
 这意味着：
 
 - 阶段 0 的“统一基线 + 最小样本集 + baseline 报告”已经基本成立
+- 阶段 1 已取得实质进展：`libzip` Dynamic Huffman 已修复并进入严格测试
+- `core` 已开始收敛共享文件读取 / 路径 helper，以及 OCR / asset 约定
 - 阶段 2 中 `DOCX / PPTX / XLSX / EPUB` 的第一轮质量补强已经取得结果
-- 但阶段 1 的共享基础设施治理仍未完成，尤其 `libzip` Dynamic Huffman 仍是最高优先级共享问题
 
 ## 1.1 阶段完成度判断
 
 基于当前仓库状态，可以把执行进度粗略判断为：
 
 - 阶段 0：基本完成
-- 阶段 1：仅部分开始，核心阻塞仍未解决
+- 阶段 1：已完成第一轮关键治理，但共享 helper 与 Image 侧收敛仍可继续推进
 - 阶段 2：已完成第一轮可用补强，但还未进入共享层稳定后的系统提质阶段
 - 阶段 3：已有样本与评测覆盖，但实现仍偏轻量
 - 阶段 4：已有 OCR 能力与 metadata 模式，但还未完全能力化收敛
@@ -142,7 +143,7 @@ MoonBitMark 下一阶段最合适的路线不是：
 
 纯逐格式推进的主要问题是：
 
-- `libzip` 的 Dynamic Huffman 问题会同时影响 `DOCX / PPTX / XLSX / EPUB`
+- `libzip` 的解压实现会同时影响 `DOCX / PPTX / XLSX / EPUB`
 - OCR 行为和 warning 逻辑已经在多个格式重复出现
 - 资产输出、元数据、diagnostics 模式存在跨格式共性
 - 多个 converter 内已出现重复的读取文件、路径处理、`bytes_from_array`、`file_stem` 等辅助逻辑
@@ -185,7 +186,7 @@ MoonBitMark 下一阶段最合适的路线不是：
 - 资产提取
 - 部分 OCR 接入
 
-这是优先级最高的一组，因为它们共享基础设施最多，且当前已知 `Dynamic Huffman` 缺陷会直接影响这一整组。
+这是优先级最高的一组，因为它们共享基础设施最多，一处修复通常会同时改善整组格式。
 
 ### 5.2 B 组：Web 文档簇
 
@@ -357,7 +358,7 @@ MoonBitMark 下一阶段最合适的路线不是：
 
 优先事项：
 
-1. `libzip` Dynamic Huffman 问题排查与修复
+1. 修复 `libzip` Dynamic Huffman 并补严格回归测试
 2. 统一文件读取 / `Bytes` 构造 helper
 3. 统一路径处理、`file_stem`、扩展名辅助逻辑
 4. 统一资产输出与 metadata 约定
@@ -371,7 +372,7 @@ MoonBitMark 下一阶段最合适的路线不是：
 
 建议任务拆分：
 
-1. 处理 `libzip` Dynamic Huffman 缺陷
+1. 修复并验证 `libzip` Dynamic Huffman
 2. 抽取共享 helper：
    - 读取整个文件为 `Bytes`
    - `bytes_from_array`
@@ -775,21 +776,21 @@ MoonBitMark 下一阶段最合适的路线不是：
 
 如果只看接下来一到两个开发周期，建议先做下面这些事：
 
-1. 建立“非 PDF 格式”的最小评测基线
-2. 梳理 Archive 簇共享问题，优先确认 `libzip` 动态 Huffman 的修复路线
-3. 收敛重复 helper，尤其是文件读取、路径处理、`Bytes` 构造
-4. 先推进 `DOCX` 与 `XLSX` 两个高价值格式
+1. 继续扩充“非 PDF 格式”的评测样本，尤其补 Archive 簇边界 case
+2. 收敛剩余共享 helper，尤其补完 Image 侧与 message/path 小工具
+3. 继续统一 OCR metadata / diagnostics 约定，为 Image 与后续 PDF recovery 共用
+4. 先推进 `DOCX` 与 `XLSX` 两个高价值格式的第二轮提质
 5. 完成一轮 HTML 本地文件结构恢复补强
-6. 整理 OCR metadata / diagnostics 约定，为 Image 与后续 PDF recovery 共用
+6. 评估 `URL` 与 `Image` 的下一轮质量/可维护性上限
 
 ### 10.1 建议的首轮执行顺序
 
 如果按实际落地顺序拆分，推荐按下面的节奏推进：
 
-1. 先完成阶段 0 的最小基线，不急着大改实现
-2. 立即切入共享基础设施问题，优先处理 Archive 簇阻塞项
+1. 在现有基线之上继续补 Archive / OCR 边界样本
+2. 继续完成共享 helper 和 OCR 约定的尾部收敛
 3. 并行推进 `DOCX` 和 `XLSX`
-4. 在 Archive 簇首轮收敛后，推进 HTML 本地文件主路径
+4. 在 Archive 簇共享层稳定后，推进 HTML 本地文件主路径
 5. 最后整理 OCR capability 和轻结构文本簇补强
 
 这个顺序的原因是：

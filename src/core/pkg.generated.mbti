@@ -7,13 +7,45 @@ import {
 }
 
 // Values
+pub fn apply_ocr_metadata(Map[String, String], @ocr.OcrConfig, String?, embedded_image_count? : Int) -> Unit
+
+pub fn archive_asset_warning_diagnostic(String, String) -> ConversionDiagnostic?
+
+pub fn asset_placeholder(String, Int) -> String
+
+pub fn bytes_from_array(Array[Byte]) -> Bytes
+
 pub fn count_markdown_blocks(String) -> Int
 
 pub fn diagnostics_from_warnings(Array[String], ConversionPhase?, DiagnosticSource?, hint? : DiagnosticHint) -> Array[ConversionDiagnostic]
 
+pub fn embedded_ocr_empty_warning(String) -> String
+
+pub let embedded_ocr_unavailable_warning : String
+
+pub fn embedded_ocr_warning_diagnostic(String, String) -> ConversionDiagnostic?
+
 pub fn error_diagnostic(ConversionError, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> ConversionDiagnostic
 
+pub fn file_name_only(String) -> String
+
+pub fn file_ocr_warning_diagnostic(String, String, String) -> ConversionDiagnostic?
+
+pub fn file_stem(String) -> String?
+
+pub fn find_last_char(String, Char) -> Int?
+
+pub fn path_extension(String) -> String
+
+pub fn push_unique_warning(Array[String], String) -> Unit
+
+pub async fn read_file_bytes(String) -> Bytes
+
+pub async fn read_utf8_file(String) -> String
+
 pub fn render_diagnostics_report(Array[ConversionDiagnostic]) -> String
+
+pub fn split_ocr_paragraphs(String) -> Array[String]
 
 pub fn stats_for_markdown(String, duration_ms? : Int, used_fallback? : Bool) -> ConvertStats
 

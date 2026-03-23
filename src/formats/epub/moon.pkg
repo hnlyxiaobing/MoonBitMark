@@ -5,7 +5,6 @@ import {
   "moonbitlang/moonbitmark/src/formats/html",
   "moonbitlang/moonbitmark/src/libzip",
   "moonbitlang/moonbitmark/src/xml",
-  "moonbitlang/async/fs",
   "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",
 }

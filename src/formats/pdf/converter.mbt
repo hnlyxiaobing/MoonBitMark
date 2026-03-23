@@ -33,7 +33,7 @@ pub async fn PdfConverter::convert(
   let raw_extraction = extract_pdf_native(file_path)
   let route_plan = plan_pdf_route(raw_extraction.raw_pages)
   let extraction = bind_route_to_native_extraction(raw_extraction, route_plan)
-  let title = file_stem(file_path)
+  let title = @core.file_stem(file_path)
   let assembly = assemble_pdf_document(title, extraction, route_plan)
 
   let flattened_text = extraction.raw_pages.join("\n\n")

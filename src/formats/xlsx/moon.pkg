@@ -3,7 +3,6 @@ import {
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/libzip",
   "moonbitlang/moonbitmark/src/xml",
-  "moonbitlang/async/fs",
   "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",
 }
