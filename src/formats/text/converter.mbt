@@ -32,12 +32,7 @@ pub async fn TextConverter::convert(
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   ignore(ctx)
-  let file = @fs.open(file_path, mode=ReadOnly)
-  let mut content = ""
-  while file.read_until("\n") is Some(line) {
-    content = content + line + "\n"
-  }
-  file.close()
+  let content = @core.strip_utf8_bom(@core.read_utf8_file(file_path))
   let title = @core.file_stem(file_path)
   let metadata = Map::new()
   metadata["format"] = "plain_text"

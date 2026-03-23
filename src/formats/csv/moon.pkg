@@ -1,5 +1,4 @@
 import {
   "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/core",
-  "moonbitlang/async/fs",
 }

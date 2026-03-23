@@ -73,13 +73,51 @@ fn render_table(headers : Array[String], rows : Array[Array[String]]) -> String 
   if headers.length() == 0 {
     return ""
   }
+  let width = table_width(headers, rows)
   let lines : Array[String] = []
-  lines.push("| " + headers.join(" | ") + " |")
-  lines.push("| " + Array::make(headers.length(), "---").join(" | ") + " |")
+  lines.push(render_table_row(headers, width))
+  lines.push("| " + Array::make(width, "---").join(" | ") + " |")
   for row in rows {
-    lines.push("| " + row.join(" | ") + " |")
+    lines.push(render_table_row(row, width))
   }
   lines.join("\n")
+}
+
+///|
+fn table_width(headers : Array[String], rows : Array[Array[String]]) -> Int {
+  let mut width = headers.length()
+  for row in rows {
+    if row.length() > width {
+      width = row.length()
+    }
+  }
+  width
+}
+
+///|
+fn render_table_row(cells : Array[String], width : Int) -> String {
+  let normalized = normalize_table_row(cells, width)
+  "| " + normalized.map(cell => escape_table_cell(cell)).join(" | ") + " |"
+}
+
+///|
+fn normalize_table_row(cells : Array[String], width : Int) -> Array[String] {
+  let normalized : Array[String] = []
+  let mut index = 0
+  while index < width {
+    normalized.push(if index < cells.length() { cells[index] } else { "" })
+    index = index + 1
+  }
+  normalized
+}
+
+///|
+fn escape_table_cell(cell : String) -> String {
+  cell
+  .replace(old="|", new="\\|")
+  .replace(old="\r\n", new="<br>")
+  .replace(old="\r", new="<br>")
+  .replace(old="\n", new="<br>")
 }
 
 ///|

@@ -72,7 +72,7 @@ fn preprocess_html(html : String) -> String {
 
 ///|
 pub fn html_to_document(html : String, title : String?) -> @ast.Document {
-  let blocks = html_to_blocks(html)
+  let blocks = prepend_html_title_block(html_to_blocks(html), title)
   @ast.Document::{ title, metadata: {}, blocks }
 }
 
@@ -84,6 +84,13 @@ pub fn html_to_blocks(html : String) -> Array[@ast.Block] {
   while remaining.trim() != "" {
     let trimmed = remaining.trim_start().to_string()
     remaining = trimmed
+    match unwrap_container_html(remaining) {
+      Some(unwrapped) => {
+        remaining = unwrapped
+        continue
+      }
+      None => ()
+    }
     match parse_next_html_block(remaining) {
       Some((block, rest)) => {
         blocks.push(block)
@@ -166,10 +173,53 @@ fn parse_next_html_block(html : String) -> (@ast.Block, String)? {
     }
     return Some((@ast.HorizontalRule, rest))
   }
-  if html.has_prefix("<div") {
-    return parse_paragraph_html_block(html, "div")
-  }
   None
+}
+
+///|
+fn prepend_html_title_block(
+  blocks : Array[@ast.Block],
+  title : String?,
+) -> Array[@ast.Block] {
+  let result : Array[@ast.Block] = []
+  match title {
+    Some(value) if !leading_html_block_matches_title(blocks, value) =>
+      result.push(@ast.text_paragraph(value))
+    _ => ()
+  }
+  for block in blocks {
+    result.push(block)
+  }
+  result
+}
+
+///|
+fn leading_html_block_matches_title(
+  blocks : Array[@ast.Block],
+  title : String,
+) -> Bool {
+  match blocks {
+    [first, ..] =>
+      normalize_html_block_text(html_block_text(first)) ==
+      normalize_html_block_text(title)
+    [] => false
+  }
+}
+
+///|
+fn html_block_text(block : @ast.Block) -> String {
+  match block {
+    @ast.Heading(_, inlines) =>
+      render_inline_markdown(inlines).trim().to_string()
+    @ast.Paragraph(inlines) =>
+      render_inline_markdown(inlines).trim().to_string()
+    _ => ""
+  }
+}
+
+///|
+fn normalize_html_block_text(text : String) -> String {
+  text.trim().to_lower().to_string()
 }
 
 ///|
@@ -496,6 +546,42 @@ fn render_inline_markdown(inlines : Array[@ast.Inline]) -> String {
 }
 
 ///|
+fn unwrap_container_html(html : String) -> String? {
+  match unwrap_html_tag(html, "div") {
+    Some(unwrapped) => Some(unwrapped)
+    None =>
+      match unwrap_html_tag(html, "section") {
+        Some(unwrapped) => Some(unwrapped)
+        None =>
+          match unwrap_html_tag(html, "article") {
+            Some(unwrapped) => Some(unwrapped)
+            None => unwrap_html_tag(html, "main")
+          }
+      }
+  }
+}
+
+///|
+fn unwrap_html_tag(html : String, tag : String) -> String? {
+  if !html.has_prefix("<" + tag) {
+    return None
+  }
+  match take_tag_parts(html, tag) {
+    Some((_, inner, rest)) => {
+      let trimmed_inner = inner.trim().to_string()
+      if trimmed_inner == "" {
+        Some(rest)
+      } else if rest.trim() == "" {
+        Some(trimmed_inner)
+      } else {
+        Some(trimmed_inner + "\n" + rest)
+      }
+    }
+    None => None
+  }
+}
+
+///|
 fn plain_text_fragment(fragment : String) -> String {
   render_inline_markdown(inline_html_to_inlines(fragment)).trim().to_string()
 }
@@ -513,14 +599,7 @@ pub async fn convert_from_url(url : String) -> String {
 ///|
 /// Convert from local file
 pub async fn convert_from_file(file_path : String) -> String {
-  let file = @fs.open(file_path, mode=ReadOnly)
-  let mut content = ""
-  while file.read_until("\n") is Some(line) {
-    content = content + line + "\n"
-  }
-  file.close()
-
-  content
+  @core.strip_utf8_bom(@core.read_utf8_file(file_path))
 }
 
 ///|

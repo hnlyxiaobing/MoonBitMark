@@ -49,6 +49,8 @@ pub fn split_ocr_paragraphs(String) -> Array[String]
 
 pub fn stats_for_markdown(String, duration_ms? : Int, used_fallback? : Bool) -> ConvertStats
 
+pub fn strip_utf8_bom(String) -> String
+
 pub fn warning_diagnostic(String, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> ConversionDiagnostic
 
 // Errors

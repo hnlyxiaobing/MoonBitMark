@@ -31,6 +31,21 @@ pub async fn read_utf8_file(path : String) -> String {
 }
 
 ///|
+pub fn strip_utf8_bom(text : String) -> String {
+  let mut result = ""
+  let mut is_first = true
+  for ch in text {
+    if is_first && ch == '\u{feff}' {
+      is_first = false
+      continue
+    }
+    result = result + ch.to_string()
+    is_first = false
+  }
+  result
+}
+
+///|
 fn normalize_path(path : String) -> String {
   path.replace(old="\\", new="/")
 }

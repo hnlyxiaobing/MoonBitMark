@@ -32,26 +32,14 @@ pub async fn CsvConverter::convert(
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   ignore(ctx)
-  let file = @fs.open(file_path, mode=ReadOnly)
-  let mut content = ""
-  let mut is_first = true
-  while file.read_until("\n") is Some(line) {
-    if is_first {
-      // Trim BOM and leading whitespace
-      let trimmed = line.trim_start()
-      content = content + trimmed.to_string() + "\n"
-      is_first = false
-    } else {
-      content = content + line + "\n"
-    }
-  }
-  file.close()
+  let content = @core.strip_utf8_bom(@core.read_utf8_file(file_path))
+  let rows = parse_csv_rows(content)
   let title = @core.file_stem(file_path)
   let metadata = Map::new()
   metadata["format"] = "csv"
-  metadata["row_count"] = csv_row_count(content).to_string()
-  metadata["column_count"] = csv_column_count(content).to_string()
-  let doc = csv_to_document(content, title, metadata)
+  metadata["row_count"] = csv_row_count(rows).to_string()
+  metadata["column_count"] = csv_column_count(rows).to_string()
+  let doc = csv_rows_to_document(rows, title, metadata)
   let markdown = @ast.render_markdown(doc)
   let warnings : Array[String] = []
   if markdown == "" {
@@ -68,13 +56,12 @@ pub async fn CsvConverter::convert(
 }
 
 ///|
-fn csv_to_document(
-  csv : String,
+fn csv_rows_to_document(
+  rows : Array[Array[String]],
   title : String?,
   metadata : Map[String, String],
 ) -> @ast.Document {
   let blocks : Array[@ast.Block] = []
-  let rows = parse_csv_rows(csv)
   match rows {
     [header, .. tail] => blocks.push(@ast.Table(header, tail.to_array()))
     [] => ()
@@ -85,29 +72,98 @@ fn csv_to_document(
 ///|
 fn parse_csv_rows(csv : String) -> Array[Array[String]] {
   let rows : Array[Array[String]] = []
-  for line in csv.split("\n").to_array() {
-    if line.trim() == "" {
-      continue
+  let chars = csv_chars(csv)
+  let mut current_row : Array[String] = []
+  let mut current_cell = ""
+  let mut in_quotes = false
+  let mut index = 0
+  while index < chars.length() {
+    let ch = chars[index]
+    if in_quotes {
+      if ch == '"' {
+        if index + 1 < chars.length() && chars[index + 1] == '"' {
+          current_cell = current_cell + "\""
+          index = index + 2
+        } else {
+          in_quotes = false
+          index = index + 1
+        }
+      } else {
+        current_cell = current_cell + ch.to_string()
+        index = index + 1
+      }
+    } else if ch == '"' {
+      in_quotes = true
+      index = index + 1
+    } else if ch == ',' {
+      current_row.push(current_cell)
+      current_cell = ""
+      index = index + 1
+    } else if ch == '\n' {
+      current_row.push(current_cell)
+      push_csv_row(rows, current_row)
+      current_row = []
+      current_cell = ""
+      index = index + 1
+    } else {
+      current_cell = current_cell + ch.to_string()
+      index = index + 1
     }
-    rows.push(line.split(",").to_array().map(cell => cell.to_string()))
+  }
+  if current_row.length() > 0 || current_cell != "" {
+    current_row.push(current_cell)
+    push_csv_row(rows, current_row)
   }
   rows
 }
 
 ///|
-fn csv_row_count(csv : String) -> Int {
-  csv.split("\n").to_array().filter(line => line.trim() != "").length()
+fn csv_chars(csv : String) -> Array[Char] {
+  let original : Array[Char] = []
+  for ch in csv {
+    original.push(ch)
+  }
+  let chars : Array[Char] = []
+  let mut index = 0
+  while index < original.length() {
+    let ch = original[index]
+    if ch == '\r' {
+      chars.push('\n')
+      if index + 1 < original.length() && original[index + 1] == '\n' {
+        index = index + 2
+      } else {
+        index = index + 1
+      }
+    } else {
+      chars.push(ch)
+      index = index + 1
+    }
+  }
+  chars
 }
 
 ///|
-fn csv_column_count(csv : String) -> Int {
-  let lines = csv.split("\n").to_array()
-  for line in lines {
-    if line.trim() != "" {
-      return line.split(",").to_array().length()
+fn push_csv_row(rows : Array[Array[String]], row : Array[String]) -> Unit {
+  if row.length() == 1 && row[0].trim() == "" {
+    return
+  }
+  rows.push(row)
+}
+
+///|
+fn csv_row_count(rows : Array[Array[String]]) -> Int {
+  rows.length()
+}
+
+///|
+fn csv_column_count(rows : Array[Array[String]]) -> Int {
+  let mut max_columns = 0
+  for row in rows {
+    if row.length() > max_columns {
+      max_columns = row.length()
     }
   }
-  0
+  max_columns
 }
 
 ///|

@@ -20,6 +20,27 @@ test "html direct ast document" {
 }
 
 ///|
+test "html prepends title when body heading differs" {
+  let doc = html_to_document(
+    "<html><head><title>Simple Table Test</title></head><body><h1>Sample Data Table</h1></body></html>",
+    Some("Simple Table Test"),
+  )
+  inspect(
+    @ast.render_markdown(doc),
+    content="Simple Table Test\n\n# Sample Data Table",
+  )
+}
+
+///|
+test "html unwraps div containers into nested blocks" {
+  let doc = html_to_document(
+    "<body><div><h2>Nested</h2><p>Hello</p><ul><li>A</li><li>B</li></ul></div></body>",
+    None,
+  )
+  inspect(@ast.render_markdown(doc), content="## Nested\n\nHello\n\n- A\n- B")
+}
+
+///|
 test "html warning diagnostics carry typed source" {
   let diagnostics = html_warning_diagnostics(
     "https://example.com", "<style>a{}</style><script>x()</script>",

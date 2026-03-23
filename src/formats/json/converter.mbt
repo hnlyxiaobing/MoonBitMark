@@ -32,19 +32,7 @@ pub async fn JsonConverter::convert(
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   ignore(ctx)
-  let file = @fs.open(file_path, mode=ReadOnly)
-  let mut content = ""
-  let mut is_first = true
-  while file.read_until("\n") is Some(line) {
-    if is_first {
-      let trimmed = line.trim_start()
-      content = content + trimmed.to_string() + "\n"
-      is_first = false
-    } else {
-      content = content + line + "\n"
-    }
-  }
-  file.close()
+  let content = @core.strip_utf8_bom(@core.read_utf8_file(file_path))
   let title = @core.file_stem(file_path)
   let metadata = Map::new()
   metadata["format"] = "json"
