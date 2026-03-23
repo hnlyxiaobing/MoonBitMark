@@ -27,12 +27,7 @@ pub async fn EpubConverter::convert(
         @libzip.read_file_entry_decompressed(zip, "META-INF/container.xml") {
         Some(container_data) => {
           let opf_path = parse_container_xml(container_data)
-
-          // Get OPF directory
-          let opf_dir = match @core.find_last_char(opf_path, '/') {
-            Some(idx) => opf_path[0:idx].to_string()
-            None => ""
-          }
+          let opf_dir = @core.path_dirname(opf_path)
 
           // Parse OPF file
           match @libzip.read_file_entry_decompressed(zip, opf_path) {
@@ -40,17 +35,16 @@ pub async fn EpubConverter::convert(
               let epub_pkg = parse_opf(opf_data)
               let warnings : Array[String] = []
               let blocks = build_epub_blocks(epub_pkg.metadata)
+              if epub_has_navigation_manifest(epub_pkg.manifest) {
+                blocks.push(@ast.text_heading(2, "table of contents"))
+              }
 
               // Process spine items
               for item in epub_pkg.spine {
                 let href = epub_pkg.manifest.get(item.idref)
                 match href {
                   Some(manifest_item) => {
-                    let full_path = if opf_dir == "" {
-                      manifest_item.href
-                    } else {
-                      opf_dir + "/" + manifest_item.href
-                    }
+                    let full_path = @core.join_path(opf_dir, manifest_item.href)
                     match @libzip.read_file_entry_decompressed(zip, full_path) {
                       Some(content) =>
                         for block in parse_xhtml_blocks(content) {
@@ -91,6 +85,9 @@ pub async fn EpubConverter::convert(
                 ctx.ocr,
                 ocr_provider,
                 embedded_image_count=ocr_count,
+                attempted=ctx.ocr.should_process_embedded_images() &&
+                  assets.length() > 0,
+                available=ocr_provider != None,
               )
               let diagnostics = epub_warning_diagnostics(warnings)
               let final_blocks = append_epub_asset_blocks(
@@ -240,51 +237,65 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
       for event in events {
         match event {
           @xml.ElementStart(evt) => {
-            current_element = evt.name
-            if evt.name == "metadata" {
+            current_element = strip_epub_namespace(evt.name)
+            if current_element == "metadata" {
               in_metadata = true
             }
-            if evt.name == "item" {
+            if current_element == "item" {
               let id = evt.attributes.get("id")
               let href = evt.attributes.get("href")
               let media_type = evt.attributes.get("media-type")
+              let properties = evt.attributes.get("properties")
               match (id, href, media_type) {
                 (Some(id_val), Some(href_val), Some(mt_val)) =>
                   manifest.set(id_val, {
                     id: id_val,
                     href: href_val,
                     media_type: mt_val,
-                    properties: None,
+                    properties,
                   })
                 _ => ignore(())
               }
             }
-            if evt.name == "itemref" {
+            if current_element == "itemref" {
               match evt.attributes.get("idref") {
-                Some(idref) => spine.push({ idref, linear: true })
+                Some(idref) =>
+                  spine.push({
+                    idref,
+                    linear: evt.attributes.get("linear") != Some("no"),
+                  })
                 None => ignore(())
               }
             }
           }
           @xml.ElementEnd(evt) => {
-            if evt.name == "metadata" {
+            if strip_epub_namespace(evt.name) == "metadata" {
               in_metadata = false
             }
             current_element = ""
           }
           @xml.TextContent(evt) =>
             if in_metadata {
-              if current_element == "dc:title" {
+              if current_element == "title" {
                 metadata.title = Some(evt.content)
               }
-              if current_element == "dc:creator" {
+              if current_element == "creator" {
                 metadata.authors.push(evt.content)
               }
-              if current_element == "dc:language" {
+              if current_element == "language" {
                 metadata.language = Some(evt.content)
               }
-              if current_element == "dc:description" {
+              if current_element == "description" {
                 metadata.description = Some(evt.content)
+              }
+              if current_element == "publisher" {
+                metadata.publisher = Some(evt.content)
+              }
+              if current_element == "identifier" {
+                metadata.identifier = Some(evt.content)
+              }
+              if current_element == "date" {
+                metadata.date = Some(evt.content)
               }
             }
         }
@@ -342,6 +353,18 @@ fn parse_xhtml_blocks(data : Bytes) -> Array[@ast.Block] {
 }
 
 ///|
+fn strip_epub_namespace(name : String) -> String {
+  if name.contains(":") {
+    match name.find(":") {
+      Some(index) => name[index + 1:].to_string()
+      None => name
+    }
+  } else {
+    name
+  }
+}
+
+///|
 fn normalize_epub_html_blocks(blocks : Array[@ast.Block]) -> Array[@ast.Block] {
   let result : Array[@ast.Block] = []
   for block in blocks {
@@ -360,16 +383,16 @@ fn normalize_epub_html_blocks(blocks : Array[@ast.Block]) -> Array[@ast.Block] {
 fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
   match block {
     @ast.Heading(level, inlines) => {
-      let text = plain_text_inlines(inlines)
-      if text == "" {
+      let text = sanitize_epub_text(plain_text_inlines(inlines))
+      if text == "" || is_epub_noise_text(text) {
         None
       } else {
         Some(@ast.text_heading(level, text))
       }
     }
     @ast.Paragraph(inlines) => {
-      let text = plain_text_inlines(inlines)
-      if text == "" {
+      let text = sanitize_epub_text(plain_text_inlines(inlines))
+      if text == "" || is_epub_noise_text(text) {
         None
       } else {
         Some(@ast.text_paragraph(text))
@@ -378,8 +401,8 @@ fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
     @ast.List(items, ordered) => {
       let normalized_items : Array[String] = []
       for item in items {
-        let text = plain_text_markdownish(item)
-        if text != "" {
+        let text = sanitize_epub_text(plain_text_markdownish(item))
+        if text != "" && !is_epub_noise_text(text) {
           normalized_items.push(text)
         }
       }
@@ -392,8 +415,8 @@ fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
     @ast.Quote(lines) => {
       let normalized_lines : Array[String] = []
       for line in lines {
-        let text = plain_text_markdownish(line)
-        if text != "" {
+        let text = sanitize_epub_text(plain_text_markdownish(line))
+        if text != "" && !is_epub_noise_text(text) {
           normalized_lines.push(text)
         }
       }
@@ -421,6 +444,30 @@ fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
     }
     @ast.HorizontalRule => None
   }
+}
+
+///|
+fn sanitize_epub_text(text : String) -> String {
+  let mut result = normalize_epub_text(text)
+  for
+    noise in [
+      "Your Reading System does not support (this) video.", "Your Reading System does not support (this) audio",
+      "play pause mute unmute MUTED", "<video", "<audio", "&lt;source", "&lt;track",
+      "epubReadingSystem aware scripted video control using click and dblclick, space key.",
+    ] {
+    result = result.replace(old=noise, new=" ")
+  }
+  normalize_epub_text(result)
+}
+
+///|
+fn is_epub_noise_text(text : String) -> Bool {
+  let normalized = normalize_epub_text(text).to_lower().to_string()
+  normalized == "" ||
+  normalized == "guide" ||
+  normalized == "play pause mute unmute muted" ||
+  normalized == "begin reading" ||
+  normalized == "table of contents begin reading"
 }
 
 ///|
@@ -557,6 +604,21 @@ fn metadata_of_epub(
 }
 
 ///|
+fn epub_has_navigation_manifest(manifest : Map[String, ManifestItem]) -> Bool {
+  for _, item in manifest {
+    match item.properties {
+      Some(properties) if properties.contains("nav") => return true
+      _ => ()
+    }
+    let href = item.href.to_lower().to_string()
+    if href.contains("toc") || href.contains("nav") {
+      return true
+    }
+  }
+  false
+}
+
+///|
 fn extract_epub_assets(
   archive : @libzip.ZipArchive,
   manifest : Map[String, ManifestItem],
@@ -567,17 +629,15 @@ fn extract_epub_assets(
   let mut index = 1
   for _, item in manifest {
     if is_epub_asset_media_type(item.media_type) {
-      let archive_path = if opf_dir == "" {
-        item.href
-      } else {
-        opf_dir + "/" + item.href
-      }
+      let archive_path = @core.join_path(opf_dir, item.href)
       match @libzip.read_file_entry_decompressed(archive, archive_path) {
         Some(bytes) => {
-          let filename = "epub-asset-" +
-            index.to_string() +
-            "." +
-            asset_extension(item.href, item.media_type)
+          let filename = @core.numbered_asset_filename(
+            "epub-asset-",
+            index,
+            item.href,
+            fallback_extension=media_type_extension(item.media_type),
+          )
           assets.push(@core.OutputAsset::{
             placeholder: epub_asset_placeholder(index),
             filename,
@@ -645,19 +705,6 @@ fn epub_asset_placeholder(index : Int) -> String {
 }
 
 ///|
-fn asset_extension(path : String, media_type : String) -> String {
-  match @core.find_last_char(path, '.') {
-    Some(index) =>
-      if index + 1 < path.length() {
-        path[index + 1:].to_lower().to_string()
-      } else {
-        media_type_extension(media_type)
-      }
-    None => media_type_extension(media_type)
-  }
-}
-
-///|
 fn media_type_extension(media_type : String) -> String {
   match media_type {
     "image/jpeg" => "jpg"
@@ -676,12 +723,7 @@ fn media_type_extension(media_type : String) -> String {
 
 ///|
 fn is_image_asset_filename(filename : String) -> Bool {
-  filename.has_suffix(".png") ||
-  filename.has_suffix(".jpg") ||
-  filename.has_suffix(".jpeg") ||
-  filename.has_suffix(".gif") ||
-  filename.has_suffix(".webp") ||
-  filename.has_suffix(".svg")
+  @core.is_image_filename(filename)
 }
 
 ///|

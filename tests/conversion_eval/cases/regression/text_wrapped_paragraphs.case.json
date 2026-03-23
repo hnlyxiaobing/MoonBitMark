@@ -1,0 +1,18 @@
+{
+  "id": "text_wrapped_paragraphs",
+  "format": "text",
+  "tier": "regression",
+  "input": "tests/conversion_eval/fixtures/inputs/text/wrapped_paragraphs.txt",
+  "description": "Plain text should collapse wrapped lines into readable paragraphs without merging blank-line-separated sections.",
+  "must_include": ["First line wraps into the same paragraph for readability.", "Second paragraph stays separate and also joins wrapped lines."],
+  "min_chars": 40,
+  "min_lines": 3,
+  "checks": {
+    "anchors": true,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.5,
+    "text_order": 0.5
+  }
+}

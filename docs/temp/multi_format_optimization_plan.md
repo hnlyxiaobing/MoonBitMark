@@ -65,11 +65,16 @@
   - `text`
   - `xlsx`
 - 当前最新评测结果为：
-  - `24/24` 通过
-  - 平均分 `0.9858`
+  - `29/29` 通过
+  - 平均分 `0.9894`
+- conversion eval 报告已补入：
+  - `By Cluster` 视图：`archive / web / ocr`
+  - `By Tier` 视图：`smoke / quality / regression / edge`
+  - `OCR Evidence` 视图：`attempted / available / forced / fallback used`
+- regression 样本已成为常规交付物，当前新增 regression `5/5` 通过
 - baseline 已纳入同一套报告：
-  - `markitdown`：`22/22` 成功，平均分 `0.7373`
-  - `docling`：`15/15` 成功，平均分 `0.6388`
+  - `markitdown`：当前环境 unavailable
+  - `docling`：当前环境 unavailable
 - `image` 已正式纳入评测矩阵，并支持通过 case 级 `cli_args` 固定
   `--ocr force --ocr-backend mock`
 - `epub` 已做过一轮专门的输出收敛，当前 quality case 已可通过
@@ -81,7 +86,7 @@
 - `core` 已开始收敛共享文件读取 / 路径 helper，以及 OCR / asset 约定
 - AST 共享渲染层已经开始承担表格列宽补齐与换行收敛，属于典型的“一处修复，多格式受益”
 - 阶段 2 中 `DOCX / PPTX / XLSX / EPUB` 的第一轮质量补强已经取得结果
-- 阶段 3 与阶段 5 已分别启动一轮轻量提质：HTML 的 `<title>` / container 恢复补强，以及 CSV 真实解析语义补强已经进入主线
+- 阶段 3 与阶段 5 已分别进入第二轮轻量提质：HTML 的正文噪声清理和 failure diagnostics 已继续补强，CSV / JSON / TXT 的收尾与退化策略也已进入主线
 
 ## 1.1 阶段完成度判断
 
@@ -98,11 +103,14 @@
 
 相对上一版快照，本轮已经新增以下已落地主线变化：
 
-- `src/formats/csv/` 已从简单逗号切分升级到支持 quoted cell、escaped quote、multiline cell 的真实解析语义
+- `src/formats/csv/` 已从简单逗号切分升级到支持 quoted cell、escaped quote、multiline cell 的真实解析语义，并补入 delimiter 自动探测与 ragged row diagnostics
 - `src/core/file_helpers.mbt` 新增 UTF-8 BOM 清理 helper，`csv/json/text/html` 已统一复用共享读取路径
 - `src/ast/renderer.mbt` 已统一表格列宽补齐与单元格换行收敛，这会同时影响 CSV / HTML / XLSX 等共享 `Table` block 的格式
-- `src/formats/html/` 已补入 `<title>` 注入和 `div/section/article/main` 容器展开逻辑，常见本地 HTML 的结构恢复质量已明显提升
-- 最新 conversion eval 已提升到 `24/24`、平均分 `0.9858`，其中 `csv = 1.0000`、`html = 0.9948`
+- `src/formats/html/` 已补入 `<title>` 注入、`div/section/article/main` 容器展开以及 `nav/aside/footer` 噪声削减，常见页面正文抽取质量已继续提升
+- `src/core/conversion_helpers.mbt` 已统一扩展 OCR metadata 字段，`docx/pptx/xlsx/epub/pdf` 已共享复用
+- `src/formats/pdf/` 已接入 page-level OCR fallback 实验线，并通过专门 regression case 记录 OCR 介入证据
+- `src/formats/json/` 已统一 pretty-print 与 invalid JSON 退化路径，`src/formats/text/` 已补入段落折行归并
+- 最新 conversion eval 已提升到 `29/29`、平均分 `0.9894`，其中 regression `5/5` 全通过
 
 ## 2. 总策略结论
 
@@ -256,356 +264,255 @@ MoonBitMark 下一阶段最合适的路线不是：
 
 ## 6. 优先级建议
 
-推荐的总体优先级如下：
+原始规划里的“先基线、再 Archive、再 Web、再 OCR、最后轻结构文本”在立项阶段是合理的，但基于当前仓库状态，下一阶段已经不应继续沿用那套从零开始的排序。
 
-1. 先做全局基线与共享瓶颈清单
-2. 再做 A 组 `DOCX / PPTX / XLSX / EPUB`
-3. 然后做 B 组 `HTML / XHTML / URL`
-4. 然后做 C 组 `Image / OCR capability`
-5. 最后做 D 组 `TXT / CSV / JSON`
+当前更合理的排序原则是：
+
+1. 先做已经有主干但仍需要增强洞察力和 regression 纪律的部分
+2. 先做一处修复能影响多个格式的共享层
+3. 在单格式提质时，优先做当前最可能继续拉高真实质量的格式
+4. 把高不确定性能力线放到共享层稳定之后推进
+
+基于这个原则，推荐把下一阶段总顺序改为与执行清单一致的版本：
+
+1. `T0` 评测与回归增量增强
+2. `T1` Archive 共享层收口
+3. `T2` EPUB 第二轮提质
+4. `T3` OCR 共享层收口
+5. `T4` HTML / URL 第二轮提质
+6. `T5` `DOCX / XLSX / PPTX` 定向提质
+7. `T6` PDF OCR fallback 实验线
+8. `T7` Image / OCR 消费层收口
+9. `T8` `TXT / CSV / JSON` 轻结构文本簇收尾
+10. `T9` 工程化收口
+
+这个顺序与原始规划最大的区别在于：
+
+- 阶段 0 不再是“先重新搭一整套基线”，而是对现有 eval 做增量增强
+- Archive 簇共享层仍然是最重要的杠杆点，但单格式先后顺序应改为 `EPUB` 优先
+- HTML 已经完成一轮提质，因此当前应作为第二轮结构恢复任务处理
+- OCR 当前更适合先做共享约定收口，而不是一开始就铺开复杂 capability 设计
+- PDF OCR fallback 应视为高价值实验线，而不是当前全项目的最高前置阻塞
+- `CSV / JSON / TXT` 已经有第一轮正确性补强，不应再被当作“尚未开始”的末位大项
 
 如果要进一步细化到组内顺序，建议：
 
-### 6.1 A 组内优先级
+### 6.1 Archive 簇内优先级
 
-1. DOCX
-2. XLSX
-3. PPTX
-4. EPUB
+1. `EPUB`
+2. `DOCX`
+3. `XLSX`
+4. `PPTX`
 
 理由：
 
-- `DOCX` 通常最常用，也最能暴露共享 ZIP/XML/资产抽取问题
-- `XLSX` 对表格与结构表达要求高，能尽早暴露 AST 和表格渲染边界
-- `PPTX` 价值高，但幻灯片语义恢复比 Word/Excel 更主观
-- `EPUB` 通常更接近 HTML/包内资源解析，适合作为 Archive 簇后段处理
+- `EPUB` 仍是当前最值得继续深挖的 Archive 格式之一，而且它能同时检验 `libzip + xml` 与 HTML 式结构恢复的上限
+- `DOCX` 依旧是最重要的 Office 主路径之一，但现阶段更适合在共享层继续收口之后做定向问题清理
+- `XLSX` 受共享表格渲染收益明显，放在 `DOCX` 之后做针对性提升更划算
+- `PPTX` 仍然重要，但标题恢复、文本块拼装和画廊策略的主观性更高，适合作为后续定向提质项
 
-### 6.2 B 组内优先级
+### 6.2 Web 簇内优先级
 
-1. 本地 HTML / XHTML 文件
-2. URL 抓取与 diagnostics
-3. 更复杂 HTML 结构恢复
+1. 本地 `HTML / XHTML`
+2. `URL` 获取与 diagnostics
+3. 更复杂 DOM 的结构恢复
 
-### 6.3 C 组内优先级
+### 6.3 OCR 簇内优先级
 
-1. Image 直转质量稳定化
-2. OCR warning / metadata / diagnostics 统一
-3. 为其他格式复用 OCR 能力留标准接口
+1. OCR warning / metadata / diagnostics 收口
+2. Image 主路径稳定化
+3. 为其他格式复用 OCR 能力留轻量接口
+4. PDF OCR fallback 实验线
 
-### 6.4 D 组内优先级
+这里刻意不把 `bbox / confidence / fusion pipeline` 作为当前硬前置，因为仓库现有 OCR bridge 还没有演化到那一层抽象；下一阶段重点应是把当前已经存在的 `available / provider / text / warnings` 路径整理稳定。
 
-1. CSV
-2. JSON
-3. TXT
+### 6.4 轻结构文本簇内优先级
 
-理由是 `CSV` 的结构错误对用户感知最明显，`JSON` 次之，`TXT` 最容易维持基本可用。
+1. `CSV` 退化策略与 dialect 继续补强
+2. `JSON` 输出收敛
+3. `TXT` 空白与段落边界收尾
+
+理由是 `CSV` 的结构错误对用户感知仍然最明显，但它已不再是“先从零修解析”，而是进入解析完成后的收尾和退化策略阶段。
 
 ## 7. 分阶段执行方案
 
-建议把下一阶段工作拆成五个阶段。
+建议把下一阶段工作拆成与执行清单一一对应的 `T0 ~ T9` 十个执行阶段。这样在计划文档和执行文档之间不再需要做“阶段编号换算”。
 
-### 阶段 0：全局基线阶段
-
-目标：
-
-- 统一质量评估口径
-- 建立格式级样本集
-- 明确共享瓶颈与重复代码清单
-
-建议产出：
-
-1. 各格式最小评测样本集
-2. 每格式 reference markdown 或结构断言
-3. 当前问题台账：
-   - 质量问题
-   - 性能问题
-   - 共享基础设施问题
-4. 优化簇路线确认稿
-
-建议关注的基线指标：
-
-- 转换成功率
-- 空输出率
-- 关键结构命中率
-- warning / diagnostics 覆盖度
-- 运行耗时
-- 资产提取完整度
-
-退出标准：
-
-- 每个格式至少有一组可回归样本
-- 已知问题能区分为“共享问题”与“格式局部问题”
-- 后续优化顺序不再靠主观印象决定
-
-建议任务拆分：
-
-1. 为每个格式建立最小 fixture 清单
-2. 明确每个 fixture 的目标结构与失败判定标准
-3. 统一记录：
-   - 是否成功转换
-   - 是否空输出
-   - warnings 数量
-   - diagnostics 类型
-   - 主要结构是否命中
-4. 形成第一版问题台账，并按“共享问题 / 局部问题”两栏分类
-
-建议代码落点：
-
-- `tests/conversion_eval/`
-- `src/formats/<format>/*_test.mbt`
-- `src/formats/<format>/*_wbtest.mbt`
-- 必要时补 `docs/temp/` 下的评测记录文档
-
-建议交付物：
-
-- 非 PDF 格式 fixture 清单
-- 第一版按格式汇总的成功率与风险表
-- 第一版共享问题列表
-
-### 阶段 1：共享基础设施治理
+### T0：评测与回归增量增强
 
 目标：
 
-- 解决会跨格式重复消耗开发时间的问题
-
-优先事项：
-
-1. 修复 `libzip` Dynamic Huffman 并补严格回归测试
-2. 统一文件读取 / `Bytes` 构造 helper
-3. 统一路径处理、`file_stem`、扩展名辅助逻辑
-4. 统一资产输出与 metadata 约定
-5. 收敛重复的 OCR warning / provider metadata 模式
-
-退出标准：
-
-- Archive 簇的公共缺陷数量明显下降
-- 至少一批重复 helper 被收敛到共享位置
-- 修改共享层后，不会引入明显 API 混乱
-
-建议任务拆分：
-
-1. 修复并验证 `libzip` Dynamic Huffman
-2. 抽取共享 helper：
-   - 读取整个文件为 `Bytes`
-   - `bytes_from_array`
-   - `file_stem`
-   - 扩展名与路径辅助函数
-3. 统一输出资产的命名、placeholder、metadata 约定
-4. 统一 OCR metadata 字段名和 warning 语义
-5. 明确哪些 helper 应进入 `core`、哪些应保留在格式簇内部
-
-建议代码落点：
-
-- `src/libzip/`
-- `src/xml/`
-- `src/core/`
-- `src/engine/`
-- 受影响的 `src/formats/docx/`
-- 受影响的 `src/formats/pptx/`
-- 受影响的 `src/formats/xlsx/`
-- 受影响的 `src/formats/epub/`
-
-建议交付物：
-
-- 修复后的 archive 共享测试
-- 第一版共享 helper 收敛结果
-- 共享 metadata / diagnostics 约定说明
-
-### 阶段 2：Office / Archive 簇提质
-
-目标：
-
-- 显著提升 `DOCX / PPTX / XLSX / EPUB` 的结构质量与稳定性
+- 保持现有 conversion eval 主路径稳定
+- 增强按簇观察问题与回归定位的能力
 
 重点方向：
 
-1. DOCX
-   - 段落、标题、列表、超链接、图片占位更稳定
-   - 关系文件解析与媒体抽取更稳健
-2. XLSX
-   - sheet 组织更清晰
-   - 表格头、空行、空列、sharedStrings 行为更稳定
-   - 图片与嵌入资源输出策略更明确
-3. PPTX
-   - 幻灯片顺序、文本块拼装、标题识别更稳定
-   - 图片与附件展示策略更一致
-4. EPUB
-   - spine 顺序、章节层级、资源抽取更清晰
-   - 与 HTML 簇的结构恢复逻辑适度对齐
+1. 在不重写现有 report 主结构的前提下，补充 Archive / Web / OCR 相关簇视图
+2. 把“修真实 bug 必补 regression case”固化成常态
+3. 继续增强 AST 视角，但不把“重设计 AST 评测协议”当作前置阻塞
 
 退出标准：
 
-- Office / Archive 簇的成功率与样本质量均明显提升
-- 大多数问题从“无法转换”转为“可转换但可继续优化”
-- 共享 ZIP/XML 问题不再反复阻塞单格式开发
+- 报告里能稳定看见按簇汇总结果
+- 新修问题都能留下回归证据
+- 不破坏当前稳定的 `24/24` 主路径
 
-建议任务拆分：
-
-1. `DOCX`
-   - 清点当前不稳定 block 类型
-   - 细化标题、列表、超链接、图片占位规则
-   - 强化 relationships 和媒体抽取异常路径
-2. `XLSX`
-   - 处理 workbook / rels / worksheet 主链路
-   - 强化 shared strings、空行空列、sheet 标题组织
-   - 明确图片和嵌入对象的渲染策略
-3. `PPTX`
-   - 提升 slide 标题和正文块拼装
-   - 调整图片与附件画廊策略
-   - 细化解析 warning
-4. `EPUB`
-   - 强化 OPF / manifest / spine 解析
-   - 优化章节顺序、资源路径拼接和图片插入策略
-
-建议代码落点：
-
-- `src/formats/docx/`
-- `src/formats/xlsx/`
-- `src/formats/pptx/`
-- `src/formats/epub/`
-- 与之对应的测试文件
-
-建议交付物：
-
-- Office / Archive 簇样本集的阶段性质量报告
-- 每个格式至少一个稳定主路径回归测试
-- 一批真实样本下的 warning / diagnostics 收敛结果
-
-### 阶段 3：Web 文档簇提质
+### T1：Archive 共享层收口
 
 目标：
 
-- 提升 HTML / XHTML / URL 的结构恢复与用户可读性
+- 继续把 Archive 簇的共性问题压到共享层解决
 
 重点方向：
 
-1. 提升标题、段落、列表、表格、引用块恢复
-2. 明确 script/style/comment 清洗边界
-3. 区分本地文件与 URL 获取失败时的 diagnostics
-4. 逐步从“字符串扫描式解析”走向更可维护的轻量结构化处理
+1. 继续收敛 `libzip + xml + file/path/asset helper`
+2. 统一 Archive diagnostics 词汇
+3. 统一资产命名、引用路径和 placeholder 约定
 
 退出标准：
 
-- 常见 HTML 页面能稳定给出可读 Markdown
-- URL 场景失败信息足够清晰
-- HTML 结构恢复的回归测试基本成型
+- Archive 簇的重复 helper 继续下降
+- 单格式提质不再频繁被共享层缺陷打断
+- 共享层改动的接口影响保持可控
 
-建议任务拆分：
-
-1. 梳理当前支持的块级 HTML 标签及缺口
-2. 明确预处理边界：
-   - `script`
-   - `style`
-   - comments
-   - body 提取
-3. 提升列表、表格、引用块、代码块的结构恢复
-4. 拆分本地文件与 URL 的 diagnostics 路径
-5. 为复杂 HTML 留出逐步结构化重构空间，避免继续堆字符串分支
-
-建议代码落点：
-
-- `src/formats/html/converter.mbt`
-- `src/formats/html/converter_wbtest.mbt`
-- 对应 HTML fixture
-
-建议交付物：
-
-- 常见 HTML 页面样本的参考输出
-- 本地 HTML 与 URL 两条失败路径的 diagnostics 断言
-- HTML 结构恢复差距清单
-
-### 阶段 4：OCR / Image 能力治理
+### T2：EPUB 第二轮提质
 
 目标：
 
-- 把 OCR 从“单格式附属逻辑”整理为更稳定的 capability
+- 把 EPUB 从“已可用”推进到“结构稳定、噪声更低”
 
 重点方向：
 
-1. 统一 OCR backend 检测、availability、warning 与 metadata
-2. 提升 OCR 文本分段与标题组织
-3. 明确图片资产输出、识别文本与 diagnostics 的关系
-4. 为未来 PDF 扫描件 recovery path 预留稳定接口
+1. 强化 `OPF / manifest / spine` 的 namespace 鲁棒性
+2. 增加目录页、版权页、封面页等 EPUB 专属后处理
+3. 弱化内部跳转链接噪声
+4. 补充 `toc-heavy`、`image-rich` 等 edge case
 
 退出标准：
 
-- Image 转换在有无 OCR backend 的场景下表现可预测
+- EPUB 在 `markdown_similarity` 与 `ast_similarity` 上继续稳定提高
+- 不再明显依赖“样本刚好适配当前实现”
+
+### T3：OCR 共享层收口
+
+目标：
+
+- 把当前已存在的 OCR 能力路径整理稳定，而不是过度设计下一层能力模型
+
+重点方向：
+
+1. 统一 `available / provider / text / warnings` 路径
+2. 收敛 backend 缺失、空结果、stderr 异常时的 diagnostics
+3. 让 OCR config、provider 与 warnings 在多格式里有一致语义
+
+退出标准：
+
 - OCR 相关 metadata 和 diagnostics 在多格式间保持一致
-- 能力层可被其他格式复用，而不是复制粘贴
+- 共享入口可复用，但没有被提前抽象成过重 capability
 
-建议任务拆分：
-
-1. 梳理当前 OCR config、provider、warning 的实际使用点
-2. 明确统一字段：
-   - `ocr_mode`
-   - `ocr_backend`
-   - `ocr_provider`
-   - `ocr_embedded_image_count`
-3. 收敛 OCR backend 缺失、空结果、stderr 异常的 diagnostics
-4. 调整 OCR 文本分段和标题组织策略
-5. 为其他格式调用 OCR 的公共入口做轻量约束
-
-建议代码落点：
-
-- `src/capabilities/ocr/`
-- `src/formats/image/`
-- 受 OCR 影响的 `src/formats/docx/`
-- 受 OCR 影响的 `src/formats/pptx/`
-- 受 OCR 影响的 `src/formats/epub/`
-
-建议交付物：
-
-- OCR 统一约定文档或注释约定
-- Image 主路径的稳定回归测试
-- 多格式 OCR metadata 对齐结果
-
-### 阶段 5：轻结构文本簇补强
+### T4：HTML / URL 第二轮提质
 
 目标：
 
-- 以较低成本完成 `TXT / CSV / JSON` 的“正确性补强”
+- 在已完成 `<title>` 注入与容器展开的基础上，继续提升结构恢复质量
 
 重点方向：
 
-1. CSV
-   - 支持引号、逗号转义、多行单元格等更真实输入
-   - 表格输出更稳健
-2. JSON
-   - 保持内容完整
-   - 优化代码块、缩进、metadata 呈现
-3. TXT
-   - 段落切分、空白处理、编码与边界输入更稳健
+1. 提升列表、表格、引用块、代码块恢复
+2. 明确 `script / style / comment / body` 清洗边界
+3. 拆分本地 HTML 与 URL 获取失败时的 diagnostics 路径
+4. 为复杂 DOM 的逐步结构化处理留演进空间
 
 退出标准：
 
-- 轻结构文本簇的主要问题从“解析错误”转为“格式美化问题”
-- 这些格式的回归测试成本保持低而有效
+- 常见 HTML 页面能更稳定输出可读 Markdown
+- URL 场景失败信息足够清晰
+- 第二轮 HTML 回归样本开始形成
 
-建议任务拆分：
+### T5：`DOCX / XLSX / PPTX` 定向提质
 
-1. `CSV`
-   - 引入更真实的 CSV 解析语义
-   - 处理引号、逗号转义、多行单元格
-   - 对不能稳定映射为 GFM table 的情况定义退化策略
-2. `JSON`
-   - 统一 pretty-print 输出
-   - 明确 metadata 和正文 code block 的边界
-3. `TXT`
-   - 强化 BOM、空白和段落切分
-   - 避免过度“聪明”的结构推断
+目标：
 
-建议代码落点：
+- 在共享层继续稳定之后，对剩余 Office 主格式做定向问题清理
 
-- `src/formats/csv/`
-- `src/formats/json/`
-- `src/formats/text/`
-- 各自测试文件
+重点方向：
 
-建议交付物：
+1. `DOCX`：标题、列表、超链接、媒体与 relationships 异常路径
+2. `XLSX`：sheet 组织、shared strings、空行空列、表格输出
+3. `PPTX`：slide 标题识别、正文块拼装、图片与附件画廊策略
 
-- 更真实输入下的 CSV 回归测试
-- JSON / TXT 的稳定输出样本
-- 轻结构文本簇的小规模性能对比
+退出标准：
+
+- 三个格式的主要问题从“主路径不稳”继续转向“输出细节仍可优化”
+- 与 Archive 共享层的边界更清晰，不再反复回流到局部补丁
+
+### T6：PDF OCR fallback 实验线
+
+目标：
+
+- 在不扰动现有 PDF 主路径的前提下，验证扫描件恢复路径的有效性
+
+重点方向：
+
+1. 明确何时进入 OCR fallback
+2. 把 fallback 结果与现有 PDF 主路径做可比较评估
+3. 保持该能力可关闭、可实验、可回归
+
+退出标准：
+
+- 能以小规模样本证明 fallback 的收益或局限
+- 不把 PDF 原有强主路径拖入不必要的不稳定状态
+
+### T7：Image / OCR 消费层收口
+
+目标：
+
+- 让 Image 格式把共享 OCR 能力消费得更稳定、更可预测
+
+重点方向：
+
+1. 稳定有无 OCR backend 时的行为
+2. 明确图片展示、识别文本与 diagnostics 的关系
+3. 补足 Image 主路径的回归和 warning 断言
+
+退出标准：
+
+- Image 主路径在 mock / real backend 场景下行为可预测
+- 与 OCR 共享层的边界清晰
+
+### T8：轻结构文本簇收尾
+
+目标：
+
+- 在第一轮正确性补强落地后，完成 `TXT / CSV / JSON` 的剩余收尾工作
+
+重点方向：
+
+1. `CSV`：dialect、退化策略、表头与复杂单元格映射
+2. `JSON`：pretty-print 与 metadata / code block 边界
+3. `TXT`：空白、段落切分与边界输入处理
+
+退出标准：
+
+- 轻结构文本簇主要问题稳定落在“输出抛光”而不是“解析错误”
+- 维持低成本但有效的回归覆盖
+
+### T9：工程化收口
+
+目标：
+
+- 把前面几轮提质沉淀成稳定的工程约束，而不是一次性优化痕迹
+
+重点方向：
+
+1. 清理仍然游离在各 converter 内部的重复 helper
+2. 明确 diagnostics、asset、OCR、共享读取等约定的归属边界
+3. 收敛文档、评测说明和任务清单，避免文档再次分叉
+
+退出标准：
+
+- 文档、代码结构、测试入口三者对当前主线状态的描述一致
+- 新一轮提质可以在更低协作成本下继续推进
 
 ## 8. 每类格式的主要优化关注点
 

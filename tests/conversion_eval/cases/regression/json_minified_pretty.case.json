@@ -1,0 +1,21 @@
+{
+  "id": "json_minified_pretty",
+  "format": "json",
+  "tier": "regression",
+  "input": "tests/conversion_eval/fixtures/inputs/json/minified.json",
+  "description": "JSON output should normalize minified input into a stable pretty-printed fenced block.",
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/json_minified_pretty.md",
+  "reference_builder": "json",
+  "must_include": ["MoonBitMark", "\"threshold\": 0.75"],
+  "min_chars": 40,
+  "min_lines": 8,
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true
+  },
+  "weights": {
+    "anchors": 0.3,
+    "markdown_similarity": 0.5,
+    "ast_similarity": 0.2
+  }
+}

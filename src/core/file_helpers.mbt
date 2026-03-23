@@ -46,7 +46,7 @@ pub fn strip_utf8_bom(text : String) -> String {
 }
 
 ///|
-fn normalize_path(path : String) -> String {
+pub fn normalize_path(path : String) -> String {
   path.replace(old="\\", new="/")
 }
 
@@ -56,6 +56,15 @@ pub fn file_name_only(path : String) -> String {
   match find_last_char(normalized, '/') {
     Some(index) => normalized[index + 1:].to_string()
     None => normalized
+  }
+}
+
+///|
+pub fn path_dirname(path : String) -> String {
+  let normalized = normalize_path(path)
+  match find_last_char(normalized, '/') {
+    Some(index) => if index > 0 { normalized[0:index].to_string() } else { "" }
+    None => ""
   }
 }
 
@@ -74,16 +83,106 @@ pub fn file_stem(path : String) -> String? {
 }
 
 ///|
+pub fn split_path_segments(path : String) -> Array[String] {
+  let segments : Array[String] = []
+  for part in normalize_path(path).split("/").to_array() {
+    if part != "" {
+      segments.push(part.to_string())
+    }
+  }
+  segments
+}
+
+///|
+pub fn join_path(base_dir : String, target : String) -> String {
+  if target == "" {
+    return normalize_path(base_dir)
+  }
+  let normalized_target = normalize_path(target)
+  if normalized_target.contains("://") || normalized_target.has_prefix("#") {
+    return normalized_target
+  }
+  let segments = split_path_segments(base_dir)
+  for part in split_path_segments(normalized_target) {
+    if part == "." {
+      continue
+    }
+    if part == ".." {
+      ignore(segments.pop())
+    } else {
+      segments.push(part)
+    }
+  }
+  segments.join("/")
+}
+
+///|
 pub fn path_extension(path : String) -> String {
-  match find_last_char(path, '.') {
+  let normalized = normalize_path(path)
+  match find_last_char(normalized, '.') {
     Some(index) =>
-      if index + 1 < path.length() {
-        path[index + 1:].to_lower().to_string()
+      if index + 1 < normalized.length() {
+        normalized[index + 1:].to_lower().to_string()
       } else {
         "bin"
       }
     None => "bin"
   }
+}
+
+///|
+pub fn image_extension_for_media_type(media_type : String) -> String {
+  match media_type {
+    "image/jpeg" => "jpg"
+    "image/jpg" => "jpg"
+    "image/png" => "png"
+    "image/gif" => "gif"
+    "image/webp" => "webp"
+    "image/svg+xml" => "svg"
+    "image/x-icon" => "ico"
+    "audio/mpeg" => "mp3"
+    "audio/mp4" => "m4a"
+    "video/mp4" => "mp4"
+    "application/pdf" => "pdf"
+    _ => "bin"
+  }
+}
+
+///|
+pub fn numbered_asset_filename(
+  prefix : String,
+  index : Int,
+  source_path : String,
+  fallback_extension? : String = "bin",
+) -> String {
+  prefix +
+  index.to_string() +
+  "." +
+  effective_extension(source_path, fallback_extension)
+}
+
+///|
+fn effective_extension(path : String, fallback_extension : String) -> String {
+  let extension = path_extension(path)
+  if extension == "bin" && !normalize_path(path).contains(".") {
+    fallback_extension
+  } else {
+    extension
+  }
+}
+
+///|
+pub fn is_image_filename(filename : String) -> Bool {
+  let lowered = file_name_only(filename).to_lower().to_string()
+  lowered.has_suffix(".png") ||
+  lowered.has_suffix(".jpg") ||
+  lowered.has_suffix(".jpeg") ||
+  lowered.has_suffix(".gif") ||
+  lowered.has_suffix(".webp") ||
+  lowered.has_suffix(".svg") ||
+  lowered.has_suffix(".bmp") ||
+  lowered.has_suffix(".tif") ||
+  lowered.has_suffix(".tiff")
 }
 
 ///|

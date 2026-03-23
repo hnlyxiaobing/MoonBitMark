@@ -1,0 +1,18 @@
+{
+  "id": "csv_semicolon_ragged",
+  "format": "csv",
+  "tier": "regression",
+  "input": "tests/conversion_eval/fixtures/inputs/csv/semicolon_ragged.csv",
+  "description": "CSV should detect semicolon-delimited rows and keep ragged rows in a stable Markdown table.",
+  "must_include": ["Alice", "Canadiens", "Bruins"],
+  "must_not_include": [";"],
+  "min_chars": 30,
+  "min_lines": 4,
+  "checks": {
+    "anchors": true
+  },
+  "weights": {
+    "anchors": 0.7,
+    "noise_control": 0.3
+  }
+}

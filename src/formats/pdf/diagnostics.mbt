@@ -16,7 +16,8 @@ fn pdf_warning_messages(
   for warning in extraction.warnings {
     warnings.push("PDF bridge warning: " + warning)
   }
-  if route_plan.summary.recovery_pages > 0 {
+  if route_plan.summary.recovery_pages > 0 &&
+    ocr_warning != Some("PDF OCR recovery supplemented low-text pages.") {
     warnings.push(
       "Some PDF pages appear to require OCR recovery, but only native text extraction is currently active.",
     )
@@ -109,6 +110,19 @@ fn pdf_warning_diagnostics(
     )
   }
   match ocr_warning {
+    Some("PDF OCR recovery supplemented low-text pages.") =>
+      diagnostics.push(
+        @core.warning_diagnostic(
+          "PDF OCR recovery supplemented low-text pages.",
+          Some(@core.Convert("pdf")),
+          Some(@core.File(file_path)),
+          Some(
+            @core.Custom(
+              "Review OCR-recovered text on scanned or image-only pages before relying on it downstream.",
+            ),
+          ),
+        ),
+      )
     Some(warning) =>
       diagnostics.push(
         @core.warning_diagnostic(
@@ -175,12 +189,32 @@ fn pdf_route_diagnostics(
 }
 
 ///|
-fn pdf_ocr_warning(config : @ocr.OcrConfig, extracted_text : String) -> String? {
-  if @ocr.should_attempt_for_native_text(config, extracted_text) {
-    Some("OCR skipped for PDF because no page-rendering backend is configured.")
-  } else {
-    None
+fn pdf_ocr_warning(
+  config : @ocr.OcrConfig,
+  route_plan : PdfRoutePlan,
+  extracted_text : String,
+  ocr_result : @ocr.OcrResult,
+  ocr_used : Bool,
+) -> String? {
+  if ocr_used {
+    return Some("PDF OCR recovery supplemented low-text pages.")
   }
+  if config.mode == @ocr.Off {
+    return None
+  }
+  if route_plan.summary.recovery_pages == 0 &&
+    !@ocr.should_attempt_for_native_text(config, extracted_text) {
+    return None
+  }
+  if ocr_result.attempted && !ocr_result.available {
+    return Some(
+      "PDF OCR recovery attempted but no available backend produced usable text.",
+    )
+  }
+  if ocr_result.attempted && ocr_result.available && ocr_result.text == "" {
+    return Some("PDF OCR recovery returned empty text.")
+  }
+  Some("OCR skipped for PDF because no page-rendering backend is configured.")
 }
 
 ///|

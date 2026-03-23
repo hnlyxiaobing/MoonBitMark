@@ -7,7 +7,7 @@ import {
 }
 
 // Values
-pub fn apply_ocr_metadata(Map[String, String], @ocr.OcrConfig, String?, embedded_image_count? : Int) -> Unit
+pub fn apply_ocr_metadata(Map[String, String], @ocr.OcrConfig, String?, embedded_image_count? : Int, attempted? : Bool, available? : Bool, fallback_used? : Bool) -> Unit
 
 pub fn archive_asset_warning_diagnostic(String, String) -> ConversionDiagnostic?
 
@@ -35,6 +35,18 @@ pub fn file_stem(String) -> String?
 
 pub fn find_last_char(String, Char) -> Int?
 
+pub fn image_extension_for_media_type(String) -> String
+
+pub fn is_image_filename(String) -> Bool
+
+pub fn join_path(String, String) -> String
+
+pub fn normalize_path(String) -> String
+
+pub fn numbered_asset_filename(String, Int, String, fallback_extension? : String) -> String
+
+pub fn path_dirname(String) -> String
+
 pub fn path_extension(String) -> String
 
 pub fn push_unique_warning(Array[String], String) -> Unit
@@ -46,6 +58,8 @@ pub async fn read_utf8_file(String) -> String
 pub fn render_diagnostics_report(Array[ConversionDiagnostic]) -> String
 
 pub fn split_ocr_paragraphs(String) -> Array[String]
+
+pub fn split_path_segments(String) -> Array[String]
 
 pub fn stats_for_markdown(String, duration_ms? : Int, used_fallback? : Bool) -> ConvertStats
 

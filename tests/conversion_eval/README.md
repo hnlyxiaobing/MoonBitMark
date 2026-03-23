@@ -38,6 +38,27 @@ python tests/conversion_eval/scripts/run_eval.py all `
 5. 计算锚点命中率、Markdown 相似度、结构相似度、表格相似度和顺序分数
 6. 输出 `reports/latest/report.json`、`reports/latest/summary.md`，并归档到 `reports/history/`
 
+## 当前汇总口径
+
+`summary.md` 和 `report.json` 现在会同时给出：
+
+- `By Format`
+- `By Cluster`
+- `By Tier`
+- `OCR Evidence`
+
+当前固定簇定义：
+
+- `archive`: `docx / epub / pptx / xlsx`
+- `web`: `html / url`
+- `ocr`: 独立 image case，以及任何显式传入 `--ocr` / `--ocr-images` 的 case
+
+这样做的目的不是重写现有评测主结构，而是让报告能更快回答：
+
+- 哪个格式退化了
+- 是 Archive 共性问题还是 Web / OCR 横切问题
+- OCR 是否真的介入了该 case
+
 ## Baseline 说明
 
 - `--compare-baselines` 会在运行 MoonBitMark 评测的同时，调用当前 Python
@@ -98,6 +119,12 @@ tests/conversion_eval/
 - `skip_baselines` 允许对单个 baseline 工具做 case 级跳过，并记录原因。
   适用于工具已知不支持或在本机稳定触发资源上限的样本。
 - `weights` 只描述聚合分数，不替代硬性 pass/fail 规则
+
+## Regression 纪律
+
+- 每修一个真实 bug，补一个 `regression` tier case，或补强一个已有质量 case。
+- 回归 case 优先覆盖共享层问题，例如 Archive path / diagnostics / OCR 约定，而不是只盯单一格式输出字符串。
+- 新 case 应尽量复用现有 fixture；只有现有样本无法表达缺陷时，才新增最小化自定义 fixture。
 
 ## 当前覆盖格式
 

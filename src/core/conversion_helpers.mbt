@@ -43,9 +43,27 @@ pub fn apply_ocr_metadata(
   config : @ocr.OcrConfig,
   provider : String?,
   embedded_image_count? : Int = 0,
+  attempted? : Bool = false,
+  available? : Bool = false,
+  fallback_used? : Bool = false,
 ) -> Unit {
   metadata["ocr_mode"] = config.mode.label()
   metadata["ocr_backend"] = config.backend_or_auto()
+  metadata["ocr_lang"] = config.language
+  metadata["ocr_images"] = if config.enable_embedded_images {
+    "true"
+  } else {
+    "false"
+  }
+  match config.timeout_ms {
+    Some(value) => metadata["ocr_timeout"] = value.to_string()
+    None => ()
+  }
+  metadata["ocr_attempted"] = if attempted { "true" } else { "false" }
+  metadata["ocr_available"] = if available { "true" } else { "false" }
+  if fallback_used {
+    metadata["ocr_fallback_used"] = "true"
+  }
   if embedded_image_count > 0 {
     metadata["ocr_embedded_image_count"] = embedded_image_count.to_string()
   }

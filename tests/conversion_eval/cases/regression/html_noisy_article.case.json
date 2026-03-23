@@ -1,0 +1,18 @@
+{
+  "id": "html_noisy_article",
+  "format": "html",
+  "tier": "regression",
+  "input": "tests/conversion_eval/fixtures/inputs/html/noisy_article.html",
+  "description": "HTML preprocessing should drop nav/aside/footer noise while preserving article, quote, and code blocks.",
+  "must_include": ["Noisy Article", "Main Story", "Alpha launch update.", "Quoted insight.", "const total = 42;"],
+  "must_not_include": ["Home Docs Pricing", "Sidebar promo", "Footer legal text"],
+  "min_chars": 40,
+  "min_lines": 6,
+  "checks": {
+    "anchors": true
+  },
+  "weights": {
+    "anchors": 0.6,
+    "noise_control": 0.4
+  }
+}

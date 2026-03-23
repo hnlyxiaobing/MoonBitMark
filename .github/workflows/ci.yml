@@ -46,3 +46,7 @@ jobs:
           if (!(Test-Path 'tests/output/ci-smoke.html.md')) {
             throw 'Missing tests/output/ci-smoke.html.md'
           }
+
+      - name: Conversion eval subset
+        shell: pwsh
+        run: python tests/conversion_eval/scripts/run_eval.py run

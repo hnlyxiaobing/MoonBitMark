@@ -1,0 +1,17 @@
+{
+  "id": "pdf_blank_scanned_mock_ocr",
+  "format": "pdf",
+  "tier": "regression",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/blank_scanned_mock.pdf",
+  "cli_args": ["--ocr", "force", "--ocr-backend", "mock"],
+  "description": "PDF OCR fallback should recover text for an otherwise blank single-page PDF when a controlled OCR backend is forced.",
+  "must_include": ["MOCK OCR blank scanned mock"],
+  "min_chars": 10,
+  "min_lines": 2,
+  "checks": {
+    "anchors": true
+  },
+  "weights": {
+    "anchors": 1.0
+  }
+}

@@ -33,17 +33,39 @@ pub async fn JsonConverter::convert(
 ) -> @core.ConvertResult {
   ignore(ctx)
   let content = @core.strip_utf8_bom(@core.read_utf8_file(file_path))
+  let (rendered_json, warnings, valid_json) = normalize_json_content(content)
   let title = @core.file_stem(file_path)
   let metadata = Map::new()
   metadata["format"] = "json"
   metadata["render_mode"] = "code_fence"
-  let doc = json_to_document(content, title, metadata)
+  metadata["json_valid"] = if valid_json { "true" } else { "false" }
+  let doc = json_to_document(rendered_json, title, metadata)
   let markdown = @ast.render_markdown(doc)
+  let diagnostics = json_warning_diagnostics(file_path, warnings)
   @core.ConvertResult::markdown_only(markdown, "json")
   .with_title(title)
   .with_metadata(metadata)
+  .with_warnings(warnings)
+  .with_diagnostics(diagnostics)
   .with_stats(Some(@core.stats_for_markdown(markdown)))
   .with_document(Some(doc))
+}
+
+///|
+fn normalize_json_content(content : String) -> (String, Array[String], Bool) {
+  let warnings : Array[String] = []
+  let parsed_result : Result[_, Error] = Ok(@corejson.parse(content)) catch {
+    err => Err(err)
+  }
+  match parsed_result {
+    Ok(value) => (value.stringify(indent=2), warnings, true)
+    Err(_) => {
+      warnings.push(
+        "JSON input could not be parsed; emitted raw text in code fence.",
+      )
+      (content.trim_end().to_string(), warnings, false)
+    }
+  }
 }
 
 ///|
@@ -56,6 +78,32 @@ fn json_to_document(
     @ast.CodeBlock(Some("json"), content.trim_end().to_string()),
   ]
   @ast.Document::{ title, metadata, blocks }
+}
+
+///|
+fn json_warning_diagnostics(
+  file_path : String,
+  warnings : Array[String],
+) -> Array[@core.ConversionDiagnostic] {
+  let diagnostics : Array[@core.ConversionDiagnostic] = []
+  for warning in warnings {
+    if warning ==
+      "JSON input could not be parsed; emitted raw text in code fence." {
+      diagnostics.push(
+        @core.warning_diagnostic(
+          warning,
+          Some(@core.Parse(Some("json"))),
+          Some(@core.File(file_path)),
+          Some(
+            @core.Custom(
+              "Inspect the source JSON for syntax errors if structured pretty-printing was expected.",
+            ),
+          ),
+        ),
+      )
+    }
+  }
+  diagnostics
 }
 
 ///|

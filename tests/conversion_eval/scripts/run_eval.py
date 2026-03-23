@@ -44,6 +44,8 @@ DOCLING_INPUT_FORMATS = {
     "pptx": "PPTX",
     "xlsx": "XLSX",
 }
+ARCHIVE_FORMATS = {"docx", "epub", "pptx", "xlsx"}
+WEB_FORMATS = {"html"}
 
 
 @dataclass
@@ -241,6 +243,130 @@ def run_conversion(
     finished = dt.datetime.now(dt.timezone.utc)
     duration_ms = int((finished - started).total_seconds() * 1000)
     return ConversionOutput(completed.stdout, completed.stderr, completed.returncode, duration_ms)
+
+
+def case_clusters(case: CaseSpec) -> list[str]:
+    clusters: list[str] = []
+    if case.format in ARCHIVE_FORMATS:
+        clusters.append("archive")
+    if case.format in WEB_FORMATS or case.input.startswith(("http://", "https://")):
+        clusters.append("web")
+    if case.format == "image" or "--ocr" in case.cli_args or "--ocr-images" in case.cli_args:
+        clusters.append("ocr")
+    return clusters
+
+
+def should_collect_diag_json(case: CaseSpec) -> bool:
+    return case.format == "pdf" or "ocr" in case_clusters(case)
+
+
+def parse_boolish(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "false"}:
+            return lowered == "true"
+    return None
+
+
+def parse_intish(value: Any) -> int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and re.fullmatch(r"-?\d+", value.strip()):
+        return int(value)
+    return None
+
+
+def cli_arg_value(args: list[str], flag: str) -> str | None:
+    for index, arg in enumerate(args):
+        if arg == flag and index + 1 < len(args):
+            return args[index + 1]
+    return None
+
+
+def extract_loose_json_string(text: str, key: str) -> str | None:
+    match = re.search(rf'"{re.escape(key)}":"([^"]*)"', text)
+    return match.group(1) if match else None
+
+
+def extract_loose_json_bool(text: str, key: str) -> bool | None:
+    match = re.search(rf'"{re.escape(key)}":(true|false)', text)
+    return match.group(1) == "true" if match else None
+
+
+def collect_case_evidence(
+    runner: RunnerInfo,
+    case: CaseSpec,
+    artifact_dir: Path,
+) -> dict[str, Any] | None:
+    if not should_collect_diag_json(case):
+        return None
+    conversion = run_conversion(
+        runner,
+        case.input_path(),
+        ["--diag-json", *case.cli_args],
+    )
+    stderr = conversion.stderr.strip()
+    if conversion.returncode != 0:
+        return {
+            "diag_json_available": False,
+            "diag_json_error": stderr or "diag-json command failed",
+        }
+    try:
+        payload = json.loads(conversion.stdout)
+    except json.JSONDecodeError as exc:
+        loose_ocr = {
+            "mode": extract_loose_json_string(conversion.stdout, "ocr_mode"),
+            "backend": extract_loose_json_string(conversion.stdout, "ocr_backend"),
+            "lang": extract_loose_json_string(conversion.stdout, "ocr_lang"),
+            "timeout": extract_loose_json_string(conversion.stdout, "ocr_timeout"),
+            "images": extract_loose_json_string(conversion.stdout, "ocr_images"),
+            "provider": extract_loose_json_string(conversion.stdout, "ocr_provider"),
+            "attempted": extract_loose_json_string(conversion.stdout, "ocr_attempted"),
+            "available": extract_loose_json_string(conversion.stdout, "ocr_available"),
+            "fallback_used": extract_loose_json_string(conversion.stdout, "ocr_fallback_used"),
+            "embedded_image_count": extract_loose_json_string(conversion.stdout, "ocr_embedded_image_count"),
+        }
+        if any(value is not None for value in loose_ocr.values()):
+            return {
+                "diag_json_available": False,
+                "diag_json_error": f"invalid diag-json payload: {exc}",
+                "ocr": loose_ocr,
+                "pdf": {
+                    "text_fallback_used": extract_loose_json_string(conversion.stdout, "pdf_text_fallback_used"),
+                    "route_recovery_pages": extract_loose_json_string(conversion.stdout, "route_recovery_pages"),
+                    "used_fallback": extract_loose_json_bool(conversion.stdout, "used_fallback"),
+                },
+            }
+        return {
+            "diag_json_available": False,
+            "diag_json_error": f"invalid diag-json payload: {exc}",
+        }
+
+    write_json(artifact_dir / "diag.json", payload)
+    metadata = payload.get("metadata") or {}
+    stats = payload.get("stats") or {}
+    return {
+        "diag_json_available": True,
+        "ocr": {
+            "mode": metadata.get("ocr_mode"),
+            "backend": metadata.get("ocr_backend"),
+            "lang": metadata.get("ocr_lang"),
+            "timeout": metadata.get("ocr_timeout"),
+            "images": parse_boolish(metadata.get("ocr_images")),
+            "provider": metadata.get("ocr_provider"),
+            "attempted": parse_boolish(metadata.get("ocr_attempted")),
+            "available": parse_boolish(metadata.get("ocr_available")),
+            "fallback_used": parse_boolish(metadata.get("ocr_fallback_used")),
+            "embedded_image_count": parse_intish(metadata.get("ocr_embedded_image_count")),
+        },
+        "pdf": {
+            "text_fallback_used": parse_boolish(metadata.get("pdf_text_fallback_used")),
+            "route_recovery_pages": parse_intish(metadata.get("route_recovery_pages")),
+            "used_fallback": stats.get("used_fallback"),
+        },
+    }
 
 
 def clean_inline(text: str) -> str:
@@ -950,6 +1076,7 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
         write_text(artifact_dir / "output.md", output_markdown + ("\n" if output_markdown else ""))
         if reference_markdown:
             write_text(artifact_dir / "reference.md", reference_markdown + "\n")
+        evidence = collect_case_evidence(runner, case, artifact_dir)
 
         baseline_result: dict[str, Any] = {}
         for tool in baseline_tools:
@@ -993,6 +1120,7 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
                 "description": case.description,
                 "input": str(case.input_path().relative_to(REPO_ROOT)),
                 "cli_args": case.cli_args,
+                "clusters": case_clusters(case),
                 "reference": str(reference_path.relative_to(REPO_ROOT)) if reference_path and reference_path.exists() else None,
                 "runner_returncode": conversion.returncode,
                 "runner_duration_ms": conversion.duration_ms,
@@ -1001,6 +1129,7 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
                 "score": round(score, 4),
                 "metrics": {key: round(value, 4) for key, value in metrics.items()},
                 "checks": checks,
+                "evidence": evidence,
                 "baseline": baseline_result,
             }
         )
@@ -1029,13 +1158,62 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     average_score = sum(result["score"] for result in results) / max(total, 1)
 
     by_format: dict[str, dict[str, Any]] = {}
+    by_cluster: dict[str, dict[str, Any]] = {}
+    by_tier: dict[str, dict[str, Any]] = {}
+    ocr_providers: dict[str, int] = {}
+    ocr_summary = {
+        "relevant_cases": 0,
+        "attempted_cases": 0,
+        "available_cases": 0,
+        "forced_cases": 0,
+        "fallback_used_cases": 0,
+    }
     for result in results:
         bucket = by_format.setdefault(result["format"], {"total": 0, "passed": 0, "score_sum": 0.0})
         bucket["total"] += 1
         bucket["passed"] += 1 if result["passed"] else 0
         bucket["score_sum"] += result["score"]
+        for cluster in result.get("clusters", []):
+            cluster_bucket = by_cluster.setdefault(cluster, {"total": 0, "passed": 0, "score_sum": 0.0})
+            cluster_bucket["total"] += 1
+            cluster_bucket["passed"] += 1 if result["passed"] else 0
+            cluster_bucket["score_sum"] += result["score"]
+        tier_bucket = by_tier.setdefault(result["tier"], {"total": 0, "passed": 0, "score_sum": 0.0})
+        tier_bucket["total"] += 1
+        tier_bucket["passed"] += 1 if result["passed"] else 0
+        tier_bucket["score_sum"] += result["score"]
 
-    for bucket in by_format.values():
+        evidence = result.get("evidence") or {}
+        ocr = evidence.get("ocr") or {}
+        if "ocr" in result.get("clusters", []):
+            ocr_summary["relevant_cases"] += 1
+        attempted = parse_boolish(ocr.get("attempted"))
+        available = parse_boolish(ocr.get("available"))
+        fallback_used = parse_boolish(ocr.get("fallback_used"))
+        mode = ocr.get("mode")
+        provider = ocr.get("provider")
+        if mode is None:
+            mode = cli_arg_value(result.get("cli_args", []), "--ocr")
+        if attempted is None:
+            attempted = mode in {"auto", "force"} or "--ocr-images" in result.get("cli_args", [])
+        elif attempted is False and provider and mode in {"auto", "force"}:
+            attempted = True
+        if available is None and provider:
+            available = True
+        elif available is False and provider:
+            available = True
+        if attempted:
+            ocr_summary["attempted_cases"] += 1
+        if available:
+            ocr_summary["available_cases"] += 1
+        if fallback_used:
+            ocr_summary["fallback_used_cases"] += 1
+        if mode == "force":
+            ocr_summary["forced_cases"] += 1
+        if provider:
+            ocr_providers[provider] = ocr_providers.get(provider, 0) + 1
+
+    for bucket in list(by_format.values()) + list(by_cluster.values()) + list(by_tier.values()):
         bucket["average_score"] = round(bucket["score_sum"] / max(bucket["total"], 1), 4)
         del bucket["score_sum"]
 
@@ -1046,6 +1224,9 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "pass_rate": round(passed / max(total, 1), 4),
         "average_score": round(average_score, 4),
         "by_format": by_format,
+        "by_cluster": by_cluster,
+        "by_tier": by_tier,
+        "ocr_summary": {**ocr_summary, "providers": dict(sorted(ocr_providers.items()))},
     }
 
 
@@ -1076,6 +1257,30 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
     )
     for format_name, stats in sorted(summary["by_format"].items()):
         lines.append(f"| {format_name} | {stats['passed']} | {stats['total']} | {stats['average_score']:.4f} |")
+
+    lines.extend(["", "## By Cluster", "", "| Cluster | Passed | Total | Avg Score |", "| --- | ---: | ---: | ---: |"])
+    if summary["by_cluster"]:
+        for cluster_name, stats in sorted(summary["by_cluster"].items()):
+            lines.append(f"| {cluster_name} | {stats['passed']} | {stats['total']} | {stats['average_score']:.4f} |")
+    else:
+        lines.append("| none | 0 | 0 | 0.0000 |")
+
+    lines.extend(["", "## By Tier", "", "| Tier | Passed | Total | Avg Score |", "| --- | ---: | ---: | ---: |"])
+    for tier_name, stats in sorted(summary["by_tier"].items()):
+        lines.append(f"| {tier_name} | {stats['passed']} | {stats['total']} | {stats['average_score']:.4f} |")
+
+    ocr_summary = summary["ocr_summary"]
+    lines.extend(["", "## OCR Evidence", ""])
+    lines.append(
+        f"- Relevant cases: `{ocr_summary['relevant_cases']}`, attempted: `{ocr_summary['attempted_cases']}`, "
+        f"available: `{ocr_summary['available_cases']}`, forced: `{ocr_summary['forced_cases']}`, "
+        f"fallback used: `{ocr_summary['fallback_used_cases']}`"
+    )
+    if ocr_summary["providers"]:
+        provider_summary = ", ".join(f"{name}:{count}" for name, count in ocr_summary["providers"].items())
+        lines.append(f"- Providers: `{provider_summary}`")
+    else:
+        lines.append("- Providers: `none`")
 
     failures = [result for result in report["results"] if not result["passed"]]
     lines.extend(["", "## Failures", ""])

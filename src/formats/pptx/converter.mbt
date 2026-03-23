@@ -85,6 +85,9 @@ pub async fn PptxConverter::convert(
             ctx.ocr,
             ocr_provider,
             embedded_image_count=ocr_count,
+            attempted=ctx.ocr.should_process_embedded_images() &&
+              assets.length() > 0,
+            available=ocr_provider != None,
           )
           let title = @core.file_stem(file_path)
           let doc = @ast.Document::{ title, metadata, blocks: slide_blocks }
@@ -151,10 +154,7 @@ fn extract_pptx_assets(
           } else {
             "pptx-attachment-"
           }
-          let filename = prefix +
-            index.to_string() +
-            "." +
-            @core.path_extension(entry)
+          let filename = @core.numbered_asset_filename(prefix, index, entry)
           assets.push(@core.OutputAsset::{
             placeholder: pptx_asset_placeholder(index),
             filename,

@@ -144,10 +144,32 @@ test "pdf warning diagnostics render postprocess and normalize phases" {
 
 ///|
 test "pdf ocr warning when auto mode sees empty native text" {
+  let route_plan = PdfRoutePlan::{
+    document_mode: RecoveryOnly,
+    pages: [
+      PdfPageRoute::{
+        page_no: 1,
+        provider: OcrRecovery,
+        text_quality: Empty,
+        layout_complexity: Simple,
+        flags: [SuspectScanned],
+      },
+    ],
+    summary: PdfRouteSummary::{
+      total_pages: 1,
+      native_fast_pages: 0,
+      structured_pages: 0,
+      recovery_pages: 1,
+      flagged_pages: 1,
+    },
+  }
   inspect(
     pdf_ocr_warning(
       @ocr.OcrConfig::{ ..@ocr.OcrConfig::default(), mode: @ocr.Auto },
+      route_plan,
       "",
+      @ocr.OcrResult::not_attempted(),
+      false,
     ),
     content="Some(\"OCR skipped for PDF because no page-rendering backend is configured.\")",
   )

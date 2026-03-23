@@ -87,6 +87,8 @@ pub async fn DocxConverter::convert(
             ctx.ocr,
             ocr_provider,
             embedded_image_count=ocr_count,
+            attempted=ocr_count > 0,
+            available=ocr_provider != None,
           )
           let diagnostics = docx_warning_diagnostics(file_path, warnings)
           let title = @core.file_stem(file_path)
@@ -498,7 +500,7 @@ fn extract_docx_relationships(
               let target_mode = map_get_any(evt.attributes, ["TargetMode"])
               let resolved = match target_mode {
                 Some(mode) if mode == "External" => target
-                _ => resolve_archive_target("word", target)
+                _ => @core.join_path("word", target)
               }
               relationships[id] = resolved
             }
@@ -510,36 +512,6 @@ fn extract_docx_relationships(
     }
   }
   relationships
-}
-
-///|
-fn resolve_archive_target(base_dir : String, target : String) -> String {
-  if target.contains("://") || target.has_prefix("#") {
-    return target
-  }
-  let segments = split_path_segments(base_dir)
-  for part in split_path_segments(target) {
-    if part == "." || part == "" {
-      continue
-    }
-    if part == ".." {
-      ignore(segments.pop())
-    } else {
-      segments.push(part)
-    }
-  }
-  segments.join("/")
-}
-
-///|
-fn split_path_segments(path : String) -> Array[String] {
-  let segments : Array[String] = []
-  for part in path.replace(old="\\", new="/").split("/").to_array() {
-    if part != "" {
-      segments.push(part.to_string())
-    }
-  }
-  segments
 }
 
 ///|
@@ -591,10 +563,9 @@ fn extract_docx_media_assets(
     if entry.has_prefix("word/media/") {
       match @libzip.read_file_entry_decompressed(archive, entry) {
         Some(bytes) => {
-          let filename = "docx-image-" +
-            index.to_string() +
-            "." +
-            @core.path_extension(entry)
+          let filename = @core.numbered_asset_filename(
+            "docx-image-", index, entry,
+          )
           let placeholder = docx_asset_placeholder(index)
           assets.push(@core.OutputAsset::{
             placeholder,

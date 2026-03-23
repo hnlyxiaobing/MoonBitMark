@@ -343,7 +343,10 @@ fn extract_sheet_paths(events : Array[@xml.ParseEvent]) -> Map[String, String] {
 ///|
 /// Find sheet path by r:id
 fn find_sheet_path(rid : String, paths : Map[String, String]) -> String? {
-  paths.get(rid)
+  match paths.get(rid) {
+    Some(target) => Some(@core.join_path("xl", target))
+    None => None
+  }
 }
 
 ///|
@@ -353,11 +356,7 @@ fn parse_worksheet_to_blocks(
   sheet_name : String,
   shared_strings : Array[String],
 ) -> (Array[@ast.Block], Array[String]) {
-  let full_path = if sheet_path.has_prefix("xl/") {
-    sheet_path
-  } else {
-    "xl/" + sheet_path
-  }
+  let full_path = sheet_path
 
   match @libzip.read_file_entry_decompressed(archive, full_path) {
     Some(xml_bytes) => {
@@ -606,10 +605,7 @@ fn extract_xlsx_assets(
           } else {
             "xlsx-attachment-"
           }
-          let filename = prefix +
-            index.to_string() +
-            "." +
-            @core.path_extension(entry)
+          let filename = @core.numbered_asset_filename(prefix, index, entry)
           assets.push(@core.OutputAsset::{
             placeholder: xlsx_asset_placeholder(index),
             filename,
@@ -653,7 +649,7 @@ fn append_xlsx_asset_gallery(
 
 ///|
 fn xlsx_asset_placeholder(index : Int) -> String {
-  "moonbitmark-raw://xlsx/" + index.to_string()
+  @core.asset_placeholder("xlsx", index)
 }
 
 ///|

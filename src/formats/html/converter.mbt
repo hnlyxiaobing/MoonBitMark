@@ -41,9 +41,45 @@ pub async fn HtmlConverter::convert(
   ignore(ctx)
   let (html, source_label) = if input.has_prefix("http://") ||
     input.has_prefix("https://") {
-    (convert_from_url(input), "url")
+    (
+      convert_from_url(input) catch {
+        err =>
+          fail(
+            render_html_failure(
+              @core.InputError(
+                "Failed to fetch HTML URL",
+                Some(err.to_string()),
+              ),
+              Some(@core.Load(Some("url"))),
+              Some(@core.Url(input)),
+              Some(
+                @core.Custom(
+                  "Check the URL, network reachability, and remote response status.",
+                ),
+              ),
+            ),
+          )
+      },
+      "url",
+    )
   } else {
-    (convert_from_file(input), "file")
+    (
+      convert_from_file(input) catch {
+        err =>
+          fail(
+            render_html_failure(
+              @core.InputError(
+                "Failed to read HTML file",
+                Some(err.to_string()),
+              ),
+              Some(@core.Load(Some("file"))),
+              Some(@core.File(input)),
+              Some(@core.InspectSourceDocument),
+            ),
+          )
+      },
+      "file",
+    )
   }
   let title = extract_title(html)
   let doc = html_to_document(html, title)
@@ -67,6 +103,9 @@ fn preprocess_html(html : String) -> String {
   let mut result = html
   result = remove_tag_block(result, "script")
   result = remove_tag_block(result, "style")
+  result = remove_tag_block(result, "nav")
+  result = remove_tag_block(result, "aside")
+  result = remove_tag_block(result, "footer")
   remove_comments(result)
 }
 
@@ -639,6 +678,15 @@ fn collect_html_warnings(html : String) -> Array[String] {
   if lower.contains("<style") {
     warnings.push("Dropped <style> blocks during HTML conversion.")
   }
+  if lower.contains("<nav") {
+    warnings.push("Dropped <nav> blocks during HTML conversion.")
+  }
+  if lower.contains("<aside") {
+    warnings.push("Dropped <aside> blocks during HTML conversion.")
+  }
+  if lower.contains("<footer") {
+    warnings.push("Dropped <footer> blocks during HTML conversion.")
+  }
   warnings
 }
 
@@ -675,6 +723,48 @@ fn html_warning_diagnostics(
         Some(@core.Normalize(Some("preprocess"))),
         Some(source),
         Some(@core.Custom("CSS is not preserved in Markdown output.")),
+      ),
+    )
+  }
+  if lower.contains("<nav") {
+    diagnostics.push(
+      @core.warning_diagnostic(
+        "Dropped <nav> blocks during HTML conversion.",
+        Some(@core.Normalize(Some("preprocess"))),
+        Some(source),
+        Some(
+          @core.Custom(
+            "Navigation chrome is removed so the Markdown stays focused on body content.",
+          ),
+        ),
+      ),
+    )
+  }
+  if lower.contains("<aside") {
+    diagnostics.push(
+      @core.warning_diagnostic(
+        "Dropped <aside> blocks during HTML conversion.",
+        Some(@core.Normalize(Some("preprocess"))),
+        Some(source),
+        Some(
+          @core.Custom(
+            "Sidebar content is removed when extracting the main readable body.",
+          ),
+        ),
+      ),
+    )
+  }
+  if lower.contains("<footer") {
+    diagnostics.push(
+      @core.warning_diagnostic(
+        "Dropped <footer> blocks during HTML conversion.",
+        Some(@core.Normalize(Some("preprocess"))),
+        Some(source),
+        Some(
+          @core.Custom(
+            "Repeated footer content is removed during HTML body cleanup.",
+          ),
+        ),
       ),
     )
   }
@@ -864,4 +954,14 @@ fn code_language_from_tag(tag : String) -> String? {
   } else {
     None
   }
+}
+
+///|
+fn render_html_failure(
+  error : @core.ConversionError,
+  phase : @core.ConversionPhase?,
+  source : @core.DiagnosticSource?,
+  hint : @core.DiagnosticHint?,
+) -> String {
+  @core.error_diagnostic(error, phase, source, hint).render()
 }
