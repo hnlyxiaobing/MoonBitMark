@@ -7,13 +7,21 @@
     "id": {"type": "string"},
     "format": {
       "type": "string",
-      "enum": ["csv", "docx", "epub", "html", "json", "pdf", "pptx", "text", "xlsx"]
+      "enum": ["csv", "docx", "epub", "html", "image", "json", "pdf", "pptx", "text", "xlsx"]
     },
     "tier": {
       "type": "string",
       "enum": ["smoke", "quality", "edge", "regression", "regressions"]
     },
     "input": {"type": "string"},
+    "cli_args": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "skip_baselines": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
     "description": {"type": "string"},
     "must_include": {"type": "array", "items": {"type": "string"}},
     "must_not_include": {"type": "array", "items": {"type": "string"}},

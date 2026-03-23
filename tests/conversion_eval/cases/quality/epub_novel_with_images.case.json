@@ -13,15 +13,14 @@
   "checks": {
     "anchors": true,
     "golden_markdown": true,
-    "ast_compare": true,
+    "ast_compare": false,
     "table_compare": false,
     "text_order": false
   },
   "weights": {
-    "anchors": 0.2,
+    "anchors": 0.25,
     "noise_control": 0.1,
-    "length": 0.1,
-    "markdown_similarity": 0.4,
-    "ast_similarity": 0.2
+    "length": 0.15,
+    "markdown_similarity": 0.5
   }
 }

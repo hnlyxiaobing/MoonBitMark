@@ -1,0 +1,26 @@
+{
+  "id": "pptx_powerpoint_with_image",
+  "format": "pptx",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/pptx/powerpoint_with_image.pptx",
+  "description": "PPTX slides with embedded images should preserve slide order and visible text labels.",
+  "must_include": ["Slide 1", "Docling", "Image test"],
+  "must_not_include": ["Slide Master", "ppt/presentation.xml"],
+  "min_chars": 20,
+  "min_lines": 3,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pptx_powerpoint_with_image.md",
+  "reference_builder": "pptx",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": false,
+    "ast_compare": false,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.4,
+    "noise_control": 0.1,
+    "length": 0.1,
+    "text_order": 0.4
+  }
+}

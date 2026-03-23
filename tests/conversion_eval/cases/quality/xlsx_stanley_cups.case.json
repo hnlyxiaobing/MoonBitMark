@@ -1,0 +1,27 @@
+{
+  "id": "xlsx_stanley_cups",
+  "format": "xlsx",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/xlsx/stanley_cups.xlsx",
+  "description": "Workbook-to-Markdown conversion should preserve sheet separation and repeated hockey table content.",
+  "must_include": ["Stanley Cups", "Stanley Cups Since 67", "Maple Leafs", "Blues"],
+  "must_not_include": ["undefined", "xl/workbook.xml"],
+  "min_chars": 120,
+  "min_lines": 10,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/xlsx_stanley_cups.md",
+  "reference_builder": "xlsx",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": true,
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.15,
+    "table_similarity": 0.25
+  }
+}

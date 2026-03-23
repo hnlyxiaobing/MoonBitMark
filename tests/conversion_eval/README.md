@@ -93,6 +93,10 @@ tests/conversion_eval/
 - `must_include` 负责召回
 - `must_not_include` 负责噪声控制
 - `reference_builder` 负责自动生成 reference，而不是人工维护大量 golden
+- `cli_args` 允许单个 case 传入额外 CLI 参数，例如为 image case 固定
+  `--ocr force --ocr-backend mock`
+- `skip_baselines` 允许对单个 baseline 工具做 case 级跳过，并记录原因。
+  适用于工具已知不支持或在本机稳定触发资源上限的样本。
 - `weights` 只描述聚合分数，不替代硬性 pass/fail 规则
 
 ## 当前覆盖格式
@@ -101,6 +105,7 @@ tests/conversion_eval/
 - `docx`
 - `epub`
 - `html`
+- `image`
 - `json`
 - `pdf`
 - `pptx`

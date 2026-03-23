@@ -4,6 +4,9 @@
   "tier": "quality",
   "input": "tests/conversion_eval/fixtures/inputs/pdf/neural_networks_two_column.pdf",
   "description": "Large two-column PDF should remain non-empty, preserve core front-matter anchors, and sustain long-form extraction.",
+  "skip_baselines": {
+    "docling": "Skipped for docling baseline: this large multi-page PDF consistently exceeds local docling preprocess memory limits and returns std::bad_alloc."
+  },
   "must_include": ["A Brief Introduction to Neural Networks", "David Kriesel", "dkriesel.com"],
   "must_not_include": ["\uFFFD", "<html"],
   "min_chars": 50000,

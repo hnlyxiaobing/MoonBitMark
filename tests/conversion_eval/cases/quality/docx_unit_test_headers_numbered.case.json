@@ -1,0 +1,27 @@
+{
+  "id": "docx_unit_test_headers_numbered",
+  "format": "docx",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers_numbered.docx",
+  "description": "Numbered heading DOCX documents should preserve heading depth and surrounding paragraph order.",
+  "must_include": ["Test Document", "Section 1", "Section1.2.3", "Section 2.1.1", "Paragraph 2.1.2"],
+  "must_not_include": ["Normal.dotm", "w:document", "xmlns:w"],
+  "min_chars": 160,
+  "min_lines": 12,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/docx_unit_test_headers_numbered.md",
+  "reference_builder": "docx",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.2,
+    "text_order": 0.2
+  }
+}

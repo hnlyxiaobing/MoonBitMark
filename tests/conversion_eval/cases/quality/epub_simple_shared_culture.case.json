@@ -1,0 +1,26 @@
+{
+  "id": "epub_simple_shared_culture",
+  "format": "epub",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/epub/simple_shared_culture.epub",
+  "description": "EPUB package traversal should preserve title, table of contents, and long-form chapter text on a media-rich sample.",
+  "must_include": ["Creative Commons - A Shared Culture", "table of contents", "What does it mean to be human"],
+  "must_not_include": ["META-INF", "container.xml", "content.opf"],
+  "min_chars": 500,
+  "min_lines": 14,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/epub_simple_shared_culture.md",
+  "reference_builder": "epub",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": false,
+    "table_compare": false,
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.25,
+    "noise_control": 0.1,
+    "length": 0.15,
+    "markdown_similarity": 0.5
+  }
+}

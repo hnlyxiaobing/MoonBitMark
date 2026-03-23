@@ -1,0 +1,28 @@
+{
+  "id": "text_norwich_city",
+  "format": "text",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/text/norwich_city.txt",
+  "description": "Long plain text extracted from a wiki-like source should remain readable without HTML or archive noise.",
+  "must_include": ["Iwan Roberts", "Norwich City", "Wales"],
+  "must_not_include": ["<html", "xmlns:w", "META-INF"],
+  "min_chars": 1200,
+  "min_lines": 20,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/text_norwich_city.md",
+  "reference_builder": "text",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "length": 0.1,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.15,
+    "text_order": 0.15
+  }
+}

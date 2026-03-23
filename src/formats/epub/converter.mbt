@@ -391,7 +391,188 @@ fn parse_xhtml_blocks(data : Bytes) -> Array[@ast.Block] {
       result
     }
   }
-  @html.html_to_blocks(xml_string)
+  normalize_epub_html_blocks(@html.html_to_blocks(xml_string))
+}
+
+///|
+fn normalize_epub_html_blocks(blocks : Array[@ast.Block]) -> Array[@ast.Block] {
+  let result : Array[@ast.Block] = []
+  for block in blocks {
+    match normalize_epub_block(block) {
+      Some(value) =>
+        if result.length() == 0 || result[result.length() - 1] != value {
+          result.push(value)
+        }
+      None => ()
+    }
+  }
+  result
+}
+
+///|
+fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
+  match block {
+    @ast.Heading(level, inlines) => {
+      let text = plain_text_inlines(inlines)
+      if text == "" {
+        None
+      } else {
+        Some(@ast.text_heading(level, text))
+      }
+    }
+    @ast.Paragraph(inlines) => {
+      let text = plain_text_inlines(inlines)
+      if text == "" {
+        None
+      } else {
+        Some(@ast.text_paragraph(text))
+      }
+    }
+    @ast.List(items, ordered) => {
+      let normalized_items : Array[String] = []
+      for item in items {
+        let text = plain_text_markdownish(item)
+        if text != "" {
+          normalized_items.push(text)
+        }
+      }
+      if normalized_items.length() == 0 {
+        None
+      } else {
+        Some(@ast.List(normalized_items, ordered))
+      }
+    }
+    @ast.Quote(lines) => {
+      let normalized_lines : Array[String] = []
+      for line in lines {
+        let text = plain_text_markdownish(line)
+        if text != "" {
+          normalized_lines.push(text)
+        }
+      }
+      if normalized_lines.length() == 0 {
+        None
+      } else {
+        Some(@ast.Quote(normalized_lines))
+      }
+    }
+    @ast.CodeBlock(_, _) => None
+    @ast.Table(header, rows) => {
+      let normalized_header : Array[String] = []
+      for cell in header {
+        normalized_header.push(plain_text_markdownish(cell))
+      }
+      let normalized_rows : Array[Array[String]] = []
+      for row in rows {
+        let normalized_row : Array[String] = []
+        for cell in row {
+          normalized_row.push(plain_text_markdownish(cell))
+        }
+        normalized_rows.push(normalized_row)
+      }
+      Some(@ast.Table(normalized_header, normalized_rows))
+    }
+    @ast.HorizontalRule => None
+  }
+}
+
+///|
+fn normalize_epub_text(text : String) -> String {
+  let mut result = ""
+  let mut previous_was_space = true
+  for ch in text.replace(old="\r", new="\n").replace(old="\t", new=" ") {
+    let is_space = ch == '\n' || ch == ' '
+    if is_space {
+      if !previous_was_space {
+        result = result + " "
+      }
+      previous_was_space = true
+    } else {
+      result = result + ch.to_string()
+      previous_was_space = false
+    }
+  }
+  result.trim().to_string()
+}
+
+///|
+fn plain_text_inlines(inlines : Array[@ast.Inline]) -> String {
+  let mut result = ""
+  for inline in inlines {
+    result = result + plain_text_inline(inline)
+  }
+  normalize_epub_text(result)
+}
+
+///|
+fn plain_text_inline(inline : @ast.Inline) -> String {
+  match inline {
+    @ast.Text(text) => text
+    @ast.Emphasis(children) => plain_text_inlines(children)
+    @ast.Strong(children) => plain_text_inlines(children)
+    @ast.Link(children, _) => plain_text_inlines(children)
+    @ast.Image(_, _) => ""
+    @ast.Code(text) => text
+    @ast.LineBreak => "\n"
+  }
+}
+
+///|
+fn plain_text_markdownish(text : String) -> String {
+  let mut result = ""
+  let mut i = 0
+  while i < text.length() {
+    if text[i] == '`' {
+      i = i + 1
+      continue
+    }
+    if text[i] == '[' ||
+      (text[i] == '!' && i + 1 < text.length() && text[i + 1] == '[') {
+      let (label, consumed) = extract_markdown_link_label(text, i)
+      match consumed {
+        Some(next_index) => {
+          result = result + label
+          i = next_index
+          continue
+        }
+        None => ()
+      }
+    }
+    result = result + text[i].to_string()
+    i = i + 1
+  }
+  normalize_epub_text(result)
+}
+
+///|
+fn extract_markdown_link_label(text : String, start : Int) -> (String, Int?) {
+  let mut i = start
+  if text[i] == '!' {
+    i = i + 1
+  }
+  if i >= text.length() || text[i] != '[' {
+    return ("", None)
+  }
+  i = i + 1
+  let mut label = ""
+  while i < text.length() && text[i] != ']' {
+    label = label + text[i].to_string()
+    i = i + 1
+  }
+  if i >= text.length() || text[i] != ']' {
+    return ("", None)
+  }
+  if i + 1 >= text.length() || text[i + 1] != '(' {
+    return ("", None)
+  }
+  i = i + 2
+  while i < text.length() && text[i] != ')' {
+    i = i + 1
+  }
+  if i >= text.length() {
+    return ("", None)
+  }
+  (label, Some(i + 1))
 }
 
 ///|

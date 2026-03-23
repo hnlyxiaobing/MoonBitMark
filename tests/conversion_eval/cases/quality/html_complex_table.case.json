@@ -1,0 +1,27 @@
+{
+  "id": "html_complex_table",
+  "format": "html",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/html/complex_table.html",
+  "description": "Complex HTML tables should keep report headings, grouped rows, and metrics without raw tag leakage.",
+  "must_include": ["Quarterly Sales Report", "North America", "Grand Total", "Performance Metrics"],
+  "must_not_include": ["<table", "<style", "<script"],
+  "min_chars": 220,
+  "min_lines": 12,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/html_complex_table.md",
+  "reference_builder": "html",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": true,
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.15,
+    "markdown_similarity": 0.25,
+    "ast_similarity": 0.15,
+    "table_similarity": 0.25
+  }
+}

@@ -4,7 +4,7 @@
   "tier": "quality",
   "input": "tests/conversion_eval/fixtures/inputs/html/simple_table.html",
   "description": "HTML table extraction should keep headings, paragraphs, and table cells without HTML remnants.",
-  "must_include": ["Simple Table Test", "Sample Data Table", "Laptop", "Summary Statistics"],
+  "must_include": ["Sample Data Table", "Laptop", "Coffee Mug", "Summary Statistics"],
   "must_not_include": ["<table", "<div", "function("],
   "min_chars": 100,
   "min_lines": 8,

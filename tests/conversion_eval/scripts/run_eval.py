@@ -29,7 +29,7 @@ MANIFEST_PATH = EVAL_ROOT / "fixtures" / "source_manifest.json"
 LATEST_REPORT_DIR = EVAL_ROOT / "reports" / "latest"
 HISTORY_REPORT_DIR = EVAL_ROOT / "reports" / "history"
 
-SUPPORTED_FORMATS = {"csv", "docx", "epub", "html", "json", "pdf", "pptx", "text", "xlsx"}
+SUPPORTED_FORMATS = {"csv", "docx", "epub", "html", "image", "json", "pdf", "pptx", "text", "xlsx"}
 SUPPORTED_TIERS = {"smoke", "quality", "edge", "regression", "regressions"}
 SUPPORTED_REFERENCE_BUILDERS = {"copy", "csv", "docx", "epub", "html", "json", "pptx", "text", "xlsx"}
 BASELINE_SUPPORTED_FORMATS = {
@@ -54,6 +54,8 @@ class CaseSpec:
     tier: str
     input: str
     description: str
+    cli_args: list[str] = field(default_factory=list)
+    skip_baselines: dict[str, str] = field(default_factory=dict)
     must_include: list[str] = field(default_factory=list)
     must_not_include: list[str] = field(default_factory=list)
     min_chars: int = 0
@@ -154,7 +156,9 @@ def load_cases() -> list[CaseSpec]:
                 format=raw["format"],
                 tier=raw["tier"],
                 input=raw["input"],
+                cli_args=list(raw.get("cli_args", [])),
                 description=raw.get("description", ""),
+                skip_baselines={str(k): str(v) for k, v in raw.get("skip_baselines", {}).items()},
                 must_include=list(raw.get("must_include", [])),
                 must_not_include=list(raw.get("must_not_include", [])),
                 min_chars=int(raw.get("min_chars", 0)),
@@ -217,10 +221,15 @@ def detect_runner(explicit_runner: str | None) -> RunnerInfo:
     return RunnerInfo(["moon", "run", "cmd/main", "--"], "moon run cmd/main --", False, None)
 
 
-def run_conversion(runner: RunnerInfo, input_path: Path, timeout_seconds: int = 60) -> ConversionOutput:
+def run_conversion(
+    runner: RunnerInfo,
+    input_path: Path,
+    cli_args: list[str] | None = None,
+    timeout_seconds: int = 60,
+) -> ConversionOutput:
     started = dt.datetime.now(dt.timezone.utc)
     completed = subprocess.run(
-        [*runner.command, str(input_path)],
+        [*runner.command, *(cli_args or []), str(input_path)],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -917,7 +926,7 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
     for case in cases:
         reference_path = build_reference(case, refresh=refresh_references)
         reference_markdown = normalize_markdown(reference_path.read_text(encoding="utf-8")) if reference_path and reference_path.exists() else None
-        conversion = run_conversion(runner, case.input_path())
+        conversion = run_conversion(runner, case.input_path(), case.cli_args)
         output_markdown = normalize_markdown(conversion.stdout)
 
         metrics: dict[str, float] = {
@@ -944,6 +953,16 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
 
         baseline_result: dict[str, Any] = {}
         for tool in baseline_tools:
+            skip_reason = case.skip_baselines.get(tool)
+            if skip_reason:
+                baseline_result[tool] = {
+                    "available": True,
+                    "score": None,
+                    "error": None,
+                    "skipped": True,
+                    "reason": skip_reason,
+                }
+                continue
             if not baseline_supports_format(tool, case.format):
                 baseline_result[tool] = {
                     "available": True,
@@ -973,6 +992,7 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
                 "format": case.format,
                 "description": case.description,
                 "input": str(case.input_path().relative_to(REPO_ROOT)),
+                "cli_args": case.cli_args,
                 "reference": str(reference_path.relative_to(REPO_ROOT)) if reference_path and reference_path.exists() else None,
                 "runner_returncode": conversion.returncode,
                 "runner_duration_ms": conversion.duration_ms,

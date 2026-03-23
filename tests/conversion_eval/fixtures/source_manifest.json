@@ -17,9 +17,19 @@
       "dest": "tests/conversion_eval/fixtures/inputs/text/fake_text.txt"
     },
     {
+      "id": "text_norwich_city",
+      "source": "test_documents/text/norwich-city.txt",
+      "dest": "tests/conversion_eval/fixtures/inputs/text/norwich_city.txt"
+    },
+    {
       "id": "html_simple_table",
       "source": "test_documents/html/simple-table.html",
       "dest": "tests/conversion_eval/fixtures/inputs/html/simple_table.html"
+    },
+    {
+      "id": "html_complex_table",
+      "source": "test_documents/html/complex-table.html",
+      "dest": "tests/conversion_eval/fixtures/inputs/html/complex_table.html"
     },
     {
       "id": "docx_unit_test_headers",
@@ -27,9 +37,19 @@
       "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers.docx"
     },
     {
+      "id": "docx_unit_test_headers_numbered",
+      "source": "test_documents/office/unit_test_headers_numbered.docx",
+      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers_numbered.docx"
+    },
+    {
       "id": "docx_unit_test_lists",
       "source": "test_documents/office/unit_test_lists.docx",
       "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_lists.docx"
+    },
+    {
+      "id": "epub_simple_shared_culture",
+      "source": "test_documents/office/simple.epub",
+      "dest": "tests/conversion_eval/fixtures/inputs/epub/simple_shared_culture.epub"
     },
     {
       "id": "epub_winter_sports",
@@ -77,9 +97,29 @@
       "dest": "tests/conversion_eval/fixtures/inputs/pptx/simple.pptx"
     },
     {
+      "id": "pptx_powerpoint_with_image",
+      "source": "test_documents/office/powerpoint_with_image.pptx",
+      "dest": "tests/conversion_eval/fixtures/inputs/pptx/powerpoint_with_image.pptx"
+    },
+    {
       "id": "xlsx_test_01",
       "source": "test_documents/office/test-01.xlsx",
       "dest": "tests/conversion_eval/fixtures/inputs/xlsx/test_01.xlsx"
+    },
+    {
+      "id": "xlsx_stanley_cups",
+      "source": "test_documents/csv_json_yaml/stanley-cups.xlsx",
+      "dest": "tests/conversion_eval/fixtures/inputs/xlsx/stanley_cups.xlsx"
+    },
+    {
+      "id": "image_example_mock_ocr",
+      "source": "test_documents/images/example.jpg",
+      "dest": "tests/conversion_eval/fixtures/inputs/image/example.jpg"
+    },
+    {
+      "id": "image_bmp_mock_ocr",
+      "source": "test_documents/images/bmp_24.bmp",
+      "dest": "tests/conversion_eval/fixtures/inputs/image/bmp_24.bmp"
     }
   ]
 }

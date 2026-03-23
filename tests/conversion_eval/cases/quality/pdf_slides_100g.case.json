@@ -4,6 +4,9 @@
   "tier": "quality",
   "input": "tests/conversion_eval/fixtures/inputs/pdf/slides_100g.pdf",
   "description": "Slide-style PDF should preserve major slide headings and ordered topical flow.",
+  "skip_baselines": {
+    "docling": "Skipped for docling baseline: this slide-heavy PDF consistently exceeds local docling preprocess memory limits and returns std::bad_alloc."
+  },
   "must_include": ["100G Networking Technology Overview", "Why 100G now?", "100G Networking Technologies", "CFP vs QSFP28"],
   "must_not_include": ["\uFFFD", "<html"],
   "min_chars": 5000,

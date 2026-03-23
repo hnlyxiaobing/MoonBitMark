@@ -1,0 +1,25 @@
+{
+  "id": "image_example_mock_ocr",
+  "format": "image",
+  "tier": "smoke",
+  "input": "tests/conversion_eval/fixtures/inputs/image/example.jpg",
+  "cli_args": ["--ocr", "force", "--ocr-backend", "mock"],
+  "description": "Image conversion should be included in the eval matrix and produce deterministic OCR text with the mock backend.",
+  "must_include": ["Image OCR", "MOCK OCR example"],
+  "must_not_include": ["OCR requested but no available backend was found.", "Unsupported OCR backend"],
+  "min_chars": 40,
+  "min_lines": 4,
+  "checks": {
+    "anchors": true,
+    "golden_markdown": false,
+    "ast_compare": false,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.5,
+    "noise_control": 0.2,
+    "length": 0.1,
+    "text_order": 0.2
+  }
+}
