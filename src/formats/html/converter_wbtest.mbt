@@ -51,3 +51,22 @@ test "html warning diagnostics carry typed source" {
     content="Warning: ConverterWarning\n  Phase: normalize/preprocess\n  Source: https://example.com\n  Message: Dropped <script> blocks during HTML conversion.\n  Hint: Scripts are intentionally removed before Markdown rendering.",
   )
 }
+
+///|
+test "html table cells flatten inline formatting" {
+  inspect(
+    extract_table_cells(
+      "<tr><td><strong>Total Products:</strong></td><td>4</td></tr>",
+    ),
+    content="[\"Total Products:\", \"4\"]",
+  )
+}
+
+///|
+test "html unwraps header containers" {
+  let doc = html_to_document(
+    "<body><header><h2>Hero</h2><p>Intro</p></header></body>",
+    None,
+  )
+  inspect(@ast.render_markdown(doc), content="## Hero\n\nIntro")
+}

@@ -174,3 +174,39 @@ test "pdf ocr warning when auto mode sees empty native text" {
     content="Some(\"OCR skipped for PDF because no page-rendering backend is configured.\")",
   )
 }
+
+///|
+test "pdf warning message reports recovery page counts" {
+  let route_plan = PdfRoutePlan::{
+    document_mode: Mixed,
+    pages: [],
+    summary: PdfRouteSummary::{
+      total_pages: 3,
+      native_fast_pages: 1,
+      structured_pages: 1,
+      recovery_pages: 1,
+      flagged_pages: 1,
+    },
+  }
+  let warnings = pdf_warning_messages(
+    route_plan,
+    PdfNativeExtraction::{
+      raw_pages: [],
+      pages: [],
+      provider: Some("pdfium"),
+      warnings: [],
+      used_fallback: false,
+    },
+    PdfNormalizationResult::{
+      pages: [],
+      removed_header_count: 0,
+      removed_footer_count: 0,
+      merged_partial_numbering_count: 0,
+    },
+    None,
+  )
+  inspect(
+    warnings,
+    content="[\"PDF route marked 1/3 page(s) for OCR recovery, but only native text extraction is currently active.\"]",
+  )
+}

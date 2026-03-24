@@ -26,11 +26,15 @@ fn print_usage() -> Unit {
   println("  --ocr <off|auto|force> Configure OCR strategy")
   println("  --ocr-lang <lang> Set OCR language (default: eng)")
   println("  --ocr-images     OCR embedded images in supported archive formats")
-  println("  --ocr-backend <backend> Select OCR backend (auto/mock/tesseract)")
+  println(
+    "  --ocr-backend <backend> Select OCR backend (auto/mock/tesseract via Python bridge)",
+  )
   println("  --ocr-timeout <ms> Set OCR backend timeout in milliseconds")
   println("  --diag-json       Print diagnostics/stats as JSON")
   println("  --detect-only     Only print detection result")
-  println("  --dump-ast        Print AST JSON instead of Markdown")
+  println(
+    "  --dump-ast        Print AST in MoonBit Json form instead of Markdown",
+  )
   println("  --debug           Enable debug context")
   println("  --help            Show this help message")
   println("")
@@ -203,49 +207,70 @@ async fn main {
     return
   }
 
-  let options = parse_args(args) catch {
+  let options : CliOptions = parse_args(args) catch {
     err => {
       print_usage()
       println("")
-      println("Error: " + err.to_string())
-      return
+      fail("CLI argument error: " + err.to_string())
     }
   }
   let engine = @engine.MarkItDown::new()
 
-  try {
-    if options.detect_only {
-      let detection = engine.detect(options.input)
-      let output = if options.diag_json {
-        render_detection_json(detection)
-      } else {
-        detection.render()
-      }
-      emit_output(output, None)
-      return
-    }
-
-    let result = engine.convert(options.input, ctx=options.ctx)
-    let output = if options.dump_ast {
-      render_ast_json(result)
-    } else if options.diag_json {
-      render_diagnostics_json(result)
+  validate_cli_options(options)
+  if options.detect_only {
+    let detection = engine.detect(options.input)
+    let output = if options.diag_json {
+      render_detection_json(detection)
     } else {
-      result.markdown
+      detection.render()
     }
-
-    emit_output(output, options.output)
-
-    if options.output is Some(path) && !options.diag_json && !options.dump_ast {
-      println("Converted: " + options.input + " -> " + path)
-      if options.ctx.debug {
-        println("")
-        println(result.debug_report())
-      }
-    }
-  } catch {
-    err => println("Error: " + err.to_string())
+    emit_output(output, None)
+    return
   }
+
+  let result = engine.convert(options.input, ctx=options.ctx)
+  let output = if options.dump_ast {
+    render_ast_json(result)
+  } else if options.diag_json {
+    render_diagnostics_json(result)
+  } else {
+    result.markdown
+  }
+
+  emit_output(output, options.output)
+
+  if options.output is Some(path) && !options.diag_json && !options.dump_ast {
+    println("Converted: " + options.input + " -> " + path)
+    if options.ctx.debug {
+      println("")
+      println(result.debug_report())
+    }
+  }
+}
+
+///|
+fn validate_cli_options(options : CliOptions) -> Unit raise {
+  match options.output {
+    Some(output_path) => validate_output_path(options.input, output_path)
+    None => ()
+  }
+}
+
+///|
+fn validate_output_path(
+  input_path : String,
+  output_path : String,
+) -> Unit raise {
+  let normalized_input = normalize_cli_path(input_path)
+  let normalized_output = normalize_cli_path(output_path)
+  if normalized_input == normalized_output {
+    fail("Output path conflicts with input path: " + output_path)
+  }
+}
+
+///|
+fn normalize_cli_path(path : String) -> String {
+  path.replace(old="\\", new="/").trim().to_lower().to_string()
 }
 
 ///|

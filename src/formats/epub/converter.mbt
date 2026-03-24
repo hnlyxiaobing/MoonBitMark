@@ -324,14 +324,6 @@ fn build_epub_blocks(metadata : EpubMetadata) -> Array[@ast.Block] {
     Some(title) if title != "" => blocks.push(@ast.text_heading(1, title))
     _ => ()
   }
-  match metadata.authors {
-    [author, ..] => blocks.push(@ast.text_paragraph("**Author:** " + author))
-    [] => ()
-  }
-  match metadata.language {
-    Some(lang) => blocks.push(@ast.text_paragraph("**Language:** " + lang))
-    None => ()
-  }
   blocks
 }
 
@@ -448,13 +440,11 @@ fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
 
 ///|
 fn sanitize_epub_text(text : String) -> String {
-  let mut result = normalize_epub_text(text)
-  for
-    noise in [
-      "Your Reading System does not support (this) video.", "Your Reading System does not support (this) audio",
-      "play pause mute unmute MUTED", "<video", "<audio", "&lt;source", "&lt;track",
-      "epubReadingSystem aware scripted video control using click and dblclick, space key.",
-    ] {
+  let mut result = strip_epub_media_tokens(normalize_epub_text(text))
+  if is_epub_media_fragment(result) {
+    return ""
+  }
+  for noise in ["<video", "<audio", "&lt;source", "&lt;track"] {
     result = result.replace(old=noise, new=" ")
   }
   normalize_epub_text(result)
@@ -463,11 +453,49 @@ fn sanitize_epub_text(text : String) -> String {
 ///|
 fn is_epub_noise_text(text : String) -> Bool {
   let normalized = normalize_epub_text(text).to_lower().to_string()
-  normalized == "" ||
-  normalized == "guide" ||
-  normalized == "play pause mute unmute muted" ||
-  normalized == "begin reading" ||
-  normalized == "table of contents begin reading"
+  normalized == "" || normalized == ">" || normalized == "> >"
+}
+
+///|
+fn is_epub_media_fragment(text : String) -> Bool {
+  let normalized = normalize_epub_text(text).to_lower().to_string()
+  normalized == "" || normalized == "`" || normalized == "```"
+}
+
+///|
+fn strip_epub_media_tokens(text : String) -> String {
+  let kept : Array[String] = []
+  for token in text.split(" ").to_array() {
+    let piece = token.to_string()
+    let lowered = piece.to_lower().to_string()
+    if lowered == "" {
+      continue
+    }
+    if lowered.has_prefix("id=\"video") ||
+      lowered.contains("../video/") ||
+      lowered.contains("../captions/") ||
+      lowered.contains("aria-controls=\"") ||
+      lowered.contains("srclang=\"") ||
+      lowered.contains("kind=\"subtitles\"") ||
+      lowered.contains("label=\"") ||
+      lowered.contains("type=\"video/") ||
+      lowered.contains("type=\"audio/") ||
+      lowered == "</video>" ||
+      lowered == "</audio>" ||
+      lowered == "&lt;/video&gt;" ||
+      lowered == "&lt;/audio&gt;" ||
+      lowered.has_prefix("&lt;source") ||
+      lowered.has_prefix("&lt;track") ||
+      lowered == "controls=\"controls\"" ||
+      lowered == "controls=\"controls\">" ||
+      lowered == "controls=\"\">" ||
+      lowered == "autoplay=\"\"" ||
+      lowered == "role=\"button\"" {
+      continue
+    }
+    kept.push(piece)
+  }
+  kept.join(" ")
 }
 
 ///|
@@ -672,27 +700,14 @@ fn append_epub_asset_blocks(
   if assets.length() == 0 && ocr_blocks.length() == 0 {
     return blocks
   }
+  if ocr_blocks.length() == 0 {
+    return blocks
+  }
   let result = blocks
   if result.length() > 0 {
     result.push(@ast.HorizontalRule)
   }
-  result.push(@ast.text_heading(2, "Embedded Assets"))
-  for asset in assets {
-    if is_image_asset_filename(asset.filename) {
-      result.push(
-        @ast.text_paragraph(
-          "![" + asset.filename + "](" + asset.placeholder + ")",
-        ),
-      )
-    } else {
-      result.push(
-        @ast.List(
-          ["[" + asset.filename + "](" + asset.placeholder + ")"],
-          false,
-        ),
-      )
-    }
-  }
+  ignore(assets)
   for block in ocr_blocks {
     result.push(block)
   }

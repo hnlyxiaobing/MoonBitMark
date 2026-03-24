@@ -84,3 +84,13 @@ test "parse args rejects invalid ocr mode" {
     fail("expected parse_args to reject invalid ocr mode")
   }
 }
+
+///|
+test "validate output path rejects input overwrite" {
+  let result : Result[Unit, Error] = try? validate_output_path(
+    "fixtures\\scan.png", "fixtures/scan.png",
+  )
+  guard result is Err(_) else {
+    fail("expected validate_output_path to reject overwrite path")
+  }
+}

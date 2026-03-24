@@ -52,3 +52,24 @@ test "xlsx typed failure render targets workbook xml" {
     content="Error: ZipError\n  Phase: load/xl/workbook.xml\n  Source: xl/workbook.xml\n  Message: Failed to read xl/workbook.xml (xl/workbook.xml)\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
   )
 }
+
+///|
+test "xlsx cell normalization trims whitespace" {
+  inspect(normalize_xlsx_cell_text(" first \r\n"), content="first")
+}
+
+///|
+test "xlsx asset gallery is suppressed from markdown" {
+  inspect(
+    append_xlsx_asset_gallery("## Sheet1", [
+      @core.OutputAsset::{
+        placeholder: "moonbitmark-asset://xlsx-image-1.png",
+        filename: "xlsx-image-1.png",
+        bytes: b"",
+        source: None,
+        hint: None,
+      },
+    ]),
+    content="## Sheet1",
+  )
+}

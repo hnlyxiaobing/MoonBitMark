@@ -1,56 +1,64 @@
 # MCP Support
 
-## 当前实现
+## Status
 
-MoonBitMark 已提供一个基于 STDIO 的 MCP 服务入口：
+MCP is currently **experimental**.
+
+What is verified today:
+
+- package entrypoint exists at `cmd/mcp-server`
+- transport is STDIO only
+- newline-delimited JSON-RPC requests work for:
+  - `initialize`
+  - `tools/list`
+  - `tools/call`
+
+What is not claimed:
+
+- HTTP / SSE transport
+- prompts / resources support
+- streaming responses
+- broad protocol compatibility beyond the smoke-checked path
+
+## Run
 
 ```bash
 moon run cmd/mcp-server
 ```
 
-入口文件位于 `cmd/mcp-server/main.mbt`，核心实现位于 `src/mcp/`。
+## Automated validation
 
-## 能力范围
+```powershell
+powershell -File tests/integration/mcp_stdio_smoke.ps1
+```
 
-当前服务实现了：
+That script is the authoritative first-phase existence check for the public MCP entrypoint.
 
-- `initialize`
-- `tools/list`
-- `tools/call`
+## Tool surface
 
-当前只注册了一个工具：
+Registered tool:
 
 - `convert_to_markdown`
 
-工具参数：
+Accepted `uri` forms:
 
-```json
-{
-  "uri": "file:///path/to/file.docx"
-}
-```
+- normal file path string
+- `http://...`
+- `https://...`
+- `file://...` (best-effort; plain paths are simpler on Windows)
 
-也接受 `http://`、`https://` 和普通文件路径字符串。
-
-## 实现结构
+## Implementation path
 
 ```text
 cmd/mcp-server
-  -> transport/stdio
-  -> handler/server
-  -> handler/tools
-  -> engine conversion
+  -> src/mcp/transport/stdio
+  -> src/mcp/handler/server
+  -> src/mcp/handler/tools
+  -> src/engine
 ```
 
-`tools/call` 最终会调用现有转换主链路，而不是旁路实现一套单独逻辑。
+## Operational notes
 
-## 使用建议
-
-- 本地联调时先跑 `moon test`，再用 `scripts/test_mcp_server.ps1` 或 `scripts/test_mcp_server.sh` 做最小交互验证。
-- 如果只需要 CLI 功能，不必引入 MCP；MCP 主要面向 AI agent / IDE / 工具集成场景。
-
-## 当前限制
-
-- 只有 STDIO 传输，没有 HTTP / SSE。
-- 只有一个转换工具，没有 resources / prompts。
-- 返回结果以文本 Markdown 为主，不暴露更细的 AST 或资产管理协议。
+- Keep stdout reserved for protocol responses.
+- Do not treat `conversion_eval` quality scores as proof that MCP is fully implemented.
+- If this entrypoint expands later, add integration checks before upgrading its documentation maturity.

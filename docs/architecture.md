@@ -4,6 +4,8 @@
 
 MoonBitMark 是一个以 `src/engine/` 为统一入口的多格式文档转 Markdown 引擎。CLI 只是前端壳层，负责参数解析、调用引擎和输出结果。
 
+外部依赖边界另见 `docs/architecture/external_dependencies.md`。
+
 ## 主链路
 
 ```text
@@ -105,7 +107,8 @@ AST 负责统一 Markdown 渲染策略。当前除了 richer inline 语义外，
 - HTML / XHTML / URL 仍是轻量结构恢复路径。
 - 当前已支持常见标题、段落、列表、表格、引用和代码块恢复。
 - `<title>` 会在正文首块不重复时注入 Markdown。
-- `div / section / article / main` 容器会被展开，而不是整体压扁成单段落。
+- `div / section / article / main / header / figure` 容器会被展开，而不是整体压扁成单段落。
+- 表格单元格当前会优先保留可读纯文本，避免把 `strong/em/link` 语义直接泄漏成 Markdown 标记。
 - HTML 仍不做 JavaScript 渲染，也没有完整 DOM / CSS 语义。
 
 ### Office / Archive 簇
@@ -113,10 +116,17 @@ AST 负责统一 Markdown 渲染策略。当前除了 richer inline 语义外，
 - DOCX / PPTX / XLSX / EPUB 继续共享 `libzip + xml` 基础设施。
 - `src/libzip/deflate.mbt` 已覆盖 `Stored / Fixed Huffman / Dynamic Huffman` 三条路径。
 - 共享容器层已经稳定，但各格式局部结构细节仍在持续补强。
+- 第二阶段已补到：DOCX 编号标题间距与首段标题提升、XLSX 默认不再把 embedded asset gallery 直接拼进主 Markdown、EPUB 会更积极剥离媒体属性噪声并保留可读正文说明。
 
 ### PDF
 
 - PDF 主路径已拆成 `route -> extraction -> normalize -> structure -> assembly -> diagnostics` 的多文件管线。
 - 默认快速路径仍是 `mbtpdf`。
 - 小型复杂文档可按启发式升级到 `pdfminer` bridge fallback。
-- 当前仍没有内建页渲染 OCR fallback。
+- PDF OCR 仍是恢复路径，不是成熟页渲染引擎。
+- route diagnostics 现在会带上 structured / recovery 页数与 flag summary，便于区分“主路径强”与“恢复路径介入”的真实原因。
+
+### MCP
+
+- `cmd/mcp-server` 当前是实验性 STDIO MCP 入口。
+- 第一阶段只核验了 `initialize`、`tools/list` 和 `tools/call` 的最小闭环。

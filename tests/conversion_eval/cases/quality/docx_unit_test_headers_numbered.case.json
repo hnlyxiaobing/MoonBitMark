@@ -4,7 +4,7 @@
   "tier": "quality",
   "input": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers_numbered.docx",
   "description": "Numbered heading DOCX documents should preserve heading depth and surrounding paragraph order.",
-  "must_include": ["Test Document", "Section 1", "Section1.2.3", "Section 2.1.1", "Paragraph 2.1.2"],
+  "must_include": ["Test Document", "Section 1", "Section 1.2.3", "Section 2.1.1", "Paragraph 2.1.2"],
   "must_not_include": ["Normal.dotm", "w:document", "xmlns:w"],
   "min_chars": 160,
   "min_lines": 12,

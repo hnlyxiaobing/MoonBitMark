@@ -19,7 +19,11 @@ fn pdf_warning_messages(
   if route_plan.summary.recovery_pages > 0 &&
     ocr_warning != Some("PDF OCR recovery supplemented low-text pages.") {
     warnings.push(
-      "Some PDF pages appear to require OCR recovery, but only native text extraction is currently active.",
+      "PDF route marked " +
+      route_plan.summary.recovery_pages.to_string() +
+      "/" +
+      route_plan.summary.total_pages.to_string() +
+      " page(s) for OCR recovery, but only native text extraction is currently active.",
     )
   }
   if normalization.merged_partial_numbering_count > 0 {
@@ -152,6 +156,8 @@ fn pdf_route_diagnostics(
   if route_plan.summary.structured_pages > 0 {
     let mut message = "Routed " +
       route_plan.summary.structured_pages.to_string() +
+      "/" +
+      route_plan.summary.total_pages.to_string() +
       " PDF page(s) to the structured native path based on route heuristics."
     if flag_summary != "" {
       message = message + " Flags: " + flag_summary + "."
@@ -171,9 +177,17 @@ fn pdf_route_diagnostics(
   }
 
   if route_plan.summary.recovery_pages > 0 {
+    let mut message = "Routed " +
+      route_plan.summary.recovery_pages.to_string() +
+      "/" +
+      route_plan.summary.total_pages.to_string() +
+      " PDF page(s) to OCR recovery because the extracted text looked empty or unusable."
+    if flag_summary != "" {
+      message = message + " Flags: " + flag_summary + "."
+    }
     diagnostics.push(
       @core.warning_diagnostic(
-        "Routed some PDF pages to OCR recovery because the extracted text looked empty or unusable.",
+        message,
         Some(@core.Convert("pdf-route")),
         Some(@core.File(file_path)),
         Some(

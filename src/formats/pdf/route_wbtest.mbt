@@ -30,6 +30,18 @@ test "pdf route sends empty pages to recovery path" {
 }
 
 ///|
+test "pdf route diagnostics report page counts and flags" {
+  let route = plan_pdf_route([
+    "Formula 1\nListing1:SimpleJavaScriptProgram functionadd(a,b){ return a+b; }\na = b + c / d",
+  ])
+  let diagnostics = pdf_route_diagnostics("spec.pdf", route)
+  inspect(
+    diagnostics[0].render(),
+    content="Warning: ConverterWarning\n  Phase: convert/pdf-route\n  Source: spec.pdf\n  Message: Routed 1/1 PDF page(s) to the structured native path based on route heuristics. Flags: code:1,formula:1,broken_spacing:1.\n  Hint: Structured pages keep the native extractor for now, but later stages can upgrade these routes to layout or OCR providers.",
+  )
+}
+
+///|
 test "pdf bridge heuristic skips large structured docs without broken spacing" {
   let page = "Table 1\nModel accuracy values\n0.91 0.92 0.93 0.94\nDiscussion paragraph continues here."
   let pages = Array::make(12, page)

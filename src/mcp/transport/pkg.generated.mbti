@@ -9,8 +9,8 @@ package "moonbitlang/moonbitmark/src/mcp/transport"
 pub(all) struct StdioTransport {
 }
 pub fn StdioTransport::new() -> Self
-pub fn StdioTransport::read_line(Self) -> String
-pub fn StdioTransport::write_line(Self, String) -> Unit
+pub async fn StdioTransport::read_line(Self) -> String?
+pub async fn StdioTransport::write_line(Self, String) -> Unit
 
 // Type aliases
 

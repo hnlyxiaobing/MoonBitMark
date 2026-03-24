@@ -31,3 +31,16 @@ test "docx typed failure render targets archive entry" {
     content="Error: ZipError\n  Phase: load/word/document.xml\n  Source: word/document.xml\n  Message: Failed to read document.xml from DOCX (word/document.xml)\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
   )
 }
+
+///|
+test "docx heading normalization adds spacing before numbers" {
+  inspect(normalize_docx_heading_text("Section1.2.3"), content="Section 1.2.3")
+}
+
+///|
+test "docx promotes short leading title paragraph" {
+  inspect(
+    docx_is_promotable_title([@ast.Text("Test Document")]),
+    content="true",
+  )
+}

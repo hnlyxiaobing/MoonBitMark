@@ -325,7 +325,17 @@ fn finalize_docx_paragraph(ctx : DocxContext) -> Unit {
   flush_docx_text(ctx)
   if ctx.current_inlines.length() > 0 {
     if ctx.heading_level > 0 {
-      ctx.blocks.push(@ast.Heading(ctx.heading_level, ctx.current_inlines))
+      ctx.blocks.push(
+        @ast.text_heading(
+          ctx.heading_level,
+          render_docx_heading_text(ctx.current_inlines),
+        ),
+      )
+    } else if ctx.blocks.length() == 0 &&
+      docx_is_promotable_title(ctx.current_inlines) {
+      ctx.blocks.push(
+        @ast.text_heading(1, render_docx_heading_text(ctx.current_inlines)),
+      )
     } else if ctx.in_list {
       ctx.blocks.push(
         @ast.List([@ast.render_inlines(ctx.current_inlines)], false),
@@ -370,6 +380,83 @@ fn apply_docx_run_style(
   } else {
     with_italic
   }
+}
+
+///|
+fn normalize_docx_heading_inlines(
+  inlines : Array[@ast.Inline],
+) -> Array[@ast.Inline] {
+  let normalized : Array[@ast.Inline] = []
+  for inline in inlines {
+    normalized.push(normalize_docx_heading_inline(inline))
+  }
+  normalized
+}
+
+///|
+fn render_docx_heading_text(inlines : Array[@ast.Inline]) -> String {
+  normalize_docx_heading_text(@ast.render_inlines(inlines))
+}
+
+///|
+fn normalize_docx_heading_inline(inline : @ast.Inline) -> @ast.Inline {
+  match inline {
+    @ast.Text(text) => @ast.Text(normalize_docx_heading_text(text))
+    @ast.Emphasis(children) =>
+      @ast.Emphasis(normalize_docx_heading_inlines(children))
+    @ast.Strong(children) =>
+      @ast.Strong(normalize_docx_heading_inlines(children))
+    @ast.Link(children, href) =>
+      @ast.Link(normalize_docx_heading_inlines(children), href)
+    @ast.Image(alt, src) => @ast.Image(alt, src)
+    @ast.Code(text) => @ast.Code(normalize_docx_heading_text(text))
+    @ast.LineBreak => @ast.LineBreak
+  }
+}
+
+///|
+fn normalize_docx_heading_text(text : String) -> String {
+  let mut result = ""
+  let mut previous : Char? = None
+  for ch in text {
+    match previous {
+      Some(prev) =>
+        if is_docx_ascii_letter(prev) &&
+          ch >= '0' &&
+          ch <= '9' &&
+          !result.has_suffix(" ") {
+          result = result + " "
+        }
+      None => ()
+    }
+    result = result + ch.to_string()
+    previous = Some(ch)
+  }
+  result
+}
+
+///|
+fn is_docx_ascii_letter(ch : Char) -> Bool {
+  (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+}
+
+///|
+fn docx_is_promotable_title(inlines : Array[@ast.Inline]) -> Bool {
+  let text = @ast.render_inlines(inlines).trim().to_string()
+  if text == "" || text.length() > 80 || text.contains("\n") {
+    return false
+  }
+  if text.has_suffix(".") || text.has_suffix("!") || text.has_suffix("?") {
+    return false
+  }
+  let mut has_letter = false
+  for ch in text {
+    if is_docx_ascii_letter(ch) {
+      has_letter = true
+      break
+    }
+  }
+  has_letter && text.split(" ").to_array().length() <= 8
 }
 
 ///|

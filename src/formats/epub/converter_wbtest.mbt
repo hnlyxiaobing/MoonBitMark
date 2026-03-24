@@ -48,3 +48,34 @@ test "epub typed failure render includes archive source" {
     content="Error: ZipError\n  Phase: load/container\n  Source: META-INF/container.xml\n  Message: Failed to read container.xml (META-INF/container.xml)\n  Hint: Inspect archive integrity and verify the expected internal entries exist.",
   )
 }
+
+///|
+test "epub sanitization drops raw media fragments" {
+  inspect(
+    sanitize_epub_text(
+      "id=\"video1\" controls=\"controls\" src=\"../video/shared-culture.mp4\" type=\"video/mp4\"",
+    ),
+    content="",
+  )
+}
+
+///|
+test "epub asset appendix only keeps ocr blocks" {
+  let blocks = append_epub_asset_blocks(
+    [@ast.text_paragraph("body")],
+    [
+      @core.OutputAsset::{
+        placeholder: "moonbitmark-asset://epub-asset-1.jpg",
+        filename: "epub-asset-1.jpg",
+        bytes: b"",
+        source: None,
+        hint: None,
+      },
+    ],
+    [],
+  )
+  inspect(
+    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    content="body",
+  )
+}

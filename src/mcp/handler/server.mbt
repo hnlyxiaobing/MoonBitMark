@@ -18,10 +18,7 @@ pub fn McpServer::new_with_logger(
   logger : @util.Logger,
 ) -> McpServer {
   let registry = ToolRegistry::new().register_convert_tools() catch {
-    error => {
-      logger.error("Failed to register tools: " + error.to_string())
-      ToolRegistry::new()
-    }
+    _error => ToolRegistry::new()
   }
 
   McpServer::{ tools: registry, transport, logger }
@@ -154,9 +151,11 @@ async fn McpServer::handle_tools_call(
 
 ///|
 pub async fn McpServer::run(self : McpServer) -> Unit {
-  self.logger.info("Starting MCP server")
   while true {
-    let json_str = self.transport.read_line()
+    let json_str = match self.transport.read_line() {
+      Some(value) => value
+      None => break
+    }
     if json_str.trim().length() == 0 {
       continue
     }

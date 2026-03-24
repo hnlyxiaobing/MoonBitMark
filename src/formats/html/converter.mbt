@@ -585,6 +585,28 @@ fn render_inline_markdown(inlines : Array[@ast.Inline]) -> String {
 }
 
 ///|
+fn render_inline_plain_text(inlines : Array[@ast.Inline]) -> String {
+  let parts : Array[String] = []
+  for inline in inlines {
+    parts.push(plain_html_inline_text(inline))
+  }
+  parts.join("").trim().to_string()
+}
+
+///|
+fn plain_html_inline_text(inline : @ast.Inline) -> String {
+  match inline {
+    @ast.Text(text) => text
+    @ast.Emphasis(children) => render_inline_plain_text(children)
+    @ast.Strong(children) => render_inline_plain_text(children)
+    @ast.Link(children, _) => render_inline_plain_text(children)
+    @ast.Image(alt, _) => alt
+    @ast.Code(text) => text
+    @ast.LineBreak => "\n"
+  }
+}
+
+///|
 fn unwrap_container_html(html : String) -> String? {
   match unwrap_html_tag(html, "div") {
     Some(unwrapped) => Some(unwrapped)
@@ -594,7 +616,15 @@ fn unwrap_container_html(html : String) -> String? {
         None =>
           match unwrap_html_tag(html, "article") {
             Some(unwrapped) => Some(unwrapped)
-            None => unwrap_html_tag(html, "main")
+            None =>
+              match unwrap_html_tag(html, "main") {
+                Some(unwrapped) => Some(unwrapped)
+                None =>
+                  match unwrap_html_tag(html, "header") {
+                    Some(unwrapped) => Some(unwrapped)
+                    None => unwrap_html_tag(html, "figure")
+                  }
+              }
           }
       }
   }
@@ -864,7 +894,7 @@ fn extract_cells_by_tag(html : String, tag : String) -> Array[String] {
               Some(end_idx) => {
                 let content = remaining[content_start:end_idx].to_string()
                 cells.push(
-                  render_inline_markdown(inline_html_to_inlines(content))
+                  render_inline_plain_text(inline_html_to_inlines(content))
                   .trim()
                   .to_string(),
                 )

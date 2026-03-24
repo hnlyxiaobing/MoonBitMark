@@ -7,7 +7,7 @@ You can browse and install extra skills here:
 
 ## Project Overview
 
-MoonBitMark is a document converter that transforms various file formats (TXT, CSV, JSON, PDF, HTML, DOCX, PPTX, URLs) to Markdown. It compiles to native code for fast execution.
+MoonBitMark is a document converter that transforms TXT, CSV, JSON, PDF, image, HTML/XHTML/URL, DOCX, PPTX, XLSX, and EPUB inputs into Markdown. The CLI is the main public entrypoint; OCR is an optional bridge-backed capability, and MCP is currently an experimental STDIO server.
 
 ## Commands
 
@@ -17,7 +17,7 @@ moon check
 
 # Build (Release mode, requires MSVC on Windows)
 # Use the script for proper MSVC environment:
-scripts/build_msvc.bat
+scripts/build.bat
 
 # Or manually:
 moon build --target native --release
@@ -44,7 +44,7 @@ moon info && moon fmt
 ## Project Structure
 
 - MoonBit packages are organized per directory; each directory contains a
-  `moon.pkg.json` file listing its dependencies. Each package has its files and
+  `moon.pkg` file listing its dependencies. Each package has its files and
   blackbox test files (ending in `_test.mbt`) and whitebox test files (ending in
   `_wbtest.mbt`).
 
@@ -223,12 +223,20 @@ suberror MyError { NotFound, InvalidInput(String) }
 - `moonbitlang/async` - File system, HTTP client
 - `bobzhang/mbtpdf` - PDF text extraction
 
-## Pure MoonBit Implementation
+## Runtime Boundaries
 
-All converters use pure MoonBit code without FFI dependencies:
+Core archive/XML parsing is pure MoonBit:
 
 - **libzip** (`src/libzip/`) - ZIP extraction with Store and Deflate decompression
-- **xml** (`src/xml/`) - SAX-style XML parser for DOCX processing
+- **xml** (`src/xml/`) - SAX-style XML parser for DOCX/PPTX/EPUB processing
+
+Bridge-backed capabilities are not pure MoonBit-only:
+
+- **OCR** uses `scripts/ocr/bridge.py` and an external backend such as `mock` or `tesseract`
+- **PDF fallback extraction** may use `scripts/pdf/bridge.py`
+- **Windows native release builds** assume MSVC `cl.exe` as configured by `moonpkg.json`
+
+For the authoritative boundary list, see `docs/architecture/external_dependencies.md`.
 
 ### Features
 - ✅ ZIP structure parsing

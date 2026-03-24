@@ -5,9 +5,13 @@
 ## 文档分类
 
 - [architecture.md](architecture.md): 当前系统架构、主链路、共享层职责和各格式簇的真实状态。
+- [architecture/external_dependencies.md](architecture/external_dependencies.md): 纯 MoonBit 与 bridge / 子进程 / 工具链依赖边界。
+- [audit/placeholder_audit.md](audit/placeholder_audit.md): 第一阶段 placeholder / 半实现路径审计。
+- [audit/cli_matrix.md](audit/cli_matrix.md): CLI 公开参数与负向路径矩阵。
 - [development.md](development.md): 日常开发命令、验证流程、quality eval 入口和文档维护规则。
 - [features/mcp.md](features/mcp.md): MCP 服务的当前实现、运行方式和能力边界。
 - [features/ocr.md](features/ocr.md): OCR 能力层的接入方式、CLI 选项和当前限制。
+- [testing/test_layers.md](testing/test_layers.md): quality / integration / cli / ocr / baseline 分层。
 - [benchmark.md](benchmark.md): 最小性能 benchmark 和 conversion eval 入口。
 - [KNOWN_ISSUES.md](KNOWN_ISSUES.md): 当前仍未解决、值得持续跟踪的问题。
 

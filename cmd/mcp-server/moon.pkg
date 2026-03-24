@@ -1,0 +1,10 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/core/env",
+  "moonbitlang/moonbitmark/src/mcp/handler",
+  "moonbitlang/moonbitmark/src/mcp/transport",
+}
+
+options(
+  "is-main": true,
+)

@@ -483,7 +483,7 @@ fn get_cell_value(
   raw_value : String,
   shared_strings : Array[String],
 ) -> String {
-  if cell_type == "s" {
+  let resolved = if cell_type == "s" {
     // Shared string - lookup in shared strings array
     match parse_int(raw_value) {
       Some(idx) =>
@@ -511,6 +511,16 @@ fn get_cell_value(
     // Number or other
     raw_value
   }
+  normalize_xlsx_cell_text(resolved)
+}
+
+///|
+fn normalize_xlsx_cell_text(text : String) -> String {
+  text
+  .replace(old="\r\n", new="\n")
+  .replace(old="\r", new="\n")
+  .trim()
+  .to_string()
 }
 
 ///|
@@ -627,24 +637,8 @@ fn append_xlsx_asset_gallery(
   markdown : String,
   assets : Array[@core.OutputAsset],
 ) -> String {
-  if assets.length() == 0 {
-    return markdown
-  }
-  let lines : Array[String] = []
-  if markdown != "" {
-    lines.push(markdown)
-    lines.push("")
-  }
-  lines.push("## Embedded Assets")
-  lines.push("")
-  for asset in assets {
-    if asset.filename.has_prefix("xlsx-image-") {
-      lines.push("![" + asset.filename + "](" + asset.placeholder + ")")
-    } else {
-      lines.push("- [" + asset.filename + "](" + asset.placeholder + ")")
-    }
-  }
-  lines.join("\n")
+  ignore(assets)
+  markdown
 }
 
 ///|

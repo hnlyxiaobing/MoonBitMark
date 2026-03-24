@@ -41,7 +41,13 @@ pub async fn ImageConverter::convert(
   )
   let metadata = Map::new()
   metadata["format"] = "image"
-  @core.apply_ocr_metadata(metadata, ctx.ocr, ocr_result.provider)
+  @core.apply_ocr_metadata(
+    metadata,
+    ctx.ocr,
+    ocr_result.provider,
+    attempted=ocr_result.attempted,
+    available=ocr_result.available,
+  )
   let warnings = collect_image_warnings(ctx.ocr, ocr_result)
   let diagnostics = image_warning_diagnostics(file_path, warnings)
   let title = @core.file_stem(file_path)
