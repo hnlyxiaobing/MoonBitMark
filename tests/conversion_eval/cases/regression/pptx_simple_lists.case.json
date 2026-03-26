@@ -1,0 +1,35 @@
+{
+  "id": "pptx_simple_lists",
+  "format": "pptx",
+  "tier": "regression",
+  "input": "tests/conversion_eval/fixtures/inputs/pptx/simple.pptx",
+  "description": "Content placeholders with multiple paragraphs should round-trip as list items instead of flat paragraphs.",
+  "must_include": [
+    "Things to think about",
+    "How much is enough?",
+    "If not now when?",
+    "What were you thinking?"
+  ],
+  "must_not_include": [
+    "Slide Master",
+    "PowerPoint Presentation"
+  ],
+  "min_chars": 120,
+  "min_lines": 10,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pptx_simple.md",
+  "reference_builder": "pptx",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.35,
+    "ast_similarity": 0.2,
+    "text_order": 0.15
+  }
+}

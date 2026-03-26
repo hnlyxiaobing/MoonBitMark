@@ -53,7 +53,6 @@ $diagNoMetadataJson = $diagNoMetadata.StdOut.Trim() | ConvertFrom-Json
 if (@($diagNoMetadataJson.metadata.PSObject.Properties).Count -ne 0) {
     throw '--no-metadata did not clear metadata in diag-json output.'
 }
-
 $detectJson = Invoke-NativeCommand -FilePath $binary -Arguments @('--detect-only', '--diag-json', (Normalize-MoonBitMarkPath $textInput)) -WorkingDirectory $repoRoot
 if ($detectJson.ExitCode -ne 0) {
     throw "detect-only conversion failed: $($detectJson.StdErr)"
@@ -67,8 +66,25 @@ $dumpAst = Invoke-NativeCommand -FilePath $binary -Arguments @('--dump-ast', (No
 if ($dumpAst.ExitCode -ne 0) {
     throw "dump-ast conversion failed: $($dumpAst.StdErr)"
 }
-Assert-ContainsText -Text $dumpAst.StdOut -Expected 'Object(' -Context '--dump-ast output'
-Assert-ContainsText -Text $dumpAst.StdOut -Expected 'Smoke Title' -Context '--dump-ast output'
+$dumpAstJson = $dumpAst.StdOut.Trim() | ConvertFrom-Json
+if ($dumpAstJson.title -ne 'Smoke Title') {
+    throw "Unexpected dump-ast title: $($dumpAstJson.title)"
+}
+if ($dumpAstJson.blocks.Count -lt 3) {
+    throw "Unexpected dump-ast block count: $($dumpAstJson.blocks.Count)"
+}
+if ($dumpAstJson.blocks[0].type -ne 'paragraph' -or $dumpAstJson.blocks[0].inlines[0].content -ne 'Smoke Title') {
+    throw '--dump-ast did not emit the expected title paragraph block.'
+}
+if ($dumpAstJson.blocks[1].type -ne 'heading' -or $dumpAstJson.blocks[1].level -ne 1) {
+    throw '--dump-ast did not emit the expected heading block schema.'
+}
+if ($dumpAstJson.blocks[1].inlines[0].content -ne 'Heading') {
+    throw "Unexpected dump-ast heading content: $($dumpAstJson.blocks[1].inlines[0].content)"
+}
+if ($dumpAstJson.blocks[2].type -ne 'paragraph' -or $dumpAstJson.blocks[2].inlines[0].content -ne 'Paragraph') {
+    throw '--dump-ast did not emit the expected paragraph block schema.'
+}
 
 $outputRun = Invoke-NativeCommand -FilePath $binary -Arguments @('--debug', (Normalize-MoonBitMarkPath $textInput), (Normalize-MoonBitMarkPath $outputMarkdown)) -WorkingDirectory $repoRoot
 if ($outputRun.ExitCode -ne 0) {

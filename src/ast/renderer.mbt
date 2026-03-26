@@ -43,14 +43,15 @@ fn render_inline(inline : Inline) -> String {
 }
 
 ///|
-fn render_list(items : Array[String], ordered : Bool) -> String {
+fn render_list(items : Array[Array[Inline]], ordered : Bool) -> String {
   let lines : Array[String] = []
   let mut index = 1
   for item in items {
+    let rendered = render_inlines(item)
     if ordered {
-      lines.push(index.to_string() + ". " + item)
+      lines.push(index.to_string() + ". " + rendered)
     } else {
-      lines.push("- " + item)
+      lines.push("- " + rendered)
     }
     index = index + 1
   }
@@ -69,7 +70,10 @@ fn render_code_block(lang : String?, content : String) -> String {
 }
 
 ///|
-fn render_table(headers : Array[String], rows : Array[Array[String]]) -> String {
+fn render_table(
+  headers : Array[Array[Inline]],
+  rows : Array[Array[Array[Inline]]],
+) -> String {
   if headers.length() == 0 {
     return ""
   }
@@ -84,7 +88,10 @@ fn render_table(headers : Array[String], rows : Array[Array[String]]) -> String 
 }
 
 ///|
-fn table_width(headers : Array[String], rows : Array[Array[String]]) -> Int {
+fn table_width(
+  headers : Array[Array[Inline]],
+  rows : Array[Array[Array[Inline]]],
+) -> Int {
   let mut width = headers.length()
   for row in rows {
     if row.length() > width {
@@ -95,17 +102,22 @@ fn table_width(headers : Array[String], rows : Array[Array[String]]) -> Int {
 }
 
 ///|
-fn render_table_row(cells : Array[String], width : Int) -> String {
+fn render_table_row(cells : Array[Array[Inline]], width : Int) -> String {
   let normalized = normalize_table_row(cells, width)
-  "| " + normalized.map(cell => escape_table_cell(cell)).join(" | ") + " |"
+  "| " +
+  normalized.map(cell => escape_table_cell(render_inlines(cell))).join(" | ") +
+  " |"
 }
 
 ///|
-fn normalize_table_row(cells : Array[String], width : Int) -> Array[String] {
-  let normalized : Array[String] = []
+fn normalize_table_row(
+  cells : Array[Array[Inline]],
+  width : Int,
+) -> Array[Array[Inline]] {
+  let normalized : Array[Array[Inline]] = []
   let mut index = 0
   while index < width {
-    normalized.push(if index < cells.length() { cells[index] } else { "" })
+    normalized.push(if index < cells.length() { cells[index] } else { [] })
     index = index + 1
   }
   normalized
@@ -128,7 +140,16 @@ fn render_inline_code(content : String) -> String {
 
 ///|
 fn escape_markdown_text(text : String) -> String {
-  text
+  let specials = ['\\', '`', '*', '_', '[', ']', '#']
+  let mut escaped = ""
+  for ch in text {
+    if specials.contains(ch) {
+      escaped = escaped + "\\" + ch.to_string()
+    } else {
+      escaped = escaped + ch.to_string()
+    }
+  }
+  escaped
 }
 
 ///|

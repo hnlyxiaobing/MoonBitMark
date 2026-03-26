@@ -1,0 +1,38 @@
+{
+  "id": "pptx_notes_chart_semantics",
+  "format": "pptx",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/pptx/notes_chart_semantics.pptx",
+  "description": "PPTX slides with structured lists, chart data, and speaker notes should retain those sections in Markdown order.",
+  "must_include": [
+    "Quarterly Review",
+    "Revenue up 12%",
+    "Revenue by Quarter",
+    "Speaker Notes",
+    "Call out enterprise mix."
+  ],
+  "must_not_include": [
+    "Slide Master",
+    "ppt/slides/slide1.xml",
+    "ppt/charts/chart1.xml"
+  ],
+  "min_chars": 180,
+  "min_lines": 16,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/pptx_notes_chart_semantics.md",
+  "reference_builder": "pptx",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": true,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.15,
+    "table_similarity": 0.15,
+    "text_order": 0.1
+  }
+}

@@ -337,9 +337,7 @@ fn finalize_docx_paragraph(ctx : DocxContext) -> Unit {
         @ast.text_heading(1, render_docx_heading_text(ctx.current_inlines)),
       )
     } else if ctx.in_list {
-      ctx.blocks.push(
-        @ast.List([@ast.render_inlines(ctx.current_inlines)], false),
-      )
+      ctx.blocks.push(@ast.List([ctx.current_inlines], false))
     } else {
       ctx.blocks.push(@ast.Paragraph(ctx.current_inlines))
     }

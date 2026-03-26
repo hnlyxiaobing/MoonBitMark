@@ -2,7 +2,7 @@
 
 ## Status
 
-MCP is currently **experimental**.
+MCP is currently **experimental**, but the STDIO contract is now treated as the first hard boundary.
 
 What is verified today:
 
@@ -12,6 +12,8 @@ What is verified today:
   - `initialize`
   - `tools/list`
   - `tools/call`
+  - `notifications/initialized` (no stdout response)
+- stdout stays reserved for protocol responses in the smoke-checked path
 
 What is not claimed:
 
@@ -29,10 +31,10 @@ moon run cmd/mcp-server
 ## Automated validation
 
 ```powershell
-powershell -File tests/integration/mcp_stdio_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests/integration/mcp_stdio_smoke.ps1
 ```
 
-That script is the authoritative first-phase existence check for the public MCP entrypoint.
+That script is the authoritative first-phase contract check for the public MCP entrypoint.
 
 ## Tool surface
 
@@ -60,5 +62,7 @@ cmd/mcp-server
 ## Operational notes
 
 - Keep stdout reserved for protocol responses.
+- Reject unsupported `jsonrpc` versions instead of guessing.
+- Notifications without `id` must not emit JSON-RPC responses.
 - Do not treat `conversion_eval` quality scores as proof that MCP is fully implemented.
 - If this entrypoint expands later, add integration checks before upgrading its documentation maturity.

@@ -167,7 +167,7 @@ fn reconstruct_structured_page_blocks(
             _ => break
           }
         }
-        blocks.push(@ast.List(items, ordered))
+        blocks.push(pdf_list_block(items, ordered))
         index = next_index
         continue
       }
@@ -187,7 +187,7 @@ fn reconstruct_structured_page_blocks(
       blocks.push(@ast.text_paragraph(caption.0))
       match try_parse_scientific_table(page.chunks, caption.1) {
         Some(parsed) => {
-          blocks.push(@ast.Table(parsed.0, parsed.1))
+          blocks.push(pdf_table_block(parsed.0, parsed.1))
           index = parsed.2
         }
         None => index = caption.1
@@ -1026,7 +1026,7 @@ fn repair_pdf_blocks(
         index = index + 1
       }
       @ast.List(items, ordered) => {
-        append_repaired_list_block(repaired, items, ordered)
+        append_repaired_list_block(repaired, pdf_list_strings(items), ordered)
         index = index + 1
       }
       @ast.Paragraph([@ast.Text(text)]) => {
@@ -1081,7 +1081,7 @@ fn append_repaired_block(
 ) -> Unit {
   match block {
     @ast.List(items, ordered) =>
-      append_repaired_list_block(repaired, items, ordered)
+      append_repaired_list_block(repaired, pdf_list_strings(items), ordered)
     _ => repaired.push(block)
   }
 }
@@ -1096,22 +1096,22 @@ fn append_repaired_list_block(
     return
   }
   if repaired.length() == 0 {
-    repaired.push(@ast.List(items, ordered))
+    repaired.push(pdf_list_block(items, ordered))
     return
   }
   let last_index = repaired.length() - 1
   match repaired[last_index] {
     @ast.List(existing, existing_ordered) =>
       if existing_ordered == ordered {
-        let merged = copy_string_array(existing)
+        let merged = copy_string_array(pdf_list_strings(existing))
         for item in items {
           merged.push(item)
         }
-        repaired[last_index] = @ast.List(merged, ordered)
+        repaired[last_index] = pdf_list_block(merged, ordered)
       } else {
-        repaired.push(@ast.List(items, ordered))
+        repaired.push(pdf_list_block(items, ordered))
       }
-    _ => repaired.push(@ast.List(items, ordered))
+    _ => repaired.push(pdf_list_block(items, ordered))
   }
 }
 
@@ -1158,13 +1158,13 @@ fn try_merge_paragraph_into_last_list(
       if items.length() == 0 {
         false
       } else {
-        let merged_items = copy_string_array(items)
+        let merged_items = copy_string_array(pdf_list_strings(items))
         let item_index = merged_items.length() - 1
         merged_items[item_index] = merge_paragraph_text(
           merged_items[item_index],
           normalized,
         )
-        repaired[last_index] = @ast.List(merged_items, ordered)
+        repaired[last_index] = pdf_list_block(merged_items, ordered)
         true
       }
     _ => false
@@ -1196,9 +1196,9 @@ fn try_append_missing_list_item(
   let last_index = repaired.length() - 1
   match repaired[last_index] {
     @ast.List(items, ordered) => {
-      let merged_items = copy_string_array(items)
+      let merged_items = copy_string_array(pdf_list_strings(items))
       merged_items.push(normalized)
-      repaired[last_index] = @ast.List(merged_items, ordered)
+      repaired[last_index] = pdf_list_block(merged_items, ordered)
       true
     }
     _ => false
@@ -1237,6 +1237,44 @@ fn copy_string_array(items : Array[String]) -> Array[String] {
   let copied : Array[String] = []
   for item in items {
     copied.push(item)
+  }
+  copied
+}
+
+///|
+fn pdf_list_block(items : Array[String], ordered : Bool) -> @ast.Block {
+  let inline_items : Array[Array[@ast.Inline]] = []
+  for item in items {
+    inline_items.push(@ast.text_inlines(item))
+  }
+  @ast.List(inline_items, ordered)
+}
+
+///|
+fn pdf_table_block(
+  headers : Array[String],
+  rows : Array[Array[String]],
+) -> @ast.Block {
+  let inline_headers : Array[Array[@ast.Inline]] = []
+  for cell in headers {
+    inline_headers.push(@ast.text_inlines(cell))
+  }
+  let inline_rows : Array[Array[Array[@ast.Inline]]] = []
+  for row in rows {
+    let inline_row : Array[Array[@ast.Inline]] = []
+    for cell in row {
+      inline_row.push(@ast.text_inlines(cell))
+    }
+    inline_rows.push(inline_row)
+  }
+  @ast.Table(inline_headers, inline_rows)
+}
+
+///|
+fn pdf_list_strings(items : Array[Array[@ast.Inline]]) -> Array[String] {
+  let copied : Array[String] = []
+  for item in items {
+    copied.push(@ast.plain_text_of_inlines(item))
   }
   copied
 }
@@ -1284,7 +1322,7 @@ fn next_block_text_after(blocks : Array[@ast.Block], start : Int) -> String? {
       }
       @ast.List(items, _) =>
         if items.length() > 0 {
-          return Some(items[0])
+          return Some(@ast.plain_text_of_inlines(items[0]))
         } else {
           return None
         }
@@ -1327,7 +1365,7 @@ fn render_pdf_candidates(
             _ => break
           }
         }
-        blocks.push(@ast.List(items, ordered))
+        blocks.push(pdf_list_block(items, ordered))
         list_block_count = list_block_count + 1
         index = list_index
       }

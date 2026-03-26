@@ -169,7 +169,9 @@ test "pdf block repair merges list continuations and promotes rescued headings" 
     [
       @ast.List(
         [
-          "Accessibility: Writers no longer needed expensive publishing equipment or training",
+          @ast.text_inlines(
+            "Accessibility: Writers no longer needed expensive publishing equipment or training",
+          ),
         ],
         false,
       ),
@@ -181,7 +183,9 @@ test "pdf block repair merges list continuations and promotes rescued headings" 
       ),
       @ast.List(
         [
-          "Education: Word processors became a cornerstone of education, teaching students",
+          @ast.text_inlines(
+            "Education: Word processors became a cornerstone of education, teaching students",
+          ),
         ],
         false,
       ),
@@ -210,7 +214,9 @@ test "pdf block repair absorbs orphan bullets into surrounding list" {
       ),
       @ast.List(
         [
-          "Fully AI-Assisted Writing: Imagine a word processor that understands your writing",
+          @ast.text_inlines(
+            "Fully AI-Assisted Writing: Imagine a word processor that understands your writing",
+          ),
         ],
         false,
       ),
@@ -223,7 +229,9 @@ test "pdf block repair absorbs orphan bullets into surrounding list" {
       ),
       @ast.List(
         [
-          "Hyper-Personalization: Word processors could offer dynamic suggestions based on industry-specific needs, user habits, or even regional language variations.",
+          @ast.text_inlines(
+            "Hyper-Personalization: Word processors could offer dynamic suggestions based on industry-specific needs, user habits, or even regional language variations.",
+          ),
         ],
         false,
       ),

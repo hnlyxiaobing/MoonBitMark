@@ -5,6 +5,7 @@ _build/
 __pycache__/
 *.pyc
 .codex/*
+.workbuddy/*
 !.codex/skills/
 .codex/skills/*
 !.codex/skills/moonbitmark-commit-push/

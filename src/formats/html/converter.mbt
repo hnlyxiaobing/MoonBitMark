@@ -390,8 +390,8 @@ fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
 }
 
 ///|
-fn extract_list_items(inner : String) -> Array[String] {
-  let items : Array[String] = []
+fn extract_list_items(inner : String) -> Array[Array[@ast.Inline]] {
+  let items : Array[Array[@ast.Inline]] = []
   let mut remaining = inner
   while remaining.trim() != "" {
     let lower = remaining.to_lower()
@@ -402,7 +402,7 @@ fn extract_list_items(inner : String) -> Array[String] {
             match find_from(lower, "</li>", open_end + 1) {
               Some(close_start) => {
                 let item = remaining[open_end + 1:close_start].to_string()
-                items.push(render_inline_markdown(inline_html_to_inlines(item)))
+                items.push(inline_html_to_inlines(item))
                 remaining = remaining[close_start + 5:].to_string()
               }
               None => break
@@ -416,8 +416,8 @@ fn extract_list_items(inner : String) -> Array[String] {
 }
 
 ///|
-fn extract_table_rows(inner : String) -> Array[Array[String]] {
-  let rows : Array[Array[String]] = []
+fn extract_table_rows(inner : String) -> Array[Array[Array[@ast.Inline]]] {
+  let rows : Array[Array[Array[@ast.Inline]]] = []
   let mut remaining = inner
   while remaining.trim() != "" {
     let lower = remaining.to_lower()
@@ -866,7 +866,7 @@ fn remove_comments(html : String) -> String {
 }
 
 ///|
-fn extract_table_cells(row_html : String) -> Array[String] {
+fn extract_table_cells(row_html : String) -> Array[Array[@ast.Inline]] {
   let th_cells = extract_cells_by_tag(row_html, "th")
   if th_cells.length() > 0 {
     th_cells
@@ -876,8 +876,11 @@ fn extract_table_cells(row_html : String) -> Array[String] {
 }
 
 ///|
-fn extract_cells_by_tag(html : String, tag : String) -> Array[String] {
-  let cells : Array[String] = Array::new()
+fn extract_cells_by_tag(
+  html : String,
+  tag : String,
+) -> Array[Array[@ast.Inline]] {
+  let cells : Array[Array[@ast.Inline]] = Array::new()
   let open_tag = "<" + tag
   let close_tag = "</" + tag
   let mut remaining = html
@@ -893,11 +896,7 @@ fn extract_cells_by_tag(html : String, tag : String) -> Array[String] {
             match find_from(lower_remaining, close_tag, content_start) {
               Some(end_idx) => {
                 let content = remaining[content_start:end_idx].to_string()
-                cells.push(
-                  render_inline_plain_text(inline_html_to_inlines(content))
-                  .trim()
-                  .to_string(),
-                )
+                cells.push(inline_html_to_inlines(content))
                 remaining = remaining[end_idx + close_tag.length():].to_string()
               }
               None => found = false

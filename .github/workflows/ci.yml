@@ -13,7 +13,37 @@ on:
         type: boolean
 
 jobs:
-  native-check-and-test:
+  portable-check-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up MoonBit
+        shell: bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          moon version --all
+          moon update
+
+      - name: moon check
+        shell: bash
+        run: moon check
+
+      - name: moon test
+        shell: bash
+        run: moon test
+
+  windows-native-check-and-test:
     runs-on: windows-latest
     permissions:
       contents: read

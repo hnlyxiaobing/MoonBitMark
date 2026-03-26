@@ -37,7 +37,7 @@ So OCR availability depends on both:
 
 - image-file OCR
 - embedded-image OCR for DOCX / PPTX / EPUB when `--ocr-images` is enabled
-- PDF recovery-path OCR evidence, still experimental
+- PDF OCR recovery-path wiring exists and can inject OCR text back into recovery-marked documents
 - PDF `diag-json` / diagnostics 会区分 route 标记、是否真正尝试 OCR、以及 recovery path 是否实际介入
 
 ## Behavior contract
@@ -64,4 +64,4 @@ These scripts cover:
 
 - no bbox/layout OCR protocol
 - no HTML remote-image OCR
-- PDF OCR is still a recovery path, not a mature page-rendering pipeline
+- PDF OCR still lacks a true page-rendering backend; current recovery is a bounded bridge-assisted path, not a mature page-rendering pipeline

@@ -16,7 +16,7 @@ $textInput = Join-Path $tempRoot 'smoke.txt'
     'mcp smoke line 2'
 ) | Set-Content -Path $textInput -Encoding utf8
 
-function Invoke-McpRequest {
+function Invoke-McpRawRequest {
     param(
         [Parameter(Mandatory = $true)]
         [string]$RequestJson
@@ -29,7 +29,28 @@ function Invoke-McpRequest {
     if ($result.StdErr.Trim() -ne '') {
         throw "MCP server wrote to stderr:`n$($result.StdErr)"
     }
+    return $result
+}
+
+function Invoke-McpRequest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RequestJson
+    )
+
+    $result = Invoke-McpRawRequest -RequestJson $RequestJson
     return $result.StdOut.Trim() | ConvertFrom-Json
+}
+
+$notificationRequest = @{
+    jsonrpc = '2.0'
+    method = 'notifications/initialized'
+    params = @{}
+} | ConvertTo-Json -Compress
+
+$notificationResponse = Invoke-McpRawRequest -RequestJson $notificationRequest
+if ($notificationResponse.StdOut.Trim() -ne '') {
+    throw 'MCP notifications must not emit a stdout response.'
 }
 
 $initializeRequest = @{

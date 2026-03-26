@@ -32,9 +32,7 @@ fn print_usage() -> Unit {
   println("  --ocr-timeout <ms> Set OCR backend timeout in milliseconds")
   println("  --diag-json       Print diagnostics/stats as JSON")
   println("  --detect-only     Only print detection result")
-  println(
-    "  --dump-ast        Print AST in MoonBit Json form instead of Markdown",
-  )
+  println("  --dump-ast        Print AST as strict JSON instead of Markdown")
   println("  --debug           Enable debug context")
   println("  --help            Show this help message")
   println("")
@@ -302,8 +300,135 @@ fn render_detection_json(detection : @engine.DetectionResult) -> String {
 ///|
 fn render_ast_json(result : @core.ConvertResult) -> String {
   match result.document {
-    Some(document) => document.to_json().to_string()
+    Some(document) => json_of_document(document)
     None => "null"
+  }
+}
+
+///|
+fn json_of_document(document : @ast.Document) -> String {
+  json_object([
+    json_field("title", json_string_or_null(document.title)),
+    json_field("metadata", json_of_string_map(document.metadata)),
+    json_field("blocks", json_array_of_blocks(document.blocks)),
+  ])
+}
+
+///|
+fn json_array_of_blocks(blocks : Array[@ast.Block]) -> String {
+  let items : Array[String] = []
+  for block in blocks {
+    items.push(json_of_block(block))
+  }
+  json_array(items)
+}
+
+///|
+fn json_of_block(block : @ast.Block) -> String {
+  match block {
+    @ast.Heading(level, inlines) =>
+      json_object([
+        json_field("type", json_string("heading")),
+        json_field("level", level.to_string()),
+        json_field("inlines", json_array_of_inlines(inlines)),
+      ])
+    @ast.Paragraph(inlines) =>
+      json_object([
+        json_field("type", json_string("paragraph")),
+        json_field("inlines", json_array_of_inlines(inlines)),
+      ])
+    @ast.List(items, ordered) =>
+      json_object([
+        json_field("type", json_string("list")),
+        json_field("ordered", if ordered { "true" } else { "false" }),
+        json_field("items", json_array_of_inline_groups(items)),
+      ])
+    @ast.Quote(lines) =>
+      json_object([
+        json_field("type", json_string("quote")),
+        json_field("lines", json_array_of_strings(lines)),
+      ])
+    @ast.CodeBlock(lang, content) =>
+      json_object([
+        json_field("type", json_string("code_block")),
+        json_field("lang", json_string_or_null(lang)),
+        json_field("content", json_string(content)),
+      ])
+    @ast.Table(headers, rows) =>
+      json_object([
+        json_field("type", json_string("table")),
+        json_field("headers", json_array_of_inline_groups(headers)),
+        json_field("rows", json_array_of_inline_rows(rows)),
+      ])
+    @ast.HorizontalRule =>
+      json_object([json_field("type", json_string("horizontal_rule"))])
+  }
+}
+
+///|
+fn json_array_of_inline_groups(items : Array[Array[@ast.Inline]]) -> String {
+  let groups : Array[String] = []
+  for item in items {
+    groups.push(json_array_of_inlines(item))
+  }
+  json_array(groups)
+}
+
+///|
+fn json_array_of_inline_rows(rows : Array[Array[Array[@ast.Inline]]]) -> String {
+  let rendered_rows : Array[String] = []
+  for row in rows {
+    rendered_rows.push(json_array_of_inline_groups(row))
+  }
+  json_array(rendered_rows)
+}
+
+///|
+fn json_array_of_inlines(inlines : Array[@ast.Inline]) -> String {
+  let items : Array[String] = []
+  for inline in inlines {
+    items.push(json_of_inline(inline))
+  }
+  json_array(items)
+}
+
+///|
+fn json_of_inline(inline : @ast.Inline) -> String {
+  match inline {
+    @ast.Text(content) =>
+      json_object([
+        json_field("type", json_string("text")),
+        json_field("content", json_string(content)),
+      ])
+    @ast.Emphasis(children) =>
+      json_object([
+        json_field("type", json_string("emphasis")),
+        json_field("children", json_array_of_inlines(children)),
+      ])
+    @ast.Strong(children) =>
+      json_object([
+        json_field("type", json_string("strong")),
+        json_field("children", json_array_of_inlines(children)),
+      ])
+    @ast.Link(children, url) =>
+      json_object([
+        json_field("type", json_string("link")),
+        json_field("children", json_array_of_inlines(children)),
+        json_field("url", json_string(url)),
+      ])
+    @ast.Image(alt, url) =>
+      json_object([
+        json_field("type", json_string("image")),
+        json_field("alt", json_string(alt)),
+        json_field("url", json_string(url)),
+      ])
+    @ast.Code(content) =>
+      json_object([
+        json_field("type", json_string("code")),
+        json_field("content", json_string(content)),
+      ])
+    @ast.LineBreak =>
+      json_object([json_field("type", json_string("line_break"))])
   }
 }
 
@@ -443,8 +568,7 @@ fn json_string_or_null(value : String?) -> String {
 
 ///|
 fn json_string(value : String) -> String {
-  let normalized = value.replace(old="\\", new="/")
-  let mut escaped = normalized.replace(old="\\", new="\\\\")
+  let mut escaped = value.replace(old="\\", new="\\\\")
   escaped = escaped.replace(old="\"", new="\\\"")
   escaped = escaped.replace(old="\n", new="\\n")
   escaped = escaped.replace(old="\r", new="\\r")

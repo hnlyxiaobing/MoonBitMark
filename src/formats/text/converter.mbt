@@ -194,7 +194,7 @@ fn text_chunk_to_list(chunk : String) -> @ast.Block? {
               nested = nested + "\n   - " + items[index]
               index = index + 1
             }
-            return Some(@ast.List([nested], false))
+            return Some(@ast.List([@ast.text_inlines(nested)], false))
           }
           _ => ()
         }
@@ -202,11 +202,20 @@ fn text_chunk_to_list(chunk : String) -> @ast.Block? {
       if items.length() == 0 {
         None
       } else {
-        Some(@ast.List(items, is_ordered))
+        Some(list_block_from_strings(items, is_ordered))
       }
     }
     None => None
   }
+}
+
+///|
+fn list_block_from_strings(items : Array[String], ordered : Bool) -> @ast.Block {
+  let inline_items : Array[Array[@ast.Inline]] = []
+  for item in items {
+    inline_items.push(@ast.text_inlines(item))
+  }
+  @ast.List(inline_items, ordered)
 }
 
 ///|

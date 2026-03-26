@@ -6,11 +6,15 @@ pub fn document_of_markdownish(String, String?, Map[String, String]) -> Document
 
 pub fn parse_markdownish_block(String) -> Block
 
+pub fn plain_text_of_inlines(Array[Inline]) -> String
+
 pub fn render_inlines(Array[Inline]) -> String
 
 pub fn render_markdown(Document) -> String
 
 pub fn text_heading(Int, String) -> Block
+
+pub fn text_inlines(String) -> Array[Inline]
 
 pub fn text_paragraph(String) -> Block
 
@@ -20,10 +24,10 @@ pub fn text_paragraph(String) -> Block
 pub(all) enum Block {
   Heading(Int, Array[Inline])
   Paragraph(Array[Inline])
-  List(Array[String], Bool)
+  List(Array[Array[Inline]], Bool)
   Quote(Array[String])
   CodeBlock(String?, String)
-  Table(Array[String], Array[Array[String]])
+  Table(Array[Array[Inline]], Array[Array[Array[Inline]]])
   HorizontalRule
 }
 pub impl Eq for Block

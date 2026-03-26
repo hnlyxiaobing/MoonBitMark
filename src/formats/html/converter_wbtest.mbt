@@ -53,12 +53,14 @@ test "html warning diagnostics carry typed source" {
 }
 
 ///|
-test "html table cells flatten inline formatting" {
+test "html table cells preserve inline formatting" {
   inspect(
-    extract_table_cells(
-      "<tr><td><strong>Total Products:</strong></td><td>4</td></tr>",
+    @ast.render_inlines(
+      extract_table_cells(
+        "<tr><td><strong>Total Products:</strong></td><td>4</td></tr>",
+      )[0],
     ),
-    content="[\"Total Products:\", \"4\"]",
+    content="**Total Products:**",
   )
 }
 

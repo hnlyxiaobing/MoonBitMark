@@ -20,7 +20,7 @@ pub(all) struct McpServer {
   transport : @transport.StdioTransport
   logger : @util.Logger
 }
-pub async fn McpServer::handle_jsonrpc_request(Self, String) -> @types.JsonResponse
+pub async fn McpServer::handle_jsonrpc_request(Self, String) -> @types.JsonResponse?
 pub fn McpServer::new(@transport.StdioTransport) -> Self
 pub fn McpServer::new_with_logger(@transport.StdioTransport, @util.Logger) -> Self
 pub async fn McpServer::run(Self) -> Unit

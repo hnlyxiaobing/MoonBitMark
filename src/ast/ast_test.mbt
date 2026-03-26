@@ -11,7 +11,7 @@ test "render markdown document" {
         Text(" "),
         Link([Text("site")], "https://example.com"),
       ]),
-      List(["a", "b"], false),
+      List([text_inlines("a"), text_inlines("b")], false),
     ],
   }
   inspect(
@@ -31,6 +31,31 @@ test "render inline variants" {
       Image("alt", "image.png"),
     ]),
     content="*one* `x = 1`  \n![alt](image.png)",
+  )
+}
+
+///|
+test "render inline text escapes markdown specials" {
+  inspect(
+    @ast.render_inlines([Text("# heading *stars* [link] _under_ `code` \\")]),
+    content="\\# heading \\*stars\\* \\[link\\] \\_under\\_ \\`code\\` \\\\",
+  )
+}
+
+///|
+test "render table preserves inline formatting and escapes cell pipes" {
+  let doc = Document::{
+    title: None,
+    metadata: {},
+    blocks: [
+      Table([text_inlines("name"), text_inlines("notes")], [
+        [[Strong([Text("Alice")])], [Text("value | with break\nnext")]],
+      ]),
+    ],
+  }
+  inspect(
+    @ast.render_markdown(doc),
+    content="| name | notes |\n| --- | --- |\n| **Alice** | value \\| with break<br>next |",
   )
 }
 

@@ -10,6 +10,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path, PurePosixPath
+import posixpath
 import re
 import shutil
 import subprocess
@@ -554,14 +555,258 @@ def build_pptx_reference(path: Path) -> str:
         blocks: list[str] = []
         for index, slide_name in enumerate(slide_names, start=1):
             root = ET.fromstring(archive.read(slide_name))
-            texts = [clean_inline(elem.text or "") for elem in root.findall(".//{*}t")]
-            texts = [text for text in texts if text]
-            if not texts:
-                continue
             blocks.append(f"## Slide {index}")
-            blocks.extend(texts)
-            blocks.append("")
-        return "\n\n".join(blocks).strip()
+            relationships = pptx_slide_relationships(archive, slide_name)
+            shape_tree = root.find(".//{*}spTree")
+            if shape_tree is not None:
+                blocks.extend(pptx_shape_tree_blocks(shape_tree, archive, relationships))
+            blocks.extend(pptx_notes_blocks(archive, relationships))
+        return "\n\n".join(block for block in blocks if block.strip()).strip()
+
+
+def pptx_shape_kind(shape: ET.Element) -> str:
+    name = ""
+    # ElementTree does not support attribute lookups in findtext; read them explicitly.
+    c_nv_pr = shape.find("./{*}nvSpPr/{*}cNvPr")
+    if c_nv_pr is not None:
+        name = c_nv_pr.attrib.get("name", "")
+    ph = shape.find("./{*}nvSpPr/{*}nvPr/{*}ph")
+    ph_type = (ph.attrib.get("type", "") if ph is not None else "").lower()
+    lowered = name.lower()
+    if "subtitle" in lowered or ph_type == "subtitle":
+        return "subtitle"
+    if "title" in lowered or ph_type in {"title", "ctrtitle"}:
+        return "title"
+    if "content placeholder" in lowered or "text placeholder" in lowered or ph_type in {"body", "obj"}:
+        return "body"
+    return "generic"
+
+
+def pptx_shape_paragraphs(shape: ET.Element) -> list[tuple[str, str]]:
+    paragraphs: list[tuple[str, str]] = []
+    for paragraph in shape.findall("./{*}txBody/{*}p"):
+        texts = [clean_inline(elem.text or "") for elem in paragraph.findall(".//{*}t")]
+        text = clean_inline(" ".join(part for part in texts if part))
+        if text:
+            kind = "plain"
+            properties = paragraph.find("./{*}pPr")
+            if properties is not None:
+                if properties.find("./{*}buAutoNum") is not None:
+                    kind = "numbered"
+                elif properties.find("./{*}buChar") is not None:
+                    kind = "bullet"
+            paragraphs.append((text, kind))
+    return paragraphs
+
+
+def pptx_table_rows(table: ET.Element) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for row in table.findall("./{*}tr"):
+        current_row: list[str] = []
+        for cell in row.findall("./{*}tc"):
+            parts: list[str] = []
+            for paragraph in cell.findall(".//{*}p"):
+                texts = [clean_inline(elem.text or "") for elem in paragraph.findall(".//{*}t")]
+                text = clean_inline(" ".join(part for part in texts if part))
+                if text:
+                    parts.append(text)
+            current_row.append("<br>".join(parts))
+        if any(cell for cell in current_row):
+            rows.append(current_row)
+    return rows
+
+
+def pptx_shape_tree_blocks(
+    parent: ET.Element,
+    archive: zipfile.ZipFile,
+    relationships: dict[str, dict[str, str]],
+) -> list[str]:
+    blocks: list[str] = []
+    for child in parent:
+        child_name = local_name(child.tag)
+        if child_name == "sp":
+            paragraphs = pptx_shape_paragraphs(child)
+            if paragraphs:
+                blocks.extend(pptx_render_shape_blocks(pptx_shape_kind(child), paragraphs))
+        elif child_name == "graphicFrame":
+            table = child.find(".//{*}tbl")
+            if table is not None:
+                rows = pptx_table_rows(table)
+                if rows:
+                    blocks.append(markdown_table(rows))
+                continue
+            chart_ref = pptx_chart_relationship_id(child)
+            if chart_ref:
+                relationship = relationships.get(chart_ref)
+                if relationship and relationship["type"].endswith("/chart"):
+                    blocks.extend(pptx_chart_blocks(archive, relationship["target"]))
+        elif child_name == "grpSp":
+            blocks.extend(pptx_shape_tree_blocks(child, archive, relationships))
+    return blocks
+
+
+def pptx_render_shape_blocks(kind: str, paragraphs: list[tuple[str, str]]) -> list[str]:
+    if not paragraphs:
+        return []
+    if kind == "title":
+        blocks = [f"### {paragraphs[0][0]}"]
+        blocks.extend(text for text, _ in paragraphs[1:])
+        return blocks
+    if kind == "body" and len(paragraphs) > 1 and all(paragraph_kind == "plain" for _, paragraph_kind in paragraphs):
+        return ["\n".join(f"- {text}" for text, _ in paragraphs)]
+
+    blocks: list[str] = []
+    pending: list[str] = []
+    pending_ordered = False
+    for text, paragraph_kind in paragraphs:
+        if paragraph_kind == "plain":
+            if pending:
+                blocks.append(pptx_list_block(pending, pending_ordered))
+                pending = []
+            blocks.append(text)
+            continue
+        next_ordered = paragraph_kind == "numbered"
+        if pending and pending_ordered != next_ordered:
+            blocks.append(pptx_list_block(pending, pending_ordered))
+            pending = []
+        if not pending:
+            pending_ordered = next_ordered
+        pending.append(text)
+    if pending:
+        blocks.append(pptx_list_block(pending, pending_ordered))
+    return blocks
+
+
+def pptx_list_block(items: list[str], ordered: bool) -> str:
+    if ordered:
+        return "\n".join(f"{index}. {item}" for index, item in enumerate(items, start=1))
+    return "\n".join(f"- {item}" for item in items)
+
+
+def pptx_slide_relationships(archive: zipfile.ZipFile, slide_name: str) -> dict[str, dict[str, str]]:
+    rel_path = pptx_relationship_path(slide_name)
+    if rel_path not in archive.namelist():
+        return {}
+    root = ET.fromstring(archive.read(rel_path))
+    relationships: dict[str, dict[str, str]] = {}
+    for rel in root.findall(".//{*}Relationship"):
+        rel_id = rel.attrib.get("Id", "")
+        target = rel.attrib.get("Target", "")
+        type_name = rel.attrib.get("Type", "")
+        if rel_id and target and type_name:
+            relationships[rel_id] = {
+                "target": pptx_resolve_target(slide_name, target),
+                "type": type_name,
+            }
+    return relationships
+
+
+def pptx_relationship_path(slide_name: str) -> str:
+    slide_path = PurePosixPath(slide_name)
+    return str(slide_path.parent / "_rels" / f"{slide_path.name}.rels")
+
+
+def pptx_resolve_target(base_entry: str, target: str) -> str:
+    resolved = PurePosixPath(base_entry).parent / target
+    return posixpath.normpath(str(resolved)).lstrip("/")
+
+
+def pptx_chart_relationship_id(graphic_frame: ET.Element) -> str | None:
+    chart_node = graphic_frame.find(".//{*}chart")
+    if chart_node is None:
+        return None
+    for key, value in chart_node.attrib.items():
+        if key.endswith("id") and value:
+            return value
+    return None
+
+
+def pptx_notes_blocks(
+    archive: zipfile.ZipFile,
+    relationships: dict[str, dict[str, str]],
+) -> list[str]:
+    blocks: list[str] = []
+    for relationship in relationships.values():
+        if not relationship["type"].endswith("/notesSlide"):
+            continue
+        target = relationship["target"]
+        if target not in archive.namelist():
+            continue
+        root = ET.fromstring(archive.read(target))
+        paragraphs = []
+        for paragraph in root.findall(".//{*}sp/{*}txBody/{*}p"):
+            texts = [clean_inline(elem.text or "") for elem in paragraph.findall(".//{*}t")]
+            text = clean_inline(" ".join(part for part in texts if part))
+            if text:
+                paragraphs.append(text)
+        if paragraphs:
+            blocks.append("#### Speaker Notes")
+            blocks.extend(paragraphs)
+    return blocks
+
+
+def pptx_chart_blocks(
+    archive: zipfile.ZipFile,
+    chart_name: str,
+) -> list[str]:
+    if chart_name not in archive.namelist():
+        return []
+    root = ET.fromstring(archive.read(chart_name))
+    title_parts = [
+        clean_inline(elem.text or "")
+        for elem in root.findall(".//{*}chart/{*}title//{*}t")
+        if clean_inline(elem.text or "")
+    ]
+    if not title_parts:
+        title_parts = [
+            clean_inline(elem.text or "")
+            for elem in root.findall(".//{*}chart/{*}title//{*}v")
+            if clean_inline(elem.text or "")
+        ]
+    title = clean_inline(" ".join(title_parts)) or "Chart 1"
+
+    series_data: list[tuple[str, list[str], list[str]]] = []
+    for index, series in enumerate(root.findall(".//{*}ser"), start=1):
+        series_name_parts = [
+            clean_inline(elem.text or "")
+            for elem in series.findall("./{*}tx//{*}v")
+            if clean_inline(elem.text or "")
+        ]
+        if not series_name_parts:
+            series_name_parts = [
+                clean_inline(elem.text or "")
+                for elem in series.findall("./{*}tx//{*}t")
+                if clean_inline(elem.text or "")
+            ]
+        categories = [
+            clean_inline(point.findtext("./{*}v", default=""))
+            for point in series.findall("./{*}cat//{*}pt")
+            if clean_inline(point.findtext("./{*}v", default=""))
+        ]
+        values = [
+            clean_inline(point.findtext("./{*}v", default=""))
+            for point in series.findall("./{*}val//{*}pt")
+            if clean_inline(point.findtext("./{*}v", default=""))
+        ]
+        series_name = clean_inline(" ".join(series_name_parts)) or f"Series {index}"
+        if categories or values:
+            series_data.append((series_name, categories, values))
+
+    blocks = [f"#### {title}"]
+    if not series_data:
+        return blocks
+
+    categories = next((cats for _, cats, _ in series_data if cats), [])
+    row_count = max([len(categories), *[len(values) for _, _, values in series_data]])
+    rows = [["Category", *[name for name, _, _ in series_data]]]
+    for row_index in range(row_count):
+        label = categories[row_index] if row_index < len(categories) else f"Item {row_index + 1}"
+        row = [label]
+        for _, _, values in series_data:
+            row.append(values[row_index] if row_index < len(values) else "")
+        rows.append(row)
+    blocks.append(markdown_table(rows))
+    return blocks
 
 
 def local_name(tag: str) -> str:

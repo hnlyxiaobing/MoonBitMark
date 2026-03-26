@@ -2,10 +2,10 @@
 
 这里只记录当前仍然有效、会影响理解或继续开发的问题，不记录已经解决的历史事项。
 
-## 1. PDF 复杂文档已明显增强，但扫描件仍没有内建页渲染 OCR fallback
+## 1. PDF 扫描件仍缺真正的 page-rendering OCR backend
 
-- 相关文件: `src/formats/pdf/converter.mbt`、`src/formats/pdf/extract_native.mbt`、`src/formats/pdf/extract_bridge.mbt`
-- 影响范围: 扫描版 PDF 或几乎没有可提取文本的 PDF
+- 相关文件: `src/formats/pdf/converter.mbt`、`src/formats/pdf/route.mbt`、`src/formats/pdf/diagnostics.mbt`
+- 影响范围: 扫描版 PDF、混合文本/扫描 PDF、近空文本层 PDF
 
 当前 PDF 已经具备：
 
@@ -13,13 +13,13 @@
 - 小型复杂文档的 `pdfminer` bridge fallback
 - 页级 route
 - 标题 / 列表 / 表格 / code / formula 的结构恢复
+- 基于 OCR 配置的恢复性正文注入路径
 
-但在扫描 PDF、近空文本层 PDF 上，converter 仍然只会给出 diagnostics，不会自动执行“页面渲染 -> OCR -> 结构恢复”的完整 recovery path。
+但当前仍然缺少真正的**页面渲染 -> 页级 OCR -> 结构恢复**后端，因此扫描 PDF 仍有明显边界：
 
-这意味着：
-
-- 文本型和大部分数字化 PDF 现在效果已经明显优于旧实现
-- 扫描版 PDF 目前仍只能得到 warning / diagnostics，而不是完整 OCR fallback
+- 现有 recovery 更接近“实验性补救路径”，还不是成熟的 page-rendering pipeline
+- mixed 文档里被标记为 recovery 的页面仍可能只能给出 diagnostics / warning
+- 全扫描 PDF 的正文恢复效果仍依赖外部 OCR backend 和当前 bridge 能力
 
 ## 2. Windows native 构建仍有部分编码告警
 

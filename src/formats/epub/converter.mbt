@@ -391,11 +391,11 @@ fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
       }
     }
     @ast.List(items, ordered) => {
-      let normalized_items : Array[String] = []
+      let normalized_items : Array[Array[@ast.Inline]] = []
       for item in items {
-        let text = sanitize_epub_text(plain_text_markdownish(item))
+        let text = sanitize_epub_text(@ast.plain_text_of_inlines(item))
         if text != "" && !is_epub_noise_text(text) {
-          normalized_items.push(text)
+          normalized_items.push(@ast.text_inlines(text))
         }
       }
       if normalized_items.length() == 0 {
@@ -420,15 +420,23 @@ fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
     }
     @ast.CodeBlock(_, _) => None
     @ast.Table(header, rows) => {
-      let normalized_header : Array[String] = []
+      let normalized_header : Array[Array[@ast.Inline]] = []
       for cell in header {
-        normalized_header.push(plain_text_markdownish(cell))
+        normalized_header.push(
+          @ast.text_inlines(
+            plain_text_markdownish(@ast.plain_text_of_inlines(cell)),
+          ),
+        )
       }
-      let normalized_rows : Array[Array[String]] = []
+      let normalized_rows : Array[Array[Array[@ast.Inline]]] = []
       for row in rows {
-        let normalized_row : Array[String] = []
+        let normalized_row : Array[Array[@ast.Inline]] = []
         for cell in row {
-          normalized_row.push(plain_text_markdownish(cell))
+          normalized_row.push(
+            @ast.text_inlines(
+              plain_text_markdownish(@ast.plain_text_of_inlines(cell)),
+            ),
+          )
         }
         normalized_rows.push(normalized_row)
       }

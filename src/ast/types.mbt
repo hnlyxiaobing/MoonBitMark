@@ -13,10 +13,10 @@ pub(all) enum Inline {
 pub(all) enum Block {
   Heading(Int, Array[Inline])
   Paragraph(Array[Inline])
-  List(Array[String], Bool)
+  List(Array[Array[Inline]], Bool)
   Quote(Array[String])
   CodeBlock(String?, String)
-  Table(Array[String], Array[Array[String]])
+  Table(Array[Array[Inline]], Array[Array[Array[Inline]]])
   HorizontalRule
 } derive(Show, Eq, ToJson)
 
@@ -29,10 +29,37 @@ pub(all) struct Document {
 
 ///|
 pub fn text_heading(level : Int, content : String) -> Block {
-  Heading(level, [Text(content)])
+  Heading(level, text_inlines(content))
 }
 
 ///|
 pub fn text_paragraph(content : String) -> Block {
-  Paragraph([Text(content)])
+  Paragraph(text_inlines(content))
+}
+
+///|
+pub fn text_inlines(content : String) -> Array[Inline] {
+  [Text(content)]
+}
+
+///|
+pub fn plain_text_of_inlines(inlines : Array[Inline]) -> String {
+  let parts : Array[String] = []
+  for inline in inlines {
+    parts.push(plain_text_of_inline(inline))
+  }
+  parts.join("")
+}
+
+///|
+fn plain_text_of_inline(inline : Inline) -> String {
+  match inline {
+    Text(text) => text
+    Emphasis(children) => plain_text_of_inlines(children)
+    Strong(children) => plain_text_of_inlines(children)
+    Link(children, _) => plain_text_of_inlines(children)
+    Image(alt, _) => alt
+    Code(text) => text
+    LineBreak => "\n"
+  }
 }

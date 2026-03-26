@@ -75,7 +75,21 @@ fn csv_rows_to_document(
 ) -> @ast.Document {
   let blocks : Array[@ast.Block] = []
   match rows {
-    [header, .. tail] => blocks.push(@ast.Table(header, tail.to_array()))
+    [header, .. tail] => {
+      let header_cells : Array[Array[@ast.Inline]] = []
+      for cell in header {
+        header_cells.push(@ast.text_inlines(cell))
+      }
+      let body_rows : Array[Array[Array[@ast.Inline]]] = []
+      for row in tail {
+        let body_row : Array[Array[@ast.Inline]] = []
+        for cell in row {
+          body_row.push(@ast.text_inlines(cell))
+        }
+        body_rows.push(body_row)
+      }
+      blocks.push(@ast.Table(header_cells, body_rows))
+    }
     [] => ()
   }
   @ast.Document::{ title, metadata, blocks }

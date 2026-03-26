@@ -105,7 +105,7 @@ fn handle_relation_element_start(
   ctx : RelationsContext,
   evt : @xml.ElementStartEvent,
 ) -> Unit {
-  let local_name = strip_ns_prefix(evt.name)
+  let local_name = pptx_local_name(evt.name)
 
   if local_name == "Relationship" {
     // 提取 Id 和 Target 属性
@@ -158,7 +158,7 @@ fn extract_slide_refs(
     match event {
       @xml.ElementStart(evt) => {
         let name = evt.name
-        let local_name = strip_ns_prefix(name)
+        let local_name = pptx_local_name(name)
         // 调试：检查所有元素
         // 检查 sldIdLst 和 sldId
         if local_name == "sldIdLst" {
@@ -169,7 +169,7 @@ fn extract_slide_refs(
         }
       }
       @xml.ElementEnd(evt) => {
-        let local_name = strip_ns_prefix(evt.name)
+        let local_name = pptx_local_name(evt.name)
         if local_name == "sldIdLst" {
           ctx.in_sld_id_lst = false
         }
@@ -206,28 +206,5 @@ fn handle_sld_id_element(
       })
     }
     None => ()
-  }
-}
-
-///|
-/// 移除 XML 命名空间前缀
-fn strip_ns_prefix(name : String) -> String {
-  match name.find(":") {
-    Some(pos) => {
-      // 从 pos+1 开始截取子字符串
-      let start = pos + 1
-      // 使用 iter 跳过前缀
-      let chars = name.iter()
-      let mut result = ""
-      let mut i = 0
-      for ch in chars {
-        if i >= start {
-          result = result + ch.to_string()
-        }
-        i = i + 1
-      }
-      result
-    }
-    None => name
   }
 }

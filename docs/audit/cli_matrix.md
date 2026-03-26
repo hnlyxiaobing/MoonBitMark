@@ -4,11 +4,11 @@ Validated against:
 
 - `tests/cli/cli_smoke.ps1`
 - `tests/cli/cli_negative.ps1`
-- direct local runs on `2026-03-24`
+- direct local runs on `2026-03-26`
 
 Notes:
 
-- `--dump-ast` currently emits MoonBit `Json::to_string()` output, not strict JSON.
+- `--dump-ast` emits strict JSON for the normalized `@ast.Document` schema and is validated by parsing the output in smoke coverage.
 - `--ocr-backend missing_backend` is accepted by argument parsing; unsupported backend is reported as a runtime OCR warning, not a parse error.
 
 ## Option Matrix
@@ -28,7 +28,7 @@ Notes:
 | `--ocr-timeout <ms>` | `main.exe --ocr-timeout 2500 ...` reflects timeout metadata | missing value or non-digit input fails | smoke + manual |
 | `--diag-json` | `main.exe --diag-json sample.txt` emits diagnostics JSON | `main.exe --diag-json --dump-ast sample.txt` is rejected | smoke + manual |
 | `--detect-only` | `main.exe --detect-only --diag-json sample.txt` reports converter selection without conversion | output path or `--dump-ast` combination is rejected | smoke + manual |
-| `--dump-ast` | `main.exe --dump-ast sample.html` emits MoonBit AST representation | incompatible with `--detect-only` or `--diag-json` | smoke + manual |
+| `--dump-ast` | `main.exe --dump-ast sample.html` emits strict JSON for the normalized AST document | incompatible with `--detect-only` or `--diag-json` | smoke + manual |
 | `--debug` | `main.exe --debug sample.txt out.md` prints debug report after file write | generic parse failure if no input is supplied | `tests/cli/cli_smoke.ps1` |
 
 ## Negative Path Matrix

@@ -1,0 +1,34 @@
+{
+  "id": "text_markdown_specials",
+  "format": "text",
+  "tier": "regression",
+  "input": "tests/conversion_eval/fixtures/inputs/text/markdown_specials.txt",
+  "description": "Literal markdown control characters in plain text should be escaped instead of changing structure.",
+  "must_include": [
+    "Literal",
+    "heading",
+    "stars",
+    "link",
+    "under",
+    "code",
+    "Second paragraph"
+  ],
+  "must_not_include": [],
+  "min_chars": 80,
+  "min_lines": 3,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/text_markdown_specials.md",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": false,
+    "text_order": true
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.1,
+    "markdown_similarity": 0.35,
+    "ast_similarity": 0.2,
+    "text_order": 0.15
+  }
+}

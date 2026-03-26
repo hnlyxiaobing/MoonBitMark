@@ -47,7 +47,7 @@ fn parse_heading_block(chunk : String) -> Block {
     }
   }
   let text = chunk[index:].trim().to_string()
-  Heading(level, [Text(text)])
+  Heading(level, text_inlines(text))
 }
 
 ///|
@@ -117,18 +117,18 @@ fn is_list_block(chunk : String) -> Bool {
 
 ///|
 fn parse_list_block(chunk : String) -> Block {
-  let items : Array[String] = []
+  let items : Array[Array[Inline]] = []
   let lines = chunk.split("\n").to_array()
   let mut ordered = false
   for line in lines {
     let trimmed = line.trim_start().to_string()
     if trimmed.has_prefix("- ") {
-      items.push(trimmed[2:].to_string())
+      items.push(text_inlines(trimmed[2:].to_string()))
     } else {
       match ordered_list_prefix_length(trimmed) {
         Some(prefix_len) => {
           ordered = true
-          items.push(trimmed[prefix_len:].to_string())
+          items.push(text_inlines(trimmed[prefix_len:].to_string()))
         }
         None => ()
       }
@@ -167,7 +167,7 @@ fn is_table_block(chunk : String) -> Bool {
 fn parse_table_block(chunk : String) -> Block {
   let lines = chunk.split("\n").to_array()
   let headers = split_table_row(lines[0].to_string())
-  let rows : Array[Array[String]] = []
+  let rows : Array[Array[Array[Inline]]] = []
   let mut index = 2
   while index < lines.length() {
     let row = split_table_row(lines[index].to_string())
@@ -180,7 +180,7 @@ fn parse_table_block(chunk : String) -> Block {
 }
 
 ///|
-fn split_table_row(line : String) -> Array[String] {
+fn split_table_row(line : String) -> Array[Array[Inline]] {
   let trimmed = line.trim().to_string()
   let without_left = if trimmed.has_prefix("|") {
     trimmed[1:].to_string()
@@ -192,5 +192,9 @@ fn split_table_row(line : String) -> Array[String] {
   } else {
     without_left
   }
-  content.split("|").to_array().map(cell => cell.trim().to_string())
+  let cells : Array[Array[Inline]] = []
+  for cell in content.split("|").to_array() {
+    cells.push(text_inlines(cell.trim().to_string()))
+  }
+  cells
 }

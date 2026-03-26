@@ -28,21 +28,21 @@ pub fn McpServer::new_with_logger(
 pub async fn McpServer::handle_jsonrpc_request(
   self : McpServer,
   json_str : String,
-) -> @types.JsonResponse {
+) -> @types.JsonResponse? {
   match @types.parse_json(json_str) {
     Ok(json) =>
       match parse_json_request(json) {
         Ok(request) => self.handle_request(request)
         Err(message) =>
-          @types.JsonResponse::{
+          Some(@types.JsonResponse::{
             jsonrpc: "2.0",
             result: None,
             error: Some(@types.JsonError::{ code: -32600, message, data: None }),
             id: None,
-          }
+          })
       }
     Err(error) =>
-      @types.JsonResponse::{
+      Some(@types.JsonResponse::{
         jsonrpc: "2.0",
         result: None,
         error: Some(@types.JsonError::{
@@ -51,7 +51,7 @@ pub async fn McpServer::handle_jsonrpc_request(
           data: None,
         }),
         id: None,
-      }
+      })
   }
 }
 
@@ -59,13 +59,17 @@ pub async fn McpServer::handle_jsonrpc_request(
 async fn McpServer::handle_request(
   self : McpServer,
   request : @types.JsonRequest,
-) -> @types.JsonResponse {
+) -> @types.JsonResponse? {
+  if !request_expects_response(request) {
+    return None
+  }
+
   match request.method_name {
-    "initialize" => self.handle_initialize(request.id)
-    "tools/list" => self.handle_tools_list(request.id)
-    "tools/call" => self.handle_tools_call(request.params, request.id)
+    "initialize" => Some(self.handle_initialize(request.id))
+    "tools/list" => Some(self.handle_tools_list(request.id))
+    "tools/call" => Some(self.handle_tools_call(request.params, request.id))
     _ =>
-      @types.JsonResponse::{
+      Some(@types.JsonResponse::{
         jsonrpc: "2.0",
         result: None,
         error: Some(@types.JsonError::{
@@ -74,7 +78,7 @@ async fn McpServer::handle_request(
           data: None,
         }),
         id: request.id,
-      }
+      })
   }
 }
 
@@ -160,7 +164,18 @@ pub async fn McpServer::run(self : McpServer) -> Unit {
       continue
     }
     let response = self.handle_jsonrpc_request(json_str)
-    self.transport.write_line(response_to_json(response))
+    match response {
+      Some(value) => self.transport.write_line(response_to_json(value))
+      None => ()
+    }
+  }
+}
+
+///|
+fn request_expects_response(request : @types.JsonRequest) -> Bool {
+  match request.id {
+    Some(_) => true
+    None => false
   }
 }
 
@@ -173,6 +188,9 @@ fn parse_json_request(
       let jsonrpc = match map.get("jsonrpc") {
         Some(@types.String(value)) => value
         _ => return Err("Missing or invalid 'jsonrpc' field")
+      }
+      if jsonrpc != "2.0" {
+        return Err("Unsupported jsonrpc version: " + jsonrpc)
       }
       let method_name = match map.get("method") {
         Some(@types.String(value)) => value

@@ -46,6 +46,38 @@ test "parse args supports dump ast" {
 }
 
 ///|
+test "render ast json emits strict schema" {
+  let result = @core.ConvertResult::markdown_only("", "html").with_document(
+    Some(@ast.Document::{
+      title: Some("Smoke Title"),
+      metadata: { "source": "fixture" },
+      blocks: [
+        @ast.Heading(1, [@ast.Text("Heading")]),
+        @ast.Paragraph([@ast.Text("Body")]),
+        @ast.List([[@ast.Strong([@ast.Text("One")])]], false),
+      ],
+    }),
+  )
+  inspect(
+    render_ast_json(result),
+    content="{\"title\":\"Smoke Title\",\"metadata\":{\"source\":\"fixture\"},\"blocks\":[{\"type\":\"heading\",\"level\":1,\"inlines\":[{\"type\":\"text\",\"content\":\"Heading\"}]},{\"type\":\"paragraph\",\"inlines\":[{\"type\":\"text\",\"content\":\"Body\"}]},{\"type\":\"list\",\"ordered\":false,\"items\":[[{\"type\":\"strong\",\"children\":[{\"type\":\"text\",\"content\":\"One\"}]}]]}]}",
+  )
+}
+
+///|
+test "json string escapes backslashes" {
+  assert_eq(json_string("tail \\"), "\"" + "tail \\\\" + "\"")
+}
+
+///|
+test "render ast json returns null without document" {
+  inspect(
+    render_ast_json(@core.ConvertResult::markdown_only("", "text")),
+    content="null",
+  )
+}
+
+///|
 test "parse args rejects missing input" {
   let result : Result[CliOptions, Error] = try? parse_args([
     "moonbitmark", "--frontmatter",
