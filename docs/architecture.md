@@ -106,6 +106,9 @@ AST 负责统一 Markdown 渲染策略。当前除了 richer inline 语义外，
 
 - HTML / XHTML / URL 仍是轻量结构恢复路径。
 - 当前已支持常见标题、段落、列表、表格、引用和代码块恢复。
+- URL 输入现在会优先提取 `<article>` / `<main>` 主内容，并继续过滤明显的导航、侧栏和页脚噪声。
+- HTML 链接和图片会结合输入 URL 与 `<base href>` 解析相对地址，并过滤 `javascript:` / `vbscript:` 这类不安全 scheme。
+- lazy image 属性（如 `data-src` / `srcset`）和带 `rowspan` / `colspan` 的表头现在会做额外归一化，减少丢图和错列表头。
 - `<title>` 会在正文首块不重复时注入 Markdown。
 - `div / section / article / main / header / figure` 容器会被展开，而不是整体压扁成单段落。
 - 表格单元格当前会优先保留可读纯文本，避免把 `strong/em/link` 语义直接泄漏成 Markdown 标记。

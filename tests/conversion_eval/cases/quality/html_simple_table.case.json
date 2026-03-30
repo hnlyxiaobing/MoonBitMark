@@ -1,0 +1,27 @@
+{
+  "id": "html_simple_table",
+  "format": "html",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/html/simple_table.html",
+  "description": "HTML table extraction should keep headings, paragraphs, and table cells without HTML remnants.",
+  "must_include": ["Sample Data Table", "Laptop", "Coffee Mug", "Summary Statistics"],
+  "must_not_include": ["<table", "<div", "function("],
+  "min_chars": 100,
+  "min_lines": 8,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/html_simple_table.md",
+  "reference_builder": "html",
+  "checks": {
+    "anchors": true,
+    "golden_markdown": true,
+    "ast_compare": true,
+    "table_compare": true,
+    "text_order": false
+  },
+  "weights": {
+    "anchors": 0.2,
+    "noise_control": 0.15,
+    "markdown_similarity": 0.3,
+    "ast_similarity": 0.15,
+    "table_similarity": 0.2
+  }
+}

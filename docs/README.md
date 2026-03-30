@@ -13,6 +13,7 @@
 - [features/ocr.md](features/ocr.md): OCR 能力层的接入方式、CLI 选项和当前限制。
 - [testing/test_layers.md](testing/test_layers.md): quality / integration / cli / ocr / baseline 分层。
 - [benchmark.md](benchmark.md): 最小性能 benchmark 和 conversion eval 入口。
+- [html_url_optimization_plan.md](html_url_optimization_plan.md): HTML/URL 路径对齐 MarkItDown 差距后的优化方案与完成标准。
 - [KNOWN_ISSUES.md](KNOWN_ISSUES.md): 当前仍未解决、值得持续跟踪的问题。
 
 ## 目录原则

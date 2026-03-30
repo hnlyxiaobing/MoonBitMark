@@ -17,24 +17,18 @@ pub(all) struct OcrConfig {
   enable_embedded_images : Bool
   backend : String?
   timeout_ms : Int?
-}
+} derive(Eq, Show, ToJson)
 pub fn OcrConfig::backend_or_auto(Self) -> String
 pub fn OcrConfig::default() -> Self
 pub fn OcrConfig::is_enabled(Self) -> Bool
 pub fn OcrConfig::should_process_embedded_images(Self) -> Bool
-pub impl Eq for OcrConfig
-pub impl Show for OcrConfig
-pub impl ToJson for OcrConfig
 
 pub(all) enum OcrMode {
   Off
   Auto
   Force
-}
+} derive(Eq, Show, ToJson)
 pub fn OcrMode::label(Self) -> String
-pub impl Eq for OcrMode
-pub impl Show for OcrMode
-pub impl ToJson for OcrMode
 
 pub(all) struct OcrResult {
   attempted : Bool
@@ -42,13 +36,10 @@ pub(all) struct OcrResult {
   provider : String?
   text : String
   warnings : Array[String]
-}
+} derive(Eq, Show, ToJson)
 pub fn OcrResult::is_useful(Self) -> Bool
 pub fn OcrResult::not_attempted() -> Self
 pub fn OcrResult::provider_label(Self) -> String
-pub impl Eq for OcrResult
-pub impl Show for OcrResult
-pub impl ToJson for OcrResult
 
 // Type aliases
 

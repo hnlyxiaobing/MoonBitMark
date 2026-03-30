@@ -32,18 +32,14 @@ pub(all) suberror ZipError {
   UnsupportedMethod(Int)
   DecompressFailed(String)
   CrcMismatch
-}
-pub impl Eq for ZipError
-pub impl Show for ZipError
+} derive(Eq, Show)
 
 // Types and methods
 pub enum CompressionMethod {
   Store(Int)
   Deflate(Int)
   Unknown(Int)
-}
-pub impl Eq for CompressionMethod
-pub impl Show for CompressionMethod
+} derive(Eq, Show)
 
 pub(all) struct ZipArchive {
   data : Bytes

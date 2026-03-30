@@ -25,37 +25,27 @@ pub(all) struct EpubMetadata {
   mut date : String?
   mut description : String?
   mut identifier : String?
-}
+} derive(Eq, Show, ToJson)
 pub fn EpubMetadata::default() -> Self
-pub impl Eq for EpubMetadata
-pub impl Show for EpubMetadata
-pub impl ToJson for EpubMetadata
 
 pub(all) struct EpubPackage {
   metadata : EpubMetadata
   manifest : Map[String, ManifestItem]
   spine : Array[SpineItem]
   opf_dir : String
-}
-pub impl Show for EpubPackage
+} derive(Show)
 
 pub(all) struct ManifestItem {
   id : String
   href : String
   media_type : String
   properties : String?
-}
-pub impl Eq for ManifestItem
-pub impl Show for ManifestItem
-pub impl ToJson for ManifestItem
+} derive(Eq, Show, ToJson)
 
 pub(all) struct SpineItem {
   idref : String
   linear : Bool
-}
-pub impl Eq for SpineItem
-pub impl Show for SpineItem
-pub impl ToJson for SpineItem
+} derive(Eq, Show, ToJson)
 
 // Type aliases
 

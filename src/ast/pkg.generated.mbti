@@ -29,19 +29,13 @@ pub(all) enum Block {
   CodeBlock(String?, String)
   Table(Array[Array[Inline]], Array[Array[Array[Inline]]])
   HorizontalRule
-}
-pub impl Eq for Block
-pub impl Show for Block
-pub impl ToJson for Block
+} derive(Eq, Show, ToJson)
 
 pub(all) struct Document {
   title : String?
   metadata : Map[String, String]
   blocks : Array[Block]
-}
-pub impl Eq for Document
-pub impl Show for Document
-pub impl ToJson for Document
+} derive(Eq, Show, ToJson)
 
 pub(all) enum Inline {
   Text(String)
@@ -51,10 +45,7 @@ pub(all) enum Inline {
   Image(String, String)
   Code(String)
   LineBreak
-}
-pub impl Eq for Inline
-pub impl Show for Inline
-pub impl ToJson for Inline
+} derive(Eq, Show, ToJson)
 
 // Type aliases
 

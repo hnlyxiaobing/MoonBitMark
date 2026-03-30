@@ -77,13 +77,10 @@ pub(all) struct ConversionDiagnostic {
   source : DiagnosticSource?
   message : String
   hint : DiagnosticHint?
-}
+} derive(Eq, Show, ToJson)
 pub fn ConversionDiagnostic::category(Self) -> String
 pub fn ConversionDiagnostic::render(Self) -> String
 pub fn ConversionDiagnostic::with_defaults(Self, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> Self
-pub impl Eq for ConversionDiagnostic
-pub impl Show for ConversionDiagnostic
-pub impl ToJson for ConversionDiagnostic
 
 pub(all) enum ConversionError {
   InputError(String, String?)
@@ -92,12 +89,9 @@ pub(all) enum ConversionError {
   XmlParseError(String, Int?)
   UnsupportedFeatureError(String, String)
   ConversionFailed(String, String)
-}
+} derive(Eq, Show, ToJson)
 pub fn ConversionError::category(Self) -> String
 pub fn ConversionError::message(Self) -> String
-pub impl Eq for ConversionError
-pub impl Show for ConversionError
-pub impl ToJson for ConversionError
 
 pub(all) enum ConversionPhase {
   Detect(String?)
@@ -107,11 +101,8 @@ pub(all) enum ConversionPhase {
   Render(String?)
   Postprocess(String?)
   Convert(String)
-}
+} derive(Eq, Show, ToJson)
 pub fn ConversionPhase::label(Self) -> String
-pub impl Eq for ConversionPhase
-pub impl Show for ConversionPhase
-pub impl ToJson for ConversionPhase
 
 pub(all) struct ConvertContext {
   keep_metadata : Bool
@@ -121,11 +112,8 @@ pub(all) struct ConvertContext {
   asset_output_dir : String?
   output_mode : OutputMode
   ocr : @ocr.OcrConfig
-}
+} derive(Eq, Show, ToJson)
 pub fn ConvertContext::default() -> Self
-pub impl Eq for ConvertContext
-pub impl Show for ConvertContext
-pub impl ToJson for ConvertContext
 
 pub(all) struct ConvertResult {
   markdown : String
@@ -137,7 +125,7 @@ pub(all) struct ConvertResult {
   source_type : String
   stats : ConvertStats?
   document : @ast.Document?
-}
+} derive(Eq, Show, ToJson)
 pub fn ConvertResult::debug_report(Self) -> String
 pub fn ConvertResult::markdown_only(String, String) -> Self
 pub fn ConvertResult::with_assets(Self, Array[OutputAsset]) -> Self
@@ -147,20 +135,14 @@ pub fn ConvertResult::with_metadata(Self, Map[String, String]) -> Self
 pub fn ConvertResult::with_stats(Self, ConvertStats?) -> Self
 pub fn ConvertResult::with_title(Self, String?) -> Self
 pub fn ConvertResult::with_warnings(Self, Array[String]) -> Self
-pub impl Eq for ConvertResult
-pub impl Show for ConvertResult
-pub impl ToJson for ConvertResult
 
 pub(all) struct ConvertStats {
   char_count : Int
   block_count : Int
   duration_ms : Int?
   used_fallback : Bool
-}
+} derive(Eq, Show, ToJson)
 pub fn ConvertStats::render(Self) -> String
-pub impl Eq for ConvertStats
-pub impl Show for ConvertStats
-pub impl ToJson for ConvertStats
 
 pub(all) enum DiagnosticHint {
   CheckInputDetection
@@ -168,21 +150,15 @@ pub(all) enum DiagnosticHint {
   ProvideBytesSourceName
   CheckArchiveIntegrity
   Custom(String)
-}
+} derive(Eq, Show, ToJson)
 pub fn DiagnosticHint::message(Self) -> String
-pub impl Eq for DiagnosticHint
-pub impl Show for DiagnosticHint
-pub impl ToJson for DiagnosticHint
 
 pub(all) enum DiagnosticLevel {
   Info
   Warning
   Error
-}
+} derive(Eq, Show, ToJson)
 pub fn DiagnosticLevel::label(Self) -> String
-pub impl Eq for DiagnosticLevel
-pub impl Show for DiagnosticLevel
-pub impl ToJson for DiagnosticLevel
 
 pub(all) enum DiagnosticSource {
   Input(String)
@@ -191,23 +167,17 @@ pub(all) enum DiagnosticSource {
   ArchiveEntry(String)
   Bytes(String?)
   Generated(String)
-}
+} derive(Eq, Show, ToJson)
 pub fn DiagnosticSource::label(Self) -> String
-pub impl Eq for DiagnosticSource
-pub impl Show for DiagnosticSource
-pub impl ToJson for DiagnosticSource
 
 pub(all) enum InputSource {
   FileInput(String, Bytes?)
   UrlInput(String, String?)
   BytesInput(String?, Bytes, String?)
-}
+} derive(Eq, Show, ToJson)
 pub fn InputSource::from_string(String) -> Self
 pub fn InputSource::kind(Self) -> String
 pub fn InputSource::name(Self) -> String?
-pub impl Eq for InputSource
-pub impl Show for InputSource
-pub impl ToJson for InputSource
 
 pub(all) struct OutputAsset {
   placeholder : String
@@ -215,19 +185,13 @@ pub(all) struct OutputAsset {
   bytes : Bytes
   source : DiagnosticSource?
   hint : DiagnosticHint?
-}
-pub impl Eq for OutputAsset
-pub impl Show for OutputAsset
-pub impl ToJson for OutputAsset
+} derive(Eq, Show, ToJson)
 
 pub(all) enum OutputMode {
   PlainText
   StandardMarkdown
   FrontMatterMarkdown
-}
-pub impl Eq for OutputMode
-pub impl Show for OutputMode
-pub impl ToJson for OutputMode
+} derive(Eq, Show, ToJson)
 
 pub(all) struct StreamInfo {
   mimetype : String?
@@ -235,10 +199,7 @@ pub(all) struct StreamInfo {
   filename : String?
   url : String?
   charset : String?
-}
-pub impl Eq for StreamInfo
-pub impl Show for StreamInfo
-pub impl ToJson for StreamInfo
+} derive(Eq, Show, ToJson)
 
 // Type aliases
 

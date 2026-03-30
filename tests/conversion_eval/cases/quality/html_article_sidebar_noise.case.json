@@ -1,27 +1,41 @@
 {
-  "id": "html_simple_table",
+  "id": "html_article_sidebar_noise",
   "format": "html",
   "tier": "quality",
-  "input": "tests/conversion_eval/fixtures/inputs/html/simple_table.html",
-  "description": "HTML table extraction should keep headings, paragraphs, and table cells without HTML remnants.",
-  "must_include": ["Sample Data Table", "Laptop", "Coffee Mug", "Summary Statistics"],
-  "must_not_include": ["<table", "<div", "function("],
-  "min_chars": 100,
-  "min_lines": 8,
-  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/html_simple_table.md",
-  "reference_builder": "html",
+  "input": "tests/conversion_eval/fixtures/inputs/html/article_sidebar_noise.html",
+  "description": "HTML article extraction should keep the readable article, resolve base URLs, and drop unsafe or noisy chrome.",
+  "must_include": [
+    "Release Article",
+    "Launch Recap",
+    "deployment guide",
+    "Architecture Diagram",
+    "Architecture overview.",
+    "Key takeaway.",
+    "Ship readable Markdown",
+    "Keep links stable"
+  ],
+  "must_not_include": [
+    "Docs Pricing Sign in",
+    "Sponsored sidebar",
+    "Footer legal",
+    "javascript:evil()",
+    "<nav",
+    "<aside"
+  ],
+  "min_chars": 160,
+  "min_lines": 10,
+  "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/html_article_sidebar_noise.md",
   "checks": {
     "anchors": true,
     "golden_markdown": true,
     "ast_compare": true,
-    "table_compare": true,
-    "text_order": false
+    "text_order": true
   },
   "weights": {
-    "anchors": 0.2,
-    "noise_control": 0.15,
+    "anchors": 0.25,
+    "noise_control": 0.2,
     "markdown_similarity": 0.3,
     "ast_similarity": 0.15,
-    "table_similarity": 0.2
+    "text_order": 0.1
   }
 }

@@ -34,11 +34,8 @@ pub(all) struct ConverterRegistration {
 pub(all) struct DetectionResult {
   converter_name : String
   stream_info : @core.StreamInfo
-}
+} derive(Eq, Show, ToJson)
 pub fn DetectionResult::render(Self) -> String
-pub impl Eq for DetectionResult
-pub impl Show for DetectionResult
-pub impl ToJson for DetectionResult
 
 pub(all) struct MarkItDown {
   converters : Array[ConverterRegistration]

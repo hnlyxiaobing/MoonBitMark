@@ -79,9 +79,8 @@ pub enum LogLevel {
   Info
   Warn
   Error
-}
+} derive(Eq)
 pub fn LogLevel::to_string(Self) -> String
-pub impl Eq for LogLevel
 
 pub(all) struct Logger {
   config : LoggerConfig
