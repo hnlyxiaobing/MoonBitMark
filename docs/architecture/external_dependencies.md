@@ -26,13 +26,12 @@ This document is the source of truth for "pure MoonBit" versus "bridge/process-b
 
 - The main PDF path stays inside the MoonBit project structure.
 - Fallback extraction may shell out through `scripts/pdf/bridge.py`.
-- PDF OCR remains a recovery path, not a full page-rendering/layout engine.
+- PDF OCR now uses a bridge-backed page-rendering recovery path for routed recovery pages, but it is still not a full layout-understanding engine.
 
 ## Baseline Comparison Boundary
 
-- Latest local eval summary currently reports `markitdown` and `docling` as unavailable by default.
-- Baseline comparison is therefore treated as an optional environment, not a guaranteed always-on step.
-- CI now exposes a manual path to run baseline comparison when maintainers choose to provision that environment.
+- Baseline comparison remains an optional environment, but the local harness now auto-discovers the dedicated baseline venv when present.
+- CI still treats baseline comparison as opt-in because those dependencies are heavier than the main MoonBit test path.
 
 ## Build And Package Identity
 

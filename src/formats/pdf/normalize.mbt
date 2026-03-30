@@ -4,7 +4,7 @@ fn normalize_pdf_extraction(
   route_plan : PdfRoutePlan,
 ) -> PdfNormalizationResult {
   let pages : Array[PdfPageText] = []
-  let prefer_linewise = extraction.used_fallback &&
+  let prefer_linewise = extraction.used_text_fallback &&
     extraction.provider is Some("pdfminer")
   let mut index = 0
   while index < extraction.pages.length() {

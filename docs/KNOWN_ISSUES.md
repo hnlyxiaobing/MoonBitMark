@@ -2,9 +2,9 @@
 
 这里只记录当前仍然有效、会影响理解或继续开发的问题，不记录已经解决的历史事项。
 
-## 1. PDF 扫描件仍缺真正的 page-rendering OCR backend
+## 1. PDF OCR 仍是 bridge-backed recovery path，不是完整版面理解系统
 
-- 相关文件: `src/formats/pdf/converter.mbt`、`src/formats/pdf/route.mbt`、`src/formats/pdf/diagnostics.mbt`
+- 相关文件: `src/formats/pdf/converter.mbt`、`src/capabilities/ocr/provider.mbt`、`scripts/ocr/bridge.py`
 - 影响范围: 扫描版 PDF、混合文本/扫描 PDF、近空文本层 PDF
 
 当前 PDF 已经具备：
@@ -13,13 +13,14 @@
 - 小型复杂文档的 `pdfminer` bridge fallback
 - 页级 route
 - 标题 / 列表 / 表格 / code / formula 的结构恢复
-- 基于 OCR 配置的恢复性正文注入路径
+- recovery 页定向 OCR（可对 mixed 文档中的 recovery 页单独介入）
+- Python bridge 下的 PDF 页渲染 -> 页级 OCR 恢复路径
 
-但当前仍然缺少真正的**页面渲染 -> 页级 OCR -> 结构恢复**后端，因此扫描 PDF 仍有明显边界：
+但当前边界仍然清晰：
 
-- 现有 recovery 更接近“实验性补救路径”，还不是成熟的 page-rendering pipeline
-- mixed 文档里被标记为 recovery 的页面仍可能只能给出 diagnostics / warning
-- 全扫描 PDF 的正文恢复效果仍依赖外部 OCR backend 和当前 bridge 能力
+- OCR 仍依赖 Python bridge 和可用 backend，不是纯 MoonBit runtime 内建能力
+- 当前只做页级文本恢复，没有 bbox / reading-order / table cell / formula layout 的 OCR 协议
+- 扫描 PDF 的最终结构质量仍取决于 OCR backend 输出质量，复杂版面还不是成熟 layout engine
 
 ## 2. Windows native 构建仍有部分编码告警
 

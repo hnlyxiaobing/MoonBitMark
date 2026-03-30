@@ -4,6 +4,7 @@ import argparse
 import csv
 import datetime as dt
 import difflib
+import functools
 import html
 from html.parser import HTMLParser
 import importlib.util
@@ -29,6 +30,8 @@ CASES_ROOT = EVAL_ROOT / "cases"
 MANIFEST_PATH = EVAL_ROOT / "fixtures" / "source_manifest.json"
 LATEST_REPORT_DIR = EVAL_ROOT / "reports" / "latest"
 HISTORY_REPORT_DIR = EVAL_ROOT / "reports" / "history"
+
+BASELINE_VENV_PYTHON = Path.home() / ".venvs" / "moonbitmark-baselines" / "Scripts" / "python.exe"
 
 SUPPORTED_FORMATS = {"csv", "docx", "epub", "html", "image", "json", "pdf", "pptx", "text", "xlsx"}
 SUPPORTED_TIERS = {"smoke", "quality", "edge", "regression", "regressions"}
@@ -1187,7 +1190,46 @@ def configure_stdio_utf8() -> None:
 
 
 def baseline_availability(tool: str) -> bool:
-    return importlib.util.find_spec(tool) is not None
+    return baseline_python_for_tool(tool) is not None
+
+
+@functools.lru_cache(maxsize=None)
+def python_has_module(python_exe: str, module: str) -> bool:
+    try:
+        completed = subprocess.run(
+            [
+                python_exe,
+                "-c",
+                f"import importlib.util, sys; raise SystemExit(0 if importlib.util.find_spec({module!r}) else 1)",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return completed.returncode == 0
+
+
+@functools.lru_cache(maxsize=None)
+def baseline_python_for_tool(tool: str) -> str | None:
+    candidates = [sys.executable]
+    if BASELINE_VENV_PYTHON.exists():
+        candidates.append(str(BASELINE_VENV_PYTHON))
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        resolved = str(Path(candidate).resolve())
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if python_has_module(resolved, tool):
+            return resolved
+    return None
 
 
 def baseline_supports_format(tool: str, format_name: str) -> bool:
@@ -1200,6 +1242,9 @@ def compare_baseline(
     input_path: Path,
     reference_markdown: str | None,
 ) -> tuple[float | None, str | None, int | None]:
+    python_exe = baseline_python_for_tool(tool)
+    if not python_exe:
+        return None, f"baseline package is unavailable: {tool}", None
     if tool == "markitdown":
         script = textwrap.dedent(
             """
@@ -1255,7 +1300,7 @@ def compare_baseline(
     started = dt.datetime.now(dt.timezone.utc)
     try:
         completed = subprocess.run(
-            [sys.executable, "-c", script, str(input_path)],
+            [python_exe, "-c", script, str(input_path)],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,

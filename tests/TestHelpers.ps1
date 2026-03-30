@@ -30,7 +30,23 @@ function Ensure-MoonBitMarkReleaseBinary {
         [string]$BinaryPath
     )
 
-    if (-not (Test-Path $BinaryPath)) {
+    $needsBuild = -not (Test-Path $BinaryPath)
+    if (-not $needsBuild) {
+        $binaryTime = (Get-Item $BinaryPath).LastWriteTimeUtc
+        $sourceRoots = @(
+            (Join-Path $RepoRoot 'src'),
+            (Join-Path $RepoRoot 'cmd'),
+            (Join-Path $RepoRoot 'scripts')
+        )
+        $latestSource = Get-ChildItem -Path $sourceRoots -Recurse -File |
+            Sort-Object LastWriteTimeUtc -Descending |
+            Select-Object -First 1
+        if ($null -ne $latestSource -and $latestSource.LastWriteTimeUtc -gt $binaryTime) {
+            $needsBuild = $true
+        }
+    }
+
+    if ($needsBuild) {
         Push-Location $RepoRoot
         try {
             moon build --target native --release | Out-Host

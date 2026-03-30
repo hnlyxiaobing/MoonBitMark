@@ -108,7 +108,7 @@ test "pdf warning diagnostics render postprocess and normalize phases" {
     pages: [],
     provider: Some("pdfminer"),
     warnings: ["bridge page count differs"],
-    used_fallback: true,
+    used_text_fallback: true,
   }
   let normalization = PdfNormalizationResult::{
     pages: [],
@@ -171,7 +171,7 @@ test "pdf ocr warning when auto mode sees empty native text" {
       @ocr.OcrResult::not_attempted(),
       false,
     ),
-    content="Some(\"OCR skipped for PDF because no page-rendering backend is configured.\")",
+    content="Some(\"PDF OCR recovery was enabled but no usable PDF OCR backend was available.\")",
   )
 }
 
@@ -195,7 +195,7 @@ test "pdf warning message reports recovery page counts" {
       pages: [],
       provider: Some("pdfium"),
       warnings: [],
-      used_fallback: false,
+      used_text_fallback: false,
     },
     PdfNormalizationResult::{
       pages: [],
@@ -207,6 +207,139 @@ test "pdf warning message reports recovery page counts" {
   )
   inspect(
     warnings,
-    content="[\"PDF route marked 1/3 page(s) for OCR recovery, but only native text extraction is currently active.\"]",
+    content="[\"PDF route marked 1/3 page(s) for OCR recovery, but OCR recovery did not supply usable page text; native extraction remains for those pages.\"]",
+  )
+}
+
+///|
+test "pdf ocr recovery attempts mixed documents with recovery pages" {
+  let route_plan = PdfRoutePlan::{
+    document_mode: Mixed,
+    pages: [
+      PdfPageRoute::{
+        page_no: 1,
+        provider: NativeTextFast,
+        text_quality: Strong,
+        layout_complexity: Simple,
+        flags: [],
+      },
+      PdfPageRoute::{
+        page_no: 2,
+        provider: OcrRecovery,
+        text_quality: Empty,
+        layout_complexity: Simple,
+        flags: [SuspectScanned],
+      },
+    ],
+    summary: PdfRouteSummary::{
+      total_pages: 2,
+      native_fast_pages: 1,
+      structured_pages: 0,
+      recovery_pages: 1,
+      flagged_pages: 1,
+    },
+  }
+  inspect(
+    should_attempt_pdf_ocr_recovery(route_plan, @ocr.OcrConfig::{
+      ..@ocr.OcrConfig::default(),
+      mode: @ocr.Auto,
+    }),
+    content="true",
+  )
+}
+
+///|
+test "pdf ocr page injection replaces only recovery pages" {
+  let route_plan = PdfRoutePlan::{
+    document_mode: Mixed,
+    pages: [
+      PdfPageRoute::{
+        page_no: 1,
+        provider: NativeTextFast,
+        text_quality: Strong,
+        layout_complexity: Simple,
+        flags: [],
+      },
+      PdfPageRoute::{
+        page_no: 2,
+        provider: OcrRecovery,
+        text_quality: Empty,
+        layout_complexity: Simple,
+        flags: [SuspectScanned],
+      },
+      PdfPageRoute::{
+        page_no: 3,
+        provider: OcrRecovery,
+        text_quality: Empty,
+        layout_complexity: Simple,
+        flags: [SuspectScanned],
+      },
+    ],
+    summary: PdfRouteSummary::{
+      total_pages: 3,
+      native_fast_pages: 1,
+      structured_pages: 0,
+      recovery_pages: 2,
+      flagged_pages: 2,
+    },
+  }
+  inspect(
+    inject_pdf_ocr_pages(
+      ["native page one", "", ""],
+      route_plan,
+      "Recovered page two\n" +
+      pdf_ocr_page_break_marker() +
+      "\nRecovered page three",
+    ),
+    content="[\"native page one\", \"Recovered page two\", \"Recovered page three\"]",
+  )
+}
+
+///|
+test "pdf ocr page injection respects page-aligned OCR output" {
+  let route_plan = PdfRoutePlan::{
+    document_mode: Mixed,
+    pages: [
+      PdfPageRoute::{
+        page_no: 1,
+        provider: NativeTextFast,
+        text_quality: Strong,
+        layout_complexity: Simple,
+        flags: [],
+      },
+      PdfPageRoute::{
+        page_no: 2,
+        provider: OcrRecovery,
+        text_quality: Empty,
+        layout_complexity: Simple,
+        flags: [SuspectScanned],
+      },
+      PdfPageRoute::{
+        page_no: 3,
+        provider: NativeTextFast,
+        text_quality: Good,
+        layout_complexity: Simple,
+        flags: [],
+      },
+    ],
+    summary: PdfRouteSummary::{
+      total_pages: 3,
+      native_fast_pages: 2,
+      structured_pages: 0,
+      recovery_pages: 1,
+      flagged_pages: 1,
+    },
+  }
+  inspect(
+    inject_pdf_ocr_pages(
+      ["native page one", "", "native page three"],
+      route_plan,
+      "page one text\n" +
+      pdf_ocr_page_break_marker() +
+      "\nRecovered page two\n" +
+      pdf_ocr_page_break_marker() +
+      "\npage three text",
+    ),
+    content="[\"native page one\", \"Recovered page two\", \"native page three\"]",
   )
 }

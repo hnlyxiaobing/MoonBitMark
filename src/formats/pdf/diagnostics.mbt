@@ -6,7 +6,7 @@ fn pdf_warning_messages(
   ocr_warning : String?,
 ) -> Array[String] {
   let warnings : Array[String] = []
-  if extraction.used_fallback {
+  if extraction.used_text_fallback {
     warnings.push(
       "PDF text extraction used fallback provider: " +
       describe_pdf_text_provider(extraction.provider) +
@@ -23,7 +23,7 @@ fn pdf_warning_messages(
       route_plan.summary.recovery_pages.to_string() +
       "/" +
       route_plan.summary.total_pages.to_string() +
-      " page(s) for OCR recovery, but only native text extraction is currently active.",
+      " page(s) for OCR recovery, but OCR recovery did not supply usable page text; native extraction remains for those pages.",
     )
   }
   if normalization.merged_partial_numbering_count > 0 {
@@ -54,7 +54,7 @@ fn pdf_warning_diagnostics(
   for diagnostic in pdf_route_diagnostics(file_path, route_plan) {
     diagnostics.push(diagnostic)
   }
-  if extraction.used_fallback {
+  if extraction.used_text_fallback {
     diagnostics.push(
       @core.warning_diagnostic(
         "PDF text extraction used fallback provider: " +
@@ -135,7 +135,7 @@ fn pdf_warning_diagnostics(
           Some(@core.File(file_path)),
           Some(
             @core.Custom(
-              "Configure a PDF page-rendering OCR backend before expecting scanned-PDF fallback.",
+              "Inspect OCR bridge/backend availability before expecting scanned-PDF fallback to recover scanned pages.",
             ),
           ),
         ),
@@ -192,7 +192,7 @@ fn pdf_route_diagnostics(
         Some(@core.File(file_path)),
         Some(
           @core.Custom(
-            "Add a PDF page-rendering OCR backend before expecting scanned-PDF recovery to produce content.",
+            "Enable OCR and ensure a PDF-capable OCR bridge/backend is available before expecting scanned-PDF recovery to produce content.",
           ),
         ),
       ),
@@ -228,7 +228,9 @@ fn pdf_ocr_warning(
   if ocr_result.attempted && ocr_result.available && ocr_result.text == "" {
     return Some("PDF OCR recovery returned empty text.")
   }
-  Some("OCR skipped for PDF because no page-rendering backend is configured.")
+  Some(
+    "PDF OCR recovery was enabled but no usable PDF OCR backend was available.",
+  )
 }
 
 ///|

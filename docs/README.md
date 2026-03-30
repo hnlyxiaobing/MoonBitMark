@@ -14,6 +14,7 @@
 - [testing/test_layers.md](testing/test_layers.md): quality / integration / cli / ocr / baseline 分层。
 - [benchmark.md](benchmark.md): 最小性能 benchmark 和 conversion eval 入口。
 - [html_url_optimization_plan.md](html_url_optimization_plan.md): HTML/URL 路径对齐 MarkItDown 差距后的优化方案与完成标准。
+- [pdf_ocr_optimization_plan.md](pdf_ocr_optimization_plan.md): PDF recovery/OCR 路径对齐 MarkItDown 差距后的优化方案与完成标准。
 - [KNOWN_ISSUES.md](KNOWN_ISSUES.md): 当前仍未解决、值得持续跟踪的问题。
 
 ## 目录原则

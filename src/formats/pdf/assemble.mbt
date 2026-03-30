@@ -30,7 +30,7 @@ fn build_pdf_metadata(
     Some(provider) if provider != "" => provider
     _ => "unknown"
   }
-  metadata["pdf_text_fallback_used"] = extraction.used_fallback.to_string()
+  metadata["pdf_text_fallback_used"] = extraction.used_text_fallback.to_string()
   if extraction.warnings.length() > 0 {
     metadata["pdf_text_warning_count"] = extraction.warnings
       .length()

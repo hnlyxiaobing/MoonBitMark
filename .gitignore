@@ -20,6 +20,7 @@ tests/conversion_eval/fixtures/inputs/**/*.html
 !tests/conversion_eval/fixtures/inputs/html/*.html
 tests/conversion_eval/fixtures/inputs/**/*.json
 tests/conversion_eval/fixtures/inputs/**/*.pdf
+!tests/conversion_eval/fixtures/inputs/pdf/scanned_multi_page_mock.pdf
 tests/conversion_eval/fixtures/inputs/**/*.pptx
 tests/conversion_eval/fixtures/inputs/**/*.txt
 tests/conversion_eval/fixtures/inputs/**/*.xlsx

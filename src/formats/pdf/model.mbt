@@ -85,7 +85,7 @@ priv struct PdfNativeExtraction {
   pages : Array[PdfPageExtraction]
   provider : String?
   warnings : Array[String]
-  used_fallback : Bool
+  used_text_fallback : Bool
 }
 
 ///|

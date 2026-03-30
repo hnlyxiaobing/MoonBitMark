@@ -24,7 +24,7 @@ test "pdf assembly metadata records route summary" {
       ],
       provider: Some("mbtpdf"),
       warnings: [],
-      used_fallback: false,
+      used_text_fallback: false,
     },
     route,
   )
@@ -69,7 +69,7 @@ test "pdf assembly metadata records fallback extraction details" {
       ],
       provider: Some("pdfminer"),
       warnings: ["page order differs from native extractor"],
-      used_fallback: true,
+      used_text_fallback: true,
     },
     route,
   )

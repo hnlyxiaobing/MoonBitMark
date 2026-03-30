@@ -126,8 +126,8 @@ AST 负责统一 Markdown 渲染策略。当前除了 richer inline 语义外，
 - PDF 主路径已拆成 `route -> extraction -> normalize -> structure -> assembly -> diagnostics` 的多文件管线。
 - 默认快速路径仍是 `mbtpdf`。
 - 小型复杂文档可按启发式升级到 `pdfminer` bridge fallback。
-- PDF OCR 仍是恢复路径，不是成熟页渲染引擎。
-- route diagnostics 现在会带上 structured / recovery 页数与 flag summary，便于区分“主路径强”与“恢复路径介入”的真实原因。
+- PDF OCR 仍是恢复路径，但现在已经具备 bridge-backed 的 recovery 页渲染与页级 OCR 注入。
+- route diagnostics 现在会带上 structured / recovery 页数、flag summary，以及 recovery 是否真正介入，便于区分“主路径强”与“恢复路径介入”的真实原因。
 
 ### MCP
 

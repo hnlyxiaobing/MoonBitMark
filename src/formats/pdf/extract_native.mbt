@@ -54,7 +54,7 @@ async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
       Some("mbtpdf")
     },
     warnings: bridge.warnings,
-    used_fallback: use_bridge,
+    used_text_fallback: use_bridge,
   }
 }
 

@@ -11,11 +11,12 @@ pub async fn recognize_image_file(
   file_path : String,
   config : OcrConfig,
   source_name? : String = file_path,
+  page_numbers? : Array[Int] = [],
 ) -> OcrResult {
   if config.mode == Off {
     return OcrResult::not_attempted()
   }
-  run_bridge(file_path, source_name, source_name, config)
+  run_bridge(file_path, source_name, source_name, config, page_numbers)
 }
 
 ///|
@@ -35,7 +36,7 @@ pub async fn recognize_image_bytes(
     sanitize_file_stem(temp_stem) +
     input_extension(source_name)
   write_bytes_file(input_path, bytes)
-  let result = run_bridge(input_path, source_name, temp_stem, config)
+  let result = run_bridge(input_path, source_name, temp_stem, config, [])
   cleanup_file(input_path)
   result
 }
@@ -46,6 +47,7 @@ async fn run_bridge(
   _source_name : String,
   temp_name : String,
   config : OcrConfig,
+  page_numbers : Array[Int],
 ) -> OcrResult {
   let temp_dir = ocr_temp_dir()
   ensure_ocr_temp_dir(temp_dir)
@@ -71,6 +73,10 @@ async fn run_bridge(
       args.push(value.to_string())
     }
     None => ()
+  }
+  if page_numbers.length() > 0 {
+    args.push("--page-numbers")
+    args.push(page_numbers.map(n => n.to_string()).join(","))
   }
 
   let exit_code_result : Result[Int, Error] = try {

@@ -4,7 +4,7 @@ package "moonbitlang/moonbitmark/src/capabilities/ocr"
 // Values
 pub async fn recognize_image_bytes(Bytes, String, OcrConfig, temp_stem? : String) -> OcrResult
 
-pub async fn recognize_image_file(String, OcrConfig, source_name? : String) -> OcrResult
+pub async fn recognize_image_file(String, OcrConfig, source_name? : String, page_numbers? : Array[Int]) -> OcrResult
 
 pub fn should_attempt_for_native_text(OcrConfig, String) -> Bool
 

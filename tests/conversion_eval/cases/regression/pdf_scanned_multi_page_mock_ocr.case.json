@@ -1,0 +1,20 @@
+{
+  "id": "pdf_scanned_multi_page_mock_ocr",
+  "format": "pdf",
+  "tier": "regression",
+  "input": "tests/conversion_eval/fixtures/inputs/pdf/scanned_multi_page_mock.pdf",
+  "cli_args": ["--ocr", "force", "--ocr-backend", "mock"],
+  "description": "Multi-page scanned PDFs should recover page-specific OCR text instead of duplicating a single recovery block across every page.",
+  "must_include": [
+    "scanned multi page mock page 1",
+    "scanned multi page mock page 2"
+  ],
+  "min_chars": 40,
+  "min_lines": 1,
+  "checks": {
+    "anchors": true
+  },
+  "weights": {
+    "anchors": 1.0
+  }
+}

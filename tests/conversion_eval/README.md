@@ -61,10 +61,10 @@ python tests/conversion_eval/scripts/run_eval.py all `
 
 ## Baseline 说明
 
-- `--compare-baselines` 会在运行 MoonBitMark 评测的同时，调用当前 Python
-  解释器中的 `markitdown` 和 `docling`
-- baseline 是否可用，取决于运行 `run_eval.py` 的那个 Python 环境里是否真的
-  安装了对应包
+- `--compare-baselines` 会在运行 MoonBitMark 评测的同时，优先尝试当前 Python，
+  不可用时再自动回退到本机的 baseline venv（默认
+  `C:\Users\hnlyh\.venvs\moonbitmark-baselines\Scripts\python.exe`）
+- baseline 是否可用，取决于当前 Python 或 baseline venv 里是否真的安装了对应包
 - Windows 控制台默认编码会影响 baseline 输出，本仓库脚本会强制设置
   `PYTHONUTF8=1` 和 `PYTHONIOENCODING=utf-8`
 

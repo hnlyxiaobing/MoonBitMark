@@ -14,6 +14,7 @@ So OCR availability depends on both:
 
 - a Python runtime
 - a selected backend (`mock`, `tesseract`, or whatever `auto` can find)
+- for PDF recovery, a Python environment that can render PDF pages (the bridge will delegate to the local baseline venv when needed)
 
 ## CLI Surface
 
@@ -37,21 +38,24 @@ So OCR availability depends on both:
 
 - image-file OCR
 - embedded-image OCR for DOCX / PPTX / EPUB when `--ocr-images` is enabled
-- PDF OCR recovery-path wiring exists and can inject OCR text back into recovery-marked documents
-- PDF `diag-json` / diagnostics 会区分 route 标记、是否真正尝试 OCR、以及 recovery path 是否实际介入
+- PDF OCR recovery now renders the requested recovery pages through the Python bridge and injects page-specific OCR text back into the PDF pipeline
+- mixed PDF documents can recover only the routed OCR pages instead of requiring the whole document to be recovery-only
+- PDF `diag-json` / diagnostics distinguish route marking, text fallback usage, and whether OCR recovery actually intervened
 
 ## Behavior contract
 
 - OCR should not silently become a hard requirement for non-OCR conversions.
 - Missing backend, timeout, or bridge failure should produce warnings/diagnostics instead of crashing the whole conversion.
 - `diag-json` metadata should reflect the configured OCR mode/backend/lang/timeout and the actual attempt/availability result when OCR runs.
+- PDF text extraction fallback (`pdfminer`) and OCR recovery are tracked separately; OCR recovery should not be mislabeled as `pdf_text_fallback_used`.
 
 ## Automated checks
 
 ```powershell
-powershell -File tests/ocr/ocr_force_smoke.ps1
-powershell -File tests/ocr/ocr_backend_missing.ps1
-powershell -File tests/ocr/ocr_timeout_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests/ocr/ocr_force_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests/ocr/ocr_backend_missing.ps1
+powershell -ExecutionPolicy Bypass -File tests/ocr/ocr_timeout_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests/ocr/pdf_ocr_force_smoke.ps1
 ```
 
 These scripts cover:
@@ -59,9 +63,10 @@ These scripts cover:
 - successful mock OCR
 - missing `tesseract` backend
 - backend timeout
+- multi-page PDF OCR recovery with page-specific mock output
 
 ## Limits
 
 - no bbox/layout OCR protocol
 - no HTML remote-image OCR
-- PDF OCR still lacks a true page-rendering backend; current recovery is a bounded bridge-assisted path, not a mature page-rendering pipeline
+- PDF OCR recovery is still a bounded bridge-assisted path, not a full document-layout understanding system
