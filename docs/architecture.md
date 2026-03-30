@@ -116,7 +116,7 @@ AST 负责统一 Markdown 渲染策略。当前除了 richer inline 语义外，
 - DOCX / PPTX / XLSX / EPUB 继续共享 `libzip + xml` 基础设施。
 - `src/libzip/deflate.mbt` 已覆盖 `Stored / Fixed Huffman / Dynamic Huffman` 三条路径。
 - 共享容器层已经稳定，但各格式局部结构细节仍在持续补强。
-- 第二阶段已补到：DOCX 编号标题间距与首段标题提升、XLSX 默认不再把 embedded asset gallery 直接拼进主 Markdown、EPUB 会更积极剥离媒体属性噪声并保留可读正文说明。
+- 第二阶段已补到：DOCX 编号标题间距与首段标题提升、XLSX 默认不再把 embedded asset gallery 直接拼进主 Markdown、EPUB 已补媒体控件去噪、Project Gutenberg boilerplate 清理和章节正文块级提取。
 
 ### PDF
 
