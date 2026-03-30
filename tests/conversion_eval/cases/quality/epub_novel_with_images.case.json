@@ -5,7 +5,15 @@
   "input": "tests/conversion_eval/fixtures/inputs/epub/winter_sports.epub",
   "description": "EPUB spine traversal should preserve title, author context, and long-form chapter content.",
   "must_include": ["Winter Sports in Switzerland", "Project Gutenberg", "E. F. Benson"],
-  "must_not_include": ["META-INF", "container.xml", "content.opf"],
+  "must_not_include": [
+    "META-INF",
+    "container.xml",
+    "content.opf",
+    "START: FULL LICENSE",
+    "THE FULL PROJECT GUTENBERG LICENSE",
+    "Project Gutenberg Literary Archive Foundation",
+    "www.gutenberg.org/license"
+  ],
   "min_chars": 400,
   "min_lines": 12,
   "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/epub_winter_sports.md",

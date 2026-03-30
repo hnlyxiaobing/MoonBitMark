@@ -5,7 +5,15 @@
   "input": "tests/conversion_eval/fixtures/inputs/epub/simple_shared_culture.epub",
   "description": "EPUB package traversal should preserve title, table of contents, and long-form chapter text on a media-rich sample.",
   "must_include": ["Creative Commons - A Shared Culture", "table of contents", "What does it mean to be human"],
-  "must_not_include": ["META-INF", "container.xml", "content.opf"],
+  "must_not_include": [
+    "META-INF",
+    "container.xml",
+    "content.opf",
+    "Your Reading System does not support",
+    "play pause mute unmute",
+    "epubReadingSystem aware",
+    "Video sources:"
+  ],
   "min_chars": 500,
   "min_lines": 14,
   "golden_markdown": "tests/conversion_eval/fixtures/expected/markdown/epub_simple_shared_culture.md",

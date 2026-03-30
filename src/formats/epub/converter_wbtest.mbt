@@ -60,6 +60,72 @@ test "epub sanitization drops raw media fragments" {
 }
 
 ///|
+test "epub sanitization trims media annotations and reader notices" {
+  inspect(
+    sanitize_epub_text(
+      "what does it mean to be human epubReadingSystem aware scripted video control using click and dblclick, space key. Video sources: mp4, webm",
+    ),
+    content="what does it mean to be human",
+  )
+  inspect(
+    sanitize_epub_text("Your Reading System does not support (this) video."),
+    content="",
+  )
+  inspect(sanitize_epub_text("play pause mute unmute MUTED"), content="")
+}
+
+///|
+test "epub identifies gutenberg license blocks and end markers" {
+  inspect(
+    is_epub_gutenberg_license_block(
+      "This ebook is for the use of anyone anywhere in the United States and most other parts of the world at no cost and with almost no restrictions whatsoever.",
+    ),
+    content="true",
+  )
+  inspect(
+    is_epub_end_gutenberg_marker(
+      "*** END OF THE PROJECT GUTENBERG EBOOK WINTER SPORTS IN SWITZERLAND ***",
+    ),
+    content="true",
+  )
+}
+
+///|
+test "epub trims trailing gutenberg license blocks" {
+  let blocks = trim_epub_trailing_gutenberg_blocks([
+    @ast.text_heading(2, "CHAPTER I"),
+    @ast.text_paragraph("Body paragraph"),
+    @ast.text_paragraph(
+      "*** END OF THE PROJECT GUTENBERG EBOOK WINTER SPORTS IN SWITZERLAND ***",
+    ),
+    @ast.text_paragraph("The full Project Gutenberg license follows."),
+  ])
+  inspect(
+    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    content="## CHAPTER I\n\nBody paragraph",
+  )
+}
+
+///|
+test "epub parses gutenberg xhtml without boilerplate heading noise" {
+  let sample = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+    "<html xmlns=\"http://www.w3.org/1999/xhtml\">" +
+    "<body class=\"x-ebookmaker x-ebookmaker-2\"><div class=\"pg-boilerplate pgheader section\">" +
+    "<h2>The Project Gutenberg eBook of Winter Sports in Switzerland, by E. F. Benson</h2>" +
+    "<p><strong>Title</strong>: Winter Sports in Switzerland</p>" +
+    "</div>" +
+    "<table><tr><td>Contents.</td></tr></table>" +
+    "<h2><a id=\"CHAPTER_I\"/>CHAPTER I<br/><br/><small>THE SUN-SEEKER</small></h2>" +
+    "<p>There is an amazingly silly proverb.</p>" +
+    "</body></html>"
+  let blocks = parse_epub_special_xhtml(sample, "OPS/60153-h-0.htm.html").unwrap()
+  inspect(
+    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    content="## The Project Gutenberg eBook of Winter Sports in Switzerland, by E. F. Benson\n\n## CHAPTER I THE SUN-SEEKER\n\nThere is an amazingly silly proverb.",
+  )
+}
+
+///|
 test "epub asset appendix only keeps ocr blocks" {
   let blocks = append_epub_asset_blocks(
     [@ast.text_paragraph("body")],
