@@ -3,6 +3,8 @@
 ///|
 pub(all) struct McpServer {
   tools : ToolRegistry
+  resources : ResourceRegistry
+  prompts : PromptRegistry
   transport : @transport.StdioTransport
 }
 
@@ -22,8 +24,14 @@ pub fn McpServer::new_with_logger(
   let registry = ToolRegistry::new().register_convert_tools() catch {
     _error => ToolRegistry::new()
   }
+  let resources = ResourceRegistry::new().register_static_resources() catch {
+    _error => ResourceRegistry::new()
+  }
+  let prompts = PromptRegistry::new().register_static_prompts() catch {
+    _error => PromptRegistry::new()
+  }
 
-  McpServer::{ tools: registry, transport }
+  McpServer::{ tools: registry, resources, prompts, transport }
 }
 
 ///|
@@ -70,6 +78,11 @@ async fn McpServer::handle_request(
     "initialize" => Some(self.handle_initialize(request.id))
     "tools/list" => Some(self.handle_tools_list(request.id))
     "tools/call" => Some(self.handle_tools_call(request.params, request.id))
+    "resources/list" => Some(self.handle_resources_list(request.id))
+    "resources/read" =>
+      Some(self.handle_resources_read(request.params, request.id))
+    "prompts/list" => Some(self.handle_prompts_list(request.id))
+    "prompts/get" => Some(self.handle_prompts_get(request.params, request.id))
     _ =>
       Some(@types.JsonResponse::{
         jsonrpc: "2.0",
@@ -94,12 +107,20 @@ fn McpServer::handle_initialize(
     protocol_version: "2024-11-05",
     capabilities: @types.McpServerCapabilities::{
       tools: @types.McpServerCapabilitiesTools::{ list_changed: false },
+      resources: Some(@types.McpServerCapabilitiesResources::{
+        subscribe: false,
+        list_changed: false,
+      }),
+      prompts: Some(@types.McpServerCapabilitiesPrompts::{ list_changed: false }),
     },
     server_info: @types.McpServerInfo::{
       name: "moonbitmark",
       version: "0.3.0",
       protocol_version: "2024-11-05",
     },
+    instructions: Some(
+      "Use prompts/get for guided flows, resources/read for boundaries, inspect first for unknown or large documents, keep convert_to_markdown in preview mode unless you need the full Markdown, and remember that file roots, HTTP access, OCR, and output caps are controlled by MOONBITMARK_MCP_* environment variables.",
+    ),
   }
 
   @types.JsonResponse::{
@@ -121,6 +142,128 @@ fn McpServer::handle_tools_list(
     result: Some(result.to_json()),
     error: None,
     id,
+  }
+}
+
+///|
+fn McpServer::handle_resources_list(
+  self : McpServer,
+  id : @types.JsonId?,
+) -> @types.JsonResponse {
+  let result = @types.McpResourcesListResult::{
+    resources: self.resources.list(),
+  }
+  @types.JsonResponse::{
+    jsonrpc: "2.0",
+    result: Some(result.to_json()),
+    error: None,
+    id,
+  }
+}
+
+///|
+fn McpServer::handle_resources_read(
+  self : McpServer,
+  params : @types.JsonValue?,
+  id : @types.JsonId?,
+) -> @types.JsonResponse {
+  let parsed_params = match params {
+    Some(value) => parse_read_resource_params(value)
+    None => Err("Invalid params: params is required")
+  }
+
+  match parsed_params {
+    Ok(read_params) =>
+      match self.resources.read(read_params.uri) {
+        Ok(content) => {
+          let result = @types.McpResourcesReadResult::{ contents: [content] }
+          @types.JsonResponse::{
+            jsonrpc: "2.0",
+            result: Some(result.to_json()),
+            error: None,
+            id,
+          }
+        }
+        Err(message) =>
+          @types.JsonResponse::{
+            jsonrpc: "2.0",
+            result: None,
+            error: Some(@types.JsonError::{
+              code: -32002,
+              message,
+              data: Some(
+                @types.Object({ "uri": @types.String(read_params.uri) }),
+              ),
+            }),
+            id,
+          }
+      }
+    Err(message) =>
+      @types.JsonResponse::{
+        jsonrpc: "2.0",
+        result: None,
+        error: Some(@types.JsonError::{ code: -32602, message, data: None }),
+        id,
+      }
+  }
+}
+
+///|
+fn McpServer::handle_prompts_list(
+  self : McpServer,
+  id : @types.JsonId?,
+) -> @types.JsonResponse {
+  let result = @types.McpPromptsListResult::{ prompts: self.prompts.list() }
+  @types.JsonResponse::{
+    jsonrpc: "2.0",
+    result: Some(result.to_json()),
+    error: None,
+    id,
+  }
+}
+
+///|
+fn McpServer::handle_prompts_get(
+  self : McpServer,
+  params : @types.JsonValue?,
+  id : @types.JsonId?,
+) -> @types.JsonResponse {
+  let parsed_params = match params {
+    Some(value) => parse_get_prompt_params(value)
+    None => Err("Invalid params: params is required")
+  }
+
+  match parsed_params {
+    Ok(prompt_params) =>
+      match self.prompts.get(prompt_params.name, prompt_params.arguments) {
+        Ok(result) =>
+          @types.JsonResponse::{
+            jsonrpc: "2.0",
+            result: Some(result.to_json()),
+            error: None,
+            id,
+          }
+        Err(message) =>
+          @types.JsonResponse::{
+            jsonrpc: "2.0",
+            result: None,
+            error: Some(@types.JsonError::{
+              code: -32602,
+              message,
+              data: Some(
+                @types.Object({ "name": @types.String(prompt_params.name) }),
+              ),
+            }),
+            id,
+          }
+      }
+    Err(message) =>
+      @types.JsonResponse::{
+        jsonrpc: "2.0",
+        result: None,
+        error: Some(@types.JsonError::{ code: -32602, message, data: None }),
+        id,
+      }
   }
 }
 
@@ -234,6 +377,46 @@ fn parse_tool_call_params(
       Ok(@types.McpToolCallParams::{ name, arguments })
     }
     _ => Err("Tool call params must be an object")
+  }
+}
+
+///|
+fn parse_read_resource_params(
+  json : @types.JsonValue,
+) -> Result[@types.McpReadResourceParams, String] {
+  match json {
+    @types.Object(map) => {
+      let uri = match map.get("uri") {
+        Some(@types.String(value)) if value.trim() != "" => value
+        _ => return Err("Missing or invalid 'uri' field")
+      }
+      Ok(@types.McpReadResourceParams::{ uri, })
+    }
+    _ => Err("Resource read params must be an object")
+  }
+}
+
+///|
+fn parse_get_prompt_params(
+  json : @types.JsonValue,
+) -> Result[@types.McpGetPromptParams, String] {
+  match json {
+    @types.Object(map) => {
+      let name = match map.get("name") {
+        Some(@types.String(value)) if value.trim() != "" => value
+        _ => return Err("Missing or invalid 'name' field")
+      }
+      let arguments = match map.get("arguments") {
+        Some(value) =>
+          match value {
+            @types.Object(_) => value
+            _ => return Err("Prompt arguments must be an object")
+          }
+        None => @types.Object(Map::new())
+      }
+      Ok(@types.McpGetPromptParams::{ name, arguments })
+    }
+    _ => Err("Prompt get params must be an object")
   }
 }
 

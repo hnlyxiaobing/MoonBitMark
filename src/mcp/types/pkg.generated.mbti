@@ -62,17 +62,99 @@ pub(all) enum McpContent {
 }
 pub fn McpContent::to_json(Self) -> JsonValue
 
+pub(all) struct McpGetPromptParams {
+  name : String
+  arguments : JsonValue
+}
+
+pub(all) struct McpGetPromptResult {
+  description : String?
+  messages : Array[McpPromptMessage]
+}
+pub fn McpGetPromptResult::to_json(Self) -> JsonValue
+
 pub(all) struct McpInitializeResult {
   protocol_version : String
   capabilities : McpServerCapabilities
   server_info : McpServerInfo
+  instructions : String?
 }
 pub fn McpInitializeResult::to_json(Self) -> JsonValue
 
+pub(all) struct McpPrompt {
+  name : String
+  title : String?
+  description : String?
+  arguments : Array[McpPromptArgument]?
+}
+pub fn McpPrompt::to_json(Self) -> JsonValue
+
+pub(all) struct McpPromptArgument {
+  name : String
+  description : String?
+  required : Bool?
+}
+pub fn McpPromptArgument::to_json(Self) -> JsonValue
+
+pub(all) struct McpPromptMessage {
+  role : String
+  content : TextContent
+}
+pub fn McpPromptMessage::to_json(Self) -> JsonValue
+
+pub(all) struct McpPromptsListResult {
+  prompts : Array[McpPrompt]
+}
+pub fn McpPromptsListResult::to_json(Self) -> JsonValue
+
+pub(all) struct McpReadResourceParams {
+  uri : String
+}
+
+pub(all) struct McpResource {
+  uri : String
+  name : String
+  title : String?
+  description : String?
+  mime_type : String?
+  size : Int?
+}
+pub fn McpResource::to_json(Self) -> JsonValue
+
+pub(all) struct McpResourceContents {
+  uri : String
+  mime_type : String?
+  text : String
+}
+pub fn McpResourceContents::to_json(Self) -> JsonValue
+
+pub(all) struct McpResourcesListResult {
+  resources : Array[McpResource]
+}
+pub fn McpResourcesListResult::to_json(Self) -> JsonValue
+
+pub(all) struct McpResourcesReadResult {
+  contents : Array[McpResourceContents]
+}
+pub fn McpResourcesReadResult::to_json(Self) -> JsonValue
+
 pub(all) struct McpServerCapabilities {
   tools : McpServerCapabilitiesTools
+  resources : McpServerCapabilitiesResources?
+  prompts : McpServerCapabilitiesPrompts?
 }
 pub fn McpServerCapabilities::to_json(Self) -> JsonValue
+
+pub(all) struct McpServerCapabilitiesPrompts {
+  list_changed : Bool
+}
+pub fn McpServerCapabilitiesPrompts::to_json(Self) -> JsonValue
+
+pub(all) struct McpServerCapabilitiesResources {
+  subscribe : Bool
+  list_changed : Bool
+}
+pub fn McpServerCapabilitiesResources::to_json(Self) -> JsonValue
 
 pub(all) struct McpServerCapabilitiesTools {
   list_changed : Bool

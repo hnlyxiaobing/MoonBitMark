@@ -8,10 +8,11 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptDir '..\..')).Path
 $releaseBinary = Join-Path $repoRoot '_build\native\release\build\cmd\mcp-server\mcp-server.exe'
+$skipReleaseBinary = $env:MOONBITMARK_MCP_SKIP_RELEASE_BINARY -eq '1'
 
 Push-Location $repoRoot
 try {
-    if (Test-Path $releaseBinary) {
+    if (-not $skipReleaseBinary -and (Test-Path $releaseBinary)) {
         & $releaseBinary @ForwardArgs
     }
     else {

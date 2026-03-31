@@ -5,29 +5,47 @@
 fn print_usage() -> Unit {
   println("MoonBitMark MCP Server v0.3.0")
   println("")
-  println("Recommended launchers:")
-  println("  - scripts/mcp/moonbitmark-mcp.cmd")
+  println("Recommended local entry points:")
+  println("  - cmd /d /c scripts\\mcp\\moonbitmark-mcp.cmd")
   println(
-    "  - powershell -ExecutionPolicy Bypass -File scripts/mcp/moonbitmark-mcp.ps1",
+    "  - powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts\\mcp\\moonbitmark-mcp.ps1",
   )
   println("")
   println("Fallback:")
-  println("  - moon run cmd/mcp-server")
+  println("  - moon run --target native --release -q cmd/mcp-server")
   println("")
-  println("Verified STDIO methods: initialize, tools/list, tools/call")
+  println(
+    "Verified STDIO methods: initialize, tools/list, tools/call, resources/list, resources/read, prompts/list, prompts/get",
+  )
   println(
     "Transport: STDIO only, JSON-RPC 2.0 framing by newline-delimited requests.",
   )
   println("")
   println("Available tools:")
-  println("  - convert_to_markdown: Convert documents to Markdown")
+  println(
+    "  - inspect_document: Detect format, size, OCR/bridge risk, preview recommendation",
+  )
+  println(
+    "  - convert_to_markdown: Preview by default, full when explicitly requested",
+  )
+  println("  - resources/read: Static capability and boundary resources")
+  println(
+    "  - prompts/get: Guided prompt templates for conversion and diagnosis",
+  )
   println("")
   println("Validation:")
   println("  - powershell -File tests/integration/mcp_stdio_smoke.ps1")
+  println("  - powershell -File tests/integration/mcp_resources_smoke.ps1")
+  println("  - powershell -File tests/integration/mcp_prompts_smoke.ps1")
+  println("  - powershell -File tests/integration/mcp_security_smoke.ps1")
   println("")
-  println(
-    "Current limits: no HTTP/SSE, no prompts/resources, no streaming responses.",
-  )
+  println("Security envs:")
+  println("  - MOONBITMARK_MCP_ALLOWED_ROOTS")
+  println("  - MOONBITMARK_MCP_ALLOW_HTTP")
+  println("  - MOONBITMARK_MCP_ENABLE_OCR")
+  println("  - MOONBITMARK_MCP_MAX_OUTPUT_CHARS")
+  println("")
+  println("Current limits: no HTTP transport, no SSE, no streaming responses.")
 }
 
 ///|

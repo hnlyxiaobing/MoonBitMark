@@ -2,27 +2,72 @@
 package "moonbitlang/moonbitmark/src/mcp/handler"
 
 import {
+  "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/mcp/transport",
   "moonbitlang/moonbitmark/src/mcp/types",
   "moonbitlang/moonbitmark/src/mcp/util",
 }
 
 // Values
+pub fn build_mcp_convert_context(McpSecurityConfig) -> @core.ConvertContext
+
+pub fn clamp_mcp_output_chars(Int?, McpSecurityConfig) -> Int?
+
 pub async fn convert_document_to_markdown(String) -> String
 
 pub fn detect_document_type(String) -> String
 
+pub fn enforce_mcp_input_boundary(String, McpSecurityConfig) -> Result[String, String]
+
+pub fn load_mcp_security_config() -> Result[McpSecurityConfig, String]
+
 // Errors
 
 // Types and methods
+pub(all) struct McpSecurityConfig {
+  allowed_roots : Array[String]
+  allow_http : Bool
+  enable_ocr : Bool
+  max_output_chars : Int?
+}
+
 pub(all) struct McpServer {
   tools : ToolRegistry
+  resources : ResourceRegistry
+  prompts : PromptRegistry
   transport : @transport.StdioTransport
 }
 pub async fn McpServer::handle_jsonrpc_request(Self, String) -> @types.JsonResponse?
 pub fn McpServer::new(@transport.StdioTransport) -> Self
 pub fn McpServer::new_with_logger(@transport.StdioTransport, @util.Logger) -> Self
 pub async fn McpServer::run(Self) -> Unit
+
+pub(all) struct PromptDefinition {
+  prompt : @types.McpPrompt
+}
+
+pub(all) struct PromptRegistry {
+  prompts : Array[PromptDefinition]
+}
+pub fn PromptRegistry::get(Self, String, @types.JsonValue) -> Result[@types.McpGetPromptResult, String]
+pub fn PromptRegistry::list(Self) -> Array[@types.McpPrompt]
+pub fn PromptRegistry::new() -> Self
+pub fn PromptRegistry::register(Self, PromptDefinition) -> Self raise
+pub fn PromptRegistry::register_static_prompts(Self) -> Self raise
+
+pub(all) struct ResourceDefinition {
+  resource : @types.McpResource
+  text : String
+}
+
+pub(all) struct ResourceRegistry {
+  resources : Array[ResourceDefinition]
+}
+pub fn ResourceRegistry::list(Self) -> Array[@types.McpResource]
+pub fn ResourceRegistry::new() -> Self
+pub fn ResourceRegistry::read(Self, String) -> Result[@types.McpResourceContents, String]
+pub fn ResourceRegistry::register(Self, ResourceDefinition) -> Self raise
+pub fn ResourceRegistry::register_static_resources(Self) -> Self raise
 
 pub(all) struct ToolDefinition {
   name : String

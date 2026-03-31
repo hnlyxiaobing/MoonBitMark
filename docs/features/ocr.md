@@ -16,6 +16,8 @@ So OCR availability depends on both:
 - a selected backend (`mock`, `tesseract`, or whatever `auto` can find)
 - for PDF recovery, a Python environment that can render PDF pages (the bridge will delegate to the local baseline venv when needed)
 
+For the MCP server specifically, OCR is additionally gated by `MOONBITMARK_MCP_ENABLE_OCR`. The MCP path does not opt into OCR unless that environment variable is set to `1` or `true`.
+
 ## CLI Surface
 
 ```text
