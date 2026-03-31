@@ -43,6 +43,34 @@ jobs:
         shell: bash
         run: moon test
 
+  coverage-check:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up MoonBit
+        shell: bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          moon version --all
+          moon update
+
+      - name: moon test with coverage
+        shell: bash
+        run: moon test --enable-coverage
+
+      - name: moon coverage analyze
+        shell: bash
+        run: |
+          moon coverage analyze > coverage-report.txt
+          tail -n 20 coverage-report.txt
+
   windows-native-check-and-test:
     runs-on: windows-latest
     permissions:

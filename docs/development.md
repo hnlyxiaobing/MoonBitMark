@@ -21,15 +21,25 @@ scripts\test.bat
 1. 先改实现和测试。
 2. 运行 `moon check` 做快速类型检查。
 3. 运行 `moon test` 验证行为。
-4. 涉及格式输出质量时，运行 `python tests/conversion_eval/scripts/run_eval.py run`。
-5. 运行 `moon info` 更新接口文件，检查 `.mbti` 变化是否符合预期。
-6. 运行 `moon fmt` 做最终格式化。
+4. 需要查看测试覆盖时，先运行 `moon test --enable-coverage`，再运行 `moon coverage analyze`。
+5. 涉及格式输出质量时，运行 `python tests/conversion_eval/scripts/run_eval.py run`。
+6. 运行 `moon info` 更新接口文件，检查 `.mbti` 变化是否符合预期。
+7. 运行 `moon fmt` 做最终格式化。
 
 如果输出是有意变化，再执行：
 
 ```bash
 moon test --update
 ```
+
+## Coverage 工作流
+
+```bash
+moon test --enable-coverage
+moon coverage analyze
+```
+
+如果需要保存报告，可以把 `moon coverage analyze` 的输出重定向到日志文件再做筛查。
 
 ## 质量回归建议
 

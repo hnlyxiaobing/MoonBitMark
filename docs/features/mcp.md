@@ -14,6 +14,7 @@ What is verified today:
   - `tools/call`
   - `notifications/initialized` (no stdout response)
 - stdout stays reserved for protocol responses in the smoke-checked path
+- the live server path does not retain a logger, so protocol framing does not depend on a logger implementation detail
 
 What is not claimed:
 
@@ -62,6 +63,7 @@ cmd/mcp-server
 ## Operational notes
 
 - Keep stdout reserved for protocol responses.
+- If logging is reintroduced later, route it outside the live STDIO protocol path before expanding MCP scope.
 - Reject unsupported `jsonrpc` versions instead of guessing.
 - Notifications without `id` must not emit JSON-RPC responses.
 - Do not treat `conversion_eval` quality scores as proof that MCP is fully implemented.

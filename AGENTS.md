@@ -28,6 +28,12 @@ _build/native/release/build/cmd/main/main.exe <input> [output]
 # Run tests
 moon test
 
+# Run tests with coverage enabled
+moon test --enable-coverage
+
+# Analyze coverage after coverage-enabled tests
+moon coverage analyze
+
 # Update snapshots after intentional output changes
 moon test --update
 
@@ -142,8 +148,10 @@ suberror MyError { NotFound, InvalidInput(String) }
 - Prefer `assert_eq` or `assert_true(pattern is Pattern(...))` for results that
   are stable or very unlikely to change. Use snapshot tests to record current
   behavior. For solid, well-defined results (e.g. scientific computations),
-  prefer assertion tests. You can use `moon coverage analyze > uncovered.log` to
-  see which parts of your code are not covered by tests.
+  prefer assertion tests. To inspect coverage, first run
+  `moon test --enable-coverage`, then run `moon coverage analyze` (optionally
+  redirecting to a log file) to see which parts of your code are not covered by
+  tests.
 
 ## Repo-Scoped Skills
 

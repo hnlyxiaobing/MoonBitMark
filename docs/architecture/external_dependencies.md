@@ -12,7 +12,7 @@ This document is the source of truth for "pure MoonBit" versus "bridge/process-b
 | OCR | No | Python runtime plus `scripts/ocr/bridge.py`; backend may be `mock` or system `tesseract` | Optional capability | `tests/ocr/*.ps1` |
 | MCP STDIO server | Yes for current minimal loop | No extra runtime beyond built binary | Experimental entrypoint | `tests/integration/mcp_stdio_smoke.ps1` |
 | Conversion eval baselines | No | Python env with `markitdown` / `docling` | Optional/manual | `run_eval.py run --compare-baselines` |
-| Portable source validation (Linux/macOS) | Yes for source-level check/test | Runner toolchain and MoonBit install | CI validates `moon check` / `moon test` only | `.github/workflows/ci.yml` |
+| Portable source validation (Linux/macOS) | Yes for source-level check/test | Runner toolchain and MoonBit install | CI validates `moon check` / `moon test` on Linux/macOS, plus a separate non-blocking Ubuntu coverage check | `.github/workflows/ci.yml` |
 | Native Windows build | No | MSVC toolchain, `cl.exe`, vcvars environment | Required for native release builds on Windows | `scripts/build.bat`, CI |
 
 ## OCR Boundary
@@ -41,6 +41,7 @@ This document is the source of truth for "pure MoonBit" versus "bridge/process-b
 - `scripts/build.bat` and `scripts/test.bat` load `MOONBITMARK_VCVARS64` before invoking `moon`.
 - CI now distinguishes between:
   - portable source validation on Linux/macOS via `moon check` / `moon test`
+  - non-blocking Ubuntu coverage validation via `moon test --enable-coverage` / `moon coverage analyze`
   - Windows-only native release validation via MSVC
 
 This is intentional. The assumption is now documented instead of being implied.

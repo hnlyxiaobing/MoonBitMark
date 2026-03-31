@@ -4,7 +4,6 @@
 pub(all) struct McpServer {
   tools : ToolRegistry
   transport : @transport.StdioTransport
-  logger : @util.Logger
 }
 
 ///|
@@ -17,11 +16,14 @@ pub fn McpServer::new_with_logger(
   transport : @transport.StdioTransport,
   logger : @util.Logger,
 ) -> McpServer {
+  // Keep the compatibility constructor, but do not retain a logger on the
+  // live STDIO server path where stdout must stay protocol-clean.
+  ignore(logger)
   let registry = ToolRegistry::new().register_convert_tools() catch {
     _error => ToolRegistry::new()
   }
 
-  McpServer::{ tools: registry, transport, logger }
+  McpServer::{ tools: registry, transport }
 }
 
 ///|
