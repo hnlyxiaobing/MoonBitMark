@@ -6,6 +6,23 @@
 
 ## 推荐验收顺序
 
+### 0. 直接跑一条命令的速跑脚本
+
+如果你不想手动敲每一步，先执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/judge_quickstart.ps1
+```
+
+它会：
+
+- 运行 `moon test`
+- 复用现有 release binary，缺失时自动走 `scripts\build.bat`
+- 生成 HTML 样例 Markdown、PDF diagnostics JSON、HTML AST JSON
+- 把产物落到 `_build\judge-quickstart\`
+
+手动验收步骤仍然保留在下面，方便你逐项确认。
+
 ### 1. 先看项目定位
 
 建议先读：
@@ -28,7 +45,7 @@ moon test
 
 当前基线：
 
-- `moon test` 通过数：`165/165`
+- `moon test` 通过数：`184/184`
 
 ### 3. 做 Windows native release 构建
 
@@ -52,6 +69,10 @@ _build\native\release\build\cmd\main\main.exe tests\conversion_eval\fixtures\inp
 
 你应该能直接看到 Markdown 输出。
 
+如果你跑的是 `scripts/judge_quickstart.ps1`，对应输出会落到：
+
+- `_build\judge-quickstart\html_simple_table.md`
+
 ### 5. 看结构化 diagnostics
 
 ```powershell
@@ -66,6 +87,10 @@ _build\native\release\build\cmd\main\main.exe --diag-json tests\conversion_eval\
 
 这一步能看出 MoonBitMark 的一个核心设计，不只是“转出 Markdown”，而是把转换过程里的结构化信息一起暴露出来。
 
+如果你跑的是 `scripts/judge_quickstart.ps1`，对应输出会落到：
+
+- `_build\judge-quickstart\pdf_multi_page_diag.json`
+
 ### 6. 看 AST strict JSON
 
 ```powershell
@@ -73,6 +98,10 @@ _build\native\release\build\cmd\main\main.exe --dump-ast tests\conversion_eval\f
 ```
 
 这一步可以验证项目不只是文本拼接，而是有统一 AST 输出协议。
+
+如果你跑的是 `scripts/judge_quickstart.ps1`，对应输出会落到：
+
+- `_build\judge-quickstart\html_simple_table_ast.json`
 
 ### 7. 跑 MCP smoke check
 
@@ -107,10 +136,10 @@ python tests/conversion_eval/scripts/run_eval.py run
 
 如果时间非常紧，只做下面四步就够了：
 
-1. `moon test`
-2. `moon build --target native --release`
-3. 跑一个 CLI 示例
-4. 跑 `--diag-json`
+1. 优先直接跑 `powershell -ExecutionPolicy Bypass -File scripts/judge_quickstart.ps1`
+2. 如果不想跑脚本，至少手动执行 `moon test`
+3. 手动跑一个 CLI 示例
+4. 手动跑 `--diag-json`
 
 这四步足够判断：
 

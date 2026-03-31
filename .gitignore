@@ -15,7 +15,15 @@ gui/
 prompt.txt
 MEMORY.md
 USER.md
-assets/gep/
+# Evolver runtime state stays local, but curated gene libraries are tracked.
+assets/gep/*
+!assets/gep/README.md
+!assets/gep/genes.json
+!assets/gep/scopes/
+assets/gep/scopes/*
+!assets/gep/scopes/competition-finish/
+assets/gep/scopes/competition-finish/*
+!assets/gep/scopes/competition-finish/genes.json
 logs/
 memory/
 tests/conversion_eval/fixtures/inputs/**/*.csv

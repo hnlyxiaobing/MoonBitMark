@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "genes": [
+    {
+      "type": "Gene",
+      "id": "gene_gep_repair_from_errors",
+      "summary": "Recover from validation or runtime failures with the smallest reversible fix.",
+      "category": "repair",
+      "signals_match": [
+        "error",
+        "exception",
+        "failed",
+        "unstable"
+      ],
+      "preconditions": [
+        "signals contains error-related indicators"
+      ],
+      "strategy": [
+        "Extract structured signals from logs and user instructions",
+        "Select an existing Gene by signals match without improvisation",
+        "Estimate blast radius before editing",
+        "Apply the smallest reversible patch",
+        "Validate using repo-appropriate commands and rollback on failure",
+        "Record the outcome in the evolution assets"
+      ],
+      "constraints": {
+        "max_files": 12,
+        "forbidden_paths": [
+          ".git",
+          "node_modules"
+        ]
+      },
+      "validation": [
+        "node scripts/validate-evolver-target.js"
+      ]
+    },
+    {
+      "type": "Gene",
+      "id": "gene_gep_optimize_prompt_and_assets",
+      "summary": "Tighten Evolver prompts and asset wiring while keeping validation aligned with this repository.",
+      "category": "optimize",
+      "signals_match": [
+        "protocol",
+        "gep",
+        "prompt",
+        "audit",
+        "reusable"
+      ],
+      "preconditions": [
+        "need stricter, auditable evolution protocol outputs"
+      ],
+      "strategy": [
+        "Inspect prompt and asset surfaces that affect reviewer clarity",
+        "Prefer existing genes and assets over inventing new workflow layers",
+        "Reduce ambiguity while preserving repository-specific guardrails",
+        "Validate with MoonBitMark's canonical repo checks"
+      ],
+      "constraints": {
+        "max_files": 20,
+        "forbidden_paths": [
+          ".git",
+          "node_modules"
+        ]
+      },
+      "validation": [
+        "node scripts/validate-evolver-target.js"
+      ]
+    },
+    {
+      "type": "Gene",
+      "id": "gene_tool_integrity",
+      "summary": "Keep Evolver on registered tools and honest failure reporting instead of shell workarounds.",
+      "category": "repair",
+      "signals_match": [
+        "tool_bypass"
+      ],
+      "preconditions": [
+        "agent used shell or exec to do work that a registered tool can handle"
+      ],
+      "strategy": [
+        "Prefer registered tools over ad-hoc shell detours",
+        "Report the actual failing command and root cause",
+        "Do not fabricate recovery steps or hidden helper scripts"
+      ],
+      "constraints": {
+        "max_files": 4,
+        "forbidden_paths": [
+          ".git",
+          "node_modules"
+        ]
+      },
+      "validation": [
+        "node scripts/validate-evolver-target.js"
+      ],
+      "anti_patterns": [
+        "tool_bypass"
+      ]
+    },
+    {
+      "type": "Gene",
+      "schema_version": "1.5.0",
+      "id": "gene_competition_polish_judge_path",
+      "summary": "Improve competition-facing reviewer flow, docs coherence, and demo polish with minimal blast radius.",
+      "category": "optimize",
+      "signals_match": [
+        "user_feature_request",
+        "user_improvement_suggestion",
+        "reviewer",
+        "judge",
+        "competition",
+        "docs",
+        "demo",
+        "diagnostics"
+      ],
+      "preconditions": [
+        "core functionality is already validated",
+        "the user wants final competition polish instead of broad feature expansion"
+      ],
+      "strategy": [
+        "Inspect README, competition docs, and example paths for missing reviewer shortcuts",
+        "Prefer 1 to 3 low-risk changes in docs, examples, or diagnostics visibility",
+        "Add or tighten a shortest-path demonstration from sample input to Markdown and diagnostics output",
+        "Improve explainability and credibility without hiding bridge-backed boundaries",
+        "Validate any touched paths with the lightest relevant checks and keep blast radius small"
+      ],
+      "constraints": {
+        "max_files": 8,
+        "forbidden_paths": [
+          ".git",
+          "node_modules",
+          "_build"
+        ]
+      },
+      "validation": [
+        "node scripts/validate-evolver-target.js"
+      ]
+    }
+  ]
+}
