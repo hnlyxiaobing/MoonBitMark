@@ -3,16 +3,18 @@
 ///|
 /// 打印使用说明
 fn print_usage() -> Unit {
-  println("MoonBitMark MCP Server v0.3.0 (experimental)")
+  println("MoonBitMark MCP Server v0.3.0")
   println("")
-  println("Usage: moon run cmd/mcp-server")
-  println("")
+  println("Recommended launchers:")
+  println("  - scripts/mcp/moonbitmark-mcp.cmd")
   println(
-    "This command exposes a minimal STDIO MCP server for integration tests",
+    "  - powershell -ExecutionPolicy Bypass -File scripts/mcp/moonbitmark-mcp.ps1",
   )
-  println("and early tool/agent experiments.")
   println("")
-  println("Verified methods: initialize, tools/list, tools/call")
+  println("Fallback:")
+  println("  - moon run cmd/mcp-server")
+  println("")
+  println("Verified STDIO methods: initialize, tools/list, tools/call")
   println(
     "Transport: STDIO only, JSON-RPC 2.0 framing by newline-delimited requests.",
   )

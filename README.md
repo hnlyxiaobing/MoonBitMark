@@ -2,7 +2,7 @@
 
 MoonBitMark 是一个用 MoonBit 实现的文档转 Markdown 引擎，强调轻依赖、原生分发、结构化 diagnostics，以及面向 AI-native 工具链的可演进接口。
 
-当前主入口是 CLI。MCP STDIO 服务已打通最小闭环，但仍处于实验阶段。
+当前主入口是 CLI。MCP capability surface 仍处于实验阶段，但本地 STDIO 入口已经补齐稳定 launcher，并提供了面向 Claude Code / Codex 的可复制接入配置。
 
 ## 为什么这个项目值得做
 
@@ -100,6 +100,39 @@ _build\native\release\build\cmd\main\main.exe --dump-ast tests\conversion_eval\f
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_stdio_smoke.ps1
 ```
+
+如果你要把 MoonBitMark 作为本地 MCP server 接入：
+
+Claude Code 项目级 `.mcp.json` 示例：
+
+```json
+{
+  "mcpServers": {
+    "moonbitmark": {
+      "command": "cmd",
+      "args": ["/d", "/c", "scripts\\mcp\\moonbitmark-mcp.cmd"]
+    }
+  }
+}
+```
+
+Codex 配置示例：
+
+```toml
+[mcp_servers.moonbitmark]
+command = "cmd"
+args = ["/d", "/c", "scripts\\mcp\\moonbitmark-mcp.cmd"]
+```
+
+推荐 launcher：
+
+```bat
+scripts\mcp\moonbitmark-mcp.cmd
+```
+
+详细说明见：
+
+- [`docs/features/mcp.md`](docs/features/mcp.md)
 
 如果你想看完整质量评测：
 
@@ -209,7 +242,7 @@ cmd/
 - CLI 是当前主公共入口
 - OCR 是可选能力，依赖 `python scripts/ocr/bridge.py`
 - PDF 主路径以 MoonBit-native 提取为主，fallback 可能走 `scripts/pdf/bridge.py`
-- MCP 当前是实验性 STDIO 入口，不是完整协议面
+- MCP 当前是实验性协议面，但本地 STDIO launcher 已有明确入口和 smoke coverage
 - baseline 对比（`markitdown` / `docling`）是可选环境，不是默认依赖
 - Windows native release 构建依赖 MSVC
 

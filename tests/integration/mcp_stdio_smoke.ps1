@@ -4,6 +4,8 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Get-MoonBitMarkRepoRoot -ScriptPath $PSScriptRoot
 $binary = Join-Path $repoRoot '_build\native\release\build\cmd\mcp-server\mcp-server.exe'
+$cmdLauncher = Join-Path $repoRoot 'scripts\mcp\moonbitmark-mcp.cmd'
+$psLauncher = Join-Path $repoRoot 'scripts\mcp\moonbitmark-mcp.ps1'
 Ensure-MoonBitMarkReleaseBinary -RepoRoot $repoRoot -BinaryPath $binary
 
 $tempRoot = Join-Path $repoRoot '_build\test-tmp\mcp'
@@ -19,10 +21,15 @@ $textInput = Join-Path $tempRoot 'smoke.txt'
 function Invoke-McpRawRequest {
     param(
         [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [string[]]$Arguments = @(),
+
+        [Parameter(Mandatory = $true)]
         [string]$RequestJson
     )
 
-    $result = Invoke-NativeCommand -FilePath $binary -WorkingDirectory $repoRoot -StdIn $RequestJson
+    $result = Invoke-NativeCommand -FilePath $FilePath -Arguments $Arguments -WorkingDirectory $repoRoot -StdIn $RequestJson
     if ($result.ExitCode -ne 0) {
         throw "MCP server failed for request: $RequestJson`nSTDERR:`n$($result.StdErr)"
     }
@@ -35,12 +42,27 @@ function Invoke-McpRawRequest {
 function Invoke-McpRequest {
     param(
         [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [string[]]$Arguments = @(),
+
+        [Parameter(Mandatory = $true)]
         [string]$RequestJson
     )
 
-    $result = Invoke-McpRawRequest -RequestJson $RequestJson
+    $result = Invoke-McpRawRequest -FilePath $FilePath -Arguments $Arguments -RequestJson $RequestJson
     return $result.StdOut.Trim() | ConvertFrom-Json
 }
+
+$cmdLauncherArgs = @('/d', '/c', $cmdLauncher)
+$psLauncherArgs = @(
+    '-NoLogo',
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    $psLauncher
+)
 
 $notificationRequest = @{
     jsonrpc = '2.0'
@@ -48,7 +70,7 @@ $notificationRequest = @{
     params = @{}
 } | ConvertTo-Json -Compress
 
-$notificationResponse = Invoke-McpRawRequest -RequestJson $notificationRequest
+$notificationResponse = Invoke-McpRawRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $notificationRequest
 if ($notificationResponse.StdOut.Trim() -ne '') {
     throw 'MCP notifications must not emit a stdout response.'
 }
@@ -67,9 +89,14 @@ $initializeRequest = @{
     id = 1
 } | ConvertTo-Json -Compress -Depth 5
 
-$initializeResponse = Invoke-McpRequest -RequestJson $initializeRequest
+$initializeResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $initializeRequest
 if ($initializeResponse.result.serverInfo.name -ne 'moonbitmark') {
     throw "Unexpected MCP server name: $($initializeResponse.result.serverInfo.name)"
+}
+
+$psInitializeResponse = Invoke-McpRequest -FilePath 'powershell.exe' -Arguments $psLauncherArgs -RequestJson $initializeRequest
+if ($psInitializeResponse.result.serverInfo.name -ne 'moonbitmark') {
+    throw "PowerShell launcher returned unexpected server name: $($psInitializeResponse.result.serverInfo.name)"
 }
 
 $toolsListRequest = @{
@@ -78,7 +105,7 @@ $toolsListRequest = @{
     id = 2
 } | ConvertTo-Json -Compress
 
-$toolsListResponse = Invoke-McpRequest -RequestJson $toolsListRequest
+$toolsListResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $toolsListRequest
 if ($toolsListResponse.result.tools[0].name -ne 'convert_to_markdown') {
     throw 'tools/list did not expose convert_to_markdown.'
 }
@@ -95,10 +122,10 @@ $toolsCallRequest = @{
     id = 3
 } | ConvertTo-Json -Compress -Depth 5
 
-$toolsCallResponse = Invoke-McpRequest -RequestJson $toolsCallRequest
+$toolsCallResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $toolsCallRequest
 if ($toolsCallResponse.result.isError -ne $false) {
     throw 'tools/call unexpectedly returned an error result.'
 }
 Assert-ContainsText -Text $toolsCallResponse.result.content[0].text -Expected 'mcp smoke line 1' -Context 'tools/call markdown'
 
-Write-Host 'MCP stdio smoke checks passed.'
+Write-Host 'MCP stdio launcher smoke checks passed.'
