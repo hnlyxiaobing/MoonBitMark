@@ -13,6 +13,11 @@ gui/
 !.codex/skills/moonbitmark-commit-push/**
 .codex/vendor/*
 prompt.txt
+MEMORY.md
+USER.md
+assets/gep/
+logs/
+memory/
 tests/conversion_eval/fixtures/inputs/**/*.csv
 tests/conversion_eval/fixtures/inputs/**/*.docx
 tests/conversion_eval/fixtures/inputs/**/*.epub
