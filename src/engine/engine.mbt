@@ -259,32 +259,6 @@ fn find_last_char(s : String, target : Char) -> Int? {
 }
 
 ///|
-fn resolve_input_name(input : @core.InputSource) -> String raise {
-  let input_name = match input {
-    @core.FileInput(path, _) => path
-    @core.UrlInput(url, _) => url
-    @core.BytesInput(name, _, _) =>
-      match name {
-        Some(value) => value
-        None =>
-          fail(
-            render_engine_failure(
-              @core.InputError(
-                "Bytes input is not supported without a source name",
-                None,
-              ),
-              Some(@core.Load(Some("resolve-input"))),
-              Some(@core.Bytes(None)),
-              Some(@core.ProvideBytesSourceName),
-            ),
-          )
-      }
-  }
-
-  input_name
-}
-
-///|
 async fn finalize_result(
   raw_result : @core.ConvertResult,
   converter : ConverterRegistration,
@@ -963,7 +937,9 @@ async fn convert_docx(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @docx.DocxConverter::convert(resolve_input_name(input), ctx~)
+  convert_with_materialized_path(input, "docx", @core.CheckArchiveIntegrity, path => {
+    @docx.DocxConverter::convert(path, ctx~)
+  })
 }
 
 ///|
@@ -971,7 +947,9 @@ async fn convert_epub(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @epub.EpubConverter::convert(resolve_input_name(input), ctx~)
+  convert_with_materialized_path(input, "epub", @core.CheckArchiveIntegrity, path => {
+    @epub.EpubConverter::convert(path, ctx~)
+  })
 }
 
 ///|
@@ -979,7 +957,9 @@ async fn convert_pptx(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @pptx.PptxConverter::convert(resolve_input_name(input), ctx~)
+  convert_with_materialized_path(input, "pptx", @core.CheckArchiveIntegrity, path => {
+    @pptx.PptxConverter::convert(path, ctx~)
+  })
 }
 
 ///|
@@ -987,7 +967,9 @@ async fn convert_xlsx(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @xlsx.XlsxConverter::convert(resolve_input_name(input), ctx~)
+  convert_with_materialized_path(input, "xlsx", @core.CheckArchiveIntegrity, path => {
+    @xlsx.XlsxConverter::convert(path, ctx~)
+  })
 }
 
 ///|
@@ -995,7 +977,9 @@ async fn convert_pdf(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @pdf.PdfConverter::convert(resolve_input_name(input), ctx~)
+  convert_with_materialized_path(input, "pdf", @core.InspectSourceDocument, path => {
+    @pdf.PdfConverter::convert(path, ctx~)
+  })
 }
 
 ///|
@@ -1003,7 +987,9 @@ async fn convert_image(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @image.ImageConverter::convert(resolve_input_name(input), ctx~)
+  convert_with_materialized_path(input, "image", @core.InspectSourceDocument, path => {
+    @image.ImageConverter::convert(path, ctx~)
+  })
 }
 
 ///|
@@ -1011,7 +997,9 @@ async fn convert_html(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @html.HtmlConverter::convert(resolve_input_name(input), ctx~)
+  convert_with_materialized_path(input, "html", @core.InspectSourceDocument, path => {
+    @html.HtmlConverter::convert(path, ctx~)
+  })
 }
 
 ///|
@@ -1019,7 +1007,7 @@ async fn convert_json(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @json.JsonConverter::convert(resolve_input_name(input), ctx~)
+  @json.JsonConverter::convert_source(input, ctx~)
 }
 
 ///|
@@ -1027,7 +1015,7 @@ async fn convert_csv(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @csv.CsvConverter::convert(resolve_input_name(input), ctx~)
+  @csv.CsvConverter::convert_source(input, ctx~)
 }
 
 ///|
@@ -1035,5 +1023,5 @@ async fn convert_text(
   input : @core.InputSource,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
-  @text.TextConverter::convert(resolve_input_name(input), ctx~)
+  @text.TextConverter::convert_source(input, ctx~)
 }

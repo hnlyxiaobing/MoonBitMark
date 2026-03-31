@@ -15,6 +15,8 @@ $textInput = Join-Path $allowedRoot 'security.txt'
 1..200 | ForEach-Object {
     "security smoke line $_"
 } | Set-Content -Path $textInput -Encoding utf8
+$uploadedText = (1..40 | ForEach-Object { "uploaded security line $_" }) -join "`n"
+$uploadedBase64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($uploadedText))
 
 function Convert-SummaryTextToMap {
     param(
@@ -147,5 +149,57 @@ if ($convertSummary['returned_chars'] -ne '80') {
 if ($convertSummary['truncated'] -ne 'true') {
     throw 'convert_to_markdown should report truncation under MOONBITMARK_MCP_MAX_OUTPUT_CHARS.'
 }
+
+$uploadConvertRequest = @{
+    jsonrpc = '2.0'
+    method = 'tools/call'
+    params = @{
+        name = 'convert_uploaded_document'
+        arguments = @{
+            filename = 'uploaded-security.txt'
+            data_base64 = $uploadedBase64
+            mode = 'full'
+        }
+    }
+    id = 5
+} | ConvertTo-Json -Compress -Depth 6
+
+$uploadConvertResponse = Invoke-McpRequest -RequestJson $uploadConvertRequest -Environment @{
+    MOONBITMARK_MCP_MAX_OUTPUT_CHARS = '80'
+}
+if ($uploadConvertResponse.result.isError -ne $false) {
+    throw 'convert_uploaded_document should succeed under MOONBITMARK_MCP_MAX_OUTPUT_CHARS.'
+}
+$uploadSummary = Convert-SummaryTextToMap -Text $uploadConvertResponse.result.content[0].text
+if ($uploadSummary['effective_max_chars'] -ne '80') {
+    throw "uploaded effective_max_chars should be clamped to 80, got $($uploadSummary['effective_max_chars'])"
+}
+if ($uploadSummary['returned_chars'] -ne '80') {
+    throw "uploaded returned_chars should be clamped to 80, got $($uploadSummary['returned_chars'])"
+}
+if ($uploadSummary['truncated'] -ne 'true') {
+    throw 'convert_uploaded_document should report truncation under MOONBITMARK_MCP_MAX_OUTPUT_CHARS.'
+}
+
+$uploadLimitRequest = @{
+    jsonrpc = '2.0'
+    method = 'tools/call'
+    params = @{
+        name = 'upload_document'
+        arguments = @{
+            filename = 'too-large.txt'
+            data_base64 = $uploadedBase64
+        }
+    }
+    id = 6
+} | ConvertTo-Json -Compress -Depth 6
+
+$uploadLimitResponse = Invoke-McpRequest -RequestJson $uploadLimitRequest -Environment @{
+    MOONBITMARK_MCP_MAX_UPLOAD_BYTES = '8'
+}
+if ($uploadLimitResponse.result.isError -ne $true) {
+    throw 'upload_document should reject payloads over MOONBITMARK_MCP_MAX_UPLOAD_BYTES.'
+}
+Assert-ContainsText -Text $uploadLimitResponse.result.content[0].text -Expected 'MOONBITMARK_MCP_MAX_UPLOAD_BYTES' -Context 'upload size boundary'
 
 Write-Host 'MCP security smoke checks passed, including HTTP denial, allowed-roots enforcement, OCR env surfacing, and output-cap clamping.'

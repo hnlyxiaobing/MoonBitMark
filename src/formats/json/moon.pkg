@@ -1,5 +1,7 @@
 import {
+  "moonbitlang/async",
   "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/core/json" @corejson,
+  "moonbitlang/core/encoding/utf8",
 }

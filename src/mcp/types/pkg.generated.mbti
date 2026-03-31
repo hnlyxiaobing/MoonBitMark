@@ -12,6 +12,7 @@ pub(all) struct JsonError {
   message : String
   data : JsonValue?
 }
+pub fn JsonError::to_json(Self) -> JsonValue
 
 pub(all) enum JsonId {
   StringId(String)
@@ -43,6 +44,7 @@ pub(all) struct JsonResponse {
   error : JsonError?
   id : JsonId?
 }
+pub fn JsonResponse::to_json(Self) -> JsonValue
 
 pub(all) enum JsonValue {
   String(String)
@@ -182,6 +184,7 @@ pub(all) struct McpToolCallParams {
 pub(all) struct McpToolResult {
   content : Array[McpContent]
   is_error : Bool
+  structured_content : JsonValue?
 }
 pub fn McpToolResult::to_json(Self) -> JsonValue
 

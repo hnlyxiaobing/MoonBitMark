@@ -16,3 +16,16 @@ test "text converter preserves lightweight bullet structure" {
     content="Important points:\n\n- Hamburgers are delicious\n   - Dogs are the best\n   - I love fuzzy blankets",
   )
 }
+
+///|
+async test "text converter supports bytes input source" {
+  let result = TextConverter::convert_source(
+    @core.BytesInput(
+      Some("bytes-demo.txt"),
+      @utf8.encode("line 1\nline 2"),
+      None,
+    ),
+  )
+  inspect(result.title, content="Some(\"bytes-demo\")")
+  assert_true(result.markdown.contains("line 1"))
+}

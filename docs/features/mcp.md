@@ -2,110 +2,99 @@
 
 ## Status
 
-MCP is still **experimental** as a capability surface, but the local STDIO entrypoint is now treated as a productized integration boundary.
+MCP remains **experimental** as a product surface, but MoonBitMark now has two verified local transports:
+
+- STDIO via `scripts/mcp/moonbitmark-mcp.cmd` and `scripts/mcp/moonbitmark-mcp.ps1`
+- loopback-first HTTP via `cmd/mcp-http-server` with `POST /mcp` and `GET /healthz`
 
 What is verified today:
 
-- Windows launchers exist at `scripts/mcp/moonbitmark-mcp.cmd` and `scripts/mcp/moonbitmark-mcp.ps1`
-- the launchers prefer the native release binary at `_build/native/release/build/cmd/mcp-server/mcp-server.exe`
-- if that release binary is missing, the PowerShell launcher falls back to `moon run --target native --release -q cmd/mcp-server`
-- the smoke check forces both the release-preferred path and the `moon run` fallback path
-- STDIO transport is newline-delimited JSON-RPC 2.0
-- `initialize`, `tools/list`, `tools/call`, and `notifications/initialized` are smoke-checked
-- `resources/list` and `resources/read` are smoke-checked
-- `prompts/list` and `prompts/get` are smoke-checked
-- the server exposes agent-facing initialize instructions
-- `inspect_document` and `convert_to_markdown` are both smoke-checked
-- the server exposes five static `moonbitmark://...` resources for capability and boundary discovery
-- the server exposes two static guided prompts for conversion and failure diagnosis
-- MCP runtime boundaries can be controlled with `MOONBITMARK_MCP_ALLOWED_ROOTS`, `MOONBITMARK_MCP_ALLOW_HTTP`, `MOONBITMARK_MCP_ENABLE_OCR`, and `MOONBITMARK_MCP_MAX_OUTPUT_CHARS`
-- `convert_to_markdown` defaults to preview mode so large documents do not dump full Markdown by accident
-- stdout stays reserved for protocol responses on the smoke-checked path
+- Windows STDIO launchers prefer `_build/native/release/build/cmd/mcp-server/mcp-server.exe`
+- the STDIO wrapper still falls back to `moon run --target native --release -q cmd/mcp-server`
+- HTTP transport is a standalone entrypoint and does not reuse the CLI entry
+- HTTP defaults to `127.0.0.1` and rejects `0.0.0.0` unless `MOONBITMARK_MCP_HTTP_ALLOW_NONLOCAL=1`
+- JSON-RPC over HTTP returns `200` for normal requests, `204` for notifications, and `400` for parse / invalid requests
+- `initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, and `prompts/get` are smoke-checked on both transports
+- `inspect_document`, `convert_to_markdown`, `upload_document`, and `convert_uploaded_document` stay agent-friendly, with preview-first conversion remaining the default
+- `response_mode=json` returns stable `structuredContent` objects with `content`, `metadata`, `diagnostics`, and `stats`
+- `upload_document` creates reusable `moonbitmark://document/<id>` resources, `inspect_document` and `convert_to_markdown` accept `resource_uri`, and `convert_uploaded_document` remains the one-shot bytes path
+- the static resources and prompts remain available on both transports, and `resources/read` can also resolve uploaded `moonbitmark://document/<id>` resources
+- MCP runtime boundaries are enforced by `MOONBITMARK_MCP_ALLOWED_ROOTS`, `MOONBITMARK_MCP_ALLOW_HTTP`, `MOONBITMARK_MCP_ENABLE_OCR`, `MOONBITMARK_MCP_MAX_OUTPUT_CHARS`, and `MOONBITMARK_MCP_MAX_UPLOAD_BYTES`
 
 What is not claimed:
 
-- HTTP / SSE transport
+- SSE transport
 - streaming responses
-- broad protocol compatibility beyond the smoke-checked path
+- progress channels for long-running conversions
+- auth / OAuth / bearer-token flows
+- direct multipart upload, SSE streaming, or a separate `resource://...` protocol
 
-## Recommended Local Entry Point
+## Recommended Entry Points
 
-Windows `cmd.exe` / wrapper path:
+STDIO wrapper:
 
 ```bat
 scripts\mcp\moonbitmark-mcp.cmd
 ```
 
-Windows PowerShell path:
+STDIO PowerShell variant:
 
 ```powershell
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts\mcp\moonbitmark-mcp.ps1
 ```
 
-Direct MoonBit fallback:
+HTTP server:
 
 ```bash
-moon run --target native --release -q cmd/mcp-server
+moon run --target native --release -q cmd/mcp-http-server -- --host 127.0.0.1 --port 8765
 ```
 
-The wrapper path is the recommended integration surface because it keeps client configuration stable while preferring the release binary when available.
+Health check:
 
-## Claude Code Configuration
+```bash
+curl http://127.0.0.1:8765/healthz
+```
 
-Project-level `.mcp.json` example for Windows:
+## Client Registration
+
+Claude Code STDIO project config:
 
 ```json
 {
   "mcpServers": {
     "moonbitmark": {
       "command": "cmd",
+      "args": ["/d", "/c", "scripts\\mcp\\moonbitmark-mcp.cmd"],
       "env": {
         "MOONBITMARK_MCP_ALLOWED_ROOTS": ".;tests",
         "MOONBITMARK_MCP_ALLOW_HTTP": "0",
         "MOONBITMARK_MCP_ENABLE_OCR": "0",
         "MOONBITMARK_MCP_MAX_OUTPUT_CHARS": "12000"
-      },
-      "args": [
-        "/d",
-        "/c",
-        "scripts\\mcp\\moonbitmark-mcp.cmd"
-      ]
+      }
     }
   }
 }
 ```
 
-PowerShell variant:
+Claude Code HTTP registration:
 
-```json
-{
-  "mcpServers": {
-    "moonbitmark": {
-      "command": "powershell",
-      "args": [
-        "-NoLogo",
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "scripts\\mcp\\moonbitmark-mcp.ps1"
-      ]
-    }
-  }
-}
+```bash
+claude mcp add --transport http moonbitmark-http http://127.0.0.1:8765/mcp
 ```
 
-The `.cmd` form is the primary recommendation on Windows because it matches the smoke-checked `cmd /c` path.
+Codex STDIO registration:
 
-## Codex Configuration
-
-Registration command example from the repository root:
-
-```powershell
+```bash
 codex mcp add moonbitmark -- cmd /d /c scripts\mcp\moonbitmark-mcp.cmd
 ```
 
-Equivalent `config.toml` snippet:
+Codex HTTP registration:
+
+```bash
+codex mcp add moonbitmark-http --url http://127.0.0.1:8765/mcp
+```
+
+Equivalent Codex `config.toml` for STDIO:
 
 ```toml
 [mcp_servers.moonbitmark]
@@ -114,90 +103,92 @@ args = ["/d", "/c", "scripts\\mcp\\moonbitmark-mcp.cmd"]
 env = { MOONBITMARK_MCP_ALLOWED_ROOTS = ".;tests", MOONBITMARK_MCP_ALLOW_HTTP = "0", MOONBITMARK_MCP_ENABLE_OCR = "0", MOONBITMARK_MCP_MAX_OUTPUT_CHARS = "12000" }
 ```
 
-This keeps the integration pinned to the wrapper instead of the build output path.
+## HTTP Contract
 
-## Automated validation
+HTTP route surface:
+
+- `POST /mcp`
+- `GET /healthz`
+
+JSON-RPC status mapping:
+
+- request with `id` -> `200 OK` plus a JSON-RPC response body
+- notification without `id` -> `204 No Content`
+- malformed JSON or invalid JSON-RPC request object -> `400 Bad Request` plus JSON-RPC error body
+
+Binding policy:
+
+- default host: `127.0.0.1`
+- allowed loopback aliases: `127.0.0.1`, `localhost`, `::1`
+- `0.0.0.0` is rejected unless `MOONBITMARK_MCP_HTTP_ALLOW_NONLOCAL=1`
+
+## Runtime Boundaries
+
+- `MOONBITMARK_MCP_ALLOWED_ROOTS`
+  Default: current working directory only.
+  File inputs outside these semicolon-separated roots are rejected before inspect/convert.
+- `MOONBITMARK_MCP_ALLOW_HTTP`
+  Default: disabled.
+  `http://` and `https://` inputs are rejected unless this env is `1` or `true`.
+- `MOONBITMARK_MCP_ENABLE_OCR`
+  Default: disabled.
+  MCP only opts into OCR auto mode when this env is `1` or `true`.
+- `MOONBITMARK_MCP_MAX_OUTPUT_CHARS`
+  Default: unset.
+  Returned Markdown is clamped even in `mode=full` when this env is set.
+- `MOONBITMARK_MCP_MAX_UPLOAD_BYTES`
+  Default: `10485760`.
+  Caps the payload size for `upload_document` and `convert_uploaded_document`.
+- `MOONBITMARK_MCP_HTTP_ALLOW_NONLOCAL`
+  Default: disabled.
+  Required to bind the HTTP server to `0.0.0.0`.
+
+## Automated Validation
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_stdio_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_resources_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_prompts_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_security_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests/integration/mcp_http_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests/integration/mcp_http_security_smoke.ps1
 ```
 
-These scripts are the current contract checks for the public local STDIO entrypoint. They verify:
+These scripts prove the current public local contract. They do not claim SSE support, remote upload semantics, or broader protocol compatibility beyond the smoke-checked path.
 
-- `cmd /c scripts\mcp\moonbitmark-mcp.cmd`
-- `powershell -File scripts\mcp\moonbitmark-mcp.ps1`
-- release-binary preference on the wrapper path
-- forced fallback to `moon run --target native --release -q cmd/mcp-server`
-- notification handling without stdout response
-- `initialize`
-- `tools/list`
-- agent-facing `instructions`
-- `inspect_document`
-- `convert_to_markdown` preview mode
-- `convert_to_markdown` full mode with `max_chars`
-- invalid `mode` rejection path
-- `resources/list`
-- `resources/read`
-- static `moonbitmark://...` resource discovery
-- missing-resource error handling
-- `prompts/list`
-- `prompts/get`
-- static `convert-document` and `diagnose-conversion-failure` prompt discovery
-- missing-prompt and missing-argument prompt error handling
-- `MOONBITMARK_MCP_ALLOW_HTTP` URL denial path
-- `MOONBITMARK_MCP_ALLOWED_ROOTS` file-root denial path
-- `MOONBITMARK_MCP_ENABLE_OCR` env surfacing and OCR auto opt-in context
-- `MOONBITMARK_MCP_MAX_OUTPUT_CHARS` output clamping
-
-## Tool surface
+## Tool Surface
 
 Registered tools:
 
 - `inspect_document`
 - `convert_to_markdown`
+- `upload_document`
+- `convert_uploaded_document`
 
-Accepted `uri` forms:
+Accepted document references:
 
-- normal file path string
-- `http://...`
-- `https://...`
-- `file://...` (best-effort; plain paths are simpler on Windows)
+- `uri`: normal file path string, `file://...`, `http://...`, or `https://...`
+- `resource_uri`: `moonbitmark://document/<id>` returned by `upload_document`
 
-`inspect_document` returns:
+Uploaded input surfaces:
 
-- detected format
-- file size for local files
-- whether OCR / bridge behavior is relevant for that format
-- whether preview is recommended before full conversion
+- `upload_document.filename`
+- exactly one of `upload_document.data_base64` or `upload_document.data_bytes`
+- `convert_uploaded_document.filename`
+- exactly one of `convert_uploaded_document.data_base64` or `convert_uploaded_document.data_bytes`
 
-`convert_to_markdown` accepts:
-
-- `mode=preview|full`
-- `max_chars`
-- `format_hint` (advisory only in the current MCP path)
-
-Runtime boundary envs:
-
-- `MOONBITMARK_MCP_ALLOWED_ROOTS`
-  Current default: current working directory only.
-  Semantics: file inputs outside these semicolon-separated roots are rejected before detect/convert.
-- `MOONBITMARK_MCP_ALLOW_HTTP`
-  Current default: disabled.
-  Semantics: `http://` and `https://` inputs are rejected unless this env is `1` or `true`.
-- `MOONBITMARK_MCP_ENABLE_OCR`
-  Current default: disabled.
-  Semantics: MCP only opts into OCR auto mode when this env is `1` or `true`.
-- `MOONBITMARK_MCP_MAX_OUTPUT_CHARS`
-  Current default: unset.
-  Semantics: when set, it clamps returned Markdown even in `mode=full`.
-
-Tool response pattern:
+Tool response pattern today:
 
 - first text item: compact `key: value` summary for agents
 - second text item on conversion: Markdown body
+- add `response_mode=json` when you want `result.structuredContent` instead of text-first parsing
+
+Structured JSON shape:
+
+- `content`: primary textual payload
+- `metadata`: request/result identity fields
+- `diagnostics`: booleans, guidance, warnings, and conversion diagnostics
+- `stats`: output sizing and converter statistics
 
 Recommended agent flow:
 
@@ -205,13 +196,16 @@ Recommended agent flow:
 2. call `prompts/get` for `convert-document` or `diagnose-conversion-failure`
 3. call `resources/list` when you need server capability or boundary context
 4. call `resources/read` for the specific `moonbitmark://...` resource you need
-5. call `inspect_document`
-6. call `convert_to_markdown` without `mode` for preview
-7. re-run with `mode=full` only when the preview shows the document is worth expanding
+5. call `upload_document` when the client only has bytes and needs a reusable handle
+6. call `inspect_document` with `uri` or `resource_uri`
+7. use `convert_uploaded_document` only for one-shot upload + convert
+8. otherwise call `convert_to_markdown` without `mode` for preview
+9. add `response_mode=json` when an agent or program needs structured parsing
+10. re-run with `mode=full` only when the preview shows the document is worth expanding
 
-## Resources
+## Resources And Prompts
 
-Static resources exposed today:
+Static resources:
 
 - `moonbitmark://capabilities`
 - `moonbitmark://supported-formats`
@@ -219,35 +213,38 @@ Static resources exposed today:
 - `moonbitmark://ocr-boundaries`
 - `moonbitmark://mcp-usage`
 
-These resources are intentionally static and conservative. They summarize the current verified capability surface and boundaries without claiming HTTP transport or broader protocol features that do not exist yet.
+Dynamic resources:
 
-## Prompts
+- `moonbitmark://document/<id>` returned by `upload_document`
 
-Static prompts exposed today:
+Static prompts:
 
 - `convert-document`
 - `diagnose-conversion-failure`
 
-These prompts are workflow templates, not autonomous execution. They return guided message payloads that point agents back to the actual MoonBitMark tools and resources.
-
-## Implementation path
+## Implementation Path
 
 ```text
+STDIO
 scripts/mcp/*
   -> _build/native/release/build/cmd/mcp-server/mcp-server.exe
   -> or moon run --target native --release -q cmd/mcp-server
   -> src/mcp/transport/stdio
   -> src/mcp/handler/server
+
+HTTP
+cmd/mcp-http-server
+  -> src/mcp/transport/http
+  -> src/mcp/handler/server
   -> src/mcp/handler/tools
   -> src/mcp/handler/resources
   -> src/mcp/handler/prompts
-  -> src/engine
 ```
 
-## Operational notes
+## Operational Notes
 
-- Keep stdout reserved for protocol responses.
-- If logging is reintroduced later, route it outside the live STDIO protocol path before expanding MCP scope.
-- Reject unsupported `jsonrpc` versions instead of guessing.
+- Keep stdout reserved for protocol responses on STDIO.
+- Keep the HTTP server loopback-first unless you have an explicit nonlocal requirement.
+- Reject unsupported JSON-RPC versions instead of guessing.
 - Notifications without `id` must not emit JSON-RPC responses.
-- Prefer configuring clients against the wrapper, not directly against `_build/.../mcp-server.exe`.
+- Prefer preview-first conversion from agents unless the full Markdown is actually needed.

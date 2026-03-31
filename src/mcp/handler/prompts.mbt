@@ -65,10 +65,14 @@ pub fn PromptRegistry::register_static_prompts(
       name: "convert-document",
       title: None,
       description: Some(
-        "Convert a document through inspect_document and preview-first convert_to_markdown.",
+        "Convert a document through inspect_document and preview-first convert_to_markdown, starting from uri or resource_uri.",
       ),
       arguments: Some([
-        prompt_argument("uri", "File path or URL to convert.", true),
+        prompt_argument("uri", "File path or URL to convert.", false),
+        prompt_argument(
+          "resource_uri", "Reusable uploaded document handle such as moonbitmark://document/<id>.",
+          false,
+        ),
         prompt_argument(
           "mode", "Optional target mode: preview or full. Default is preview.", false,
         ),
@@ -108,9 +112,15 @@ pub fn PromptRegistry::register_static_prompts(
 fn convert_document_prompt(
   arguments : @types.JsonValue,
 ) -> Result[@types.McpGetPromptResult, String] {
-  let uri = match required_prompt_string(arguments, "uri") {
-    Ok(value) => value
-    Err(message) => return Err(message)
+  let uri = optional_prompt_string(arguments, "uri")
+  let resource_uri = optional_prompt_string(arguments, "resource_uri")
+  let target_label = match (uri, resource_uri) {
+    (Some(value), None) => "Target URI: " + value
+    (None, Some(value)) => "Target resource_uri: " + value
+    (Some(_), Some(_)) =>
+      return Err("Provide exactly one of uri or resource_uri.")
+    (None, None) =>
+      return Err("Missing required prompt argument: one of uri or resource_uri")
   }
   let mode = optional_prompt_string(arguments, "mode")
   let max_chars = optional_prompt_string(arguments, "max_chars")
@@ -130,21 +140,23 @@ fn convert_document_prompt(
         [
           "Convert this document with MoonBitMark.",
           "",
-          "Target URI: " + uri,
+          target_label,
           "Requested mode: " + effective_mode,
           "Optional max_chars: " + optional_text(max_chars),
           "Optional format_hint: " + optional_text(format_hint),
           "",
           "Required flow:",
           "1. If you need server context, read moonbitmark://mcp-usage or moonbitmark://supported-formats.",
-          "2. Call inspect_document with the URI.",
-          "3. Call convert_to_markdown with mode=" +
+          "2. If you only have bytes, call upload_document first and keep the returned resource_uri.",
+          "3. Call inspect_document with the uri or resource_uri.",
+          "4. Call convert_to_markdown with mode=" +
           effective_mode +
           format_hint_segment(format_hint) +
           max_chars_segment(max_chars) +
           ".",
-          "4. If mode is preview and the result looks worth expanding, re-run convert_to_markdown with mode=full.",
-          "5. Summarize detected format, truncation, warnings, diagnostics, and the returned Markdown.",
+          "5. If mode is preview and the result looks worth expanding, re-run convert_to_markdown with mode=full.",
+          "6. Use convert_uploaded_document only when you want a one-shot upload + convert path.",
+          "7. Summarize detected format, truncation, warnings, diagnostics, and the returned Markdown.",
         ].join("\n"),
       ),
     ],

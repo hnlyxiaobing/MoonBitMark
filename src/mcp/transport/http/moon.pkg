@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/async/http" @async_http,
+  "moonbitlang/async/io",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/env",
+  "moonbitlang/moonbitmark/src/mcp/handler",
+  "moonbitlang/moonbitmark/src/mcp/types",
+}

@@ -115,16 +115,22 @@ powershell -ExecutionPolicy Bypass -File tests/integration/mcp_stdio_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_resources_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_prompts_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_security_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests/integration/mcp_http_smoke.ps1
+powershell -ExecutionPolicy Bypass -File tests/integration/mcp_http_security_smoke.ps1
 ```
 
-如果你要把 MoonBitMark 作为本地 MCP server 接入：
+如果你要把 MoonBitMark 作为 MCP server 接入：
 
-- 推荐通过 `scripts\mcp\moonbitmark-mcp.cmd` 接入
-- wrapper 会优先使用 release binary，缺失时回退到 `moon run --target native --release -q cmd/mcp-server`
+- STDIO 推荐通过 `scripts\mcp\moonbitmark-mcp.cmd` 接入
+- HTTP 推荐先启动 `moon run --target native --release -q cmd/mcp-http-server -- --host 127.0.0.1 --port 8765`，再接入 `http://127.0.0.1:8765/mcp`
+- STDIO wrapper 会优先使用 release binary，缺失时回退到 `moon run --target native --release -q cmd/mcp-server`
 - 先用 `prompts/list` / `prompts/get` 获取 guided workflow，再按需调用 tools
 - 先用 `resources/list` / `resources/read` 获取能力边界，再用工具
 - 先用 `inspect_document`，再用默认 preview 的 `convert_to_markdown`，只有需要全文时再切 `mode=full`
-- 运行时边界通过 `MOONBITMARK_MCP_ALLOWED_ROOTS`、`MOONBITMARK_MCP_ALLOW_HTTP`、`MOONBITMARK_MCP_ENABLE_OCR`、`MOONBITMARK_MCP_MAX_OUTPUT_CHARS` 控制
+- HTTP/remote 客户端如果不共享文件路径，优先用 `upload_document` 拿到 `resource_uri`，再调用 `inspect_document` / `convert_to_markdown`；`convert_uploaded_document` 保留为 one-shot 便捷入口
+- 需要结构化结果时，为转换工具传 `response_mode=json`，读取 `structuredContent`
+- 运行时边界通过 `MOONBITMARK_MCP_ALLOWED_ROOTS`、`MOONBITMARK_MCP_ALLOW_HTTP`、`MOONBITMARK_MCP_ENABLE_OCR`、`MOONBITMARK_MCP_MAX_OUTPUT_CHARS`、`MOONBITMARK_MCP_MAX_UPLOAD_BYTES`、`MOONBITMARK_MCP_HTTP_ALLOW_NONLOCAL` 控制
+- HTTP 只提供最小闭环：`POST /mcp` + `GET /healthz`，不提供 SSE 或流式输出
 
 Claude Code 项目级 `.mcp.json` 示例：
 
@@ -145,13 +151,25 @@ Claude Code 项目级 `.mcp.json` 示例：
 }
 ```
 
-Codex 配置示例：
+Claude Code HTTP 注册示例：
+
+```bash
+claude mcp add --transport http moonbitmark-http http://127.0.0.1:8765/mcp
+```
+
+Codex STDIO 配置示例：
 
 ```toml
 [mcp_servers.moonbitmark]
 command = "cmd"
 args = ["/d", "/c", "scripts\\mcp\\moonbitmark-mcp.cmd"]
 env = { MOONBITMARK_MCP_ALLOWED_ROOTS = ".;tests", MOONBITMARK_MCP_ALLOW_HTTP = "0", MOONBITMARK_MCP_ENABLE_OCR = "0", MOONBITMARK_MCP_MAX_OUTPUT_CHARS = "12000" }
+```
+
+Codex HTTP 注册示例：
+
+```bash
+codex mcp add moonbitmark-http --url http://127.0.0.1:8765/mcp
 ```
 
 推荐 launcher：
@@ -163,7 +181,6 @@ scripts\mcp\moonbitmark-mcp.cmd
 详细说明见：
 
 - [`docs/features/mcp.md`](docs/features/mcp.md)
-
 如果你想看完整质量评测：
 
 ```bash

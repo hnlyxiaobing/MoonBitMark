@@ -45,3 +45,16 @@ test "csv parser detects semicolon delimiter and ragged rows" {
   inspect(parsed.delimiter.to_string(), content=";")
   inspect(parsed.warnings.length(), content="1")
 }
+
+///|
+async test "csv converter supports bytes input source" {
+  let result = CsvConverter::convert_source(
+    @core.BytesInput(
+      Some("bytes-sheet.csv"),
+      @utf8.encode("name,team\nAlice,Leafs\n"),
+      Some("text/csv"),
+    ),
+  )
+  inspect(result.title, content="Some(\"bytes-sheet\")")
+  assert_true(result.markdown.contains("| name | team |"))
+}

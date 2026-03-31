@@ -15,6 +15,7 @@ pub(all) struct CsvConverter {
 }
 pub fn CsvConverter::accepts(@core.StreamInfo) -> Bool
 pub async fn CsvConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult
+pub async fn CsvConverter::convert_source(@core.InputSource, ctx? : @core.ConvertContext) -> @core.ConvertResult
 pub fn CsvConverter::new() -> Self
 
 // Type aliases

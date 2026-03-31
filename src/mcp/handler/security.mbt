@@ -6,6 +6,7 @@ pub(all) struct McpSecurityConfig {
   allow_http : Bool
   enable_ocr : Bool
   max_output_chars : Int?
+  max_upload_bytes : Int
 }
 
 ///|
@@ -27,12 +28,20 @@ pub fn load_mcp_security_config() -> Result[McpSecurityConfig, String] {
     Ok(value) => value
     Err(message) => return Err(message)
   }
+  let max_upload_bytes = match
+    parse_positive_int_env_with_default(
+      "MOONBITMARK_MCP_MAX_UPLOAD_BYTES", 10485760,
+    ) {
+    Ok(value) => value
+    Err(message) => return Err(message)
+  }
 
   Ok(McpSecurityConfig::{
     allowed_roots,
     allow_http,
     enable_ocr,
     max_output_chars,
+    max_upload_bytes,
   })
 }
 
@@ -161,6 +170,18 @@ fn parse_positive_int_env(name : String) -> Result[Int?, String] {
       }
     }
     _ => Ok(None)
+  }
+}
+
+///|
+fn parse_positive_int_env_with_default(
+  name : String,
+  fallback : Int,
+) -> Result[Int, String] {
+  match parse_positive_int_env(name) {
+    Ok(Some(value)) => Ok(value)
+    Ok(None) => Ok(fallback)
+    Err(message) => Err(message)
   }
 }
 

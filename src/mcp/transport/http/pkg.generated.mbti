@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/mcp/transport/http"
+
+import {
+  "moonbitlang/moonbitmark/src/mcp/handler",
+}
+
+// Values
+pub fn default_mcp_http_bind_host() -> String
+
+pub fn default_mcp_http_port() -> Int
+
+// Errors
+
+// Types and methods
+pub(all) struct McpHttpServer {
+  config : McpHttpServerConfig
+  dispatcher : @handler.McpDispatcher
+  server : @moonbitlang/async/http.Server
+}
+pub fn McpHttpServer::new(McpHttpServerConfig) -> Self raise
+pub async fn McpHttpServer::run(Self) -> Unit
+
+pub(all) struct McpHttpServerConfig {
+  bind_host : String
+  port : Int
+}
+pub fn McpHttpServerConfig::new(bind_host? : String, port? : Int) -> Self raise
+
+// Type aliases
+
+// Traits
+

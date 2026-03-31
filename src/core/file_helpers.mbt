@@ -31,6 +31,22 @@ pub async fn read_utf8_file(path : String) -> String {
 }
 
 ///|
+pub async fn read_input_bytes(input : InputSource) -> Bytes {
+  match input {
+    FileInput(_, Some(bytes)) => bytes
+    FileInput(path, None) => read_file_bytes(path)
+    BytesInput(_, bytes, _) => bytes
+    UrlInput(url, _) =>
+      fail("URL input is not supported as direct bytes in this context: " + url)
+  }
+}
+
+///|
+pub async fn read_input_utf8(input : InputSource) -> String {
+  @utf8.decode(read_input_bytes(input))
+}
+
+///|
 pub fn strip_utf8_bom(text : String) -> String {
   let mut result = ""
   let mut is_first = true

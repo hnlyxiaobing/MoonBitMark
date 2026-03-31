@@ -31,17 +31,29 @@ pub async fn JsonConverter::convert(
   file_path : String,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
+  JsonConverter::convert_source(@core.FileInput(file_path, None), ctx~)
+}
+
+///|
+pub async fn JsonConverter::convert_source(
+  input : @core.InputSource,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
   ignore(ctx)
-  let content = @core.strip_utf8_bom(@core.read_utf8_file(file_path))
+  let content = @core.strip_utf8_bom(@core.read_input_utf8(input))
   let (rendered_json, warnings, valid_json) = normalize_json_content(content)
-  let title = @core.file_stem(file_path)
+  let source_name = match input.name() {
+    Some(value) => value
+    None => "document.json"
+  }
+  let title = @core.file_stem(source_name)
   let metadata = Map::new()
   metadata["format"] = "json"
   metadata["render_mode"] = "code_fence"
   metadata["json_valid"] = if valid_json { "true" } else { "false" }
   let doc = json_to_document(rendered_json, title, metadata)
   let markdown = @ast.render_markdown(doc)
-  let diagnostics = json_warning_diagnostics(file_path, warnings)
+  let diagnostics = json_warning_diagnostics(source_name, warnings)
   @core.ConvertResult::markdown_only(markdown, "json")
   .with_title(title)
   .with_metadata(metadata)

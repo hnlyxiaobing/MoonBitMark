@@ -1,23 +1,25 @@
 // MoonBitMark MCP Handler - Server Implementation
 
 ///|
-pub(all) struct McpServer {
+pub(all) struct McpDispatcher {
   tools : ToolRegistry
   resources : ResourceRegistry
   prompts : PromptRegistry
+}
+
+///|
+pub(all) struct McpServer {
+  dispatcher : McpDispatcher
   transport : @transport.StdioTransport
 }
 
 ///|
-pub fn McpServer::new(transport : @transport.StdioTransport) -> McpServer {
-  McpServer::new_with_logger(transport, @util.Logger::default())
+pub fn McpDispatcher::new() -> McpDispatcher {
+  McpDispatcher::new_with_logger(@util.Logger::default())
 }
 
 ///|
-pub fn McpServer::new_with_logger(
-  transport : @transport.StdioTransport,
-  logger : @util.Logger,
-) -> McpServer {
+pub fn McpDispatcher::new_with_logger(logger : @util.Logger) -> McpDispatcher {
   // Keep the compatibility constructor, but do not retain a logger on the
   // live STDIO server path where stdout must stay protocol-clean.
   ignore(logger)
@@ -31,12 +33,25 @@ pub fn McpServer::new_with_logger(
     _error => PromptRegistry::new()
   }
 
-  McpServer::{ tools: registry, resources, prompts, transport }
+  McpDispatcher::{ tools: registry, resources, prompts }
 }
 
 ///|
-pub async fn McpServer::handle_jsonrpc_request(
-  self : McpServer,
+pub fn McpServer::new(transport : @transport.StdioTransport) -> McpServer {
+  McpServer::new_with_logger(transport, @util.Logger::default())
+}
+
+///|
+pub fn McpServer::new_with_logger(
+  transport : @transport.StdioTransport,
+  logger : @util.Logger,
+) -> McpServer {
+  McpServer::{ dispatcher: McpDispatcher::new_with_logger(logger), transport }
+}
+
+///|
+pub async fn McpDispatcher::handle_jsonrpc_request(
+  self : McpDispatcher,
   json_str : String,
 ) -> @types.JsonResponse? {
   match @types.parse_json(json_str) {
@@ -66,8 +81,16 @@ pub async fn McpServer::handle_jsonrpc_request(
 }
 
 ///|
-async fn McpServer::handle_request(
+pub async fn McpServer::handle_jsonrpc_request(
   self : McpServer,
+  json_str : String,
+) -> @types.JsonResponse? {
+  self.dispatcher.handle_jsonrpc_request(json_str)
+}
+
+///|
+async fn McpDispatcher::handle_request(
+  self : McpDispatcher,
   request : @types.JsonRequest,
 ) -> @types.JsonResponse? {
   if !request_expects_response(request) {
@@ -98,8 +121,8 @@ async fn McpServer::handle_request(
 }
 
 ///|
-fn McpServer::handle_initialize(
-  self : McpServer,
+fn McpDispatcher::handle_initialize(
+  self : McpDispatcher,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
   ignore(self)
@@ -119,7 +142,7 @@ fn McpServer::handle_initialize(
       protocol_version: "2024-11-05",
     },
     instructions: Some(
-      "Use prompts/get for guided flows, resources/read for boundaries, inspect first for unknown or large documents, keep convert_to_markdown in preview mode unless you need the full Markdown, and remember that file roots, HTTP access, OCR, and output caps are controlled by MOONBITMARK_MCP_* environment variables.",
+      "Use prompts/get for guided flows, resources/read for boundaries, inspect first for unknown or large documents, keep convert_to_markdown in preview mode unless you need the full Markdown, prefer upload_document plus resource_uri when the client only has bytes, keep convert_uploaded_document as the one-shot upload plus convert path, and remember that file roots, HTTP access, OCR, upload size, and output caps are controlled by MOONBITMARK_MCP_* environment variables.",
     ),
   }
 
@@ -132,8 +155,8 @@ fn McpServer::handle_initialize(
 }
 
 ///|
-fn McpServer::handle_tools_list(
-  self : McpServer,
+fn McpDispatcher::handle_tools_list(
+  self : McpDispatcher,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
   let result = @types.McpToolsListResult::{ tools: self.tools.list() }
@@ -146,8 +169,8 @@ fn McpServer::handle_tools_list(
 }
 
 ///|
-fn McpServer::handle_resources_list(
-  self : McpServer,
+fn McpDispatcher::handle_resources_list(
+  self : McpDispatcher,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
   let result = @types.McpResourcesListResult::{
@@ -162,8 +185,8 @@ fn McpServer::handle_resources_list(
 }
 
 ///|
-fn McpServer::handle_resources_read(
-  self : McpServer,
+async fn McpDispatcher::handle_resources_read(
+  self : McpDispatcher,
   params : @types.JsonValue?,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
@@ -209,8 +232,8 @@ fn McpServer::handle_resources_read(
 }
 
 ///|
-fn McpServer::handle_prompts_list(
-  self : McpServer,
+fn McpDispatcher::handle_prompts_list(
+  self : McpDispatcher,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
   let result = @types.McpPromptsListResult::{ prompts: self.prompts.list() }
@@ -223,8 +246,8 @@ fn McpServer::handle_prompts_list(
 }
 
 ///|
-fn McpServer::handle_prompts_get(
-  self : McpServer,
+fn McpDispatcher::handle_prompts_get(
+  self : McpDispatcher,
   params : @types.JsonValue?,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
@@ -268,8 +291,8 @@ fn McpServer::handle_prompts_get(
 }
 
 ///|
-async fn McpServer::handle_tools_call(
-  self : McpServer,
+async fn McpDispatcher::handle_tools_call(
+  self : McpDispatcher,
   params : @types.JsonValue?,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
@@ -308,9 +331,9 @@ pub async fn McpServer::run(self : McpServer) -> Unit {
     if json_str.trim().length() == 0 {
       continue
     }
-    let response = self.handle_jsonrpc_request(json_str)
+    let response = self.dispatcher.handle_jsonrpc_request(json_str)
     match response {
-      Some(value) => self.transport.write_line(response_to_json(value))
+      Some(value) => self.transport.write_line(value.to_json().to_string())
       None => ()
     }
   }
@@ -418,36 +441,4 @@ fn parse_get_prompt_params(
     }
     _ => Err("Prompt get params must be an object")
   }
-}
-
-///|
-fn response_to_json(response : @types.JsonResponse) -> String {
-  let map : Map[String, @types.JsonValue] = Map::new()
-  map["jsonrpc"] = @types.String(response.jsonrpc)
-
-  match response.result {
-    Some(value) => map["result"] = value
-    None => ()
-  }
-  match response.error {
-    Some(error) => {
-      let error_map : Map[String, @types.JsonValue] = Map::new()
-      error_map["code"] = @types.Number(error.code)
-      error_map["message"] = @types.String(error.message)
-      match error.data {
-        Some(value) => error_map["data"] = value
-        None => ()
-      }
-      map["error"] = @types.Object(error_map)
-    }
-    None => ()
-  }
-  match response.id {
-    Some(@types.StringId(value)) => map["id"] = @types.String(value)
-    Some(@types.NumberId(value)) => map["id"] = @types.Number(value)
-    Some(@types.NullId) => map["id"] = @types.Null
-    None => ()
-  }
-
-  @types.Object(map).to_string()
 }

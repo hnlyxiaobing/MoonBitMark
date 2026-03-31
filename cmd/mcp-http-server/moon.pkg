@@ -1,0 +1,10 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/core/env",
+  "moonbitlang/core/strconv",
+  "moonbitlang/moonbitmark/src/mcp/transport/http" @mcp_http,
+}
+
+options(
+  "is-main": true,
+)

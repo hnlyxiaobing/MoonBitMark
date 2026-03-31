@@ -31,11 +31,23 @@ pub async fn CsvConverter::convert(
   file_path : String,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
+  CsvConverter::convert_source(@core.FileInput(file_path, None), ctx~)
+}
+
+///|
+pub async fn CsvConverter::convert_source(
+  input : @core.InputSource,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
   ignore(ctx)
-  let content = @core.strip_utf8_bom(@core.read_utf8_file(file_path))
+  let content = @core.strip_utf8_bom(@core.read_input_utf8(input))
   let parsed = parse_csv(content)
   let rows = parsed.rows
-  let title = @core.file_stem(file_path)
+  let source_name = match input.name() {
+    Some(value) => value
+    None => "document.csv"
+  }
+  let title = @core.file_stem(source_name)
   let metadata = Map::new()
   metadata["format"] = "csv"
   metadata["delimiter"] = delimiter_label(parsed.delimiter)
@@ -50,7 +62,7 @@ pub async fn CsvConverter::convert(
   if markdown == "" {
     warnings.push("CSV input produced empty Markdown output.")
   }
-  let diagnostics = csv_warning_diagnostics(file_path, warnings, markdown)
+  let diagnostics = csv_warning_diagnostics(source_name, warnings, markdown)
   @core.ConvertResult::markdown_only(markdown, "csv")
   .with_title(title)
   .with_metadata(metadata)

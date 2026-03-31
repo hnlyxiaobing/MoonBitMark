@@ -28,6 +28,7 @@ pub(all) enum McpContent {
 pub(all) struct McpToolResult {
   content : Array[McpContent]
   is_error : Bool
+  structured_content : JsonValue?
 }
 
 ///|
@@ -177,6 +178,10 @@ pub fn McpToolResult::to_json(self : McpToolResult) -> JsonValue {
   let map : Map[String, JsonValue] = Map::new()
   map["content"] = Array(items)
   map["isError"] = Bool(self.is_error)
+  match self.structured_content {
+    Some(value) => map["structuredContent"] = value
+    None => ()
+  }
   Object(map)
 }
 

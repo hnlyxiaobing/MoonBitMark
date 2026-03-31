@@ -31,11 +31,23 @@ pub async fn TextConverter::convert(
   file_path : String,
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
+  TextConverter::convert_source(@core.FileInput(file_path, None), ctx~)
+}
+
+///|
+pub async fn TextConverter::convert_source(
+  input : @core.InputSource,
+  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+) -> @core.ConvertResult {
   ignore(ctx)
   let content = normalize_text_content(
-    @core.strip_utf8_bom(@core.read_utf8_file(file_path)),
+    @core.strip_utf8_bom(@core.read_input_utf8(input)),
   )
-  let title = @core.file_stem(file_path)
+  let source_name = match input.name() {
+    Some(value) => value
+    None => "text.txt"
+  }
+  let title = @core.file_stem(source_name)
   let metadata = Map::new()
   metadata["format"] = "plain_text"
   metadata["line_count"] = count_lines(content).to_string()
@@ -45,7 +57,7 @@ pub async fn TextConverter::convert(
   if markdown == "" {
     warnings.push("Text input produced empty Markdown output.")
   }
-  let diagnostics = text_warning_diagnostics(file_path, warnings)
+  let diagnostics = text_warning_diagnostics(source_name, warnings)
   @core.ConvertResult::markdown_only(markdown, "text")
   .with_title(title)
   .with_metadata(metadata)

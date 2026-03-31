@@ -40,6 +40,39 @@ pub fn JsonId::to_string(self : JsonId) -> String {
 }
 
 ///|
+pub fn JsonError::to_json(self : JsonError) -> JsonValue {
+  let map : Map[String, JsonValue] = Map::new()
+  map["code"] = Number(self.code)
+  map["message"] = String(self.message)
+  match self.data {
+    Some(value) => map["data"] = value
+    None => ()
+  }
+  Object(map)
+}
+
+///|
+pub fn JsonResponse::to_json(self : JsonResponse) -> JsonValue {
+  let map : Map[String, JsonValue] = Map::new()
+  map["jsonrpc"] = String(self.jsonrpc)
+  match self.result {
+    Some(value) => map["result"] = value
+    None => ()
+  }
+  match self.error {
+    Some(value) => map["error"] = value.to_json()
+    None => ()
+  }
+  match self.id {
+    Some(StringId(value)) => map["id"] = String(value)
+    Some(NumberId(value)) => map["id"] = Number(value)
+    Some(NullId) => map["id"] = Null
+    None => ()
+  }
+  Object(map)
+}
+
+///|
 pub(all) enum JsonValue {
   String(String)
   Number(Int)

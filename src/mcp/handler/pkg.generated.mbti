@@ -24,17 +24,25 @@ pub fn load_mcp_security_config() -> Result[McpSecurityConfig, String]
 // Errors
 
 // Types and methods
+pub(all) struct McpDispatcher {
+  tools : ToolRegistry
+  resources : ResourceRegistry
+  prompts : PromptRegistry
+}
+pub async fn McpDispatcher::handle_jsonrpc_request(Self, String) -> @types.JsonResponse?
+pub fn McpDispatcher::new() -> Self
+pub fn McpDispatcher::new_with_logger(@util.Logger) -> Self
+
 pub(all) struct McpSecurityConfig {
   allowed_roots : Array[String]
   allow_http : Bool
   enable_ocr : Bool
   max_output_chars : Int?
+  max_upload_bytes : Int
 }
 
 pub(all) struct McpServer {
-  tools : ToolRegistry
-  resources : ResourceRegistry
-  prompts : PromptRegistry
+  dispatcher : McpDispatcher
   transport : @transport.StdioTransport
 }
 pub async fn McpServer::handle_jsonrpc_request(Self, String) -> @types.JsonResponse?
@@ -65,7 +73,7 @@ pub(all) struct ResourceRegistry {
 }
 pub fn ResourceRegistry::list(Self) -> Array[@types.McpResource]
 pub fn ResourceRegistry::new() -> Self
-pub fn ResourceRegistry::read(Self, String) -> Result[@types.McpResourceContents, String]
+pub async fn ResourceRegistry::read(Self, String) -> Result[@types.McpResourceContents, String]
 pub fn ResourceRegistry::register(Self, ResourceDefinition) -> Self raise
 pub fn ResourceRegistry::register_static_resources(Self) -> Self raise
 

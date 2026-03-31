@@ -53,6 +53,10 @@ pub fn push_unique_warning(Array[String], String) -> Unit
 
 pub async fn read_file_bytes(String) -> Bytes
 
+pub async fn read_input_bytes(InputSource) -> Bytes
+
+pub async fn read_input_utf8(InputSource) -> String
+
 pub async fn read_utf8_file(String) -> String
 
 pub fn render_diagnostics_report(Array[ConversionDiagnostic]) -> String
