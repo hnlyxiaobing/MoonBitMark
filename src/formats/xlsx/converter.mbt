@@ -273,7 +273,8 @@ fn generate_blocks(
           warnings.push(warning)
         }
         blocks.push(@ast.text_heading(2, sheet_name))
-        for block in sheet_blocks {
+        let normalized_blocks = normalize_sheet_blocks(sheet_blocks, sheet_name)
+        for block in normalized_blocks {
           blocks.push(block)
         }
       }
@@ -286,6 +287,31 @@ fn generate_blocks(
   }
 
   (blocks, warnings)
+}
+
+///|
+fn normalize_sheet_blocks(
+  blocks : Array[@ast.Block],
+  sheet_name : String,
+) -> Array[@ast.Block] {
+  if blocks.length() == 0 {
+    return blocks
+  }
+  match blocks[0] {
+    @ast.Heading(3, inlines) =>
+      if @ast.plain_text_of_inlines(inlines) == sheet_name {
+        let normalized : Array[@ast.Block] = []
+        let mut index = 1
+        while index < blocks.length() {
+          normalized.push(blocks[index])
+          index = index + 1
+        }
+        normalized
+      } else {
+        blocks
+      }
+    _ => blocks
+  }
 }
 
 ///|
@@ -391,6 +417,20 @@ priv struct SheetData {
 }
 
 ///|
+priv struct SheetCellPos {
+  row : Int
+  col : Int
+}
+
+///|
+priv struct SheetRegion {
+  min_row : Int
+  max_row : Int
+  min_col : Int
+  max_col : Int
+}
+
+///|
 /// Extract sheet data from XML events
 fn extract_sheet_data(
   events : Array[@xml.ParseEvent],
@@ -400,12 +440,14 @@ fn extract_sheet_data(
 
   let mut in_cell = false
   let mut in_value = false
+  let mut in_formula = false
   let mut in_inline_str = false
   let mut in_inline_t = false
   let mut current_row : Array[String] = []
   let mut current_cell_ref = ""
   let mut current_cell_type = ""
   let mut current_content = ""
+  let mut current_formula = ""
 
   for event in events {
     match event {
@@ -424,8 +466,10 @@ fn extract_sheet_data(
               None => ""
             }
             current_content = ""
+            current_formula = ""
           }
           "v" => if in_cell { in_value = true }
+          "f" => if in_cell { in_formula = true }
           "is" => if in_cell { in_inline_str = true }
           "t" => if in_inline_str { in_inline_t = true }
           _ => ()
@@ -443,7 +487,7 @@ fn extract_sheet_data(
             in_cell = false
             // Resolve cell value
             let cell_value = get_cell_value(
-              current_cell_type, current_content, shared_strings,
+              current_cell_type, current_content, current_formula, shared_strings,
             )
             // Parse cell reference to get column index
             let col_idx = cell_ref_to_col_index(current_cell_ref)
@@ -459,6 +503,7 @@ fn extract_sheet_data(
             }
           }
           "v" => in_value = false
+          "f" => in_formula = false
           "is" => in_inline_str = false
           "t" => in_inline_t = false
           _ => ()
@@ -467,6 +512,8 @@ fn extract_sheet_data(
       @xml.TextContent(evt) =>
         if in_value {
           current_content = current_content + evt.content
+        } else if in_formula {
+          current_formula = current_formula + evt.content
         } else if in_inline_t {
           current_content = current_content + evt.content
         }
@@ -481,6 +528,7 @@ fn extract_sheet_data(
 fn get_cell_value(
   cell_type : String,
   raw_value : String,
+  formula : String,
   shared_strings : Array[String],
 ) -> String {
   let resolved = if cell_type == "s" {
@@ -507,9 +555,13 @@ fn get_cell_value(
   } else if cell_type == "inlineStr" {
     // Inline string
     raw_value
-  } else {
     // Number or other
+  } else if raw_value != "" {
     raw_value
+  } else if formula != "" {
+    "=" + formula
+  } else {
+    ""
   }
   normalize_xlsx_cell_text(resolved)
 }
@@ -561,38 +613,210 @@ fn cell_ref_to_col_index(cell_ref : String) -> Int {
 ///|
 fn sheet_data_to_blocks(data : SheetData) -> Array[@ast.Block] {
   let blocks : Array[@ast.Block] = []
-  if data.rows.is_empty() {
+  let normalized_rows = normalize_sheet_rows(data)
+  let regions = detect_sheet_regions(normalized_rows)
+  if regions.length() == 0 {
     blocks.push(@ast.text_paragraph("*(Empty sheet)*"))
     return blocks
   }
-  let col_count = data.max_cols
+  for region in regions {
+    let region_rows = sheet_region_rows(normalized_rows, region)
+    for block in sheet_region_to_blocks(region_rows) {
+      blocks.push(block)
+    }
+  }
+  blocks
+}
+
+///|
+fn normalize_sheet_rows(data : SheetData) -> Array[Array[String]] {
   let normalized_rows : Array[Array[String]] = []
   for row in data.rows {
     let extended_row = row
-    while extended_row.length() < col_count {
+    while extended_row.length() < data.max_cols {
       extended_row.push("")
     }
     normalized_rows.push(extended_row)
   }
-  match normalized_rows {
-    [header, .. tail] => {
-      let header_cells : Array[Array[@ast.Inline]] = []
-      for cell in header {
-        header_cells.push(@ast.text_inlines(cell))
+  normalized_rows
+}
+
+///|
+fn detect_sheet_regions(rows : Array[Array[String]]) -> Array[SheetRegion] {
+  let cell_map : Map[String, String] = Map::new()
+  let positions : Array[SheetCellPos] = []
+  for row_index, row in rows {
+    for col_index, cell in row {
+      if cell != "" {
+        cell_map[sheet_cell_key(row_index, col_index)] = cell
+        positions.push(SheetCellPos::{ row: row_index, col: col_index })
       }
-      let body_rows : Array[Array[Array[@ast.Inline]]] = []
-      for row in tail {
-        let body_row : Array[Array[@ast.Inline]] = []
-        for cell in row {
-          body_row.push(@ast.text_inlines(cell))
-        }
-        body_rows.push(body_row)
-      }
-      blocks.push(@ast.Table(header_cells, body_rows))
     }
-    [] => ()
   }
+  let visited : Map[String, Bool] = Map::new()
+  let regions : Array[SheetRegion] = []
+  for position in positions {
+    let key = sheet_cell_key(position.row, position.col)
+    if visited.get(key) == Some(true) {
+      continue
+    }
+    visited[key] = true
+    let queue : Array[SheetCellPos] = [position]
+    let mut queue_index = 0
+    let mut min_row = position.row
+    let mut max_row = position.row
+    let mut min_col = position.col
+    let mut max_col = position.col
+    while queue_index < queue.length() {
+      let current = queue[queue_index]
+      queue_index = queue_index + 1
+      if current.row < min_row {
+        min_row = current.row
+      }
+      if current.row > max_row {
+        max_row = current.row
+      }
+      if current.col < min_col {
+        min_col = current.col
+      }
+      if current.col > max_col {
+        max_col = current.col
+      }
+      for neighbor in sheet_neighbors(current) {
+        let neighbor_key = sheet_cell_key(neighbor.row, neighbor.col)
+        if cell_map.get(neighbor_key) != None &&
+          visited.get(neighbor_key) != Some(true) {
+          visited[neighbor_key] = true
+          queue.push(neighbor)
+        }
+      }
+    }
+    regions.push(SheetRegion::{ min_row, max_row, min_col, max_col })
+  }
+  regions
+}
+
+///|
+fn sheet_neighbors(position : SheetCellPos) -> Array[SheetCellPos] {
+  let neighbors : Array[SheetCellPos] = []
+  if position.row > 0 {
+    neighbors.push(SheetCellPos::{ row: position.row - 1, col: position.col })
+  }
+  neighbors.push(SheetCellPos::{ row: position.row + 1, col: position.col })
+  if position.col > 0 {
+    neighbors.push(SheetCellPos::{ row: position.row, col: position.col - 1 })
+  }
+  neighbors.push(SheetCellPos::{ row: position.row, col: position.col + 1 })
+  neighbors
+}
+
+///|
+fn sheet_cell_key(row : Int, col : Int) -> String {
+  row.to_string() + ":" + col.to_string()
+}
+
+///|
+fn sheet_region_rows(
+  rows : Array[Array[String]],
+  region : SheetRegion,
+) -> Array[Array[String]] {
+  let region_rows : Array[Array[String]] = []
+  let mut row_index = region.min_row
+  while row_index <= region.max_row {
+    let extracted : Array[String] = []
+    let mut col_index = region.min_col
+    while col_index <= region.max_col {
+      let row = rows[row_index]
+      extracted.push(if col_index < row.length() { row[col_index] } else { "" })
+      col_index = col_index + 1
+    }
+    region_rows.push(extracted)
+    row_index = row_index + 1
+  }
+  region_rows
+}
+
+///|
+fn sheet_region_to_blocks(rows : Array[Array[String]]) -> Array[@ast.Block] {
+  let blocks : Array[@ast.Block] = []
+  let trimmed_rows = trim_empty_region_rows(rows)
+  if trimmed_rows.length() == 0 {
+    return blocks
+  }
+  let (title, table_rows) = extract_sheet_region_title(trimmed_rows)
+  match title {
+    Some(text) => blocks.push(@ast.text_heading(3, text))
+    None => ()
+  }
+  if table_rows.length() == 0 {
+    return blocks
+  }
+  let header_cells : Array[Array[@ast.Inline]] = []
+  for cell in table_rows[0] {
+    header_cells.push(@ast.text_inlines(cell))
+  }
+  let body_rows : Array[Array[Array[@ast.Inline]]] = []
+  let mut row_index = 1
+  while row_index < table_rows.length() {
+    let body_row : Array[Array[@ast.Inline]] = []
+    for cell in table_rows[row_index] {
+      body_row.push(@ast.text_inlines(cell))
+    }
+    body_rows.push(body_row)
+    row_index = row_index + 1
+  }
+  blocks.push(@ast.Table(header_cells, body_rows))
   blocks
+}
+
+///|
+fn trim_empty_region_rows(rows : Array[Array[String]]) -> Array[Array[String]] {
+  let trimmed : Array[Array[String]] = []
+  for row in rows {
+    if count_non_empty_cells(row) > 0 {
+      trimmed.push(row)
+    }
+  }
+  trimmed
+}
+
+///|
+fn extract_sheet_region_title(
+  rows : Array[Array[String]],
+) -> (String?, Array[Array[String]]) {
+  if rows.length() > 1 && count_non_empty_cells(rows[0]) == 1 {
+    let title = first_non_empty_cell(rows[0])
+    let remaining : Array[Array[String]] = []
+    let mut index = 1
+    while index < rows.length() {
+      remaining.push(rows[index])
+      index = index + 1
+    }
+    (title, remaining)
+  } else {
+    (None, rows)
+  }
+}
+
+///|
+fn count_non_empty_cells(row : Array[String]) -> Int {
+  let mut count = 0
+  for cell in row {
+    if cell != "" {
+      count = count + 1
+    }
+  }
+  count
+}
+
+///|
+fn first_non_empty_cell(row : Array[String]) -> String? {
+  for cell in row {
+    if cell != "" {
+      return Some(cell)
+    }
+  }
+  None
 }
 
 ///|
@@ -651,8 +875,24 @@ fn append_xlsx_asset_gallery(
   markdown : String,
   assets : Array[@core.OutputAsset],
 ) -> String {
-  ignore(assets)
-  markdown
+  if assets.length() == 0 {
+    return markdown
+  }
+  let lines : Array[String] = []
+  if markdown != "" {
+    lines.push(markdown)
+    lines.push("")
+  }
+  lines.push("## Embedded Assets")
+  lines.push("")
+  for asset in assets {
+    if asset.filename.has_prefix("xlsx-image-") {
+      lines.push("![" + asset.filename + "](" + asset.placeholder + ")")
+    } else {
+      lines.push("- [" + asset.filename + "](" + asset.placeholder + ")")
+    }
+  }
+  lines.join("\n")
 }
 
 ///|

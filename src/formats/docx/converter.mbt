@@ -36,6 +36,7 @@ pub async fn DocxConverter::convert(
   match @libzip.ZipArchive::open(bytes) {
     Some(archive) => {
       let relationships = parse_docx_relationships(archive)
+      let numbering = parse_docx_numbering(archive)
       let (assets, asset_warnings, asset_placeholders) = extract_docx_media_assets(
         archive,
       )
@@ -60,7 +61,7 @@ pub async fn DocxConverter::convert(
               )
           }
           let (content_blocks, docx_warnings) = extract_blocks_from_docx_xml(
-            xml_string, relationships, asset_placeholders,
+            xml_string, relationships, numbering, asset_placeholders,
           )
           let metadata = Map::new()
           metadata["format"] = "docx"
@@ -136,10 +137,12 @@ pub async fn DocxConverter::convert(
 fn extract_blocks_from_docx_xml(
   xml : String,
   relationships : Map[String, String],
+  numbering : DocxNumbering,
   asset_placeholders : Map[String, String],
 ) -> (Array[@ast.Block], Array[String]) raise {
   match @xml.parse_xml(xml) {
-    Ok(events) => process_docx_events(events, relationships, asset_placeholders)
+    Ok(events) =>
+      process_docx_events(events, relationships, numbering, asset_placeholders)
     Err(_) =>
       fail(
         render_docx_failure(
@@ -157,21 +160,40 @@ fn extract_blocks_from_docx_xml(
 }
 
 ///|
+priv struct DocxNumbering {
+  num_to_abstract : Map[String, String]
+  level_formats : Map[String, String]
+}
+
+///|
 priv struct DocxContext {
   relationships : Map[String, String]
+  numbering : DocxNumbering
   asset_placeholders : Map[String, String]
   mut in_paragraph : Bool
   mut in_paragraph_properties : Bool
+  mut in_numbering_properties : Bool
   mut in_run_properties : Bool
   mut in_text : Bool
   mut current_text : String
   mut current_inlines : Array[@ast.Inline]
+  mut current_paragraph_style : String?
   mut heading_level : Int
   mut in_list : Bool
+  mut current_list_num_id : String?
+  mut current_list_level : Int
   mut run_bold : Bool
   mut run_italic : Bool
   mut current_hyperlink : String?
   mut pending_image_alt : String?
+  mut has_pending_list : Bool
+  mut pending_list_ordered : Bool
+  mut pending_list_items : Array[Array[@ast.Inline]]
+  mut in_table : Bool
+  mut in_table_cell : Bool
+  mut current_cell_paragraphs : Array[String]
+  mut current_table_row : Array[String]
+  mut current_table_rows : Array[Array[String]]
   blocks : Array[@ast.Block]
   warnings : Array[String]
 }
@@ -180,23 +202,37 @@ priv struct DocxContext {
 fn process_docx_events(
   events : Array[@xml.ParseEvent],
   relationships : Map[String, String],
+  numbering : DocxNumbering,
   asset_placeholders : Map[String, String],
 ) -> (Array[@ast.Block], Array[String]) {
   let ctx = DocxContext::{
     relationships,
+    numbering,
     asset_placeholders,
     in_paragraph: false,
     in_paragraph_properties: false,
+    in_numbering_properties: false,
     in_run_properties: false,
     in_text: false,
     current_text: "",
     current_inlines: [],
+    current_paragraph_style: None,
     heading_level: 0,
     in_list: false,
+    current_list_num_id: None,
+    current_list_level: 0,
     run_bold: false,
     run_italic: false,
     current_hyperlink: None,
     pending_image_alt: None,
+    has_pending_list: false,
+    pending_list_ordered: false,
+    pending_list_items: [],
+    in_table: false,
+    in_table_cell: false,
+    current_cell_paragraphs: [],
+    current_table_row: [],
+    current_table_rows: [],
     blocks: [],
     warnings: [],
   }
@@ -214,6 +250,7 @@ fn process_docx_events(
   }
 
   finalize_docx_paragraph(ctx)
+  flush_docx_pending_list(ctx)
   (ctx.blocks, ctx.warnings)
 }
 
@@ -227,6 +264,15 @@ fn handle_element_start(
 
   if local_name == "p" {
     begin_docx_paragraph(ctx)
+  } else if local_name == "tbl" {
+    finalize_docx_paragraph(ctx)
+    flush_docx_pending_list(ctx)
+    begin_docx_table(ctx)
+  } else if local_name == "tr" && ctx.in_table {
+    ctx.current_table_row = []
+  } else if local_name == "tc" && ctx.in_table {
+    ctx.in_table_cell = true
+    ctx.current_cell_paragraphs = []
   } else if local_name == "pPr" {
     ctx.in_paragraph_properties = true
   } else if local_name == "r" {
@@ -245,6 +291,13 @@ fn handle_element_start(
     apply_docx_paragraph_style(ctx, style)
   } else if local_name == "numPr" && ctx.in_paragraph_properties {
     ctx.in_list = true
+    ctx.in_numbering_properties = true
+  } else if local_name == "numId" && ctx.in_numbering_properties {
+    ctx.current_list_num_id = map_get_any(attrs, ["w:val", "val"])
+  } else if local_name == "ilvl" && ctx.in_numbering_properties {
+    ctx.current_list_level = docx_parse_level(
+      map_get_any(attrs, ["w:val", "val"]),
+    )
   } else if local_name == "b" && ctx.in_run_properties {
     ctx.run_bold = true
   } else if local_name == "i" && ctx.in_run_properties {
@@ -279,8 +332,16 @@ fn handle_element_end(ctx : DocxContext, name : String) -> Unit {
 
   if local_name == "p" {
     finalize_docx_paragraph(ctx)
+  } else if local_name == "tbl" {
+    finish_docx_table(ctx)
+  } else if local_name == "tr" {
+    finish_docx_table_row(ctx)
+  } else if local_name == "tc" {
+    finish_docx_table_cell(ctx)
   } else if local_name == "pPr" {
     ctx.in_paragraph_properties = false
+  } else if local_name == "numPr" {
+    ctx.in_numbering_properties = false
   } else if local_name == "r" {
     flush_docx_text(ctx)
     ctx.in_run_properties = false
@@ -299,10 +360,14 @@ fn begin_docx_paragraph(ctx : DocxContext) -> Unit {
   finalize_docx_paragraph(ctx)
   ctx.in_paragraph = true
   ctx.in_paragraph_properties = false
+  ctx.in_numbering_properties = false
   ctx.current_inlines = []
   ctx.current_text = ""
+  ctx.current_paragraph_style = None
   ctx.heading_level = 0
   ctx.in_list = false
+  ctx.current_list_num_id = None
+  ctx.current_list_level = 0
   ctx.current_hyperlink = None
   ctx.pending_image_alt = None
 }
@@ -324,30 +389,128 @@ fn finalize_docx_paragraph(ctx : DocxContext) -> Unit {
   }
   flush_docx_text(ctx)
   if ctx.current_inlines.length() > 0 {
-    if ctx.heading_level > 0 {
+    if ctx.in_table && ctx.in_table_cell {
+      append_docx_table_cell_paragraph(ctx, ctx.current_inlines)
+    } else if ctx.heading_level > 0 {
+      flush_docx_pending_list(ctx)
       ctx.blocks.push(
         @ast.text_heading(
           ctx.heading_level,
           render_docx_heading_text(ctx.current_inlines),
         ),
       )
+    } else if ctx.in_list {
+      append_docx_list_item(
+        ctx,
+        ctx.current_inlines,
+        docx_list_is_ordered(ctx),
+        ctx.current_list_level,
+      )
     } else if ctx.blocks.length() == 0 &&
       docx_is_promotable_title(ctx.current_inlines) {
+      flush_docx_pending_list(ctx)
       ctx.blocks.push(
         @ast.text_heading(1, render_docx_heading_text(ctx.current_inlines)),
       )
-    } else if ctx.in_list {
-      ctx.blocks.push(@ast.List([ctx.current_inlines], false))
     } else {
+      flush_docx_pending_list(ctx)
       ctx.blocks.push(@ast.Paragraph(ctx.current_inlines))
     }
   }
   ctx.in_paragraph = false
   ctx.current_inlines = []
   ctx.current_text = ""
+  ctx.current_paragraph_style = None
   ctx.heading_level = 0
   ctx.in_list = false
+  ctx.current_list_num_id = None
+  ctx.current_list_level = 0
   ctx.current_hyperlink = None
+}
+
+///|
+fn append_docx_list_item(
+  ctx : DocxContext,
+  inlines : Array[@ast.Inline],
+  ordered : Bool,
+  level : Int,
+) -> Unit {
+  let normalized = if level > 0 {
+    docx_prefixed_inlines("  ".repeat(level), inlines)
+  } else {
+    inlines
+  }
+  if ctx.has_pending_list && ctx.pending_list_ordered != ordered {
+    flush_docx_pending_list(ctx)
+  }
+  if !ctx.has_pending_list {
+    ctx.pending_list_items = []
+    ctx.pending_list_ordered = ordered
+    ctx.has_pending_list = true
+  }
+  ctx.pending_list_items.push(normalized)
+}
+
+///|
+fn flush_docx_pending_list(ctx : DocxContext) -> Unit {
+  if ctx.has_pending_list && ctx.pending_list_items.length() > 0 {
+    ctx.blocks.push(@ast.List(ctx.pending_list_items, ctx.pending_list_ordered))
+  }
+  ctx.pending_list_items = []
+  ctx.has_pending_list = false
+  ctx.pending_list_ordered = false
+}
+
+///|
+fn docx_prefixed_inlines(
+  prefix : String,
+  inlines : Array[@ast.Inline],
+) -> Array[@ast.Inline] {
+  if prefix == "" {
+    return inlines
+  }
+  let prefixed : Array[@ast.Inline] = []
+  let mut is_first = true
+  for inline in inlines {
+    if is_first {
+      match inline {
+        @ast.Text(text) => prefixed.push(@ast.Text(prefix + text))
+        _ => {
+          prefixed.push(@ast.Text(prefix))
+          prefixed.push(inline)
+        }
+      }
+      is_first = false
+    } else {
+      prefixed.push(inline)
+    }
+  }
+  if is_first {
+    [@ast.Text(prefix)]
+  } else {
+    prefixed
+  }
+}
+
+///|
+fn docx_list_is_ordered(ctx : DocxContext) -> Bool {
+  match ctx.current_paragraph_style {
+    Some(style) => {
+      let lowered = style.to_lower().to_string()
+      if lowered.contains("number") || lowered.contains("ordered") {
+        return true
+      }
+      if lowered.contains("bullet") {
+        return false
+      }
+    }
+    None => ()
+  }
+  match ctx.current_list_num_id {
+    Some(num_id) =>
+      docx_numbering_is_ordered(ctx.numbering, num_id, ctx.current_list_level)
+    None => false
+  }
 }
 
 ///|
@@ -461,6 +624,7 @@ fn docx_is_promotable_title(inlines : Array[@ast.Inline]) -> Bool {
 fn apply_docx_paragraph_style(ctx : DocxContext, style : String?) -> Unit {
   match style {
     Some(value) => {
+      ctx.current_paragraph_style = Some(value)
       let lowered = value.to_lower().to_string()
       if lowered.has_prefix("heading") {
         ctx.heading_level = parse_heading_level(value)
@@ -500,6 +664,14 @@ fn parse_decimal_digits(text : String) -> Int {
     value = value * 10 + (ch.to_int() - '0'.to_int())
   }
   value
+}
+
+///|
+fn docx_parse_level(value : String?) -> Int {
+  match value {
+    Some(text) if text != "" => parse_decimal_digits(text)
+    _ => 0
+  }
 }
 
 ///|
@@ -597,6 +769,264 @@ fn extract_docx_relationships(
     }
   }
   relationships
+}
+
+///|
+fn parse_docx_numbering(archive : @libzip.ZipArchive) -> DocxNumbering {
+  let numbering = DocxNumbering::{
+    num_to_abstract: Map::new(),
+    level_formats: Map::new(),
+  }
+  match @libzip.read_file_entry_decompressed(archive, "word/numbering.xml") {
+    Some(bytes) => {
+      let xml_string = @utf8.decode(bytes) catch { _ => return numbering }
+      match @xml.parse_xml(xml_string) {
+        Ok(events) => extract_docx_numbering(events, numbering)
+        Err(_) => ()
+      }
+    }
+    None => ()
+  }
+  numbering
+}
+
+///|
+priv struct DocxNumberingContext {
+  numbering : DocxNumbering
+  mut current_abstract_id : String?
+  mut current_level : Int?
+  mut current_level_format : String?
+  mut current_num_id : String?
+  mut current_num_abstract_id : String?
+}
+
+///|
+fn extract_docx_numbering(
+  events : Array[@xml.ParseEvent],
+  numbering : DocxNumbering,
+) -> Unit {
+  let ctx = DocxNumberingContext::{
+    numbering,
+    current_abstract_id: None,
+    current_level: None,
+    current_level_format: None,
+    current_num_id: None,
+    current_num_abstract_id: None,
+  }
+  for event in events {
+    match event {
+      @xml.ElementStart(evt) =>
+        handle_docx_numbering_start(
+          ctx,
+          strip_namespace(evt.name),
+          evt.attributes,
+        )
+      @xml.ElementEnd(evt) =>
+        handle_docx_numbering_end(ctx, strip_namespace(evt.name))
+      _ => ()
+    }
+  }
+}
+
+///|
+fn handle_docx_numbering_start(
+  ctx : DocxNumberingContext,
+  local_name : String,
+  attrs : Map[String, String],
+) -> Unit {
+  if local_name == "abstractNum" {
+    ctx.current_abstract_id = map_get_any(attrs, [
+      "w:abstractNumId", "abstractNumId",
+    ])
+  } else if local_name == "lvl" {
+    ctx.current_level = Some(
+      docx_parse_level(map_get_any(attrs, ["w:ilvl", "ilvl"])),
+    )
+    ctx.current_level_format = None
+  } else if local_name == "numFmt" && ctx.current_abstract_id != None {
+    ctx.current_level_format = map_get_any(attrs, ["w:val", "val"])
+  } else if local_name == "num" {
+    ctx.current_num_id = map_get_any(attrs, ["w:numId", "numId"])
+    ctx.current_num_abstract_id = None
+  } else if local_name == "abstractNumId" && ctx.current_num_id != None {
+    ctx.current_num_abstract_id = map_get_any(attrs, ["w:val", "val"])
+  }
+}
+
+///|
+fn handle_docx_numbering_end(
+  ctx : DocxNumberingContext,
+  local_name : String,
+) -> Unit {
+  if local_name == "lvl" {
+    match
+      (ctx.current_abstract_id, ctx.current_level, ctx.current_level_format) {
+      (Some(abstract_id), Some(level), Some(format_name)) =>
+        ctx.numbering.level_formats[docx_numbering_key(abstract_id, level)] = format_name
+      _ => ()
+    }
+    ctx.current_level = None
+    ctx.current_level_format = None
+  } else if local_name == "abstractNum" {
+    ctx.current_abstract_id = None
+  } else if local_name == "num" {
+    match (ctx.current_num_id, ctx.current_num_abstract_id) {
+      (Some(num_id), Some(abstract_id)) =>
+        ctx.numbering.num_to_abstract[num_id] = abstract_id
+      _ => ()
+    }
+    ctx.current_num_id = None
+    ctx.current_num_abstract_id = None
+  }
+}
+
+///|
+fn docx_numbering_key(abstract_id : String, level : Int) -> String {
+  abstract_id + ":" + level.to_string()
+}
+
+///|
+fn docx_numbering_is_ordered(
+  numbering : DocxNumbering,
+  num_id : String,
+  level : Int,
+) -> Bool {
+  match numbering.num_to_abstract.get(num_id) {
+    Some(abstract_id) =>
+      match
+        numbering.level_formats.get(docx_numbering_key(abstract_id, level)) {
+        Some(format_name) => docx_numfmt_is_ordered(format_name)
+        None => false
+      }
+    None => false
+  }
+}
+
+///|
+fn docx_numfmt_is_ordered(format_name : String) -> Bool {
+  let lowered = format_name.to_lower().to_string()
+  lowered != "bullet" && lowered != "none" && lowered != "picture"
+}
+
+///|
+fn begin_docx_table(ctx : DocxContext) -> Unit {
+  ctx.in_table = true
+  ctx.in_table_cell = false
+  ctx.current_cell_paragraphs = []
+  ctx.current_table_row = []
+  ctx.current_table_rows = []
+}
+
+///|
+fn append_docx_table_cell_paragraph(
+  ctx : DocxContext,
+  inlines : Array[@ast.Inline],
+) -> Unit {
+  let mut text = @ast.plain_text_of_inlines(inlines).trim().to_string()
+  if text == "" {
+    return
+  }
+  if ctx.in_list {
+    text = docx_table_list_prefix(docx_list_is_ordered(ctx)) + text
+  }
+  ctx.current_cell_paragraphs.push(text)
+}
+
+///|
+fn docx_table_list_prefix(ordered : Bool) -> String {
+  if ordered {
+    "1. "
+  } else {
+    "- "
+  }
+}
+
+///|
+fn finish_docx_table_cell(ctx : DocxContext) -> Unit {
+  if !ctx.in_table || !ctx.in_table_cell {
+    return
+  }
+  ctx.current_table_row.push(ctx.current_cell_paragraphs.join("\n"))
+  ctx.current_cell_paragraphs = []
+  ctx.in_table_cell = false
+}
+
+///|
+fn finish_docx_table_row(ctx : DocxContext) -> Unit {
+  if !ctx.in_table {
+    return
+  }
+  if ctx.current_table_row.length() > 0 {
+    ctx.current_table_rows.push(copy_docx_table_row(ctx.current_table_row))
+  }
+  ctx.current_table_row = []
+}
+
+///|
+fn finish_docx_table(ctx : DocxContext) -> Unit {
+  if !ctx.in_table {
+    return
+  }
+  let rows = docx_compact_table_rows(ctx.current_table_rows)
+  if rows.length() > 0 {
+    ctx.blocks.push(docx_table_block(rows))
+  }
+  ctx.in_table = false
+  ctx.in_table_cell = false
+  ctx.current_cell_paragraphs = []
+  ctx.current_table_row = []
+  ctx.current_table_rows = []
+}
+
+///|
+fn copy_docx_table_row(row : Array[String]) -> Array[String] {
+  let copied : Array[String] = []
+  for cell in row {
+    copied.push(cell)
+  }
+  copied
+}
+
+///|
+fn docx_compact_table_rows(rows : Array[Array[String]]) -> Array[Array[String]] {
+  let compacted : Array[Array[String]] = []
+  for row in rows {
+    if row.length() == 0 {
+      continue
+    }
+    let normalized : Array[String] = []
+    let mut has_content = false
+    for cell in row {
+      let value = cell.trim().to_string()
+      if value != "" {
+        has_content = true
+      }
+      normalized.push(value)
+    }
+    if has_content {
+      compacted.push(normalized)
+    }
+  }
+  compacted
+}
+
+///|
+fn docx_table_block(rows : Array[Array[String]]) -> @ast.Block {
+  let headers : Array[Array[@ast.Inline]] = []
+  for cell in rows[0] {
+    headers.push(@ast.text_inlines(cell))
+  }
+  let body_rows : Array[Array[Array[@ast.Inline]]] = []
+  let mut index = 1
+  while index < rows.length() {
+    let body_row : Array[Array[@ast.Inline]] = []
+    for cell in rows[index] {
+      body_row.push(@ast.text_inlines(cell))
+    }
+    body_rows.push(body_row)
+    index = index + 1
+  }
+  @ast.Table(headers, body_rows)
 }
 
 ///|

@@ -5,6 +5,15 @@ pub fn process_slides(
   archive : @libzip.ZipArchive,
   slide_refs : Array[SlideRef],
 ) -> (Array[@ast.Block], Array[String]) {
+  process_slides_with_assets(archive, slide_refs, {})
+}
+
+///|
+fn process_slides_with_assets(
+  archive : @libzip.ZipArchive,
+  slide_refs : Array[SlideRef],
+  asset_placeholders : Map[String, String],
+) -> (Array[@ast.Block], Array[String]) {
   let blocks : Array[@ast.Block] = []
   let warnings : Array[String] = []
 
@@ -37,6 +46,7 @@ pub fn process_slides(
             slide_path,
             archive,
             relationships,
+            asset_placeholders,
           )
           for warning in slide_warnings {
             warnings.push(warning)
@@ -63,6 +73,7 @@ fn process_slide_xml_with_relationships(
   slide_path : String,
   archive : @libzip.ZipArchive,
   relationships : Array[SlideRelationship],
+  asset_placeholders : Map[String, String],
 ) -> (Array[@ast.Block], Array[String]) {
   let (blocks, warning) = process_slide_xml(xml, slide_num, slide_path)
   let warnings : Array[String] = []
@@ -92,6 +103,16 @@ fn process_slide_xml_with_relationships(
   }
   for note_warning in note_warnings {
     warnings.push(note_warning)
+  }
+
+  let (asset_blocks, asset_warnings) = extract_related_asset_blocks(
+    relationships, asset_placeholders,
+  )
+  for block in asset_blocks {
+    blocks.push(block)
+  }
+  for asset_warning in asset_warnings {
+    warnings.push(asset_warning)
   }
 
   (blocks, warnings)
@@ -347,6 +368,70 @@ fn extract_related_chart_blocks(
     }
   }
   (blocks, warnings)
+}
+
+///|
+fn extract_related_asset_blocks(
+  relationships : Array[SlideRelationship],
+  asset_placeholders : Map[String, String],
+) -> (Array[@ast.Block], Array[String]) {
+  let blocks : Array[@ast.Block] = []
+  let warnings : Array[String] = []
+  let seen_targets : Array[String] = []
+  for relationship in relationships {
+    if !pptx_relationship_is_embedded_asset(relationship) {
+      continue
+    }
+    if seen_targets.contains(relationship.target) {
+      continue
+    }
+    seen_targets.push(relationship.target)
+    match asset_placeholders.get(relationship.target) {
+      Some(placeholder) => {
+        if blocks.length() == 0 {
+          blocks.push(@ast.text_heading(4, "Slide Assets"))
+        }
+        if pptx_relationship_is_image(relationship) {
+          blocks.push(
+            @ast.Paragraph([
+              @ast.Image(@core.file_name_only(relationship.target), placeholder),
+            ]),
+          )
+        } else {
+          blocks.push(
+            @ast.Paragraph([
+              @ast.Link(
+                [@ast.Text(@core.file_name_only(relationship.target))],
+                placeholder,
+              ),
+            ]),
+          )
+        }
+      }
+      None =>
+        warnings.push(
+          "PPTX slide asset relationship did not resolve to extracted asset: " +
+          relationship.target,
+        )
+    }
+  }
+  (blocks, warnings)
+}
+
+///|
+fn pptx_relationship_is_embedded_asset(
+  relationship : SlideRelationship,
+) -> Bool {
+  pptx_relationship_is_image(relationship) ||
+  relationship.type_name.has_suffix("/package") ||
+  relationship.type_name.has_suffix("/oleObject") ||
+  relationship.target.has_prefix("ppt/embeddings/")
+}
+
+///|
+fn pptx_relationship_is_image(relationship : SlideRelationship) -> Bool {
+  relationship.type_name.has_suffix("/image") ||
+  relationship.target.has_prefix("ppt/media/")
 }
 
 ///|

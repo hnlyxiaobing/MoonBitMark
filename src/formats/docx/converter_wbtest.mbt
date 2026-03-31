@@ -44,3 +44,54 @@ test "docx promotes short leading title paragraph" {
     content="true",
   )
 }
+
+///|
+test "docx ordered list paragraphs are grouped into one markdown list" {
+  let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+    "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+    "<w:body>" +
+    "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"42\"/></w:numPr></w:pPr><w:r><w:t>First</w:t></w:r></w:p>" +
+    "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"42\"/></w:numPr></w:pPr><w:r><w:t>Second</w:t></w:r></w:p>" +
+    "</w:body>" +
+    "</w:document>"
+  let numbering = DocxNumbering::{
+    num_to_abstract: { "42": "7" },
+    level_formats: { "7:0": "decimal" },
+  }
+  let (blocks, warnings) = extract_blocks_from_docx_xml(xml, {}, numbering, {})
+  inspect(warnings.length(), content="0")
+  inspect(
+    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    content="1. First\n2. Second",
+  )
+}
+
+///|
+test "docx tables become markdown tables" {
+  let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+    "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+    "<w:body>" +
+    "<w:tbl>" +
+    "<w:tr>" +
+    "<w:tc><w:p><w:r><w:t>Name</w:t></w:r></w:p></w:tc>" +
+    "<w:tc><w:p><w:r><w:t>Value</w:t></w:r></w:p></w:tc>" +
+    "</w:tr>" +
+    "<w:tr>" +
+    "<w:tc><w:p><w:r><w:t>Alpha</w:t></w:r></w:p></w:tc>" +
+    "<w:tc><w:p><w:r><w:t>10</w:t></w:r></w:p></w:tc>" +
+    "</w:tr>" +
+    "</w:tbl>" +
+    "</w:body>" +
+    "</w:document>"
+  let (blocks, warnings) = extract_blocks_from_docx_xml(
+    xml,
+    {},
+    DocxNumbering::{ num_to_abstract: {}, level_formats: {} },
+    {},
+  )
+  inspect(warnings.length(), content="0")
+  inspect(
+    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    content="| Name | Value |\n| --- | --- |\n| Alpha | 10 |",
+  )
+}

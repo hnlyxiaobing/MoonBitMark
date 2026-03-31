@@ -59,17 +59,41 @@ test "xlsx cell normalization trims whitespace" {
 }
 
 ///|
-test "xlsx asset gallery is suppressed from markdown" {
+test "xlsx asset gallery is appended to markdown" {
   inspect(
     append_xlsx_asset_gallery("## Sheet1", [
       @core.OutputAsset::{
-        placeholder: "moonbitmark-asset://xlsx-image-1.png",
+        placeholder: "moonbitmark-raw://xlsx/1",
         filename: "xlsx-image-1.png",
         bytes: b"",
         source: None,
         hint: None,
       },
     ]),
-    content="## Sheet1",
+    content="## Sheet1\n\n## Embedded Assets\n\n![xlsx-image-1.png](moonbitmark-raw://xlsx/1)",
   )
+}
+
+///|
+test "xlsx sheet regions split sparse tables and promote a title row" {
+  let data = SheetData::{
+    rows: [
+      ["Quarterly Budget", "", "", ""],
+      ["Month", "Amount", "", ""],
+      ["Jan", "10", "", ""],
+      ["", "", "Owner", "Status"],
+      ["", "", "Ada", "Ready"],
+    ],
+    max_cols: 4,
+  }
+  let blocks = sheet_data_to_blocks(data)
+  inspect(
+    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    content="### Quarterly Budget\n\n| Month | Amount |\n| --- | --- |\n| Jan | 10 |\n\n| Owner | Status |\n| --- | --- |\n| Ada | Ready |",
+  )
+}
+
+///|
+test "xlsx formula falls back when cached value is missing" {
+  inspect(get_cell_value("", "", "SUM(A1:A3)", []), content="=SUM(A1:A3)")
 }

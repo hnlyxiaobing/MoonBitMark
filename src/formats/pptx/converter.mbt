@@ -63,13 +63,15 @@ pub async fn PptxConverter::convert(
             )
           }
           // 解析每张幻灯片并生成 Markdown
-          let (slide_blocks, slide_warnings) = process_slides(
-            archive, slide_ids,
+          let (assets, asset_warnings, asset_placeholders) = extract_pptx_assets(
+            archive,
+          )
+          let (slide_blocks, slide_warnings) = process_slides_with_assets(
+            archive, slide_ids, asset_placeholders,
           )
           let metadata = Map::new()
           metadata["format"] = "pptx"
           metadata["slide_count"] = slide_ids.length().to_string()
-          let (assets, asset_warnings) = extract_pptx_assets(archive)
           let warnings = collect_pptx_warnings(
             parse_warnings, slide_warnings, asset_warnings,
           )
@@ -141,9 +143,10 @@ fn collect_pptx_warnings(
 ///|
 fn extract_pptx_assets(
   archive : @libzip.ZipArchive,
-) -> (Array[@core.OutputAsset], Array[String]) {
+) -> (Array[@core.OutputAsset], Array[String], Map[String, String]) {
   let assets : Array[@core.OutputAsset] = []
   let warnings : Array[String] = []
+  let placeholders : Map[String, String] = Map::new()
   let mut index = 1
   for entry in archive.list_entries() {
     if entry.has_prefix("ppt/media/") || entry.has_prefix("ppt/embeddings/") {
@@ -162,13 +165,14 @@ fn extract_pptx_assets(
             source: Some(@core.ArchiveEntry(entry)),
             hint: Some(@core.CheckArchiveIntegrity),
           })
+          placeholders[entry] = pptx_asset_placeholder(index)
           index = index + 1
         }
         None => warnings.push("Failed to extract PPTX asset: " + entry)
       }
     }
   }
-  (assets, warnings)
+  (assets, warnings, placeholders)
 }
 
 ///|
@@ -186,12 +190,14 @@ fn append_pptx_asset_gallery(
     lines.push("")
   }
   if assets.length() > 0 {
-    lines.push("## Embedded Assets")
-    lines.push("")
+    let mut has_attachment = false
     for asset in assets {
-      if asset.filename.has_prefix("pptx-image-") {
-        lines.push("![" + asset.filename + "](" + asset.placeholder + ")")
-      } else {
+      if !asset.filename.has_prefix("pptx-image-") {
+        if !has_attachment {
+          lines.push("## Embedded Assets")
+          lines.push("")
+          has_attachment = true
+        }
         lines.push("- [" + asset.filename + "](" + asset.placeholder + ")")
       }
     }
@@ -318,9 +324,23 @@ fn pptx_warning_diagnostics(
         ) {
         Some(diagnostic) => diagnostics.push(diagnostic)
         None =>
-          match @core.embedded_ocr_warning_diagnostic("pptx", warning) {
-            Some(diagnostic) => diagnostics.push(diagnostic)
-            None => ()
+          if warning.has_prefix(
+              "PPTX slide asset relationship did not resolve to extracted asset: ",
+            ) {
+            let path = warning[61:].to_string()
+            diagnostics.push(
+              @core.warning_diagnostic(
+                warning,
+                Some(@core.Load(Some("asset"))),
+                Some(@core.ArchiveEntry(path)),
+                Some(@core.CheckArchiveIntegrity),
+              ),
+            )
+          } else {
+            match @core.embedded_ocr_warning_diagnostic("pptx", warning) {
+              Some(diagnostic) => diagnostics.push(diagnostic)
+              None => ()
+            }
           }
       }
     }
