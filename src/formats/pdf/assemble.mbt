@@ -52,6 +52,18 @@ fn build_pdf_metadata(
     metadata["route_flags"] = route_flag_summary
   }
 
+  let route_text_quality_summary = summarize_route_text_quality(route_plan)
+  if route_text_quality_summary != "" {
+    metadata["route_text_quality"] = route_text_quality_summary
+  }
+
+  let route_layout_complexity_summary = summarize_route_layout_complexity(
+    route_plan,
+  )
+  if route_layout_complexity_summary != "" {
+    metadata["route_layout_complexity"] = route_layout_complexity_summary
+  }
+
   if normalization.removed_header_count > 0 {
     metadata["removed_header_count"] = normalization.removed_header_count.to_string()
   }

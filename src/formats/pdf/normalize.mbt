@@ -3,6 +3,9 @@ fn normalize_pdf_extraction(
   extraction : PdfNativeExtraction,
   route_plan : PdfRoutePlan,
 ) -> PdfNormalizationResult {
+  if extraction.pages.length() == 0 {
+    return normalize_pdf_pages(extraction.raw_pages)
+  }
   let pages : Array[PdfPageText] = []
   let prefer_linewise = extraction.used_text_fallback &&
     extraction.provider is Some("pdfminer")

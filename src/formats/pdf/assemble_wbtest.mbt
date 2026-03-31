@@ -47,6 +47,14 @@ test "pdf assembly metadata records route summary" {
     assembled.metadata.get("route_native_fast_pages"),
     content="Some(\"1\")",
   )
+  inspect(
+    assembled.metadata.get("route_text_quality"),
+    content="Some(\"empty:1,weak:1\")",
+  )
+  inspect(
+    assembled.metadata.get("route_layout_complexity"),
+    content="Some(\"simple:2\")",
+  )
 }
 
 ///|
@@ -86,5 +94,13 @@ test "pdf assembly metadata records fallback extraction details" {
   inspect(
     assembled.metadata.get("pdf_text_warning_count"),
     content="Some(\"1\")",
+  )
+  inspect(
+    assembled.metadata.get("route_text_quality"),
+    content="Some(\"very_poor:1\")",
+  )
+  inspect(
+    assembled.metadata.get("route_layout_complexity"),
+    content="Some(\"simple:1\")",
   )
 }

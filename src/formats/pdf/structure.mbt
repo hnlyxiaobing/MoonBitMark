@@ -9,7 +9,7 @@ fn reconstruct_pdf_blocks_with_routes(
   route_plan : PdfRoutePlan,
 ) -> PdfStructureResult {
   if route_plan.summary.structured_pages == 0 {
-    return reconstruct_pdf_blocks_with_heading_state(pages, false)
+    return reconstruct_pdf_blocks(pages)
   }
 
   let blocks : Array[@ast.Block] = []

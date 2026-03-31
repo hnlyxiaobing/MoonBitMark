@@ -186,6 +186,26 @@ fn PdfPageProviderKind::label(self : PdfPageProviderKind) -> String {
 }
 
 ///|
+fn PdfTextQuality::label(self : PdfTextQuality) -> String {
+  match self {
+    Empty => "empty"
+    VeryPoor => "very_poor"
+    Weak => "weak"
+    Good => "good"
+    Strong => "strong"
+  }
+}
+
+///|
+fn PdfLayoutComplexity::label(self : PdfLayoutComplexity) -> String {
+  match self {
+    Simple => "simple"
+    Medium => "medium"
+    Complex => "complex"
+  }
+}
+
+///|
 fn PdfRouteFlag::label(self : PdfRouteFlag) -> String {
   match self {
     SuspectTable => "table"
@@ -244,6 +264,54 @@ fn summarize_route_providers(route_plan : PdfRoutePlan) -> String {
   let parts : Array[String] = []
   for provider in reserved_provider_kinds() {
     let label = provider.label()
+    match counts.get(label) {
+      Some(count) => parts.push(label + ":" + count.to_string())
+      None => ()
+    }
+  }
+  parts.join(",")
+}
+
+///|
+fn summarize_route_text_quality(route_plan : PdfRoutePlan) -> String {
+  let counts : Map[String, Int] = {}
+  for page in route_plan.pages {
+    let label = page.text_quality.label()
+    counts[label] = match counts.get(label) {
+      Some(existing) => existing + 1
+      None => 1
+    }
+  }
+  if counts.length() == 0 {
+    return ""
+  }
+
+  let parts : Array[String] = []
+  for label in ["empty", "very_poor", "weak", "good", "strong"] {
+    match counts.get(label) {
+      Some(count) => parts.push(label + ":" + count.to_string())
+      None => ()
+    }
+  }
+  parts.join(",")
+}
+
+///|
+fn summarize_route_layout_complexity(route_plan : PdfRoutePlan) -> String {
+  let counts : Map[String, Int] = {}
+  for page in route_plan.pages {
+    let label = page.layout_complexity.label()
+    counts[label] = match counts.get(label) {
+      Some(existing) => existing + 1
+      None => 1
+    }
+  }
+  if counts.length() == 0 {
+    return ""
+  }
+
+  let parts : Array[String] = []
+  for label in ["simple", "medium", "complex"] {
     match counts.get(label) {
       Some(count) => parts.push(label + ":" + count.to_string())
       None => ()

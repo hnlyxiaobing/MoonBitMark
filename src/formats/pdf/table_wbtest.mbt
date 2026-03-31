@@ -12,7 +12,7 @@ test "pdf scientific table parser rebuilds column-major table" {
     0,
   )
 
-  inspect(parsed is Some((headers, rows, next_index)), content="true")
+  inspect(parsed is Some(_), content="true")
   match parsed {
     Some((headers, rows, next_index)) => {
       inspect(

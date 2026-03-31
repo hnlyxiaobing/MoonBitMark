@@ -278,7 +278,7 @@ fn parse_number(
       None => Err(InvalidJson("Invalid float: " + number_text))
     }
   } else {
-    Ok(Number(@strconv.parse_int(number_text))) catch {
+    Ok(Number(@string.parse_int(number_text))) catch {
       _ => Err(InvalidJson("Invalid number: " + number_text))
     }
   }

@@ -15,6 +15,8 @@ test "pdf route upgrades code and formula pages to structured path" {
   ])
   inspect(route.document_mode.label(), content="mixed")
   inspect(route.pages[0].provider.label(), content="native_text_structured")
+  inspect(summarize_route_text_quality(route), content="weak:1")
+  inspect(summarize_route_layout_complexity(route), content="medium:1")
   inspect(
     summarize_route_flags(route),
     content="code:1,formula:1,broken_spacing:1",
