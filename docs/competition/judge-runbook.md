@@ -19,9 +19,16 @@ powershell -ExecutionPolicy Bypass -File scripts/judge_quickstart.ps1
 - 运行 `moon test`
 - 复用现有 release binary，缺失时自动走 `scripts\build.bat`
 - 生成 HTML 样例 Markdown、PDF diagnostics JSON、HTML AST JSON
+- 生成一份面向评委的产物总览 `_build\judge-quickstart\SUMMARY.md`
 - 把产物落到 `_build\judge-quickstart\`
 
 手动验收步骤仍然保留在下面，方便你逐项确认。
+
+如果你也想顺带覆盖 MCP STDIO smoke，可以执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/judge_quickstart.ps1 -IncludeMcp
+```
 
 ### 1. 先看项目定位
 
@@ -137,9 +144,9 @@ python tests/conversion_eval/scripts/run_eval.py run
 如果时间非常紧，只做下面四步就够了：
 
 1. 优先直接跑 `powershell -ExecutionPolicy Bypass -File scripts/judge_quickstart.ps1`
-2. 如果不想跑脚本，至少手动执行 `moon test`
-3. 手动跑一个 CLI 示例
-4. 手动跑 `--diag-json`
+2. 打开 `_build\judge-quickstart\SUMMARY.md`
+3. 如果不想跑脚本，至少手动执行 `moon test`
+4. 手动跑一个 CLI 示例和 `--diag-json`
 
 这四步足够判断：
 

@@ -16,6 +16,7 @@ $pdfInput = Join-Path $repoRoot 'tests\conversion_eval\fixtures\inputs\pdf\multi
 $markdownOutput = Join-Path $outputRoot 'html_simple_table.md'
 $diagOutput = Join-Path $outputRoot 'pdf_multi_page_diag.json'
 $astOutput = Join-Path $outputRoot 'html_simple_table_ast.json'
+$summaryOutput = Join-Path $outputRoot 'SUMMARY.md'
 
 function Ensure-JudgeQuickstartBinary {
     param(
@@ -121,8 +122,49 @@ if ($IncludeMcp) {
     }
 }
 
+$mcpStatus = if ($IncludeMcp) { 'included (`tests/integration/mcp_stdio_smoke.ps1`)' } else { 'skipped (re-run with `-IncludeMcp` to cover MCP STDIO smoke)' }
+$testStatus = if ($SkipTests) { 'skipped (`-SkipTests`)' } else { 'completed (`moon test`)' }
+$summaryLines = @(
+    '# MoonBitMark Judge Quickstart Summary',
+    '',
+    "Generated at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')",
+    '',
+    '## What Was Verified',
+    '',
+    "- Tests: $testStatus",
+    '- HTML sample -> Markdown:'
+)
+$summaryLines += "  - input: $htmlInput"
+$summaryLines += "  - output: $markdownOutput"
+$summaryLines += '- PDF diagnostics:'
+$summaryLines += "  - input: $pdfInput"
+$summaryLines += "  - output: $diagOutput"
+$summaryLines += "  - title: $($diagJson.title)"
+$summaryLines += "  - warnings: $($diagJson.warnings.Count)"
+$summaryLines += "  - diagnostics: $($diagJson.diagnostics.Count)"
+$summaryLines += "  - stats.char_count: $($diagJson.stats.char_count)"
+$summaryLines += "  - stats.block_count: $($diagJson.stats.block_count)"
+$summaryLines += '- HTML AST dump:'
+$summaryLines += "  - output: $astOutput"
+$summaryLines += "  - title: $($astJson.title)"
+$summaryLines += "  - blocks: $($astJson.blocks.Count)"
+$summaryLines += "- MCP smoke: $mcpStatus"
+$summaryLines += ''
+$summaryLines += '## Suggested Read Order'
+$summaryLines += ''
+$summaryLines += '1. Open `html_simple_table.md` to confirm the shortest CLI success path.'
+$summaryLines += '2. Open `pdf_multi_page_diag.json` and inspect `metadata`, `diagnostics`, and `stats`.'
+$summaryLines += '3. Open `html_simple_table_ast.json` to verify the normalized AST output contract.'
+$summaryLines += ''
+$summaryLines += '## Why This Matters'
+$summaryLines += ''
+$summaryLines += '- The project is not just converting files; it also exposes structured diagnostics and AST outputs for tooling.'
+$summaryLines += '- The artifacts in this folder are the quickest way to judge buildability, runtime behavior, and protocol clarity.'
+$summaryLines | Set-Content -Path $summaryOutput -Encoding utf8
+
 Write-Step 'Summary'
 Write-Host "Repo root: $repoRoot"
 Write-Host "Release binary: $binary"
 Write-Host "Artifacts: $outputRoot"
+Write-Host "Summary file: $summaryOutput"
 Write-Host 'Judge quickstart completed.'
