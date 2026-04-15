@@ -3,7 +3,12 @@ pub(all) enum OcrMode {
   Off
   Auto
   Force
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
+
+///|
+pub impl Show for OcrMode with output(self, logger) {
+  self.to_repr().output(logger)
+}
 
 ///|
 pub fn OcrMode::label(self : OcrMode) -> String {
@@ -21,7 +26,7 @@ pub(all) struct OcrConfig {
   enable_embedded_images : Bool
   backend : String?
   timeout_ms : Int?
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub fn OcrConfig::default() -> OcrConfig {
@@ -71,7 +76,7 @@ pub(all) struct OcrResult {
   provider : String?
   text : String
   warnings : Array[String]
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub fn OcrResult::not_attempted() -> OcrResult {

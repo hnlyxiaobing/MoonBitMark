@@ -1320,9 +1320,24 @@ def compare_baseline(
     input_path: Path,
     reference_markdown: str | None,
 ) -> tuple[float | None, str | None, int | None]:
+    output_markdown, error, duration_ms, _python_exe = run_baseline_conversion(tool, format_name, input_path)
+    if error:
+        return None, error, duration_ms
+    if reference_markdown:
+        score = 0.6 * sequence_similarity(output_markdown or "", reference_markdown) + 0.4 * structure_similarity(output_markdown or "", reference_markdown)
+    else:
+        score = None
+    return score, None, duration_ms
+
+
+def run_baseline_conversion(
+    tool: str,
+    format_name: str,
+    input_path: Path,
+) -> tuple[str | None, str | None, int | None, str | None]:
     python_exe = baseline_python_for_tool(tool)
     if not python_exe:
-        return None, f"baseline package is unavailable: {tool}", None
+        return None, f"baseline package is unavailable: {tool}", None, None
     if tool == "markitdown":
         script = textwrap.dedent(
             """
@@ -1337,7 +1352,7 @@ def compare_baseline(
     elif tool == "docling":
         docling_format = DOCLING_INPUT_FORMATS.get(format_name)
         if not docling_format:
-            return None, f"baseline does not support format: {format_name}", None
+            return None, f"baseline does not support format: {format_name}", None, python_exe
         if format_name == "pdf":
             script = textwrap.dedent(
                 f"""
@@ -1393,16 +1408,34 @@ def compare_baseline(
     except subprocess.TimeoutExpired:
         finished = dt.datetime.now(dt.timezone.utc)
         duration_ms = int((finished - started).total_seconds() * 1000)
-        return None, "baseline execution timed out", duration_ms
+        return None, "baseline execution timed out", duration_ms, python_exe
     if completed.returncode != 0:
         error = completed.stderr.strip() or completed.stdout.strip() or "baseline execution failed"
-        return None, error, duration_ms
+        return None, error, duration_ms, python_exe
     output = normalize_markdown(completed.stdout)
-    if reference_markdown:
-        score = 0.6 * sequence_similarity(output, reference_markdown) + 0.4 * structure_similarity(output, reference_markdown)
-    else:
-        score = None
-    return score, None, duration_ms
+    return output, None, duration_ms, python_exe
+
+
+def compare_candidate_against_baseline(
+    candidate_markdown: str,
+    baseline_markdown: str,
+) -> dict[str, float]:
+    return {
+        "overall_score": round(
+            0.6 * sequence_similarity(candidate_markdown, baseline_markdown)
+            + 0.4 * structure_similarity(candidate_markdown, baseline_markdown),
+            4,
+        ),
+        "sequence_similarity": round(sequence_similarity(candidate_markdown, baseline_markdown), 4),
+        "token_f1": round(token_f1(candidate_markdown, baseline_markdown), 4),
+        "structure_similarity": round(structure_similarity(candidate_markdown, baseline_markdown), 4),
+        "table_similarity": round(table_similarity(candidate_markdown, baseline_markdown), 4),
+        "heading_structure_score": round(heading_structure_score(candidate_markdown, baseline_markdown), 4),
+        "list_nesting_score": round(list_nesting_score(candidate_markdown, baseline_markdown), 4),
+        "table_shape_score": round(table_shape_score(candidate_markdown, baseline_markdown), 4),
+        "paragraph_segmentation_score": round(paragraph_segmentation_score(candidate_markdown, baseline_markdown), 4),
+        "asset_link_score": round(asset_link_score(candidate_markdown, baseline_markdown), 4),
+    }
 
 
 def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references: bool, compare_baselines_flag: bool) -> dict[str, Any]:
@@ -1950,6 +1983,43 @@ def command_run(args: argparse.Namespace) -> None:
     print(render_summary_markdown(report))
 
 
+def command_compare_baseline(args: argparse.Namespace) -> None:
+    input_path = Path(args.input)
+    available = baseline_availability(args.tool)
+    supported = baseline_supports_format(args.tool, args.format)
+    output_markdown, error, duration_ms, python_exe = run_baseline_conversion(
+        args.tool,
+        args.format,
+        input_path,
+    )
+    candidate_markdown = None
+    agreement = None
+    if args.candidate_markdown:
+        candidate_markdown = normalize_markdown(
+            Path(args.candidate_markdown).read_text(encoding="utf-8")
+        )
+    if candidate_markdown is not None and output_markdown is not None and error is None:
+        agreement = compare_candidate_against_baseline(
+            candidate_markdown,
+            output_markdown,
+        )
+    payload = {
+        "tool": args.tool,
+        "format": args.format,
+        "input": str(input_path),
+        "available": available,
+        "supported": supported,
+        "python_exe": python_exe,
+        "error": error,
+        "duration_ms": duration_ms,
+        "baseline_markdown": output_markdown,
+        "baseline_chars": len(output_markdown or ""),
+        "comparison_basis": "candidate_vs_baseline" if candidate_markdown is not None else "baseline_only",
+        "agreement": agreement,
+    }
+    print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+
+
 def command_all(args: argparse.Namespace) -> None:
     sync_sources(Path(args.benchmark_root))
     cases = load_cases()
@@ -1980,6 +2050,16 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--compare-baselines", action="store_true")
     run_parser.add_argument("--refresh-references", action="store_true")
     run_parser.set_defaults(func=command_run)
+
+    compare_baseline_parser = subparsers.add_parser(
+        "compare-baseline",
+        help="run one baseline tool against one input and optionally compare with candidate markdown",
+    )
+    compare_baseline_parser.add_argument("--tool", required=True, choices=["markitdown", "docling"])
+    compare_baseline_parser.add_argument("--format", required=True)
+    compare_baseline_parser.add_argument("--input", required=True)
+    compare_baseline_parser.add_argument("--candidate-markdown")
+    compare_baseline_parser.set_defaults(func=command_compare_baseline)
 
     all_parser = subparsers.add_parser("all", help="sync, prepare references, and run the evaluation")
     all_parser.add_argument("--benchmark-root", required=True)

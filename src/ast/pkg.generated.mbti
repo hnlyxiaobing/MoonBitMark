@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "moonbitlang/moonbitmark/src/ast"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 pub fn default_block_annotation(Int) -> BlockAnnotation
 
@@ -38,21 +42,22 @@ pub(all) enum Block {
   Table(Array[Array[Inline]], Array[Array[Array[Inline]]])
   Image(String, String, Array[Inline]?)
   HorizontalRule
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
+pub impl Show for Block
 
 pub(all) struct BlockAnnotation {
   id : String
   source_hint : String?
   origin_hint : String?
   diagnostics : Array[String]
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct Document {
   title : String?
   metadata : Map[String, String]
   blocks : Array[Block]
   annotations : Array[BlockAnnotation]
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 pub fn Document::with_annotations(Self, Array[BlockAnnotation]) -> Self
 
 pub(all) enum Inline {
@@ -63,7 +68,7 @@ pub(all) enum Inline {
   Image(String, String)
   Code(String)
   LineBreak
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 
 // Type aliases
 

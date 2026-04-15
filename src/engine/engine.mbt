@@ -27,7 +27,7 @@ pub(all) struct ConverterRegistration {
 pub(all) struct DetectionResult {
   converter_name : String
   stream_info : @core.StreamInfo
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub fn DetectionResult::render(self : DetectionResult) -> String {

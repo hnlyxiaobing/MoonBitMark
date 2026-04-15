@@ -11,7 +11,7 @@ pub(all) struct EpubMetadata {
   mut date : String?
   mut description : String?
   mut identifier : String?
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 /// Create default EpubMetadata
@@ -34,14 +34,14 @@ pub(all) struct ManifestItem {
   href : String
   media_type : String
   properties : String?
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 /// Spine item from OPF (reading order)
 pub(all) struct SpineItem {
   idref : String
   linear : Bool
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 /// EPUB package information
@@ -50,7 +50,7 @@ pub(all) struct EpubPackage {
   manifest : Map[String, ManifestItem]
   spine : Array[SpineItem]
   opf_dir : String
-} derive(Show)
+} derive(Debug)
 
 ///|
 /// EPUB converter struct

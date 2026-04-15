@@ -12,7 +12,12 @@ pub(all) enum SemanticRole {
   FooterLike
   Image
   Separator
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
+
+///|
+pub impl Show for SemanticRole with output(self, logger) {
+  self.to_repr().output(logger)
+}
 
 ///|
 pub(all) struct Provenance {
@@ -23,7 +28,7 @@ pub(all) struct Provenance {
   sheet_name : String?
   chapter : String?
   resource : String?
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) struct SemanticBlock {
@@ -36,7 +41,7 @@ pub(all) struct SemanticBlock {
   diagnostics : Array[String]
   confidence : Int
   provenance : Provenance
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) struct Section {
@@ -48,7 +53,7 @@ pub(all) struct Section {
   diagnostics : Array[String]
   provenance : Provenance
   children : Array[Section]
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) struct SemanticDocument {
@@ -56,7 +61,7 @@ pub(all) struct SemanticDocument {
   sections : Array[Section]
   blocks : Array[SemanticBlock]
   provenance : Provenance
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub fn semantic_document_of(document : @ast.Document) -> SemanticDocument {

@@ -5,6 +5,7 @@ test "json file stem helper" {
 
 ///|
 async test "json converter supports bytes input source" {
+  ignore(@async.now())
   let result = JsonConverter::convert_source(
     @core.BytesInput(
       Some("bytes-data.json"),

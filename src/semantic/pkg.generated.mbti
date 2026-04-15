@@ -2,6 +2,7 @@
 package "moonbitlang/moonbitmark/src/semantic"
 
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/moonbitmark/src/ast",
 }
 
@@ -19,7 +20,7 @@ pub(all) struct Provenance {
   sheet_name : String?
   chapter : String?
   resource : String?
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct Section {
   id : String
@@ -30,7 +31,7 @@ pub(all) struct Section {
   diagnostics : Array[String]
   provenance : Provenance
   children : Array[Section]
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct SemanticBlock {
   block_id : String
@@ -42,14 +43,14 @@ pub(all) struct SemanticBlock {
   diagnostics : Array[String]
   confidence : Int
   provenance : Provenance
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct SemanticDocument {
   title : String?
   sections : Array[Section]
   blocks : Array[SemanticBlock]
   provenance : Provenance
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 
 pub(all) enum SemanticRole {
   Title
@@ -64,7 +65,8 @@ pub(all) enum SemanticRole {
   FooterLike
   Image
   Separator
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
+pub impl Show for SemanticRole
 
 // Type aliases
 

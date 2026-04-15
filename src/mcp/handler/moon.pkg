@@ -1,6 +1,7 @@
 import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
+  "moonbitlang/async/process",
   "moonbitlang/core/encoding/base64",
   "moonbitlang/core/env",
   "moonbitlang/core/strconv",

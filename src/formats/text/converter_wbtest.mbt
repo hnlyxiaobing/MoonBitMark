@@ -19,6 +19,7 @@ test "text converter preserves lightweight bullet structure" {
 
 ///|
 async test "text converter supports bytes input source" {
+  ignore(@async.now())
   let result = TextConverter::convert_source(
     @core.BytesInput(
       Some("bytes-demo.txt"),

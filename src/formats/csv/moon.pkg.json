@@ -1,0 +1,10 @@
+{
+  "import": [
+    "moonbitlang/moonbitmark/src/ast",
+    "moonbitlang/moonbitmark/src/core",
+    "moonbitlang/core/encoding/utf8"
+  ],
+  "wbtest-import": [
+    "moonbitlang/async"
+  ]
+}

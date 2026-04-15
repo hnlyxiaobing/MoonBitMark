@@ -6,7 +6,7 @@ pub(all) struct ConvertStats {
   block_count : Int
   duration_ms : Int?
   used_fallback : Bool
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) struct ConvertResult {
@@ -22,7 +22,7 @@ pub(all) struct ConvertResult {
   raw_document : @ast.Document?
   normalized_document : @ast.Document?
   semantic_document : @semantic.SemanticDocument?
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) struct OutputAsset {
@@ -31,14 +31,14 @@ pub(all) struct OutputAsset {
   bytes : Bytes
   source : DiagnosticSource?
   hint : DiagnosticHint?
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) enum DiagnosticLevel {
   Info
   Warning
   Error
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub fn DiagnosticLevel::label(self : DiagnosticLevel) -> String {
@@ -58,7 +58,7 @@ pub(all) enum ConversionPhase {
   Render(String?)
   Postprocess(String?)
   Convert(String)
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) enum DiagnosticSource {
@@ -68,7 +68,7 @@ pub(all) enum DiagnosticSource {
   ArchiveEntry(String)
   Bytes(String?)
   Generated(String)
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) enum DiagnosticHint {
@@ -77,7 +77,7 @@ pub(all) enum DiagnosticHint {
   ProvideBytesSourceName
   CheckArchiveIntegrity
   Custom(String)
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) enum ConversionError {
@@ -87,7 +87,7 @@ pub(all) enum ConversionError {
   XmlParseError(String, Int?)
   UnsupportedFeatureError(String, String)
   ConversionFailed(String, String)
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) struct ConversionDiagnostic {
@@ -97,7 +97,7 @@ pub(all) struct ConversionDiagnostic {
   source : DiagnosticSource?
   message : String
   hint : DiagnosticHint?
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub fn ConvertResult::markdown_only(
@@ -197,14 +197,14 @@ pub(all) struct StreamInfo {
   filename : String?
   url : String?
   charset : String?
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) enum InputSource {
   FileInput(String, Bytes?)
   UrlInput(String, String?)
   BytesInput(String?, Bytes, String?)
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub fn InputSource::from_string(input : String) -> InputSource {
@@ -238,7 +238,12 @@ pub(all) enum OutputMode {
   PlainText
   StandardMarkdown
   FrontMatterMarkdown
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
+
+///|
+pub impl Show for OutputMode with output(self, logger) {
+  self.to_repr().output(logger)
+}
 
 ///|
 pub(all) struct ConvertContext {
@@ -249,7 +254,7 @@ pub(all) struct ConvertContext {
   asset_output_dir : String?
   output_mode : OutputMode
   ocr : @ocr.OcrConfig
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub fn ConvertContext::default() -> ConvertContext {

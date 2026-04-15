@@ -77,13 +77,14 @@ fn bytes_json_array(bytes : Bytes) -> @types.JsonValue {
 test "tool registry lists inspect and convert with agent-facing schema" {
   let registry = ToolRegistry::new().register_convert_tools()
   let tools = registry.list()
-  inspect(tools.length(), content="6")
+  inspect(tools.length(), content="7")
   inspect(tools[0].name, content="inspect_document")
   inspect(tools[1].name, content="convert_to_markdown")
   inspect(tools[2].name, content="dump_normalized_ast")
   inspect(tools[3].name, content="extract_structure")
-  inspect(tools[4].name, content="upload_document")
-  inspect(tools[5].name, content="convert_uploaded_document")
+  inspect(tools[4].name, content="compare_with_baseline")
+  inspect(tools[5].name, content="upload_document")
+  inspect(tools[6].name, content="convert_uploaded_document")
   inspect(tools[1].description.contains("preview"), content="true")
   match tools[1].input_schema.get("properties") {
     Some(@types.Object(properties)) => {
@@ -112,6 +113,16 @@ test "tool registry lists inspect and convert with agent-facing schema" {
   }
   match tools[4].input_schema.get("properties") {
     Some(@types.Object(properties)) => {
+      inspect(properties.contains("baseline"), content="true")
+      inspect(properties.contains("format_hint"), content="true")
+      inspect(properties.contains("uri"), content="true")
+      inspect(properties.contains("resource_uri"), content="true")
+      inspect(properties.contains("response_mode"), content="true")
+    }
+    _ => fail("expected object properties in compare_with_baseline schema")
+  }
+  match tools[5].input_schema.get("properties") {
+    Some(@types.Object(properties)) => {
       inspect(properties.contains("filename"), content="true")
       inspect(properties.contains("data_base64"), content="true")
       inspect(properties.contains("data_bytes"), content="true")
@@ -119,7 +130,7 @@ test "tool registry lists inspect and convert with agent-facing schema" {
     }
     _ => fail("expected object properties in upload_document schema")
   }
-  match tools[5].input_schema.get("properties") {
+  match tools[6].input_schema.get("properties") {
     Some(@types.Object(properties)) => {
       inspect(properties.contains("filename"), content="true")
       inspect(properties.contains("data_base64"), content="true")
@@ -419,6 +430,66 @@ async test "extract_structure supports json response mode with stable keys" {
 }
 
 ///|
+async test "compare_with_baseline reports unsupported docling format without error" {
+  let path = temp_file_path("mcp-compare-baseline-unsupported")
+  write_test_text(path, "plain text body")
+  let result = compare_with_baseline_handler(
+    @types.Object({
+      "uri": @types.String(path),
+      "baseline": @types.String("docling"),
+    }),
+  )
+  inspect(result.is_error, content="false")
+  inspect(result.content.length(), content="1")
+  let summary = parse_summary_text(result.content[0])
+  inspect(summary["tool"], content="compare_with_baseline")
+  inspect(summary["baseline"], content="docling")
+  inspect(summary["baseline_supported"], content="false")
+}
+
+///|
+async test "compare_with_baseline supports json response mode with stable keys" {
+  let path = temp_file_path("mcp-compare-baseline-json")
+  write_test_text(path, "plain text body")
+  let result = compare_with_baseline_handler(
+    @types.Object({
+      "uri": @types.String(path),
+      "baseline": @types.String("docling"),
+      "response_mode": @types.String("json"),
+    }),
+  )
+  inspect(result.is_error, content="false")
+  inspect(result.content.length(), content="1")
+  let payload = extract_structured_content(result)
+  match payload {
+    @types.Object(map) => {
+      inspect(map.contains("content"), content="true")
+      inspect(map.contains("metadata"), content="true")
+      inspect(map.contains("diagnostics"), content="true")
+      inspect(map.contains("stats"), content="true")
+      inspect(map.contains("comparison"), content="true")
+      match map.get("metadata") {
+        Some(@types.Object(metadata)) =>
+          match metadata.get("baseline") {
+            Some(@types.String(value)) => inspect(value, content="docling")
+            _ => fail("expected baseline metadata")
+          }
+        _ => fail("expected metadata object")
+      }
+      match map.get("diagnostics") {
+        Some(@types.Object(diagnostics)) =>
+          match diagnostics.get("baseline_supported") {
+            Some(@types.Bool(value)) => inspect(value, content="false")
+            _ => fail("expected baseline_supported bool")
+          }
+        _ => fail("expected diagnostics object")
+      }
+    }
+    _ => fail("expected object structured payload")
+  }
+}
+
+///|
 async test "convert_uploaded_document supports base64 payload with json mode" {
   let bytes = @utf8.encode(build_long_text())
   let result = convert_uploaded_document_handler(
@@ -514,6 +585,21 @@ async test "tools reject invalid response_mode" {
   inspect(
     extract_text(result.content[0]),
     content="Error: 'response_mode' must be 'text' or 'json'",
+  )
+}
+
+///|
+async test "compare_with_baseline rejects invalid baseline" {
+  let result = compare_with_baseline_handler(
+    @types.Object({
+      "uri": @types.String("demo.txt"),
+      "baseline": @types.String("pandoc"),
+    }),
+  )
+  inspect(result.is_error, content="true")
+  inspect(
+    extract_text(result.content[0]),
+    content="Error: 'baseline' must be 'markitdown' or 'docling'",
   )
 }
 

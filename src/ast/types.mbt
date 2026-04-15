@@ -4,7 +4,7 @@ pub(all) struct BlockAnnotation {
   source_hint : String?
   origin_hint : String?
   diagnostics : Array[String]
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) enum Inline {
@@ -15,7 +15,7 @@ pub(all) enum Inline {
   Image(String, String)
   Code(String)
   LineBreak
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) enum Block {
@@ -27,7 +27,7 @@ pub(all) enum Block {
   Table(Array[Array[Inline]], Array[Array[Array[Inline]]])
   Image(String, String, Array[Inline]?)
   HorizontalRule
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
 
 ///|
 pub(all) struct Document {
@@ -35,7 +35,12 @@ pub(all) struct Document {
   metadata : Map[String, String]
   blocks : Array[Block]
   annotations : Array[BlockAnnotation]
-} derive(Show, Eq, ToJson)
+} derive(Debug, Eq, ToJson)
+
+///|
+pub impl Show for Block with output(self, logger) {
+  self.to_repr().output(logger)
+}
 
 ///|
 pub fn default_block_annotation(index : Int) -> BlockAnnotation {

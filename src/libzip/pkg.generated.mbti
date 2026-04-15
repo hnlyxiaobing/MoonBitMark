@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "moonbitlang/moonbitmark/src/libzip"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 pub let central_dir_sig : UInt
 
@@ -32,14 +36,14 @@ pub(all) suberror ZipError {
   UnsupportedMethod(Int)
   DecompressFailed(String)
   CrcMismatch
-} derive(Eq, Show)
+} derive(Eq, @debug.Debug)
 
 // Types and methods
 pub enum CompressionMethod {
   Store(Int)
   Deflate(Int)
   Unknown(Int)
-} derive(Eq, Show)
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ZipArchive {
   data : Bytes

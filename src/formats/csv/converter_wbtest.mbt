@@ -48,6 +48,7 @@ test "csv parser detects semicolon delimiter and ragged rows" {
 
 ///|
 async test "csv converter supports bytes input source" {
+  ignore(@async.now())
   let result = CsvConverter::convert_source(
     @core.BytesInput(
       Some("bytes-sheet.csv"),

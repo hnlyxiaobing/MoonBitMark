@@ -16,7 +16,7 @@ pub enum CompressionMethod {
   Store(Int) // 无压缩
   Deflate(Int) // DEFLATE 压缩
   Unknown(Int) // 未知方法
-} derive(Show, Eq)
+} derive(Debug, Eq)
 
 ///|
 pub fn compression_method_from_int(code : Int) -> CompressionMethod {

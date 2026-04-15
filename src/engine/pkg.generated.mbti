@@ -2,6 +2,7 @@
 package "moonbitlang/moonbitmark/src/engine"
 
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/moonbitmark/src/core",
 }
 
@@ -34,7 +35,7 @@ pub(all) struct ConverterRegistration {
 pub(all) struct DetectionResult {
   converter_name : String
   stream_info : @core.StreamInfo
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 pub fn DetectionResult::render(Self) -> String
 
 pub(all) struct MarkItDown {

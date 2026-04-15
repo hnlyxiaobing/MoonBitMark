@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "moonbitlang/moonbitmark/src/capabilities/ocr"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 pub async fn recognize_image_bytes(Bytes, String, OcrConfig, temp_stem? : String) -> OcrResult
 
@@ -17,7 +21,7 @@ pub(all) struct OcrConfig {
   enable_embedded_images : Bool
   backend : String?
   timeout_ms : Int?
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 pub fn OcrConfig::backend_or_auto(Self) -> String
 pub fn OcrConfig::default() -> Self
 pub fn OcrConfig::is_enabled(Self) -> Bool
@@ -27,8 +31,9 @@ pub(all) enum OcrMode {
   Off
   Auto
   Force
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 pub fn OcrMode::label(Self) -> String
+pub impl Show for OcrMode
 
 pub(all) struct OcrResult {
   attempted : Bool
@@ -36,7 +41,7 @@ pub(all) struct OcrResult {
   provider : String?
   text : String
   warnings : Array[String]
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 pub fn OcrResult::is_useful(Self) -> Bool
 pub fn OcrResult::not_attempted() -> Self
 pub fn OcrResult::provider_label(Self) -> String

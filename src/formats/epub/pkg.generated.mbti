@@ -2,6 +2,7 @@
 package "moonbitlang/moonbitmark/src/formats/epub"
 
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/moonbitmark/src/core",
 }
 
@@ -25,7 +26,7 @@ pub(all) struct EpubMetadata {
   mut date : String?
   mut description : String?
   mut identifier : String?
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 pub fn EpubMetadata::default() -> Self
 
 pub(all) struct EpubPackage {
@@ -33,19 +34,19 @@ pub(all) struct EpubPackage {
   manifest : Map[String, ManifestItem]
   spine : Array[SpineItem]
   opf_dir : String
-} derive(Show)
+} derive(@debug.Debug)
 
 pub(all) struct ManifestItem {
   id : String
   href : String
   media_type : String
   properties : String?
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 
 pub(all) struct SpineItem {
   idref : String
   linear : Bool
-} derive(Eq, Show, ToJson)
+} derive(Eq, ToJson, @debug.Debug)
 
 // Type aliases
 

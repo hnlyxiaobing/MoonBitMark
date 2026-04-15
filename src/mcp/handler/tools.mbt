@@ -56,6 +56,7 @@ pub async fn ToolRegistry::call(
     "convert_to_markdown" => convert_to_markdown_handler(args)
     "dump_normalized_ast" => dump_normalized_ast_handler(args)
     "extract_structure" => extract_structure_handler(args)
+    "compare_with_baseline" => compare_with_baseline_handler(args)
     "upload_document" => upload_document_handler(args)
     "convert_uploaded_document" => convert_uploaded_document_handler(args)
     _ => error_tool_result("Tool not found: " + name)
@@ -92,6 +93,17 @@ pub fn ToolRegistry::register_convert_tools(
   ])
   inspect_properties["response_mode"] = @types.Object(response_mode_schema)
 
+  let baseline_schema : Map[String, @types.JsonValue] = Map::new()
+  baseline_schema["type"] = @types.String("string")
+  baseline_schema["description"] = @types.String(
+    "Baseline tool to compare against: markitdown by default, or docling when supported.",
+  )
+  baseline_schema["enum"] = @types.Array([
+    @types.String("markitdown"),
+    @types.String("docling"),
+  ])
+  inspect_properties["baseline"] = @types.Object(baseline_schema)
+
   let inspect_schema : Map[String, @types.JsonValue] = Map::new()
   inspect_schema["type"] = @types.String("object")
   inspect_schema["properties"] = @types.Object(inspect_properties)
@@ -121,6 +133,7 @@ pub fn ToolRegistry::register_convert_tools(
   format_hint_schema["description"] = @types.String(
     "Advisory format hint such as pdf, docx, html, or text",
   )
+  inspect_properties["format_hint"] = @types.Object(format_hint_schema)
 
   let properties : Map[String, @types.JsonValue] = Map::new()
   properties["uri"] = @types.Object(uri_schema)
@@ -214,6 +227,11 @@ pub fn ToolRegistry::register_convert_tools(
   .register(ToolDefinition::{
     name: "extract_structure",
     description: "Return the canonical semantic document with section tree, roles, provenance, confidence, and diagnostics.",
+    input_schema: @types.Object(inspect_schema),
+  })
+  .register(ToolDefinition::{
+    name: "compare_with_baseline",
+    description: "Run a local baseline converter such as markitdown or docling against the same document and report agreement metrics plus baseline availability.",
     input_schema: @types.Object(inspect_schema),
   })
   .register(ToolDefinition::{
@@ -560,6 +578,103 @@ async fn extract_structure_handler(
 }
 
 ///|
+async fn compare_with_baseline_handler(
+  args : @types.JsonValue,
+) -> @types.McpToolResult {
+  let response_mode = match response_mode_arg(args) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let config = match load_mcp_security_config() {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let baseline = match baseline_arg(args) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let format_hint = optional_string_arg(args, "format_hint")
+  let document = match resolve_request_document_arg(args, config) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  if document.input_kind == "url" {
+    return error_tool_result(
+      "Error: compare_with_baseline currently supports local files or uploaded resources, not URLs",
+    )
+  }
+  let engine = @engine.MarkItDown::new()
+  let detection = try? engine.detect_source(document.input_source)
+  let detected_format = match detection {
+    Ok(value) => value.converter_name
+    Err(_) => "unknown"
+  }
+  let effective_format = advisory_format(detected_format, format_hint)
+  let ctx = build_mcp_convert_context(config)
+
+  try {
+    let result = @engine.MarkItDown::new().convert_source(
+      document.input_source,
+      ctx~,
+    )
+    let baseline_input_path = materialize_baseline_input(
+      document, effective_format,
+    ) catch {
+      err =>
+        return error_tool_result(
+          "Error preparing baseline input: " + err.to_string(),
+        )
+    }
+    let candidate_markdown_path = write_temp_markdown_file(
+      "candidate-markdown",
+      result.markdown,
+    ) catch {
+      err => {
+        cleanup_file_if_exists(baseline_input_path)
+        return error_tool_result(
+          "Error preparing baseline comparison: " + err.to_string(),
+        )
+      }
+    }
+    let compare_result = run_compare_with_baseline_script(
+      baseline, effective_format, baseline_input_path, candidate_markdown_path,
+    )
+    cleanup_file_if_exists(candidate_markdown_path)
+    cleanup_file_if_exists_if_temp(document, baseline_input_path)
+    match compare_result {
+      Ok(payload) => {
+        let summary = compare_with_baseline_summary(
+          document.request_uri,
+          document.input_kind,
+          detected_format,
+          effective_format,
+          baseline,
+          payload,
+        )
+        let payload = compare_with_baseline_payload(
+          document.request_uri,
+          document.input_kind,
+          detected_format,
+          effective_format,
+          baseline,
+          result,
+          payload,
+        )
+        let baseline_markdown = json_object_nullable_string_arg(
+          payload, "content",
+        )
+        tool_result_for_response_mode(
+          response_mode, summary, baseline_markdown, payload,
+        )
+      }
+      Err(message) => error_tool_result(message)
+    }
+  } catch {
+    error => error_tool_result("Error comparing baseline: " + error.to_string())
+  }
+}
+
+///|
 async fn upload_document_handler(
   args : @types.JsonValue,
 ) -> @types.McpToolResult {
@@ -667,6 +782,22 @@ fn optional_positive_int_arg(
     Some(@types.Float(_)) => Err("Error: '" + key + "' must be an integer")
     Some(_) => Err("Error: '" + key + "' must be an integer")
     None => Ok(None)
+  }
+}
+
+///|
+fn baseline_arg(args : @types.JsonValue) -> Result[String, String] {
+  match args.get("baseline") {
+    Some(@types.String(value)) => {
+      let normalized = value.trim().to_lower().to_string()
+      match normalized {
+        "markitdown" => Ok("markitdown")
+        "docling" => Ok("docling")
+        _ => Err("Error: 'baseline' must be 'markitdown' or 'docling'")
+      }
+    }
+    Some(_) => Err("Error: 'baseline' must be 'markitdown' or 'docling'")
+    None => Ok("markitdown")
   }
 }
 
@@ -1051,6 +1182,104 @@ fn extract_structure_payload(
 }
 
 ///|
+fn compare_with_baseline_payload(
+  uri : String,
+  input_kind : String,
+  detected_format : String,
+  effective_format : String,
+  baseline : String,
+  result : @core.ConvertResult,
+  comparison : @types.JsonValue,
+) -> @types.JsonValue {
+  @types.Object({
+    "content": json_object_string_arg_or_null(
+      comparison, "baseline_markdown", "",
+    ),
+    "metadata": @types.Object({
+      "tool": @types.String("compare_with_baseline"),
+      "uri": @types.String(uri),
+      "input_kind": @types.String(input_kind),
+      "detected_format": @types.String(detected_format),
+      "effective_format": @types.String(effective_format),
+      "baseline": @types.String(baseline),
+      "title": json_optional_string(result.title),
+      "source_type": @types.String(result.source_type),
+      "document_metadata": string_map_to_json_object(result.metadata),
+    }),
+    "diagnostics": @types.Object({
+      "warnings": string_array_to_json(result.warnings),
+      "conversion_diagnostics": diagnostics_array_to_json(result.diagnostics),
+      "baseline_available": @types.Bool(
+        json_object_bool_arg_or_false(comparison, "available"),
+      ),
+      "baseline_supported": @types.Bool(
+        json_object_bool_arg_or_false(comparison, "supported"),
+      ),
+      "baseline_error": json_optional_string(
+        json_object_nullable_string_arg(comparison, "error"),
+      ),
+    }),
+    "stats": @types.Object({
+      "baseline_duration_ms": json_optional_int(
+        json_object_nullable_int_arg(comparison, "duration_ms"),
+      ),
+      "baseline_chars": json_optional_int(
+        json_object_nullable_int_arg(comparison, "baseline_chars"),
+      ),
+      "converter_stats": convert_stats_to_json(result.stats),
+    }),
+    "comparison": comparison,
+  })
+}
+
+///|
+fn compare_with_baseline_summary(
+  uri : String,
+  input_kind : String,
+  detected_format : String,
+  effective_format : String,
+  baseline : String,
+  comparison : @types.JsonValue,
+) -> String {
+  let agreement = json_nested_float_arg(
+    comparison, "agreement", "overall_score",
+  )
+  render_summary([
+    summary_line("tool", "compare_with_baseline"),
+    summary_line("uri", uri),
+    summary_line("input_kind", input_kind),
+    summary_line("detected_format", detected_format),
+    summary_line("effective_format", effective_format),
+    summary_line("baseline", baseline),
+    summary_line(
+      "baseline_available",
+      bool_string(json_object_bool_arg_or_false(comparison, "available")),
+    ),
+    summary_line(
+      "baseline_supported",
+      bool_string(json_object_bool_arg_or_false(comparison, "supported")),
+    ),
+    summary_line("agreement_score", optional_float_string(agreement)),
+    summary_line(
+      "baseline_duration_ms",
+      optional_int_string(
+        json_object_nullable_int_arg(comparison, "duration_ms"),
+      ),
+    ),
+    summary_line(
+      "baseline_chars",
+      optional_int_string(
+        json_object_nullable_int_arg(comparison, "baseline_chars"),
+      ),
+    ),
+    summary_line(
+      "baseline_error",
+      optional_string(json_object_nullable_string_arg(comparison, "error")),
+    ),
+  ])
+}
+
+///|
 fn parse_structured_json(json : String) -> @types.JsonValue {
   match @types.parse_json(json) {
     Ok(value) => value
@@ -1252,4 +1481,387 @@ fn count_low_confidence_blocks(blocks : Array[@semantic.SemanticBlock]) -> Int {
     }
   }
   total
+}
+
+///|
+async fn run_compare_with_baseline_script(
+  baseline : String,
+  format_name : String,
+  input_path : String,
+  candidate_markdown_path : String,
+) -> Result[@types.JsonValue, String] {
+  let repo_root = locate_repo_root() catch {
+    err => return Err("Error locating repository root: " + err.to_string())
+  }
+  let resolved_input_path = resolve_process_path(input_path)
+  let resolved_candidate_markdown_path = resolve_process_path(
+    candidate_markdown_path,
+  )
+  let script_path = @core.join_path(
+    repo_root, "tests/conversion_eval/scripts/run_eval.py",
+  )
+  let args : Array[String] = [
+    script_path, "compare-baseline", "--tool", baseline, "--format", format_name,
+    "--input", resolved_input_path, "--candidate-markdown", resolved_candidate_markdown_path,
+  ]
+  let env : Map[String, String] = {
+    "PYTHONUTF8": "1",
+    "PYTHONIOENCODING": "utf-8",
+  }
+  let (exit_code, stdout, stderr) = @process.collect_output(
+    "python",
+    args,
+    extra_env=env,
+    inherit_env=true,
+    cwd=repo_root,
+  ) catch {
+    err => return Err("Error running baseline script: " + err.to_string())
+  }
+  let stdout_text = stdout.text() catch {
+    err => return Err("Error decoding baseline output: " + err.to_string())
+  }
+  let stderr_text = stderr.text() catch { _ => "" }
+  if exit_code != 0 {
+    let detail = if stderr_text.trim() != "" {
+      stderr_text.trim().to_string()
+    } else if stdout_text.trim() != "" {
+      stdout_text.trim().to_string()
+    } else {
+      "baseline helper exited with code " + exit_code.to_string()
+    }
+    return Err("Error comparing baseline: " + detail)
+  }
+  match @types.parse_json(stdout_text) {
+    Ok(value) => Ok(value)
+    Err(err) => Err("Error parsing baseline payload: " + err.to_string())
+  }
+}
+
+///|
+async fn locate_repo_root() -> String {
+  let start = current_working_dir_or_dot()
+  locate_repo_root_from(start)
+}
+
+///|
+async fn locate_repo_root_from(path : String) -> String {
+  if @fs.exists(@core.join_path(path, "moon.mod.json")) {
+    path
+  } else {
+    let parent = @core.path_dirname(path)
+    if parent == "" || parent == path {
+      current_working_dir_or_dot()
+    } else {
+      locate_repo_root_from(parent)
+    }
+  }
+}
+
+///|
+fn current_working_dir_or_dot() -> String {
+  match @env.current_dir() {
+    Some(dir) if dir.trim() != "" => @core.normalize_path(dir)
+    _ => "."
+  }
+}
+
+///|
+fn resolve_process_path(path : String) -> String {
+  let normalized = canonicalize_process_path(@core.normalize_path(path))
+  if is_absolute_process_path(normalized) {
+    normalized
+  } else {
+    canonicalize_process_path(current_working_dir_or_dot() + "/" + normalized)
+  }
+}
+
+///|
+fn canonicalize_process_path(path : String) -> String {
+  let normalized = @core.normalize_path(path)
+  let prefix = process_path_prefix(normalized)
+  let start = prefix.length()
+  let remainder = normalized[start:]
+  let segments : Array[String] = []
+  for raw_segment in remainder.split("/").to_array() {
+    let segment = raw_segment.to_string()
+    if segment == "" || segment == "." {
+      continue
+    }
+    if segment == ".." {
+      ignore(segments.pop())
+    } else {
+      segments.push(segment)
+    }
+  }
+  match prefix {
+    "/" => "/" + segments.join("/")
+    "" => segments.join("/")
+    _ =>
+      if segments.length() == 0 {
+        prefix + "/"
+      } else {
+        prefix + "/" + segments.join("/")
+      }
+  }
+}
+
+///|
+fn process_path_prefix(path : String) -> String {
+  if path.length() >= 2 &&
+    is_ascii_letter(path[0]) &&
+    path[1:2].to_string() == ":" {
+    path[0:2].to_string()
+  } else if path.has_prefix("/") {
+    "/"
+  } else {
+    ""
+  }
+}
+
+///|
+fn is_absolute_process_path(path : String) -> Bool {
+  path.has_prefix("/") ||
+  (
+    path.length() >= 2 &&
+    is_ascii_letter(path[0]) &&
+    path[1:2].to_string() == ":"
+  )
+}
+
+///|
+async fn materialize_baseline_input(
+  document : ResolvedMcpDocument,
+  effective_format : String,
+) -> String {
+  match document.input_source {
+    @core.FileInput(path, _) => path
+    @core.BytesInput(name, bytes, _) => {
+      let temp_dir = mcp_baseline_temp_dir_absolute()
+      ensure_mcp_baseline_temp_dir(temp_dir)
+      let filename = temp_baseline_filename(name, effective_format)
+      let path = temp_dir + "/" + filename
+      write_bytes_to_file(path, bytes)
+      path
+    }
+    @core.UrlInput(_, _) =>
+      fail(
+        "compare_with_baseline currently supports local files or uploaded resources, not URLs",
+      )
+  }
+}
+
+///|
+async fn write_temp_markdown_file(stem : String, markdown : String) -> String {
+  let temp_dir = mcp_baseline_temp_dir_absolute()
+  ensure_mcp_baseline_temp_dir(temp_dir)
+  let path = temp_dir +
+    "/" +
+    sanitize_temp_stem(stem) +
+    "-" +
+    @async.now().to_string() +
+    ".md"
+  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  file.write(@utf8.encode(markdown))
+  file.close()
+  path
+}
+
+///|
+async fn ensure_mcp_baseline_temp_dir(path : String) -> Unit {
+  ignore(@fs.mkdir(path, permission=0o755, recursive=true) catch { _ => () })
+}
+
+///|
+fn mcp_baseline_temp_dir() -> String {
+  "_build/mcp-baseline-tmp"
+}
+
+///|
+async fn mcp_baseline_temp_dir_absolute() -> String {
+  let repo_root = locate_repo_root() catch { _ => current_working_dir_or_dot() }
+  @core.join_path(repo_root, mcp_baseline_temp_dir())
+}
+
+///|
+async fn cleanup_file_if_exists(path : String) -> Unit {
+  ignore(@fs.remove(path) catch { _ => () })
+}
+
+///|
+async fn cleanup_file_if_exists_if_temp(
+  document : ResolvedMcpDocument,
+  path : String,
+) -> Unit {
+  match document.input_source {
+    @core.FileInput(_, _) => ()
+    _ => cleanup_file_if_exists(path)
+  }
+}
+
+///|
+fn temp_baseline_filename(name : String?, effective_format : String) -> String {
+  let raw_name = match name {
+    Some(value) => value
+    None => "baseline-input"
+  }
+  let stem = sanitize_temp_stem(raw_name)
+  let extension = filename_extension(stem)
+  let suffix = if extension == "" {
+    format_extension(effective_format)
+  } else {
+    ""
+  }
+  stem + "-" + @async.now().to_string() + suffix
+}
+
+///|
+async fn write_bytes_to_file(path : String, bytes : Bytes) -> Unit {
+  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  file.write(bytes)
+  file.close()
+}
+
+///|
+fn sanitize_temp_stem(name : String) -> String {
+  let mut result = ""
+  for ch in name.replace(old="\\", new="/") {
+    if (ch >= 'a' && ch <= 'z') ||
+      (ch >= 'A' && ch <= 'Z') ||
+      (ch >= '0' && ch <= '9') ||
+      ch == '.' ||
+      ch == '-' ||
+      ch == '_' {
+      result = result + ch.to_string()
+    } else {
+      result = result + "-"
+    }
+  }
+  let trimmed = result.trim().to_string()
+  if trimmed == "" {
+    "baseline-input"
+  } else {
+    trimmed
+  }
+}
+
+///|
+fn filename_extension(name : String) -> String {
+  match find_last_char(name, '.') {
+    Some(index) if index >= 0 && index < name.length() =>
+      name[index:].to_string()
+    _ => ""
+  }
+}
+
+///|
+fn format_extension(format_name : String) -> String {
+  match format_name {
+    "text" => ".txt"
+    "csv" => ".csv"
+    "json" => ".json"
+    "pdf" => ".pdf"
+    "html" => ".html"
+    "docx" => ".docx"
+    "pptx" => ".pptx"
+    "xlsx" => ".xlsx"
+    "epub" => ".epub"
+    "image" => ".png"
+    _ => ".bin"
+  }
+}
+
+///|
+fn find_last_char(text : String, target : Char) -> Int? {
+  let mut found : Int? = None
+  let mut index = 0
+  for ch in text {
+    if ch == target {
+      found = Some(index)
+    }
+    index = index + 1
+  }
+  found
+}
+
+///|
+fn json_object_bool_arg_or_false(
+  value : @types.JsonValue,
+  key : String,
+) -> Bool {
+  match value {
+    @types.Object(map) =>
+      match map.get(key) {
+        Some(@types.Bool(flag)) => flag
+        _ => false
+      }
+    _ => false
+  }
+}
+
+///|
+fn json_object_nullable_string_arg(
+  value : @types.JsonValue,
+  key : String,
+) -> String? {
+  match value {
+    @types.Object(map) =>
+      match map.get(key) {
+        Some(@types.String(text)) => Some(text)
+        _ => None
+      }
+    _ => None
+  }
+}
+
+///|
+fn json_object_string_arg_or_null(
+  value : @types.JsonValue,
+  key : String,
+  fallback : String,
+) -> @types.JsonValue {
+  match json_object_nullable_string_arg(value, key) {
+    Some(text) => @types.String(text)
+    None => if fallback == "" { @types.Null } else { @types.String(fallback) }
+  }
+}
+
+///|
+fn json_object_nullable_int_arg(value : @types.JsonValue, key : String) -> Int? {
+  match value {
+    @types.Object(map) =>
+      match map.get(key) {
+        Some(@types.Number(number)) => Some(number)
+        _ => None
+      }
+    _ => None
+  }
+}
+
+///|
+fn json_nested_float_arg(
+  value : @types.JsonValue,
+  object_key : String,
+  key : String,
+) -> Float? {
+  match value {
+    @types.Object(map) =>
+      match map.get(object_key) {
+        Some(@types.Object(inner)) =>
+          match inner.get(key) {
+            Some(@types.Float(number)) => Some(number)
+            Some(@types.Number(number)) => Some(Float::from_int(number))
+            _ => None
+          }
+        _ => None
+      }
+    _ => None
+  }
+}
+
+///|
+fn optional_float_string(value : Float?) -> String {
+  match value {
+    Some(number) => number.to_string()
+    None => "null"
+  }
 }

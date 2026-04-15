@@ -16,7 +16,7 @@ pub(all) suberror ZipError {
   DecompressFailed(String)
   /// CRC 校验失败
   CrcMismatch
-} derive(Show, Eq)
+} derive(Debug, Eq)
 
 ///|
 /// ZIP 归档句柄 (对应原 FFI 的 ZipHandle)
