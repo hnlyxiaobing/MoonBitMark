@@ -560,6 +560,7 @@ fn render_semantic_json(document : @semantic.SemanticDocument?) -> String {
 fn json_of_semantic_document(document : @semantic.SemanticDocument) -> String {
   json_object([
     json_field("title", json_string_or_null(document.title)),
+    json_field("provenance", json_of_provenance(document.provenance)),
     json_field("sections", json_array_of_sections(document.sections)),
     json_field("blocks", json_array_of_semantic_blocks(document.blocks)),
   ])
@@ -580,8 +581,10 @@ fn json_of_section(section : @semantic.Section) -> String {
     json_field("id", json_string(section.id)),
     json_field("title", json_string_or_null(section.title)),
     json_field("level", section.level.to_string()),
+    json_field("role", json_string(section.role.to_string())),
     json_field("block_indices", json_array_of_ints(section.block_indices)),
     json_field("diagnostics", json_array_of_strings(section.diagnostics)),
+    json_field("provenance", json_of_provenance(section.provenance)),
     json_field("children", json_array_of_sections(section.children)),
   ])
 }
@@ -601,10 +604,37 @@ fn json_array_of_semantic_blocks(
         json_field("source_hint", json_string_or_null(block.source_hint)),
         json_field("origin_hint", json_string_or_null(block.origin_hint)),
         json_field("diagnostics", json_array_of_strings(block.diagnostics)),
+        json_field("confidence", block.confidence.to_string()),
+        json_field("provenance", json_of_provenance(block.provenance)),
       ]),
     )
   }
   json_array(items)
+}
+
+///|
+fn json_of_provenance(provenance : @semantic.Provenance) -> String {
+  json_object([
+    json_field("source_path", json_string_or_null(provenance.source_path)),
+    json_field("source_url", json_string_or_null(provenance.source_url)),
+    json_field(
+      "page_no",
+      match provenance.page_no {
+        Some(value) => value.to_string()
+        None => "null"
+      },
+    ),
+    json_field(
+      "slide_no",
+      match provenance.slide_no {
+        Some(value) => value.to_string()
+        None => "null"
+      },
+    ),
+    json_field("sheet_name", json_string_or_null(provenance.sheet_name)),
+    json_field("chapter", json_string_or_null(provenance.chapter)),
+    json_field("resource", json_string_or_null(provenance.resource)),
+  ])
 }
 
 ///|

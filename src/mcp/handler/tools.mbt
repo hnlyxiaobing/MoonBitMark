@@ -54,6 +54,8 @@ pub async fn ToolRegistry::call(
   match name {
     "inspect_document" => inspect_document_handler(args)
     "convert_to_markdown" => convert_to_markdown_handler(args)
+    "dump_normalized_ast" => dump_normalized_ast_handler(args)
+    "extract_structure" => extract_structure_handler(args)
     "upload_document" => upload_document_handler(args)
     "convert_uploaded_document" => convert_uploaded_document_handler(args)
     _ => error_tool_result("Tool not found: " + name)
@@ -203,6 +205,16 @@ pub fn ToolRegistry::register_convert_tools(
     name: "convert_to_markdown",
     description: "Convert to Markdown: preview by default, full when explicitly requested.",
     input_schema: @types.Object(schema),
+  })
+  .register(ToolDefinition::{
+    name: "dump_normalized_ast",
+    description: "Return the normalized AST after shared structural passes for debugging, regression review, or downstream tooling.",
+    input_schema: @types.Object(inspect_schema),
+  })
+  .register(ToolDefinition::{
+    name: "extract_structure",
+    description: "Return the canonical semantic document with section tree, roles, provenance, confidence, and diagnostics.",
+    input_schema: @types.Object(inspect_schema),
   })
   .register(ToolDefinition::{
     name: "upload_document",
@@ -397,6 +409,153 @@ async fn convert_to_markdown_handler(
   } catch {
     error =>
       error_tool_result("Error converting document: " + error.to_string())
+  }
+}
+
+///|
+async fn dump_normalized_ast_handler(
+  args : @types.JsonValue,
+) -> @types.McpToolResult {
+  let response_mode = match response_mode_arg(args) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let config = match load_mcp_security_config() {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let document = match resolve_request_document_arg(args, config) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let engine = @engine.MarkItDown::new()
+  let detection = try? engine.detect_source(document.input_source)
+  let detected_format = match detection {
+    Ok(value) => value.converter_name
+    Err(_) => "unknown"
+  }
+  let ctx = build_mcp_convert_context(config)
+
+  try {
+    let result = @engine.MarkItDown::new().convert_source(
+      document.input_source,
+      ctx~,
+    )
+    match result.normalized_document {
+      Some(normalized_document) => {
+        let block_count = normalized_document.blocks.length()
+        let annotation_count = normalized_document.annotations.length()
+        let json_content = normalized_document.to_json().to_string()
+        let summary = render_summary([
+          summary_line("tool", "dump_normalized_ast"),
+          summary_line("uri", document.request_uri),
+          summary_line("input_kind", document.input_kind),
+          summary_line("detected_format", detected_format),
+          summary_line("block_count", block_count.to_string()),
+          summary_line("annotation_count", annotation_count.to_string()),
+          summary_line("warnings", result.warnings.length().to_string()),
+          summary_line("diagnostics", result.diagnostics.length().to_string()),
+        ])
+        let payload = dump_normalized_ast_payload(
+          document.request_uri,
+          document.input_kind,
+          detected_format,
+          normalized_document,
+          result,
+        )
+        tool_result_for_response_mode(
+          response_mode,
+          summary,
+          Some(json_content),
+          payload,
+        )
+      }
+      None =>
+        error_tool_result(
+          "Error extracting normalized AST: conversion result did not include a normalized document",
+        )
+    }
+  } catch {
+    error =>
+      error_tool_result("Error extracting normalized AST: " + error.to_string())
+  }
+}
+
+///|
+async fn extract_structure_handler(
+  args : @types.JsonValue,
+) -> @types.McpToolResult {
+  let response_mode = match response_mode_arg(args) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let config = match load_mcp_security_config() {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let document = match resolve_request_document_arg(args, config) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let engine = @engine.MarkItDown::new()
+  let detection = try? engine.detect_source(document.input_source)
+  let detected_format = match detection {
+    Ok(value) => value.converter_name
+    Err(_) => "unknown"
+  }
+  let ctx = build_mcp_convert_context(config)
+
+  try {
+    let result = @engine.MarkItDown::new().convert_source(
+      document.input_source,
+      ctx~,
+    )
+    match result.semantic_document {
+      Some(semantic_document) => {
+        let section_count = count_sections(semantic_document.sections)
+        let low_confidence_blocks = count_low_confidence_blocks(
+          semantic_document.blocks,
+        )
+        let json_content = semantic_document.to_json().to_string()
+        let summary = render_summary([
+          summary_line("tool", "extract_structure"),
+          summary_line("uri", document.request_uri),
+          summary_line("input_kind", document.input_kind),
+          summary_line("detected_format", detected_format),
+          summary_line("section_count", section_count.to_string()),
+          summary_line(
+            "block_count",
+            semantic_document.blocks.length().to_string(),
+          ),
+          summary_line(
+            "low_confidence_blocks",
+            low_confidence_blocks.to_string(),
+          ),
+          summary_line("warnings", result.warnings.length().to_string()),
+          summary_line("diagnostics", result.diagnostics.length().to_string()),
+        ])
+        let payload = extract_structure_payload(
+          document.request_uri,
+          document.input_kind,
+          detected_format,
+          semantic_document,
+          result,
+        )
+        tool_result_for_response_mode(
+          response_mode,
+          summary,
+          Some(json_content),
+          payload,
+        )
+      }
+      None =>
+        error_tool_result(
+          "Error extracting structure: conversion result did not include a semantic document",
+        )
+    }
+  } catch {
+    error =>
+      error_tool_result("Error extracting structure: " + error.to_string())
   }
 }
 
@@ -822,6 +981,84 @@ fn convert_to_markdown_payload(
 }
 
 ///|
+fn dump_normalized_ast_payload(
+  uri : String,
+  input_kind : String,
+  detected_format : String,
+  document : @ast.Document,
+  result : @core.ConvertResult,
+) -> @types.JsonValue {
+  @types.Object({
+    "content": @types.String(document.to_json().to_string()),
+    "metadata": @types.Object({
+      "tool": @types.String("dump_normalized_ast"),
+      "uri": @types.String(uri),
+      "input_kind": @types.String(input_kind),
+      "detected_format": @types.String(detected_format),
+      "title": json_optional_string(document.title),
+      "source_type": @types.String(result.source_type),
+      "document_metadata": string_map_to_json_object(document.metadata),
+    }),
+    "diagnostics": @types.Object({
+      "warnings": string_array_to_json(result.warnings),
+      "conversion_diagnostics": diagnostics_array_to_json(result.diagnostics),
+    }),
+    "stats": @types.Object({
+      "block_count": @types.Number(document.blocks.length()),
+      "annotation_count": @types.Number(document.annotations.length()),
+      "converter_stats": convert_stats_to_json(result.stats),
+    }),
+    "normalized_document": parse_structured_json(document.to_json().to_string()),
+  })
+}
+
+///|
+fn extract_structure_payload(
+  uri : String,
+  input_kind : String,
+  detected_format : String,
+  document : @semantic.SemanticDocument,
+  result : @core.ConvertResult,
+) -> @types.JsonValue {
+  @types.Object({
+    "content": @types.String(document.to_json().to_string()),
+    "metadata": @types.Object({
+      "tool": @types.String("extract_structure"),
+      "uri": @types.String(uri),
+      "input_kind": @types.String(input_kind),
+      "detected_format": @types.String(detected_format),
+      "title": json_optional_string(document.title),
+      "source_type": @types.String(result.source_type),
+      "document_metadata": string_map_to_json_object(result.metadata),
+      "provenance": parse_structured_json(
+        document.provenance.to_json().to_string(),
+      ),
+    }),
+    "diagnostics": @types.Object({
+      "warnings": string_array_to_json(result.warnings),
+      "conversion_diagnostics": diagnostics_array_to_json(result.diagnostics),
+      "low_confidence_blocks": @types.Number(
+        count_low_confidence_blocks(document.blocks),
+      ),
+    }),
+    "stats": @types.Object({
+      "section_count": @types.Number(count_sections(document.sections)),
+      "block_count": @types.Number(document.blocks.length()),
+      "converter_stats": convert_stats_to_json(result.stats),
+    }),
+    "semantic_document": parse_structured_json(document.to_json().to_string()),
+  })
+}
+
+///|
+fn parse_structured_json(json : String) -> @types.JsonValue {
+  match @types.parse_json(json) {
+    Ok(value) => value
+    Err(_) => @types.String(json)
+  }
+}
+
+///|
 fn json_optional_string(value : String?) -> @types.JsonValue {
   match value {
     Some(text) => @types.String(text)
@@ -995,4 +1232,24 @@ fn bool_string(value : Bool) -> String {
   } else {
     "false"
   }
+}
+
+///|
+fn count_sections(sections : Array[@semantic.Section]) -> Int {
+  let mut total = 0
+  for section in sections {
+    total = total + 1 + count_sections(section.children)
+  }
+  total
+}
+
+///|
+fn count_low_confidence_blocks(blocks : Array[@semantic.SemanticBlock]) -> Int {
+  let mut total = 0
+  for block in blocks {
+    if block.confidence < 60 {
+      total = total + 1
+    }
+  }
+  total
 }

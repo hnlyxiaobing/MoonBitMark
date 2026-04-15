@@ -1655,6 +1655,63 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         unstable.sort(key=lambda item: (item["score"], item["case_score"], item["id"]))
         top_unstable_cases_by_metric[metric_name] = unstable[:5]
 
+    ocr_gain_cases = []
+    ocr_loss_cases = []
+    for result in results:
+        evidence = result.get("evidence") or {}
+        ocr = evidence.get("ocr") or {}
+        provider = ocr.get("provider")
+        attempted = parse_boolish(ocr.get("attempted"))
+        fallback_used = parse_boolish(ocr.get("fallback_used"))
+        if attempted is None:
+            attempted = "ocr" in result.get("clusters", [])
+        if not attempted:
+            continue
+        item = {
+            "id": result["id"],
+            "format": result["format"],
+            "score": result["score"],
+            "provider": provider,
+            "fallback_used": bool(fallback_used),
+            "case_score": result["score"],
+            "failing_checks": [name for name, ok in result["checks"].items() if not ok],
+        }
+        if result["score"] >= 0.99:
+            ocr_gain_cases.append(item)
+        if result["score"] < 0.97 or item["failing_checks"]:
+            ocr_loss_cases.append(item)
+    ocr_gain_cases.sort(key=lambda item: (-item["score"], item["id"]))
+    ocr_loss_cases.sort(key=lambda item: (item["score"], item["id"]))
+
+    baseline_gap_summary: dict[str, dict[str, Any]] = {}
+    for tool in ("markitdown", "docling"):
+        comparable_cases = []
+        for result in results:
+            baseline = (result.get("baseline") or {}).get(tool) or {}
+            baseline_score = baseline.get("score")
+            if isinstance(baseline_score, (int, float)):
+                comparable_cases.append(
+                    {
+                        "id": result["id"],
+                        "format": result["format"],
+                        "score": result["score"],
+                        "baseline_score": float(baseline_score),
+                        "gap": round(result["score"] - float(baseline_score), 4),
+                    }
+                )
+        comparable_cases.sort(key=lambda item: (item["gap"], item["id"]))
+        average_gap = (
+            round(sum(item["gap"] for item in comparable_cases) / len(comparable_cases), 4)
+            if comparable_cases
+            else None
+        )
+        baseline_gap_summary[tool] = {
+            "comparable_cases": len(comparable_cases),
+            "average_gap": average_gap,
+            "largest_losses": comparable_cases[:5],
+            "largest_wins": sorted(comparable_cases, key=lambda item: (-item["gap"], item["id"]))[:5],
+        }
+
     return {
         "total_cases": total,
         "passed_cases": passed,
@@ -1669,6 +1726,9 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
             "weakest_formats": weakest_formats[:5],
             "top_regressions_by_format": top_regressions_by_format,
             "top_unstable_cases_by_metric": top_unstable_cases_by_metric,
+            "ocr_gain_cases": ocr_gain_cases[:5],
+            "ocr_loss_cases": ocr_loss_cases[:5],
+            "baseline_gap_by_tool": baseline_gap_summary,
         },
     }
 
@@ -1739,6 +1799,15 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
             preview = ", ".join(f"{case['id']}:{case['score']:.4f}" for case in cases[:3])
             lines.append(f"  - `{metric_name}` -> {preview}")
 
+    regressions_by_format = shortfalls.get("top_regressions_by_format") or {}
+    if regressions_by_format:
+        lines.append("- Top regressions by format:")
+        for format_name, cases in sorted(regressions_by_format.items()):
+            if not cases:
+                continue
+            preview = ", ".join(f"{case['id']}:{case['score']:.4f}" for case in cases[:2])
+            lines.append(f"  - `{format_name}` -> {preview}")
+
     lines.extend(["", "## By Cluster", "", "| Cluster | Passed | Total | Avg Score |", "| --- | ---: | ---: | ---: |"])
     if summary["by_cluster"]:
         for cluster_name, stats in sorted(summary["by_cluster"].items()):
@@ -1762,6 +1831,25 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
         lines.append(f"- Providers: `{provider_summary}`")
     else:
         lines.append("- Providers: `none`")
+    ocr_gain_cases = shortfalls.get("ocr_gain_cases") or []
+    if ocr_gain_cases:
+        lines.append("- OCR gain signals (high-scoring OCR-involved cases):")
+        for item in ocr_gain_cases:
+            provider = item["provider"] or "unknown"
+            lines.append(
+                f"  - `{item['id']}` ({item['format']}) score `{item['score']:.4f}`, provider `{provider}`, "
+                f"fallback_used `{item['fallback_used']}`"
+            )
+    ocr_loss_cases = shortfalls.get("ocr_loss_cases") or []
+    if ocr_loss_cases:
+        lines.append("- OCR loss signals (low-scoring OCR-involved cases):")
+        for item in ocr_loss_cases:
+            provider = item["provider"] or "unknown"
+            failing = ", ".join(item["failing_checks"]) if item["failing_checks"] else "none"
+            lines.append(
+                f"  - `{item['id']}` ({item['format']}) score `{item['score']:.4f}`, provider `{provider}`, "
+                f"failing `{failing}`"
+            )
 
     failures = [result for result in report["results"] if not result["passed"]]
     lines.extend(["", "## Failures", ""])
@@ -1783,6 +1871,25 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
         )
         for error in data["errors"][:3]:
             lines.append(f"  - error: `{error}`")
+    baseline_gap_by_tool = shortfalls.get("baseline_gap_by_tool") or {}
+    if baseline_gap_by_tool:
+        lines.extend(["", "## Baseline Gaps", ""])
+        for tool, data in baseline_gap_by_tool.items():
+            lines.append(
+                f"- `{tool}`: comparable `{data['comparable_cases']}`, average gap `{data['average_gap']}`"
+            )
+            largest_losses = data.get("largest_losses") or []
+            if largest_losses:
+                preview = ", ".join(
+                    f"{item['id']}:{item['gap']:.4f}" for item in largest_losses[:3]
+                )
+                lines.append(f"  - largest losses: {preview}")
+            largest_wins = data.get("largest_wins") or []
+            if largest_wins:
+                preview = ", ".join(
+                    f"{item['id']}:{item['gap']:.4f}" for item in largest_wins[:3]
+                )
+                lines.append(f"  - largest wins: {preview}")
     return "\n".join(lines) + "\n"
 
 

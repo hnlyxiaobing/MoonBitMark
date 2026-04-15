@@ -84,6 +84,67 @@ test "render ast json returns null without document" {
 }
 
 ///|
+test "render semantic json includes provenance and confidence fields" {
+  let document = @semantic.SemanticDocument::{
+    title: Some("Demo"),
+    provenance: @semantic.Provenance::{
+      source_path: Some("docs/demo.docx"),
+      source_url: None,
+      page_no: None,
+      slide_no: Some(2),
+      sheet_name: None,
+      chapter: Some("Overview"),
+      resource: Some("word/document.xml"),
+    },
+    sections: [
+      @semantic.Section::{
+        id: "section-1",
+        title: Some("Intro"),
+        level: 1,
+        role: @semantic.Title,
+        block_indices: [0],
+        diagnostics: [],
+        provenance: @semantic.Provenance::{
+          source_path: Some("docs/demo.docx"),
+          source_url: None,
+          page_no: None,
+          slide_no: Some(2),
+          sheet_name: None,
+          chapter: Some("Overview"),
+          resource: Some("word/document.xml"),
+        },
+        children: [],
+      },
+    ],
+    blocks: [
+      @semantic.SemanticBlock::{
+        block_id: "block-1",
+        index: 0,
+        role: @semantic.Title,
+        text: "Intro",
+        source_hint: Some("slide: 2"),
+        origin_hint: Some("resource: word/document.xml"),
+        diagnostics: [],
+        confidence: 88,
+        provenance: @semantic.Provenance::{
+          source_path: Some("docs/demo.docx"),
+          source_url: None,
+          page_no: None,
+          slide_no: Some(2),
+          sheet_name: None,
+          chapter: Some("Overview"),
+          resource: Some("resource: word/document.xml"),
+        },
+      },
+    ],
+  }
+  inspect(
+    render_semantic_json(Some(document)),
+    content="{\"title\":\"Demo\",\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"word/document.xml\"},\"sections\":[{\"id\":\"section-1\",\"title\":\"Intro\",\"level\":1,\"role\":\"Title\",\"block_indices\":[0],\"diagnostics\":[],\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"word/document.xml\"},\"children\":[]}],\"blocks\":[{\"block_id\":\"block-1\",\"index\":0,\"role\":\"Title\",\"text\":\"Intro\",\"source_hint\":\"slide: 2\",\"origin_hint\":\"resource: word/document.xml\",\"diagnostics\":[],\"confidence\":88,\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"resource: word/document.xml\"}}]}",
+  )
+}
+
+///|
 test "parse args rejects missing input" {
   let result : Result[CliOptions, Error] = try? parse_args([
     "moonbitmark", "--frontmatter",

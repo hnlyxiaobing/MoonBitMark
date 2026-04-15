@@ -6,9 +6,11 @@ import {
   "moonbitlang/core/strconv",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/moonbitmark/src/capabilities/ocr",
+  "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/mcp/types",
   "moonbitlang/moonbitmark/src/mcp/transport",
   "moonbitlang/moonbitmark/src/mcp/util",
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/engine",
+  "moonbitlang/moonbitmark/src/semantic",
 }
