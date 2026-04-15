@@ -29,3 +29,16 @@ async test "text converter supports bytes input source" {
   inspect(result.title, content="Some(\"bytes-demo\")")
   assert_true(result.markdown.contains("line 1"))
 }
+
+///|
+test "text converter preserves structured lines for long no-blank-line inputs" {
+  let doc = text_to_document(
+    "Title\nSubtitle\nField A\nField B\nField C\nField D\nField E\nField F\nField G\nField H\nField I\nField J\nField K\nField L\nField M\nField N\nField O\nField P\nField Q\nField R\nField S\nField T",
+    None,
+    {},
+  )
+  inspect(
+    @ast.render_markdown(doc),
+    content="Title\n\nSubtitle\n\nField A\n\nField B\n\nField C\n\nField D\n\nField E\n\nField F\n\nField G\n\nField H\n\nField I\n\nField J\n\nField K\n\nField L\n\nField M\n\nField N\n\nField O\n\nField P\n\nField Q\n\nField R\n\nField S\n\nField T",
+  )
+}

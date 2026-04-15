@@ -526,7 +526,55 @@ fn flush_docx_text(ctx : DocxContext) -> Unit {
     Some(url) if url != "" => @ast.Link([styled], url)
     _ => styled
   }
+  if docx_should_insert_inline_space(ctx.current_inlines, linked) {
+    ctx.current_inlines.push(@ast.Text(" "))
+  }
   ctx.current_inlines.push(linked)
+}
+
+///|
+fn docx_should_insert_inline_space(
+  current_inlines : Array[@ast.Inline],
+  next_inline : @ast.Inline,
+) -> Bool {
+  if current_inlines.length() == 0 {
+    return false
+  }
+  let previous_text = @ast.plain_text_of_inlines([
+    current_inlines[current_inlines.length() - 1],
+  ])
+  let next_text = @ast.plain_text_of_inlines([next_inline])
+  match (docx_last_char(previous_text), docx_first_char(next_text)) {
+    (Some(previous), Some(next)) => docx_needs_space_between(previous, next)
+    _ => false
+  }
+}
+
+///|
+fn docx_first_char(text : String) -> Char? {
+  for ch in text {
+    return Some(ch)
+  }
+  None
+}
+
+///|
+fn docx_last_char(text : String) -> Char? {
+  let mut last : Char? = None
+  for ch in text {
+    last = Some(ch)
+  }
+  last
+}
+
+///|
+fn docx_needs_space_between(previous : Char, next : Char) -> Bool {
+  is_docx_word_char(previous) && is_docx_word_char(next)
+}
+
+///|
+fn is_docx_word_char(ch : Char) -> Bool {
+  is_docx_ascii_letter(ch) || (ch >= '0' && ch <= '9')
 }
 
 ///|

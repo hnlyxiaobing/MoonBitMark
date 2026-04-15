@@ -747,12 +747,19 @@ fn json_string_or_null(value : String?) -> String {
 
 ///|
 fn json_string(value : String) -> String {
-  let mut escaped = value.replace(old="\\", new="\\\\")
-  escaped = escaped.replace(old="\"", new="\\\"")
-  escaped = escaped.replace(old="\n", new="\\n")
-  escaped = escaped.replace(old="\r", new="\\r")
-  escaped = escaped.replace(old="\t", new="\\t")
-  escaped = escaped.replace(old="\b", new="\\b")
-  escaped = escaped.replace(old="\f", new="\\f")
+  let mut escaped = ""
+  for ch in value {
+    let piece = match ch {
+      '\\' => "\\\\"
+      '"' => "\\\""
+      '\n' => "\\n"
+      '\r' => "\\r"
+      '\t' => "\\t"
+      '\u{0008}' => "\\b"
+      '\u{000C}' => "\\f"
+      _ => ch.to_string()
+    }
+    escaped = escaped + piece
+  }
   "\"" + escaped + "\""
 }

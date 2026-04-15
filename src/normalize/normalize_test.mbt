@@ -18,11 +18,25 @@ test "normalize document adjusts headings tables and image paragraphs" {
   let normalized = normalize_document(document)
   inspect(normalized.blocks.length(), content="5")
   inspect(normalized.blocks[0], content="Heading(4, [Text(\"Top\")])")
-  inspect(normalized.blocks[1], content="Heading(5, [Text(\"Deep\")])")
+  inspect(normalized.blocks[1], content="Heading(6, [Text(\"Deep\")])")
   inspect(normalized.blocks[2], content="Paragraph([Text(\"hello world\")])")
   inspect(normalized.blocks[3], content="Image(\"chart\", \"image.png\", None)")
+  inspect(normalized.annotations[1].diagnostics.length(), content="0")
+}
+
+///|
+test "normalize document preserves list indentation prefixes" {
+  let document = @ast.Document::{
+    title: None,
+    metadata: {},
+    blocks: [
+      @ast.List([[@ast.Text("Top")], [@ast.Text("  Nested item")]], false),
+    ],
+    annotations: [],
+  }
+  let normalized = normalize_document(document)
   inspect(
-    normalized.annotations[1].diagnostics[0],
-    content="Normalized heading level from 6 to 5",
+    normalized.blocks[0],
+    content="List([[Text(\"Top\")], [Text(\"  Nested item\")]], false)",
   )
 }

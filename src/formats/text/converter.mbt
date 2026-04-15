@@ -92,6 +92,15 @@ fn text_to_document(
   metadata : Map[String, String],
 ) -> @ast.Document {
   let blocks : Array[@ast.Block] = []
+  if should_preserve_structured_text_lines(content) {
+    for line in normalize_text_content(content).split("\n").to_array() {
+      let trimmed = line.to_string().trim().to_string()
+      if trimmed != "" {
+        blocks.push(@ast.text_paragraph(trimmed))
+      }
+    }
+    return @ast.document(title, metadata, blocks)
+  }
   for chunk in split_text_chunks(content) {
     match parse_text_chunk(chunk) {
       Some(block) => blocks.push(block)
@@ -99,6 +108,31 @@ fn text_to_document(
     }
   }
   @ast.document(title, metadata, blocks)
+}
+
+///|
+fn should_preserve_structured_text_lines(content : String) -> Bool {
+  let normalized = normalize_text_content(content)
+  if normalized.contains("\n\n") {
+    return false
+  }
+  let lines : Array[String] = []
+  for raw_line in normalized.split("\n").to_array() {
+    let trimmed = raw_line.to_string().trim().to_string()
+    if trimmed != "" {
+      lines.push(trimmed)
+    }
+  }
+  if lines.length() < 20 {
+    return false
+  }
+  let mut short_lines = 0
+  for line in lines {
+    if line.length() <= 80 {
+      short_lines = short_lines + 1
+    }
+  }
+  short_lines * 2 >= lines.length()
 }
 
 ///|

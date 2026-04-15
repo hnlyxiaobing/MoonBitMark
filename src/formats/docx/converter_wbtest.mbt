@@ -67,6 +67,27 @@ test "docx ordered list paragraphs are grouped into one markdown list" {
 }
 
 ///|
+test "docx inserts spaces across adjacent runs" {
+  let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+    "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+    "<w:body>" +
+    "<w:p><w:r><w:t>Paragraph</w:t></w:r><w:r><w:t>2.1.1</w:t></w:r></w:p>" +
+    "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"42\"/></w:numPr></w:pPr><w:r><w:t>List item</w:t></w:r><w:r><w:t>a</w:t></w:r></w:p>" +
+    "</w:body>" +
+    "</w:document>"
+  let numbering = DocxNumbering::{
+    num_to_abstract: { "42": "7" },
+    level_formats: { "7:0": "decimal" },
+  }
+  let (blocks, warnings) = extract_blocks_from_docx_xml(xml, {}, numbering, {})
+  inspect(warnings.length(), content="0")
+  inspect(
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
+    content="# Paragraph 2.1.1\n\n1. List item a",
+  )
+}
+
+///|
 test "docx tables become markdown tables" {
   let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
     "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +

@@ -68,6 +68,14 @@ test "json string escapes backslashes" {
 }
 
 ///|
+test "json string escapes windows paths as valid json" {
+  inspect(
+    json_string("tests\\conversion_eval\\fixtures\\inputs\\pdf\\fake_memo.pdf"),
+    content="\"tests\\\\conversion_eval\\\\fixtures\\\\inputs\\\\pdf\\\\fake_memo.pdf\"",
+  )
+}
+
+///|
 test "render ast json returns null without document" {
   inspect(
     render_ast_json(@core.ConvertResult::markdown_only("", "text")),

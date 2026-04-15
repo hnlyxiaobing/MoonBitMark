@@ -52,20 +52,13 @@ fn normalize_heading_levels(
   pairs : Array[AnnotatedBlock],
 ) -> Array[AnnotatedBlock] {
   let normalized : Array[AnnotatedBlock] = []
-  let mut previous_level = 0
   for pair in pairs {
     let block = pair.0
     let annotation = pair.1
     match block {
       @ast.Heading(level, inlines) => {
         let clamped = clamp_heading_level(level)
-        let expected = if previous_level == 0 {
-          clamped
-        } else if clamped > previous_level + 1 {
-          previous_level + 1
-        } else {
-          clamped
-        }
+        let expected = clamped
         let updated_annotation = if expected == level {
           annotation
         } else {
@@ -78,7 +71,6 @@ fn normalize_heading_levels(
           )
         }
         normalized.push((@ast.Heading(expected, inlines), updated_annotation))
-        previous_level = expected
       }
       _ => normalized.push((block, annotation))
     }
@@ -109,7 +101,7 @@ fn normalize_list_blocks(
       @ast.List(items, ordered) => {
         let next_items : Array[Array[@ast.Inline]] = []
         for item in items {
-          let normalized_item = normalize_inline_whitespace(item)
+          let normalized_item = normalize_list_item_whitespace(item)
           if @ast.plain_text_of_inlines(normalized_item) != "" {
             next_items.push(normalized_item)
           }
@@ -127,6 +119,52 @@ fn normalize_list_blocks(
     }
   }
   normalized
+}
+
+///|
+fn normalize_list_item_whitespace(
+  inlines : Array[@ast.Inline],
+) -> Array[@ast.Inline] {
+  let normalized = normalize_inline_whitespace(inlines)
+  let prefix = leading_whitespace_prefix(inlines)
+  if prefix == "" || normalized.length() == 0 {
+    return normalized
+  }
+  let result : Array[@ast.Inline] = []
+  let mut is_first = true
+  for inline in normalized {
+    if is_first {
+      match inline {
+        @ast.Text(text) => result.push(@ast.Text(prefix + text))
+        _ => {
+          result.push(@ast.Text(prefix))
+          result.push(inline)
+        }
+      }
+      is_first = false
+    } else {
+      result.push(inline)
+    }
+  }
+  result
+}
+
+///|
+fn leading_whitespace_prefix(inlines : Array[@ast.Inline]) -> String {
+  match inlines.get(0) {
+    Some(@ast.Text(text)) => {
+      let mut prefix = ""
+      for ch in text {
+        if ch == ' ' || ch == '\t' {
+          prefix = prefix + ch.to_string()
+        } else {
+          break
+        }
+      }
+      prefix
+    }
+    _ => ""
+  }
 }
 
 ///|
@@ -287,26 +325,44 @@ fn normalize_inline_whitespace(
   inlines : Array[@ast.Inline],
 ) -> Array[@ast.Inline] {
   let normalized : Array[@ast.Inline] = []
+  let mut pending_text = ""
+  let flush_pending_text = fn() {
+    let compact = squeeze_whitespace(pending_text)
+    if compact != "" {
+      normalized.push(@ast.Text(compact))
+    }
+    pending_text = ""
+  }
   for inline in inlines {
     match inline {
-      @ast.Text(text) => {
-        let compact = squeeze_whitespace(text)
-        if compact != "" {
-          normalized.push(@ast.Text(compact))
-        }
-      }
-      @ast.Emphasis(children) =>
+      @ast.Text(text) => pending_text = pending_text + text
+      @ast.Emphasis(children) => {
+        flush_pending_text()
         normalized.push(@ast.Emphasis(normalize_inline_whitespace(children)))
-      @ast.Strong(children) =>
+      }
+      @ast.Strong(children) => {
+        flush_pending_text()
         normalized.push(@ast.Strong(normalize_inline_whitespace(children)))
-      @ast.Link(children, url) =>
+      }
+      @ast.Link(children, url) => {
+        flush_pending_text()
         normalized.push(@ast.Link(normalize_inline_whitespace(children), url))
-      @ast.Inline::Image(alt, url) =>
+      }
+      @ast.Inline::Image(alt, url) => {
+        flush_pending_text()
         normalized.push(@ast.Inline::Image(squeeze_whitespace(alt), url))
-      @ast.Code(text) => normalized.push(@ast.Code(text))
-      @ast.LineBreak => normalized.push(@ast.LineBreak)
+      }
+      @ast.Code(text) => {
+        flush_pending_text()
+        normalized.push(@ast.Code(text))
+      }
+      @ast.LineBreak => {
+        flush_pending_text()
+        normalized.push(@ast.LineBreak)
+      }
     }
   }
+  flush_pending_text()
   normalized
 }
 

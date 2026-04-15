@@ -219,19 +219,26 @@ def detect_runner(explicit_runner: str | None) -> RunnerInfo:
         REPO_ROOT / "_build" / "native" / "release" / "build" / "cmd" / "main" / "main.exe",
         REPO_ROOT / "_build" / "native" / "debug" / "build" / "cmd" / "main" / "main.exe",
     ]
+    stale_candidates: list[tuple[Path, str]] = []
     for candidate in candidates:
         if candidate.exists():
             stale, reason = detect_stale_binary(candidate)
-            return RunnerInfo([str(candidate)], str(candidate.relative_to(REPO_ROOT)), stale, reason)
+            if not stale:
+                return RunnerInfo([str(candidate)], str(candidate.relative_to(REPO_ROOT)), False, None)
+            stale_candidates.append((candidate, reason or "binary is older than current MoonBit sources"))
 
-    return RunnerInfo(["moon", "run", "cmd/main", "--"], "moon run cmd/main --", False, None)
+    fallback_reason = None
+    if stale_candidates:
+        labels = ", ".join(str(candidate.relative_to(REPO_ROOT)) for candidate, _ in stale_candidates)
+        fallback_reason = f"compiled runner stale, using moon run instead: {labels}"
+    return RunnerInfo(["moon", "run", "cmd/main", "--"], "moon run cmd/main --", False, fallback_reason)
 
 
 def run_conversion(
     runner: RunnerInfo,
     input_path: Path,
     cli_args: list[str] | None = None,
-    timeout_seconds: int = 60,
+    timeout_seconds: int = 180,
 ) -> ConversionOutput:
     started = dt.datetime.now(dt.timezone.utc)
     completed = subprocess.run(
@@ -969,8 +976,10 @@ def markdown_structure(markdown: str) -> dict[str, Any]:
     lines = text.split("\n") if text else []
     headings: list[tuple[int, str]] = []
     list_items = 0
+    list_nesting: list[int] = []
     code_blocks = 0
     paragraphs = 0
+    paragraph_lines: list[int] = []
     in_code = False
     current_paragraph: list[str] = []
     for line in lines:
@@ -980,6 +989,7 @@ def markdown_structure(markdown: str) -> dict[str, Any]:
             code_blocks += 1 if in_code else 0
             if current_paragraph:
                 paragraphs += 1
+                paragraph_lines.append(len(current_paragraph))
                 current_paragraph = []
             continue
         if in_code:
@@ -987,6 +997,7 @@ def markdown_structure(markdown: str) -> dict[str, Any]:
         if stripped.startswith("#"):
             if current_paragraph:
                 paragraphs += 1
+                paragraph_lines.append(len(current_paragraph))
                 current_paragraph = []
             level = len(stripped) - len(stripped.lstrip("#"))
             headings.append((level, clean_inline(stripped[level:])))
@@ -994,27 +1005,35 @@ def markdown_structure(markdown: str) -> dict[str, Any]:
         if re.match(r"^([-*+]|\d+\.)\s+", stripped):
             if current_paragraph:
                 paragraphs += 1
+                paragraph_lines.append(len(current_paragraph))
                 current_paragraph = []
             list_items += 1
+            list_nesting.append((len(line) - len(line.lstrip(" "))) // 2)
             continue
         if stripped.startswith("|"):
             if current_paragraph:
                 paragraphs += 1
+                paragraph_lines.append(len(current_paragraph))
                 current_paragraph = []
             continue
         if stripped:
             current_paragraph.append(stripped)
         elif current_paragraph:
             paragraphs += 1
+            paragraph_lines.append(len(current_paragraph))
             current_paragraph = []
     if current_paragraph:
         paragraphs += 1
+        paragraph_lines.append(len(current_paragraph))
     return {
         "headings": headings,
         "list_items": list_items,
+        "list_nesting": list_nesting,
         "code_blocks": code_blocks,
         "paragraphs": paragraphs,
+        "paragraph_lines": paragraph_lines,
         "tables": parse_markdown_tables(text),
+        "asset_links": count_asset_links(text),
     }
 
 
@@ -1057,6 +1076,12 @@ def heading_similarity(left: list[tuple[int, str]], right: list[tuple[int, str]]
     return sequence_similarity(left_text, right_text)
 
 
+def heading_structure_score(left_markdown: str, right_markdown: str) -> float:
+    left = markdown_structure(left_markdown)
+    right = markdown_structure(right_markdown)
+    return heading_similarity(left["headings"], right["headings"])
+
+
 def table_similarity(left_markdown: str, right_markdown: str) -> float:
     left_tables = parse_markdown_tables(left_markdown)
     right_tables = parse_markdown_tables(right_markdown)
@@ -1077,6 +1102,54 @@ def table_similarity(left_markdown: str, right_markdown: str) -> float:
         cell_score = token_f1(left_cells, right_cells)
         scores.append(0.35 * header_score + 0.25 * shape_score + 0.4 * cell_score)
     return sum(scores) / len(scores)
+
+
+def table_shape_score(left_markdown: str, right_markdown: str) -> float:
+    left_tables = parse_markdown_tables(left_markdown)
+    right_tables = parse_markdown_tables(right_markdown)
+    if not left_tables and not right_tables:
+        return 1.0
+    if not left_tables or not right_tables:
+        return 0.0
+    scores: list[float] = []
+    for index, left_table in enumerate(left_tables):
+        right_table = right_tables[min(index, len(right_tables) - 1)]
+        scores.append(
+            (
+                ratio_by_distance(len(left_table["header"]), len(right_table["header"]))
+                + ratio_by_distance(len(left_table["rows"]), len(right_table["rows"]))
+            )
+            / 2
+        )
+    return sum(scores) / len(scores)
+
+
+def list_nesting_score(left_markdown: str, right_markdown: str) -> float:
+    left = markdown_structure(left_markdown)
+    right = markdown_structure(right_markdown)
+    left_text = ",".join(str(level) for level in left["list_nesting"])
+    right_text = ",".join(str(level) for level in right["list_nesting"])
+    return sequence_similarity(left_text, right_text)
+
+
+def paragraph_segmentation_score(left_markdown: str, right_markdown: str) -> float:
+    left = markdown_structure(left_markdown)
+    right = markdown_structure(right_markdown)
+    count_score = ratio_by_distance(left["paragraphs"], right["paragraphs"])
+    left_lines = ",".join(str(size) for size in left["paragraph_lines"])
+    right_lines = ",".join(str(size) for size in right["paragraph_lines"])
+    line_score = sequence_similarity(left_lines, right_lines)
+    return 0.5 * count_score + 0.5 * line_score
+
+
+def count_asset_links(markdown: str) -> int:
+    return len(re.findall(r"!\[[^\]]*\]\(([^)]+)\)", markdown))
+
+
+def asset_link_score(left_markdown: str, right_markdown: str) -> float:
+    left = markdown_structure(left_markdown)
+    right = markdown_structure(right_markdown)
+    return ratio_by_distance(left["asset_links"], right["asset_links"])
 
 
 def structure_similarity(left_markdown: str, right_markdown: str) -> float:
@@ -1143,6 +1216,11 @@ def metric_key_alias(key: str) -> str:
         "markdown_similarity": "markdown_similarity",
         "ast_similarity": "ast_similarity",
         "table_similarity": "table_similarity",
+        "heading_structure_score": "heading_structure_score",
+        "list_nesting_score": "list_nesting_score",
+        "table_shape_score": "table_shape_score",
+        "paragraph_segmentation_score": "paragraph_segmentation_score",
+        "asset_link_score": "asset_link_score",
         "text_order": "text_order",
     }
     return aliases.get(key, key)
@@ -1354,6 +1432,11 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
             metrics["markdown_similarity"] = 0.6 * sequence_similarity(output_markdown, reference_markdown) + 0.4 * token_f1(output_markdown, reference_markdown)
             metrics["ast_similarity"] = structure_similarity(output_markdown, reference_markdown)
             metrics["table_similarity"] = table_similarity(output_markdown, reference_markdown)
+            metrics["heading_structure_score"] = heading_structure_score(output_markdown, reference_markdown)
+            metrics["list_nesting_score"] = list_nesting_score(output_markdown, reference_markdown)
+            metrics["table_shape_score"] = table_shape_score(output_markdown, reference_markdown)
+            metrics["paragraph_segmentation_score"] = paragraph_segmentation_score(output_markdown, reference_markdown)
+            metrics["asset_link_score"] = asset_link_score(output_markdown, reference_markdown)
         if case.checks.get("text_order"):
             metrics["text_order"] = text_order_score(output_markdown, case.must_include)
 
@@ -1458,11 +1541,23 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "forced_cases": 0,
         "fallback_used_cases": 0,
     }
+    structure_metrics = (
+        "heading_structure_score",
+        "list_nesting_score",
+        "table_shape_score",
+        "paragraph_segmentation_score",
+        "asset_link_score",
+    )
     for result in results:
-        bucket = by_format.setdefault(result["format"], {"total": 0, "passed": 0, "score_sum": 0.0})
+        bucket = by_format.setdefault(result["format"], {"total": 0, "passed": 0, "score_sum": 0.0, "metric_sums": {name: 0.0 for name in structure_metrics}, "metric_counts": {name: 0 for name in structure_metrics}})
         bucket["total"] += 1
         bucket["passed"] += 1 if result["passed"] else 0
         bucket["score_sum"] += result["score"]
+        for metric_name in structure_metrics:
+            value = result["metrics"].get(metric_name)
+            if value is not None:
+                bucket["metric_sums"][metric_name] += value
+                bucket["metric_counts"][metric_name] += 1
         for cluster in result.get("clusters", []):
             cluster_bucket = by_cluster.setdefault(cluster, {"total": 0, "passed": 0, "score_sum": 0.0})
             cluster_bucket["total"] += 1
@@ -1506,6 +1601,59 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     for bucket in list(by_format.values()) + list(by_cluster.values()) + list(by_tier.values()):
         bucket["average_score"] = round(bucket["score_sum"] / max(bucket["total"], 1), 4)
         del bucket["score_sum"]
+        if "metric_sums" in bucket and "metric_counts" in bucket:
+            bucket["structure_metrics"] = {
+                metric_name: round(bucket["metric_sums"][metric_name] / bucket["metric_counts"][metric_name], 4)
+                for metric_name in structure_metrics
+                if bucket["metric_counts"][metric_name] > 0
+            }
+            del bucket["metric_sums"]
+            del bucket["metric_counts"]
+
+    weakest_formats = [
+        {
+            "format": format_name,
+            "average_score": stats["average_score"],
+            "structure_metrics": stats.get("structure_metrics", {}),
+        }
+        for format_name, stats in by_format.items()
+    ]
+    weakest_formats.sort(key=lambda item: (item["average_score"], item["format"]))
+
+    top_regressions_by_format: dict[str, list[dict[str, Any]]] = {}
+    for format_name in by_format.keys():
+        format_results = [result for result in results if result["format"] == format_name]
+        format_results.sort(key=lambda item: (item["score"], item["id"]))
+        top_regressions_by_format[format_name] = [
+            {
+                "id": result["id"],
+                "score": result["score"],
+                "failing_checks": [name for name, ok in result["checks"].items() if not ok],
+            }
+            for result in format_results[:3]
+        ]
+
+    structure_metric_names = (
+        "heading_structure_score",
+        "list_nesting_score",
+        "table_shape_score",
+        "paragraph_segmentation_score",
+        "asset_link_score",
+    )
+    top_unstable_cases_by_metric: dict[str, list[dict[str, Any]]] = {}
+    for metric_name in structure_metric_names:
+        unstable = [
+            {
+                "id": result["id"],
+                "format": result["format"],
+                "score": result["metrics"][metric_name],
+                "case_score": result["score"],
+            }
+            for result in results
+            if metric_name in result["metrics"]
+        ]
+        unstable.sort(key=lambda item: (item["score"], item["case_score"], item["id"]))
+        top_unstable_cases_by_metric[metric_name] = unstable[:5]
 
     return {
         "total_cases": total,
@@ -1517,6 +1665,11 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "by_cluster": by_cluster,
         "by_tier": by_tier,
         "ocr_summary": {**ocr_summary, "providers": dict(sorted(ocr_providers.items()))},
+        "shortfalls": {
+            "weakest_formats": weakest_formats[:5],
+            "top_regressions_by_format": top_regressions_by_format,
+            "top_unstable_cases_by_metric": top_unstable_cases_by_metric,
+        },
     }
 
 
@@ -1547,6 +1700,44 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
     )
     for format_name, stats in sorted(summary["by_format"].items()):
         lines.append(f"| {format_name} | {stats['passed']} | {stats['total']} | {stats['average_score']:.4f} |")
+
+    lines.extend(
+        [
+            "",
+            "## Structure Metrics By Format",
+            "",
+            "| Format | Heading | List | Table Shape | Paragraph | Asset Link |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for format_name, stats in sorted(summary["by_format"].items()):
+        metrics = stats.get("structure_metrics", {})
+        lines.append(
+            f"| {format_name} | {metrics.get('heading_structure_score', 0.0):.4f} | "
+            f"{metrics.get('list_nesting_score', 0.0):.4f} | "
+            f"{metrics.get('table_shape_score', 0.0):.4f} | "
+            f"{metrics.get('paragraph_segmentation_score', 0.0):.4f} | "
+            f"{metrics.get('asset_link_score', 0.0):.4f} |"
+        )
+
+    shortfalls = summary.get("shortfalls") or {}
+    lines.extend(["", "## Priority Signals", ""])
+    weakest_formats = shortfalls.get("weakest_formats") or []
+    if weakest_formats:
+        lines.append("- Weakest formats by average score:")
+        for item in weakest_formats:
+            lines.append(f"  - `{item['format']}`: `{item['average_score']:.4f}`")
+    else:
+        lines.append("- Weakest formats by average score: `none`")
+
+    unstable_cases = shortfalls.get("top_unstable_cases_by_metric") or {}
+    if unstable_cases:
+        lines.append("- Top unstable cases by structure metric:")
+        for metric_name, cases in unstable_cases.items():
+            if not cases:
+                continue
+            preview = ", ".join(f"{case['id']}:{case['score']:.4f}" for case in cases[:3])
+            lines.append(f"  - `{metric_name}` -> {preview}")
 
     lines.extend(["", "## By Cluster", "", "| Cluster | Passed | Total | Avg Score |", "| --- | ---: | ---: | ---: |"])
     if summary["by_cluster"]:
