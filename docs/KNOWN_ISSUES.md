@@ -1,38 +1,29 @@
 # Known Issues
 
-这里只记录当前仍然有效、会影响理解或继续开发的问题，不记录已经解决的历史事项。
+这里只保留当前仍然会影响使用或开发判断的问题。
 
-## 1. PDF OCR 仍是 bridge-backed recovery path，不是完整版面理解系统
+## Dynamic Huffman 解压仍有缺陷
 
-- 相关文件: `src/formats/pdf/converter.mbt`、`src/capabilities/ocr/provider.mbt`、`scripts/ocr/bridge.py`
-- 影响范围: 扫描版 PDF、混合文本/扫描 PDF、近空文本层 PDF
+- 位置：`src/libzip/deflate.mbt`
+- 影响：使用 dynamic Huffman 压缩的 ZIP 成员可能解压失败或结果不稳定。
+- 受影响格式：主要是依赖 ZIP 容器的输入，最明显的是部分 PPTX，也可能波及 DOCX、XLSX、EPUB。
 
-当前 PDF 已经具备：
+这是当前最重要的已知问题。仓库里的 Office / EPUB 解析能力建立在 `libzip` 之上，因此这个缺陷会直接影响某些真实文件的可转换性。
 
-- `mbtpdf` 默认快速文本提取
-- 小型复杂文档的 `pdfminer` bridge fallback
-- 页级 route
-- 标题 / 列表 / 表格 / code / formula 的结构恢复
-- recovery 页定向 OCR（可对 mixed 文档中的 recovery 页单独介入）
-- Python bridge 下的 PDF 页渲染 -> 页级 OCR 恢复路径
+## OCR 仍是 bridge-backed 可选能力
 
-但当前边界仍然清晰：
+- 位置：`src/capabilities/ocr/`、`scripts/ocr/bridge.py`
+- 影响：OCR 依赖 Python 和可用 backend，不是纯 MoonBit 内建能力。
 
-- OCR 仍依赖 Python bridge 和可用 backend，不是纯 MoonBit runtime 内建能力
-- 当前只做页级文本恢复，没有 bbox / reading-order / table cell / formula layout 的 OCR 协议
-- 扫描 PDF 的最终结构质量仍取决于 OCR backend 输出质量，复杂版面还不是成熟 layout engine
+当前 OCR 只适合作为恢复路径：
 
-## 2. Windows native 构建的 `C4819` 仍是待复现债务，不是本轮阻塞项
+- 图片 OCR 依赖 bridge 和 backend 可用性。
+- PDF OCR 只做页级文本恢复，不提供成熟的版面理解、bbox 或表格结构恢复。
+- backend 缺失、超时或 bridge 失败时，预期行为是产生 diagnostics / warnings，而不是保证成功。
 
-- 影响范围: Windows 本地 native 构建输出
+## Windows native release 构建依赖 MSVC
 
-当前结论更精确：
+- 位置：`scripts/build.bat`
+- 影响：Windows 上的原生 release 构建不能脱离 MSVC 环境。
 
-- 这类 `C4819` 编码 warning 曾经出现过，属于构建输出整洁度问题
-- 本轮在本地重新执行 `moon build --target native --release` 时没有复现
-- 因为还没有稳定复现源，所以这项工作被降级为“待复现后再修”的下一轮债务，而不是当前功能阻塞项
-
-后续处理顺序：
-
-1. 只要在 CI 或本地再次稳定复现，就先记录具体生成文件和终端/代码页环境
-2. 再决定是修生成 C 文件编码、工具链环境，还是仅补构建脚本中的编码约束
+这不是 bug，但它是一个明确的运行边界。如果构建环境没有 `cl.exe` 或没有正确加载 MSVC 环境，`moon build --target native --release` 不会按预期工作。
