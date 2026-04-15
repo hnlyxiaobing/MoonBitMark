@@ -8,6 +8,9 @@ struct CliOptions {
   diag_json : Bool
   detect_only : Bool
   dump_ast : Bool
+  dump_raw_ast : Bool
+  dump_normalized_ast : Bool
+  dump_semantic : Bool
 }
 
 ///|
@@ -33,6 +36,9 @@ fn print_usage() -> Unit {
   println("  --diag-json       Print diagnostics/stats as JSON")
   println("  --detect-only     Only print detection result")
   println("  --dump-ast        Print AST as strict JSON instead of Markdown")
+  println("  --dump-raw-ast    Print raw AST before normalization")
+  println("  --dump-normalized-ast Print normalized AST after shared passes")
+  println("  --dump-semantic   Print derived semantic section tree")
   println("  --debug           Enable debug context")
   println("  --help            Show this help message")
   println("")
@@ -57,6 +63,9 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
   let mut diag_json = false
   let mut detect_only = false
   let mut dump_ast = false
+  let mut dump_raw_ast = false
+  let mut dump_normalized_ast = false
+  let mut dump_semantic = false
   let mut asset_output_dir : String? = None
   let mut output_mode = @core.StandardMarkdown
   let mut ocr_mode = @ocr.Off
@@ -77,6 +86,9 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
         "--diag-json" => diag_json = true
         "--detect-only" => detect_only = true
         "--dump-ast" => dump_ast = true
+        "--dump-raw-ast" => dump_raw_ast = true
+        "--dump-normalized-ast" => dump_normalized_ast = true
+        "--dump-semantic" => dump_semantic = true
         "--debug" => debug = true
         "--ocr-images" => ocr_images = true
         "--asset-dir" => {
@@ -143,8 +155,32 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
   if detect_only && dump_ast {
     fail("--detect-only cannot be combined with --dump-ast")
   }
+  if detect_only && dump_raw_ast {
+    fail("--detect-only cannot be combined with --dump-raw-ast")
+  }
+  if detect_only && dump_normalized_ast {
+    fail("--detect-only cannot be combined with --dump-normalized-ast")
+  }
+  if detect_only && dump_semantic {
+    fail("--detect-only cannot be combined with --dump-semantic")
+  }
   if diag_json && dump_ast {
     fail("--diag-json cannot be combined with --dump-ast")
+  }
+  if diag_json && dump_raw_ast {
+    fail("--diag-json cannot be combined with --dump-raw-ast")
+  }
+  if diag_json && dump_normalized_ast {
+    fail("--diag-json cannot be combined with --dump-normalized-ast")
+  }
+  if diag_json && dump_semantic {
+    fail("--diag-json cannot be combined with --dump-semantic")
+  }
+  let dump_count = bool_count([
+    dump_ast, dump_raw_ast, dump_normalized_ast, dump_semantic,
+  ])
+  if dump_count > 1 {
+    fail("Only one dump mode can be enabled at a time")
   }
 
   CliOptions::{
@@ -168,7 +204,21 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
     diag_json,
     detect_only,
     dump_ast,
+    dump_raw_ast,
+    dump_normalized_ast,
+    dump_semantic,
   }
+}
+
+///|
+fn bool_count(values : Array[Bool]) -> Int {
+  let mut count = 0
+  for value in values {
+    if value {
+      count = count + 1
+    }
+  }
+  count
 }
 
 ///|
@@ -227,8 +277,12 @@ async fn main {
   }
 
   let result = engine.convert(options.input, ctx=options.ctx)
-  let output = if options.dump_ast {
+  let output = if options.dump_raw_ast {
+    render_document_json(result.raw_document)
+  } else if options.dump_normalized_ast || options.dump_ast {
     render_ast_json(result)
+  } else if options.dump_semantic {
+    render_semantic_json(result.semantic_document)
   } else if options.diag_json {
     render_diagnostics_json(result)
   } else {
@@ -237,7 +291,12 @@ async fn main {
 
   emit_output(output, options.output)
 
-  if options.output is Some(path) && !options.diag_json && !options.dump_ast {
+  if options.output is Some(path) &&
+    !options.diag_json &&
+    !options.dump_ast &&
+    !options.dump_raw_ast &&
+    !options.dump_normalized_ast &&
+    !options.dump_semantic {
     println("Converted: " + options.input + " -> " + path)
     if options.ctx.debug {
       println("")
@@ -299,8 +358,13 @@ fn render_detection_json(detection : @engine.DetectionResult) -> String {
 
 ///|
 fn render_ast_json(result : @core.ConvertResult) -> String {
-  match result.document {
-    Some(document) => json_of_document(document)
+  render_document_json(result.document)
+}
+
+///|
+fn render_document_json(document : @ast.Document?) -> String {
+  match document {
+    Some(value) => json_of_document(value)
     None => "null"
   }
 }
@@ -311,6 +375,7 @@ fn json_of_document(document : @ast.Document) -> String {
     json_field("title", json_string_or_null(document.title)),
     json_field("metadata", json_of_string_map(document.metadata)),
     json_field("blocks", json_array_of_blocks(document.blocks)),
+    json_field("annotations", json_array_of_annotations(document.annotations)),
   ])
 }
 
@@ -360,9 +425,40 @@ fn json_of_block(block : @ast.Block) -> String {
         json_field("headers", json_array_of_inline_groups(headers)),
         json_field("rows", json_array_of_inline_rows(rows)),
       ])
+    @ast.Image(alt, url, caption) =>
+      json_object([
+        json_field("type", json_string("image")),
+        json_field("alt", json_string(alt)),
+        json_field("url", json_string(url)),
+        json_field(
+          "caption",
+          match caption {
+            Some(inlines) => json_array_of_inlines(inlines)
+            None => "null"
+          },
+        ),
+      ])
     @ast.HorizontalRule =>
       json_object([json_field("type", json_string("horizontal_rule"))])
   }
+}
+
+///|
+fn json_array_of_annotations(
+  annotations : Array[@ast.BlockAnnotation],
+) -> String {
+  let items : Array[String] = []
+  for annotation in annotations {
+    items.push(
+      json_object([
+        json_field("id", json_string(annotation.id)),
+        json_field("source_hint", json_string_or_null(annotation.source_hint)),
+        json_field("origin_hint", json_string_or_null(annotation.origin_hint)),
+        json_field("diagnostics", json_array_of_strings(annotation.diagnostics)),
+      ]),
+    )
+  }
+  json_array(items)
 }
 
 ///|
@@ -442,8 +538,82 @@ fn render_diagnostics_json(result : @core.ConvertResult) -> String {
     json_field("stats", json_of_stats(result.stats)),
     json_field("metadata", json_of_string_map(result.metadata)),
     json_field("asset_count", result.assets.length().to_string()),
+    json_field("has_raw_ast", json_bool(result.raw_document is Some(_))),
+    json_field(
+      "has_normalized_ast",
+      json_bool(result.normalized_document is Some(_)),
+    ),
+    json_field("has_semantic", json_bool(result.semantic_document is Some(_))),
   ]
   json_object(fields)
+}
+
+///|
+fn render_semantic_json(document : @semantic.SemanticDocument?) -> String {
+  match document {
+    Some(value) => json_of_semantic_document(value)
+    None => "null"
+  }
+}
+
+///|
+fn json_of_semantic_document(document : @semantic.SemanticDocument) -> String {
+  json_object([
+    json_field("title", json_string_or_null(document.title)),
+    json_field("sections", json_array_of_sections(document.sections)),
+    json_field("blocks", json_array_of_semantic_blocks(document.blocks)),
+  ])
+}
+
+///|
+fn json_array_of_sections(sections : Array[@semantic.Section]) -> String {
+  let items : Array[String] = []
+  for section in sections {
+    items.push(json_of_section(section))
+  }
+  json_array(items)
+}
+
+///|
+fn json_of_section(section : @semantic.Section) -> String {
+  json_object([
+    json_field("id", json_string(section.id)),
+    json_field("title", json_string_or_null(section.title)),
+    json_field("level", section.level.to_string()),
+    json_field("block_indices", json_array_of_ints(section.block_indices)),
+    json_field("diagnostics", json_array_of_strings(section.diagnostics)),
+    json_field("children", json_array_of_sections(section.children)),
+  ])
+}
+
+///|
+fn json_array_of_semantic_blocks(
+  blocks : Array[@semantic.SemanticBlock],
+) -> String {
+  let items : Array[String] = []
+  for block in blocks {
+    items.push(
+      json_object([
+        json_field("block_id", json_string(block.block_id)),
+        json_field("index", block.index.to_string()),
+        json_field("role", json_string(block.role.to_string())),
+        json_field("text", json_string(block.text)),
+        json_field("source_hint", json_string_or_null(block.source_hint)),
+        json_field("origin_hint", json_string_or_null(block.origin_hint)),
+        json_field("diagnostics", json_array_of_strings(block.diagnostics)),
+      ]),
+    )
+  }
+  json_array(items)
+}
+
+///|
+fn json_array_of_ints(values : Array[Int]) -> String {
+  let items : Array[String] = []
+  for value in values {
+    items.push(value.to_string())
+  }
+  json_array(items)
 }
 
 ///|
@@ -556,6 +726,15 @@ fn json_object(fields : Array[String]) -> String {
 ///|
 fn json_array(items : Array[String]) -> String {
   "[" + items.join(",") + "]"
+}
+
+///|
+fn json_bool(value : Bool) -> String {
+  if value {
+    "true"
+  } else {
+    "false"
+  }
 }
 
 ///|

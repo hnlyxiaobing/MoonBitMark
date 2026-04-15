@@ -96,7 +96,7 @@ pub async fn DocxConverter::convert(
           let blocks = append_docx_asset_blocks(
             content_blocks, assets, ocr_blocks,
           )
-          let doc = @ast.Document::{ title, metadata, blocks }
+          let doc = @ast.document(title, metadata, blocks)
           let rendered_markdown = @ast.render_markdown(doc)
           @core.ConvertResult::markdown_only(rendered_markdown, "docx")
           .with_title(title)

@@ -48,19 +48,17 @@ test "parse args supports dump ast" {
 ///|
 test "render ast json emits strict schema" {
   let result = @core.ConvertResult::markdown_only("", "html").with_document(
-    Some(@ast.Document::{
-      title: Some("Smoke Title"),
-      metadata: { "source": "fixture" },
-      blocks: [
+    Some(
+      @ast.document(Some("Smoke Title"), { "source": "fixture" }, [
         @ast.Heading(1, [@ast.Text("Heading")]),
         @ast.Paragraph([@ast.Text("Body")]),
         @ast.List([[@ast.Strong([@ast.Text("One")])]], false),
-      ],
-    }),
+      ]),
+    ),
   )
   inspect(
     render_ast_json(result),
-    content="{\"title\":\"Smoke Title\",\"metadata\":{\"source\":\"fixture\"},\"blocks\":[{\"type\":\"heading\",\"level\":1,\"inlines\":[{\"type\":\"text\",\"content\":\"Heading\"}]},{\"type\":\"paragraph\",\"inlines\":[{\"type\":\"text\",\"content\":\"Body\"}]},{\"type\":\"list\",\"ordered\":false,\"items\":[[{\"type\":\"strong\",\"children\":[{\"type\":\"text\",\"content\":\"One\"}]}]]}]}",
+    content="{\"title\":\"Smoke Title\",\"metadata\":{\"source\":\"fixture\"},\"blocks\":[{\"type\":\"heading\",\"level\":1,\"inlines\":[{\"type\":\"text\",\"content\":\"Heading\"}]},{\"type\":\"paragraph\",\"inlines\":[{\"type\":\"text\",\"content\":\"Body\"}]},{\"type\":\"list\",\"ordered\":false,\"items\":[[{\"type\":\"strong\",\"children\":[{\"type\":\"text\",\"content\":\"One\"}]}]]}],\"annotations\":[{\"id\":\"block-1\",\"source_hint\":null,\"origin_hint\":null,\"diagnostics\":[]},{\"id\":\"block-2\",\"source_hint\":null,\"origin_hint\":null,\"diagnostics\":[]},{\"id\":\"block-3\",\"source_hint\":null,\"origin_hint\":null,\"diagnostics\":[]}]}",
   )
 }
 

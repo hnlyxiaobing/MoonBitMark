@@ -175,7 +175,7 @@ fn html_to_document_with_base(
     html_to_blocks_with_base(html, base_url),
     title,
   )
-  @ast.Document::{ title, metadata: {}, blocks }
+  @ast.document(title, {}, blocks)
 }
 
 ///|
@@ -376,11 +376,7 @@ fn parse_blockquote_html_block(
   match take_tag_inner_html(html, "blockquote") {
     Some((inner, rest)) => {
       let nested_blocks = html_to_blocks_with_base(inner, base_url)
-      let content = @ast.render_markdown(@ast.Document::{
-          title: None,
-          metadata: {},
-          blocks: nested_blocks,
-        })
+      let content = @ast.render_markdown(@ast.document(None, {}, nested_blocks))
         .trim()
         .to_string()
       Some(

@@ -101,7 +101,7 @@ test "epub trims trailing gutenberg license blocks" {
     @ast.text_paragraph("The full Project Gutenberg license follows."),
   ])
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## CHAPTER I\n\nBody paragraph",
   )
 }
@@ -120,7 +120,7 @@ test "epub parses gutenberg xhtml without boilerplate heading noise" {
     "</body></html>"
   let blocks = parse_epub_special_xhtml(sample, "OPS/60153-h-0.htm.html").unwrap()
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## The Project Gutenberg eBook of Winter Sports in Switzerland, by E. F. Benson\n\n## CHAPTER I THE SUN-SEEKER\n\nThere is an amazingly silly proverb.",
   )
 }
@@ -140,8 +140,5 @@ test "epub asset appendix only keeps ocr blocks" {
     ],
     [],
   )
-  inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
-    content="body",
-  )
+  inspect(@ast.render_markdown(@ast.document(None, {}, blocks)), content="body")
 }

@@ -19,6 +19,9 @@ pub(all) struct ConvertResult {
   source_type : String
   stats : ConvertStats?
   document : @ast.Document?
+  raw_document : @ast.Document?
+  normalized_document : @ast.Document?
+  semantic_document : @semantic.SemanticDocument?
 } derive(Show, Eq, ToJson)
 
 ///|
@@ -111,6 +114,9 @@ pub fn ConvertResult::markdown_only(
     source_type,
     stats: None,
     document: None,
+    raw_document: None,
+    normalized_document: None,
+    semantic_document: None,
   }
 }
 
@@ -167,7 +173,21 @@ pub fn ConvertResult::with_document(
   self : ConvertResult,
   document : @ast.Document?,
 ) -> ConvertResult {
-  { ..self, document, }
+  { ..self, document, raw_document: document, normalized_document: document }
+}
+
+///|
+pub fn ConvertResult::with_ast_views(
+  self : ConvertResult,
+  raw_document : @ast.Document?,
+  normalized_document : @ast.Document?,
+  semantic_document : @semantic.SemanticDocument?,
+) -> ConvertResult {
+  let document = match normalized_document {
+    Some(value) => Some(value)
+    None => raw_document
+  }
+  { ..self, document, raw_document, normalized_document, semantic_document }
 }
 
 ///|
@@ -463,6 +483,18 @@ pub fn ConvertResult::debug_report(self : ConvertResult) -> String {
   match self.document {
     Some(_) => lines.push("ast: present")
     None => lines.push("ast: none")
+  }
+  match self.raw_document {
+    Some(_) => lines.push("raw_ast: present")
+    None => ()
+  }
+  match self.normalized_document {
+    Some(_) => lines.push("normalized_ast: present")
+    None => ()
+  }
+  match self.semantic_document {
+    Some(_) => lines.push("semantic: present")
+    None => ()
   }
   if self.metadata.length() == 0 {
     lines.push("metadata: none")

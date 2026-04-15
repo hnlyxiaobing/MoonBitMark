@@ -51,11 +51,7 @@ pub async fn ImageConverter::convert(
   let warnings = collect_image_warnings(ctx.ocr, ocr_result)
   let diagnostics = image_warning_diagnostics(file_path, warnings)
   let title = @core.file_stem(file_path)
-  let doc = @ast.Document::{
-    title,
-    metadata,
-    blocks: image_blocks(asset, ocr_result),
-  }
+  let doc = @ast.document(title, metadata, image_blocks(asset, ocr_result))
   let markdown = @ast.render_markdown(doc)
   @core.ConvertResult::markdown_only(markdown, "image")
   .with_title(title)

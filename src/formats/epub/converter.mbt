@@ -93,7 +93,7 @@ pub async fn EpubConverter::convert(
               let final_blocks = append_epub_asset_blocks(
                 blocks, assets, ocr_blocks,
               )
-              let doc = @ast.Document::{ title, metadata, blocks: final_blocks }
+              let doc = @ast.document(title, metadata, final_blocks)
               let rendered_markdown = @ast.render_markdown(doc)
               @core.ConvertResult::markdown_only(rendered_markdown, "epub")
               .with_title(title)
@@ -1095,6 +1095,7 @@ fn should_keep_epub_frontmatter_block(block : @ast.Block) -> Bool {
     @ast.Quote(_) => false
     @ast.CodeBlock(_, _) => false
     @ast.Table(_, _) => false
+    @ast.Block::Image(_, _, _) => false
     @ast.HorizontalRule => false
   }
 }
@@ -1191,6 +1192,14 @@ fn normalize_epub_block(block : @ast.Block) -> @ast.Block? {
         normalized_rows.push(normalized_row)
       }
       Some(@ast.Table(normalized_header, normalized_rows))
+    }
+    @ast.Block::Image(alt, src, _) => {
+      let next_alt = sanitize_epub_text(alt)
+      if next_alt == "" && src == "" {
+        None
+      } else {
+        Some(@ast.Block::Image(next_alt, src, None))
+      }
     }
     @ast.HorizontalRule => None
   }
@@ -1378,6 +1387,7 @@ fn epub_block_text(block : @ast.Block) -> String {
       parts.join(" ")
     }
     @ast.CodeBlock(_, text) => sanitize_epub_text(text)
+    @ast.Block::Image(alt, src, _) => sanitize_epub_text(alt + " " + src)
     @ast.HorizontalRule => ""
   }
 }

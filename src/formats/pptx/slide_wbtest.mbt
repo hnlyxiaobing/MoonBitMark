@@ -12,7 +12,7 @@ test "pptx content placeholder paragraphs become list items" {
   let (blocks, warning) = process_slide_xml(xml, 2, "ppt/slides/slide2.xml")
   inspect(warning, content="None")
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## Slide 2\n\n### Agenda\n\n- Alpha\n- Beta",
   )
 }
@@ -33,7 +33,7 @@ test "pptx table graphic frame becomes markdown table" {
   let (blocks, warning) = process_slide_xml(xml, 1, "ppt/slides/slide1.xml")
   inspect(warning, content="None")
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## Slide 1\n\n### Revenue\n\n| Quarter | Value |\n| --- | --- |\n| Q1 | 10 |",
   )
 }
@@ -50,7 +50,7 @@ test "pptx notes xml becomes speaker notes blocks" {
   )
   inspect(warning, content="None")
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="#### Speaker Notes\n\nSpeaker note one\n\nSpeaker note two",
   )
 }
@@ -68,7 +68,7 @@ test "pptx chart xml becomes heading and table" {
   guard chart is Some(value) else { fail("expected chart data") }
   let blocks = render_chart_blocks(value, 1)
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="#### Revenue by Quarter\n\n| Category | FY25 | FY24 |\n| --- | --- | --- |\n| Q1 | 10 | 8 |\n| Q2 | 12 | 11 |",
   )
 }
@@ -86,7 +86,7 @@ test "pptx explicit auto numbering becomes ordered list" {
   let (blocks, warning) = process_slide_xml(xml, 3, "ppt/slides/slide3.xml")
   inspect(warning, content="None")
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## Slide 3\n\n1. First item\n2. Second item",
   )
 }
@@ -106,7 +106,7 @@ test "pptx grouped shapes keep nested text order" {
   let (blocks, warning) = process_slide_xml(xml, 4, "ppt/slides/slide4.xml")
   inspect(warning, content="None")
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## Slide 4\n\n### Nested Title\n\nNested detail",
   )
 }
@@ -124,7 +124,7 @@ test "pptx related image assets are attached to the slide" {
   )
   inspect(warnings.length(), content="0")
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="#### Slide Assets\n\n![image1.png](moonbitmark-raw://pptx/1)",
   )
 }

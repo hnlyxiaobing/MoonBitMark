@@ -1,5 +1,6 @@
 import {
   "moonbitlang/async",
+  "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/formats/text",
   "moonbitlang/moonbitmark/src/formats/csv",
@@ -11,6 +12,8 @@ import {
   "moonbitlang/moonbitmark/src/formats/pptx",
   "moonbitlang/moonbitmark/src/formats/xlsx",
   "moonbitlang/moonbitmark/src/formats/epub",
+  "moonbitlang/moonbitmark/src/normalize",
+  "moonbitlang/moonbitmark/src/semantic",
   "moonbitlang/async/fs",
   "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",

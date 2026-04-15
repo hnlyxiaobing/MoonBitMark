@@ -150,6 +150,7 @@ powershell -ExecutionPolicy Bypass -File tests/ocr/pdf_ocr_force_smoke.ps1
 ## 文档
 
 - [`docs/architecture.md`](docs/architecture.md)：当前架构、模块职责和外部依赖边界。
+- [`docs/codex_development_guide.md`](docs/codex_development_guide.md)：面向 Codex 的自主开发指引和优先级路线图。
 - [`docs/mcp.md`](docs/mcp.md)：MCP 入口、工具面和运行时限制。
 - [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md)：当前仍有效的已知问题。
 

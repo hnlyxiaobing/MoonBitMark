@@ -12,7 +12,7 @@ pub fn document_of_markdownish(
     }
     blocks.push(parse_markdownish_block(trimmed))
   }
-  Document::{ title, metadata, blocks }
+  document(title, metadata, blocks)
 }
 
 ///|

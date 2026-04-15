@@ -266,13 +266,26 @@ async fn finalize_result(
   info : @core.StreamInfo,
   ctx : @core.ConvertContext,
 ) -> @core.ConvertResult {
+  let raw_document = normalize_raw_document(raw_result.document)
+  let normalized_document = match raw_document {
+    Some(document) => Some(@normalize.normalize_document(document))
+    None => None
+  }
+  let semantic_document = match normalized_document {
+    Some(document) => Some(@semantic.semantic_document_of(document))
+    None => None
+  }
   let metadata = if ctx.keep_metadata {
     enrich_metadata(raw_result.metadata, converter, input, info)
   } else {
     Map::new()
   }
+  let normalized_markdown = match normalized_document {
+    Some(document) => @ast.render_markdown(document)
+    None => raw_result.markdown
+  }
   let markdown_with_assets = materialize_output_assets(
-    raw_result.markdown,
+    normalized_markdown,
     raw_result.assets,
   )
   let rendered_markdown = render_output_mode(
@@ -340,7 +353,27 @@ async fn finalize_result(
     assets: raw_result.assets,
     source_type: raw_result.source_type,
     stats,
-    document: raw_result.document,
+    document: normalized_document,
+    raw_document,
+    normalized_document,
+    semantic_document,
+  }
+}
+
+///|
+fn normalize_raw_document(document : @ast.Document?) -> @ast.Document? {
+  match document {
+    Some(value) =>
+      Some(@ast.Document::{
+        title: value.title,
+        metadata: value.metadata,
+        blocks: value.blocks,
+        annotations: @ast.normalize_annotations(
+          value.annotations,
+          value.blocks.length(),
+        ),
+      })
+    None => None
   }
 }
 

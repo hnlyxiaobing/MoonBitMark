@@ -131,12 +131,7 @@ test "html parses standalone pre code blocks" {
   )
   inspect(
     match block {
-      Some((value, _)) =>
-        @ast.render_markdown(@ast.Document::{
-          title: None,
-          metadata: {},
-          blocks: [value],
-        })
+      Some((value, _)) => @ast.render_markdown(@ast.document(None, {}, [value]))
       None => "none"
     },
     content="``` js\nconst total = 42;\n```",

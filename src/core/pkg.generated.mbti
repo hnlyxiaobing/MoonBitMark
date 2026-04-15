@@ -4,6 +4,7 @@ package "moonbitlang/moonbitmark/src/core"
 import {
   "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/capabilities/ocr",
+  "moonbitlang/moonbitmark/src/semantic",
 }
 
 // Values
@@ -129,10 +130,14 @@ pub(all) struct ConvertResult {
   source_type : String
   stats : ConvertStats?
   document : @ast.Document?
+  raw_document : @ast.Document?
+  normalized_document : @ast.Document?
+  semantic_document : @semantic.SemanticDocument?
 } derive(Eq, Show, ToJson)
 pub fn ConvertResult::debug_report(Self) -> String
 pub fn ConvertResult::markdown_only(String, String) -> Self
 pub fn ConvertResult::with_assets(Self, Array[OutputAsset]) -> Self
+pub fn ConvertResult::with_ast_views(Self, @ast.Document?, @ast.Document?, @semantic.SemanticDocument?) -> Self
 pub fn ConvertResult::with_diagnostics(Self, Array[ConversionDiagnostic]) -> Self
 pub fn ConvertResult::with_document(Self, @ast.Document?) -> Self
 pub fn ConvertResult::with_metadata(Self, Map[String, String]) -> Self

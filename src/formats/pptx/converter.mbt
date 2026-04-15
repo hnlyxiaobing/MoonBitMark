@@ -92,7 +92,7 @@ pub async fn PptxConverter::convert(
             available=ocr_provider != None,
           )
           let title = @core.file_stem(file_path)
-          let doc = @ast.Document::{ title, metadata, blocks: slide_blocks }
+          let doc = @ast.document(title, metadata, slide_blocks)
           let rendered_markdown = @ast.render_markdown(doc)
           let markdown_with_assets = append_pptx_asset_gallery(
             rendered_markdown, assets, ocr_appendix,

@@ -12,7 +12,7 @@ fn assemble_pdf_document(
   let metadata = build_pdf_metadata(
     route_plan, extraction, normalization, structure,
   )
-  let document = @ast.Document::{ title, metadata, blocks: structure.blocks }
+  let document = @ast.document(title, metadata, structure.blocks)
   PdfAssemblyResult::{ normalization, metadata, document }
 }
 

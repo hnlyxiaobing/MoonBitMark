@@ -59,11 +59,7 @@ test "pdf structure reconstruction emits headings and lists" {
   ])
   let structure = reconstruct_pdf_blocks(normalized.pages)
   inspect(
-    @ast.render_markdown(@ast.Document::{
-      title: None,
-      metadata: {},
-      blocks: structure.blocks,
-    }),
+    @ast.render_markdown(@ast.document(None, {}, structure.blocks)),
     content="# The Evolution of the Word Processor\n\nThe concept of the word processor predates modern computers.\n\n- IBM MT/ST: Introduced in 1964.\n- Wang Laboratories: Built dedicated machines.\n\n## Future of Word Processing\n\nToday, word processors include AI assistance.\n\n1. Undo/Redo: Easy recovery.\n2. Track Changes: Better collaboration.",
   )
 }
@@ -81,11 +77,7 @@ test "pdf structure keeps short standalone lines as separate paragraphs" {
     },
   ])
   inspect(
-    @ast.render_markdown(@ast.Document::{
-      title: None,
-      metadata: {},
-      blocks: structure.blocks,
-    }),
+    @ast.render_markdown(@ast.document(None, {}, structure.blocks)),
     content="May 5, 2023\n\nTo Whom it May Concern:\n\nThere were 20,000 bottles of water, 10,000 blankets, and 200 laptops delivered on January 23, 2023.\n\nA total of 3 trucks were used for 15 hours.\n\nBest Regards,\n\nMallori",
   )
 }

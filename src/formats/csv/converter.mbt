@@ -104,7 +104,7 @@ fn csv_rows_to_document(
     }
     [] => ()
   }
-  @ast.Document::{ title, metadata, blocks }
+  @ast.document(title, metadata, blocks)
 }
 
 ///|

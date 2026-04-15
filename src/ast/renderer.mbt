@@ -16,6 +16,7 @@ fn render_block(block : Block) -> String {
     Quote(lines) => lines.map(line => "> " + line).join("\n")
     CodeBlock(lang, content) => render_code_block(lang, content)
     Table(headers, rows) => render_table(headers, rows)
+    Image(alt, src, caption) => render_image_block(alt, src, caption)
     HorizontalRule => "---"
   }
 }
@@ -66,6 +67,20 @@ fn render_code_block(lang : String?, content : String) -> String {
     Some(name) if name != "" =>
       triple_bt + " " + name + "\n" + content + "\n" + triple_bt
     _ => triple_bt + "\n" + content + "\n" + triple_bt
+  }
+}
+
+///|
+fn render_image_block(
+  alt : String,
+  src : String,
+  caption : Array[Inline]?,
+) -> String {
+  let base = "![" + escape_link_label(alt) + "](" + src + ")"
+  match caption {
+    Some(inlines) if inlines.length() > 0 =>
+      base + "\n\n" + render_inlines(inlines)
+    _ => base
   }
 }
 

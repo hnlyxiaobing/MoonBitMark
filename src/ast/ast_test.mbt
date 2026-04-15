@@ -1,19 +1,15 @@
 ///|
 test "render markdown document" {
-  let doc = Document::{
-    title: Some("Demo"),
-    metadata: {},
-    blocks: [
-      text_heading(1, "Demo"),
-      Paragraph([
-        Text("hello "),
-        Strong([Text("world")]),
-        Text(" "),
-        Link([Text("site")], "https://example.com"),
-      ]),
-      List([text_inlines("a"), text_inlines("b")], false),
-    ],
-  }
+  let doc = document(Some("Demo"), {}, [
+    text_heading(1, "Demo"),
+    Paragraph([
+      Text("hello "),
+      Strong([Text("world")]),
+      Text(" "),
+      Link([Text("site")], "https://example.com"),
+    ]),
+    List([text_inlines("a"), text_inlines("b")], false),
+  ])
   inspect(
     @ast.render_markdown(doc),
     content="# Demo\n\nhello **world** [site](https://example.com)\n\n- a\n- b",
@@ -44,15 +40,11 @@ test "render inline text escapes markdown specials" {
 
 ///|
 test "render table preserves inline formatting and escapes cell pipes" {
-  let doc = Document::{
-    title: None,
-    metadata: {},
-    blocks: [
-      Table([text_inlines("name"), text_inlines("notes")], [
-        [[Strong([Text("Alice")])], [Text("value | with break\nnext")]],
-      ]),
-    ],
-  }
+  let doc = document(None, {}, [
+    Table([text_inlines("name"), text_inlines("notes")], [
+      [[Strong([Text("Alice")])], [Text("value | with break\nnext")]],
+    ]),
+  ])
   inspect(
     @ast.render_markdown(doc),
     content="| name | notes |\n| --- | --- |\n| **Alice** | value \\| with break<br>next |",

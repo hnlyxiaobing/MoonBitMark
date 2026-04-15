@@ -4,6 +4,7 @@ import {
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/engine",
+  "moonbitlang/moonbitmark/src/semantic",
   "moonbitlang/async/fs",
   "moonbitlang/async",
   "moonbitlang/core/encoding/utf8",

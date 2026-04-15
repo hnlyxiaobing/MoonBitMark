@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/semantic"
+
+import {
+  "moonbitlang/moonbitmark/src/ast",
+}
+
+// Values
+pub fn semantic_document_of(@ast.Document) -> SemanticDocument
+
+// Errors
+
+// Types and methods
+pub(all) struct Section {
+  id : String
+  title : String?
+  level : Int
+  block_indices : Array[Int]
+  diagnostics : Array[String]
+  children : Array[Section]
+} derive(Eq, Show, ToJson)
+
+pub(all) struct SemanticBlock {
+  block_id : String
+  index : Int
+  role : SemanticRole
+  text : String
+  source_hint : String?
+  origin_hint : String?
+  diagnostics : Array[String]
+} derive(Eq, Show, ToJson)
+
+pub(all) struct SemanticDocument {
+  title : String?
+  sections : Array[Section]
+  blocks : Array[SemanticBlock]
+} derive(Eq, Show, ToJson)
+
+pub(all) enum SemanticRole {
+  Title
+  Body
+  Quote
+  Code
+  Table
+  Image
+  Separator
+} derive(Eq, Show, ToJson)
+
+// Type aliases
+
+// Traits
+

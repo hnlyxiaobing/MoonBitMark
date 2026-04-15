@@ -44,11 +44,7 @@ test "typed error diagnostic renders normalized fields" {
 test "debug report includes stats diagnostics and ast state" {
   let result = @core.ConvertResult::markdown_only("hello", "text")
     .with_document(
-      Some(@ast.Document::{
-        title: Some("Demo"),
-        metadata: {},
-        blocks: [@ast.text_paragraph("hello")],
-      }),
+      Some(@ast.document(Some("Demo"), {}, [@ast.text_paragraph("hello")])),
     )
     .with_stats(Some(@core.stats_for_markdown("hello")))
     .with_diagnostics([
@@ -61,7 +57,7 @@ test "debug report includes stats diagnostics and ast state" {
     ])
   inspect(
     result.debug_report(),
-    content="ConvertResult Debug Report\nsource_type: text\nstats: chars=5, blocks=1\nwarnings: 0\ndiagnostics: 1\nassets: 0\nast: present\nmetadata: none\nDiagnostics:\nWarning: ConverterWarning\n  Phase: normalize/html\n  Source: demo.html\n  Message: style dropped\n  Hint: Inspect the source document or run with debug context.",
+    content="ConvertResult Debug Report\nsource_type: text\nstats: chars=5, blocks=1\nwarnings: 0\ndiagnostics: 1\nassets: 0\nast: present\nraw_ast: present\nnormalized_ast: present\nmetadata: none\nDiagnostics:\nWarning: ConverterWarning\n  Phase: normalize/html\n  Source: demo.html\n  Message: style dropped\n  Hint: Inspect the source document or run with debug context.",
   )
 }
 

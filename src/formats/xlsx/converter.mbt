@@ -61,7 +61,7 @@ pub async fn XlsxConverter::convert(
         warnings.push("No sheets discovered in xl/workbook.xml.")
       }
       let title = @core.file_stem(file_path)
-      let doc = @ast.Document::{ title, metadata, blocks }
+      let doc = @ast.document(title, metadata, blocks)
       let rendered_markdown = @ast.render_markdown(doc)
       if rendered_markdown == "" {
         warnings.push("XLSX conversion produced empty Markdown output.")

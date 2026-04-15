@@ -88,7 +88,7 @@ test "xlsx sheet regions split sparse tables and promote a title row" {
   }
   let blocks = sheet_data_to_blocks(data)
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="### Quarterly Budget\n\n| Month | Amount |\n| --- | --- |\n| Jan | 10 |\n\n| Owner | Status |\n| --- | --- |\n| Ada | Ready |",
   )
 }

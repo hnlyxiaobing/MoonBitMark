@@ -89,7 +89,7 @@ fn json_to_document(
   let blocks : Array[@ast.Block] = [
     @ast.CodeBlock(Some("json"), content.trim_end().to_string()),
   ]
-  @ast.Document::{ title, metadata, blocks }
+  @ast.document(title, metadata, blocks)
 }
 
 ///|

@@ -98,7 +98,7 @@ fn text_to_document(
       None => ()
     }
   }
-  @ast.Document::{ title, metadata, blocks }
+  @ast.document(title, metadata, blocks)
 }
 
 ///|

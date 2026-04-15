@@ -61,7 +61,7 @@ test "docx ordered list paragraphs are grouped into one markdown list" {
   let (blocks, warnings) = extract_blocks_from_docx_xml(xml, {}, numbering, {})
   inspect(warnings.length(), content="0")
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="1. First\n2. Second",
   )
 }
@@ -91,7 +91,7 @@ test "docx tables become markdown tables" {
   )
   inspect(warnings.length(), content="0")
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="| Name | Value |\n| --- | --- |\n| Alpha | 10 |",
   )
 }

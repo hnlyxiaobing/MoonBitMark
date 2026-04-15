@@ -55,11 +55,7 @@ test "pdf structured page reconstruction emits markdown table block" {
   }
   let result = reconstruct_structured_page_blocks(page, route, false)
   inspect(
-    @ast.render_markdown(@ast.Document::{
-      title: None,
-      metadata: {},
-      blocks: result.blocks,
-    }),
+    @ast.render_markdown(@ast.document(None, {}, result.blocks)),
     content="Fig. 4. Anodic and cathodic polarization curve of stainless steel in 0.5 M H2SO4 solution in the presence and absence of ES.\n\nTable 1 Potentiodynamic polarization data for stainless steel in the absence and presence of ES in 0.5 M H2SO4 solution.\n\n| Inhibitor concentration (g) | bc (V/dec) | ba (V/dec) | Ecorr (V) | icorr (A/cm2) | Polarization resistance (Ω) | Corrosion rate (mm/year) |\n| --- | --- | --- | --- | --- | --- | --- |\n| 0 | 0.0335 | 0.0409 | -0.9393 | 0.0003 | 24.0910 | 2.8163 |\n| 2 | 1.9460 | 0.0596 | -0.8276 | 0.0002 | 121.440 | 1.5054 |\n| 4 | 0.0163 | 0.2369 | -0.8825 | 0.0001 | 42.121 | 0.9476 |\n| 6 | 0.3233 | 0.0540 | -0.8027 | 5.39E-05 | 373.180 | 0.4318 |\n| 8 | 0.1240 | 0.0556 | -0.5896 | 5.46E-05 | 305.650 | 0.3772 |\n| 10 | 0.0382 | 0.0086 | -0.5356 | 1.24E-05 | 246.080 | 0.0919 |\n\nThe plot of inhibitor concentration over degree of surface coverage versus inhibitor concentration gives a straight line as shown in Fig. 5.",
   )
 }
@@ -83,11 +79,7 @@ test "pdf structured page reconstruction keeps fenced code after listing gap" {
   }
   let structure = reconstruct_structured_page_blocks(page, route, false)
   inspect(
-    @ast.render_markdown(@ast.Document::{
-      title: None,
-      metadata: {},
-      blocks: structure.blocks,
-    }),
+    @ast.render_markdown(@ast.document(None, {}, structure.blocks)),
     content="Listing 1: Simple JavaScript Program\n\n```\nfunction add(a, b) {\nreturn a + b;\n\n}\nconsole.log(add(3, 5));\n```",
   )
 }
@@ -126,11 +118,7 @@ test "pdf structured page reconstruction drops chart axis noise" {
   }
   let structure = reconstruct_structured_page_blocks(page, route, false)
   inspect(
-    @ast.render_markdown(@ast.Document::{
-      title: None,
-      metadata: {},
-      blocks: structure.blocks,
-    }),
+    @ast.render_markdown(@ast.document(None, {}, structure.blocks)),
     content="Fig. 5. Langmuir adsorption isotherm of ES.",
   )
 }
@@ -200,7 +188,7 @@ test "pdf block repair merges list continuations and promotes rescued headings" 
     true,
   )
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="- Accessibility: Writers no longer needed expensive publishing equipment or training in typesetting to create polished work. This accessibility paved the way for self-publishing, blogging, and even fan fiction communities.\n- Education: Word processors became a cornerstone of education, teaching students not only how to write essays but also how to use technology effectively.\n\n## Word Processors in a Post-Digital Era\n\nAs we move further into the 21st century, the role of the word processor continues to evolve:",
   )
 }
@@ -239,7 +227,7 @@ test "pdf block repair absorbs orphan bullets into surrounding list" {
     true,
   )
   inspect(
-    @ast.render_markdown(@ast.Document::{ title: None, metadata: {}, blocks }),
+    @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="The word processor's future lies in adaptability and intelligence. Some exciting possibilities include:\n\n- Fully AI-Assisted Writing: Imagine a word processor that understands your writing style, drafts emails, or creates entire essays based on minimal input.\n- Immersive Interfaces: As augmented reality (AR) and virtual reality (VR) technology advance, users may be able to write and edit in 3D spaces, collaborating in virtual environments.\n- Hyper-Personalization: Word processors could offer dynamic suggestions based on industry-specific needs, user habits, or even regional language variations.",
   )
 }

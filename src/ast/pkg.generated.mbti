@@ -2,9 +2,17 @@
 package "moonbitlang/moonbitmark/src/ast"
 
 // Values
+pub fn default_block_annotation(Int) -> BlockAnnotation
+
+pub fn document(String?, Map[String, String], Array[Block]) -> Document
+
 pub fn document_of_markdownish(String, String?, Map[String, String]) -> Document
 
+pub fn normalize_annotations(Array[BlockAnnotation], Int) -> Array[BlockAnnotation]
+
 pub fn parse_markdownish_block(String) -> Block
+
+pub fn plain_text_of_block(Block) -> String
 
 pub fn plain_text_of_inlines(Array[Inline]) -> String
 
@@ -28,14 +36,24 @@ pub(all) enum Block {
   Quote(Array[String])
   CodeBlock(String?, String)
   Table(Array[Array[Inline]], Array[Array[Array[Inline]]])
+  Image(String, String, Array[Inline]?)
   HorizontalRule
+} derive(Eq, Show, ToJson)
+
+pub(all) struct BlockAnnotation {
+  id : String
+  source_hint : String?
+  origin_hint : String?
+  diagnostics : Array[String]
 } derive(Eq, Show, ToJson)
 
 pub(all) struct Document {
   title : String?
   metadata : Map[String, String]
   blocks : Array[Block]
+  annotations : Array[BlockAnnotation]
 } derive(Eq, Show, ToJson)
+pub fn Document::with_annotations(Self, Array[BlockAnnotation]) -> Self
 
 pub(all) enum Inline {
   Text(String)
