@@ -3,6 +3,7 @@ priv struct BridgeResponse {
   available : Bool
   provider : String?
   text : String
+  layout_json : String?
   warnings : Array[String]
 } derive(FromJson)
 
@@ -98,6 +99,7 @@ async fn run_bridge(
         available: false,
         provider: None,
         text: "",
+        layout_json: None,
         warnings: ["OCR backend execution failed: " + err.to_string()],
       }
   }
@@ -139,6 +141,7 @@ async fn parse_bridge_response(
         available: false,
         provider: None,
         text: "",
+        layout_json: None,
         warnings: [warning],
       }
     }
@@ -159,6 +162,7 @@ async fn parse_bridge_response(
         available: false,
         provider: None,
         text: "",
+        layout_json: None,
         warnings: ["OCR backend returned invalid JSON: " + err.to_string()],
       }
   }
@@ -179,6 +183,7 @@ async fn parse_bridge_response(
     available: response.available,
     provider: response.provider,
     text: response.text.trim().to_string(),
+    layout_json: response.layout_json,
     warnings,
   }
 }

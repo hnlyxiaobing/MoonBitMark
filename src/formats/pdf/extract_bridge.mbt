@@ -3,6 +3,7 @@ priv struct PdfBridgeResponse {
   available : Bool
   provider : String?
   pages : Array[String]
+  layout_json : String?
   warnings : Array[String]
 } derive(FromJson)
 
@@ -36,6 +37,7 @@ async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
         available: false,
         provider: None,
         pages: [],
+        layout_json: None,
         warnings: ["PDF bridge execution failed: " + err.to_string()],
       }
   }
@@ -75,6 +77,7 @@ async fn parse_pdf_bridge_response(
         available: false,
         provider: None,
         pages: [],
+        layout_json: None,
         warnings: [warning],
       }
     }
@@ -94,6 +97,7 @@ async fn parse_pdf_bridge_response(
         available: false,
         provider: None,
         pages: [],
+        layout_json: None,
         warnings: ["PDF bridge returned invalid JSON: " + err.to_string()],
       }
   }

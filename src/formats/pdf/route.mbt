@@ -7,6 +7,7 @@ fn plan_pdf_route(raw_pages : Array[String]) -> PdfRoutePlan {
       number: page_no,
       raw_text,
       chunks: split_page_chunks(raw_text),
+      layout: None,
     })
     page_no = page_no + 1
   }

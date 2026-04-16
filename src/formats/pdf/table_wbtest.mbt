@@ -45,6 +45,7 @@ test "pdf structured page reconstruction emits markdown table block" {
       "24.0910 121.440 42.121 373.180 305.650 246.080", "2.8163 1.5054 0.9476 0.4318 0.3772 0.0919",
       "The plot of inhibitor concentration over degree of surface coverage versus inhibitor concentration gives a straight line as shown in Fig. 5.",
     ],
+    layout: None,
   }
   let route = PdfPageRoute::{
     page_no: 1,
@@ -69,6 +70,7 @@ test "pdf structured page reconstruction keeps fenced code after listing gap" {
       "Listing 1: Simple JavaScript Program", "", "function add (a , b ) {", "return a + b ;",
       "", "}", "console . log ( add (3 , 5) ) ;",
     ],
+    layout: None,
   }
   let route = PdfPageRoute::{
     page_no: 1,
@@ -108,6 +110,7 @@ test "pdf structured page reconstruction drops chart axis noise" {
     number: 1,
     raw_text: "",
     chunks: ["/", "C", "Fig. 5. Langmuir adsorption isotherm of ES."],
+    layout: None,
   }
   let route = PdfPageRoute::{
     page_no: 1,
@@ -250,5 +253,171 @@ test "pdf paragraph merge keeps em dash tight across wrapped lines" {
       "reflects humanity's broader technological progress.",
     ),
     content="The journey of the word processor—from clunky typewriters to AI-powered platforms—reflects humanity's broader technological progress.",
+  )
+}
+
+///|
+test "pdf ocr recovery normalization preserves linewise block candidates" {
+  let chunks = normalize_ocr_recovery_page_chunks([
+    PdfRawLine::{ text: "Project Status" },
+    PdfRawLine::{ text: "" },
+    PdfRawLine::{ text: "•" },
+    PdfRawLine::{ text: "Recovered backlog item" },
+    PdfRawLine::{ text: "" },
+    PdfRawLine::{ text: "Quarter  Revenue  Margin" },
+    PdfRawLine::{ text: "Q1  12.4  31%" },
+    PdfRawLine::{ text: "Q2  14.1  34%" },
+  ])
+  inspect(
+    chunks,
+    content="[\"Project Status\", \"\", \"•\", \"Recovered backlog item\", \"\", \"Quarter  Revenue  Margin\", \"Q1  12.4  31%\", \"Q2  14.1  34%\"]",
+  )
+}
+
+///|
+test "pdf ocr recovery reconstruction rebuilds lists and whitespace tables" {
+  let page = PdfPageText::{
+    number: 2,
+    raw_text: "",
+    chunks: [
+      "Recovered Summary", "", "• Implementation status is stable", "• Validation coverage increased",
+      "", "Quarter  Revenue  Margin", "Q1  12.4  31%", "Q2  14.1  34%", "Q3  13.8  33%",
+    ],
+    layout: None,
+  }
+  let result = reconstruct_ocr_recovery_page_blocks(page, false)
+  inspect(
+    @ast.render_markdown(@ast.document(None, {}, result.blocks)),
+    content="# Recovered Summary\n\n- Implementation status is stable\n- Validation coverage increased\n\n| Quarter | Revenue | Margin |\n| --- | --- | --- |\n| Q1 | 12.4 | 31% |\n| Q2 | 14.1 | 34% |\n| Q3 | 13.8 | 33% |",
+  )
+}
+
+///|
+test "pdf layout chunks reorder two-column reading order" {
+  let chunks = layout_page_to_chunks(PdfLayoutPage::{
+    page_no: 1,
+    width: 1000,
+    height: 1000,
+    lines: [
+      PdfLayoutLine::{
+        text: "Neural Networks Overview",
+        left: 80,
+        top: 40,
+        right: 920,
+        bottom: 90,
+        words: [],
+      },
+      PdfLayoutLine::{
+        text: "Left column begins here.",
+        left: 90,
+        top: 180,
+        right: 420,
+        bottom: 220,
+        words: [],
+      },
+      PdfLayoutLine::{
+        text: "Left column continues here.",
+        left: 90,
+        top: 240,
+        right: 430,
+        bottom: 280,
+        words: [],
+      },
+      PdfLayoutLine::{
+        text: "Right column begins here.",
+        left: 580,
+        top: 185,
+        right: 910,
+        bottom: 225,
+        words: [],
+      },
+      PdfLayoutLine::{
+        text: "Right column continues here.",
+        left: 580,
+        top: 245,
+        right: 920,
+        bottom: 285,
+        words: [],
+      },
+    ],
+  })
+  inspect(
+    chunks,
+    content="[\"Neural Networks Overview\", \"\", \"Left column begins here.\", \"Left column continues here.\", \"\", \"Right column begins here.\", \"Right column continues here.\"]",
+  )
+}
+
+///|
+test "pdf layout reconstruction flattens merged table headers from bbox words" {
+  let layout = PdfLayoutPage::{
+    page_no: 1,
+    width: 1000,
+    height: 1000,
+    lines: [
+      PdfLayoutLine::{
+        text: "Quarter Metrics",
+        left: 90,
+        top: 120,
+        right: 760,
+        bottom: 160,
+        words: [
+          PdfLayoutWord::{ text: "Quarter", left: 90, top: 120, right: 240, bottom: 160 },
+          PdfLayoutWord::{ text: "Metrics", left: 360, top: 120, right: 760, bottom: 160 },
+        ],
+      },
+      PdfLayoutLine::{
+        text: "Revenue Margin",
+        left: 420,
+        top: 170,
+        right: 760,
+        bottom: 210,
+        words: [
+          PdfLayoutWord::{ text: "Revenue", left: 420, top: 170, right: 540, bottom: 210 },
+          PdfLayoutWord::{ text: "Margin", left: 620, top: 170, right: 760, bottom: 210 },
+        ],
+      },
+      PdfLayoutLine::{
+        text: "Q1 12.4 31%",
+        left: 100,
+        top: 235,
+        right: 720,
+        bottom: 275,
+        words: [
+          PdfLayoutWord::{ text: "Q1", left: 100, top: 235, right: 170, bottom: 275 },
+          PdfLayoutWord::{ text: "12.4", left: 450, top: 235, right: 520, bottom: 275 },
+          PdfLayoutWord::{ text: "31%", left: 650, top: 235, right: 720, bottom: 275 },
+        ],
+      },
+      PdfLayoutLine::{
+        text: "Q2 14.1 34%",
+        left: 100,
+        top: 290,
+        right: 720,
+        bottom: 330,
+        words: [
+          PdfLayoutWord::{ text: "Q2", left: 100, top: 290, right: 170, bottom: 330 },
+          PdfLayoutWord::{ text: "14.1", left: 450, top: 290, right: 520, bottom: 330 },
+          PdfLayoutWord::{ text: "34%", left: 650, top: 290, right: 720, bottom: 330 },
+        ],
+      },
+    ],
+  }
+  let page = PdfPageText::{
+    number: 1,
+    raw_text: "",
+    chunks: [],
+    layout: Some(layout),
+  }
+  let route = PdfPageRoute::{
+    page_no: 1,
+    provider: OcrRecovery,
+    text_quality: Weak,
+    layout_complexity: Complex,
+    flags: [SuspectTable],
+  }
+  let result = reconstruct_layout_page_blocks(page, route, false)
+  inspect(
+    @ast.render_markdown(@ast.document(None, {}, result.blocks)),
+    content="| Quarter | Metrics / Revenue | Metrics / Margin |\n| --- | --- | --- |\n| Q1 | 12.4 | 31% |\n| Q2 | 14.1 | 34% |",
   )
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from io import StringIO
 
 
 PDF_PAGE_BREAK_MARKER = "[[[MOONBITMARK_PDF_PAGE_BREAK]]]"
@@ -25,26 +27,83 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def make_result(
+    *,
+    available: bool,
+    provider: str | None,
+    text: str,
+    warnings: list[str],
+    layout_json: str | None = None,
+) -> dict:
+    return {
+        "available": available,
+        "provider": provider,
+        "text": text,
+        "layout_json": layout_json,
+        "warnings": warnings,
+    }
+
+
+def synthesize_mock_layout(text: str, page_no: int) -> dict:
+    words = [word for word in text.split() if word]
+    line_words: list[dict] = []
+    left = 80
+    top = 120
+    for index, word in enumerate(words):
+        word_left = left + index * 90
+        line_words.append(
+            {
+                "text": word,
+                "left": word_left,
+                "top": top,
+                "right": word_left + max(40, len(word) * 14),
+                "bottom": top + 40,
+            }
+        )
+    return {
+        "pages": [
+            {
+                "page_no": page_no,
+                "width": 1000,
+                "height": 1000,
+                "lines": [
+                    {
+                        "text": text,
+                        "left": 80,
+                        "top": top,
+                        "right": 920,
+                        "bottom": top + 40,
+                        "words": line_words,
+                    }
+                ],
+            }
+        ]
+    }
+
+
 def mock_result(input_path: str, source_name: str) -> dict:
     basis = source_name or input_path
     stem = Path(basis).stem.replace("-", " ").replace("_", " ").strip()
     if not stem:
         stem = "image"
-    return {
-        "available": True,
-        "provider": "mock",
-        "text": f"MOCK OCR {stem}",
-        "warnings": [],
-    }
+    text = f"MOCK OCR {stem}"
+    return make_result(
+        available=True,
+        provider="mock",
+        text=text,
+        layout_json=json.dumps(synthesize_mock_layout(text, 1), ensure_ascii=False),
+        warnings=[],
+    )
 
 
 def unavailable(provider: str | None, warning: str) -> dict:
-    return {
-        "available": False,
-        "provider": provider,
-        "text": "",
-        "warnings": [warning],
-    }
+    return make_result(
+        available=False,
+        provider=provider,
+        text="",
+        layout_json=None,
+        warnings=[warning],
+    )
 
 
 def parse_page_numbers(raw: str) -> list[int]:
@@ -134,16 +193,21 @@ def close_if_possible(value: object) -> None:
             pass
 
 
-def run_tesseract(input_path: str, lang: str, timeout_ms: int | None) -> dict:
+def run_tesseract_command(
+    input_path: str,
+    lang: str,
+    timeout_ms: int | None,
+    *extra_args: str,
+) -> subprocess.CompletedProcess[str] | dict:
     exe = shutil.which("tesseract")
     if exe is None:
         return unavailable("tesseract", "tesseract executable was not found on PATH.")
 
-    cmd = [exe, input_path, "stdout"]
+    cmd = [exe, input_path, "stdout", *extra_args]
     if lang:
         cmd.extend(["-l", lang])
     try:
-        completed = subprocess.run(
+        return subprocess.run(
             cmd,
             capture_output=True,
             text=True,
@@ -157,16 +221,146 @@ def run_tesseract(input_path: str, lang: str, timeout_ms: int | None) -> dict:
     except OSError as exc:
         return unavailable("tesseract", f"OCR backend execution failed: {exc}")
 
-    warnings: list[str] = []
-    if completed.returncode != 0:
-        detail = completed.stderr.strip() or f"exit code {completed.returncode}"
-        warnings.append(f"OCR backend execution failed: {detail}")
+
+def read_image_size(input_path: str) -> tuple[int, int] | None:
+    try:
+        from PIL import Image
+    except Exception:
+        return None
+
+    image = None
+    try:
+        image = Image.open(input_path)
+        return image.size
+    except Exception:
+        return None
+    finally:
+        close_if_possible(image)
+
+
+def normalize_box(left: int, top: int, right: int, bottom: int, width: int, height: int) -> dict:
+    safe_width = max(1, width)
+    safe_height = max(1, height)
     return {
-        "available": completed.returncode == 0,
-        "provider": "tesseract",
-        "text": completed.stdout.strip(),
-        "warnings": warnings,
+        "left": max(0, min(1000, round(left * 1000 / safe_width))),
+        "top": max(0, min(1000, round(top * 1000 / safe_height))),
+        "right": max(0, min(1000, round(right * 1000 / safe_width))),
+        "bottom": max(0, min(1000, round(bottom * 1000 / safe_height))),
     }
+
+
+def parse_tesseract_layout(tsv_text: str, page_no: int, image_size: tuple[int, int] | None) -> dict | None:
+    rows: list[dict] = []
+    max_right = 0
+    max_bottom = 0
+    reader = csv.DictReader(StringIO(tsv_text), delimiter="\t")
+    for row in reader:
+        text = (row.get("text") or "").strip()
+        if not text:
+            continue
+        try:
+            left = int(row.get("left") or "0")
+            top = int(row.get("top") or "0")
+            width = int(row.get("width") or "0")
+            height = int(row.get("height") or "0")
+        except ValueError:
+            continue
+        if width <= 0 or height <= 0:
+            continue
+        right = left + width
+        bottom = top + height
+        max_right = max(max_right, right)
+        max_bottom = max(max_bottom, bottom)
+        rows.append(
+            {
+                "text": text,
+                "block_num": int(row.get("block_num") or "0"),
+                "par_num": int(row.get("par_num") or "0"),
+                "line_num": int(row.get("line_num") or "0"),
+                "left": left,
+                "top": top,
+                "right": right,
+                "bottom": bottom,
+            }
+        )
+
+    if not rows:
+        return None
+
+    if image_size is None:
+        image_width = max(1, max_right)
+        image_height = max(1, max_bottom)
+    else:
+        image_width, image_height = image_size
+
+    grouped: dict[tuple[int, int, int], list[dict]] = {}
+    for row in rows:
+        key = (row["block_num"], row["par_num"], row["line_num"])
+        grouped.setdefault(key, []).append(row)
+
+    lines: list[dict] = []
+    for words in grouped.values():
+        words.sort(key=lambda item: (item["left"], item["top"]))
+        line_left = min(word["left"] for word in words)
+        line_top = min(word["top"] for word in words)
+        line_right = max(word["right"] for word in words)
+        line_bottom = max(word["bottom"] for word in words)
+        line_box = normalize_box(line_left, line_top, line_right, line_bottom, image_width, image_height)
+        line_words = []
+        for word in words:
+            word_box = normalize_box(word["left"], word["top"], word["right"], word["bottom"], image_width, image_height)
+            line_words.append({"text": word["text"], **word_box})
+        lines.append(
+            {
+                "text": " ".join(word["text"] for word in words),
+                **line_box,
+                "words": line_words,
+            }
+        )
+
+    lines.sort(key=lambda item: (item["top"], item["left"]))
+    return {
+        "pages": [
+            {
+                "page_no": page_no,
+                "width": image_width,
+                "height": image_height,
+                "lines": lines,
+            }
+        ]
+    }
+
+
+def run_tesseract(input_path: str, lang: str, timeout_ms: int | None, page_no: int = 1) -> dict:
+    text_completed = run_tesseract_command(input_path, lang, timeout_ms)
+    if isinstance(text_completed, dict):
+        return text_completed
+
+    warnings: list[str] = []
+    if text_completed.returncode != 0:
+        detail = text_completed.stderr.strip() or f"exit code {text_completed.returncode}"
+        warnings.append(f"OCR backend execution failed: {detail}")
+
+    layout_json = None
+    if text_completed.returncode == 0:
+        tsv_completed = run_tesseract_command(input_path, lang, timeout_ms, "tsv")
+        if isinstance(tsv_completed, dict):
+            warnings.extend(tsv_completed["warnings"])
+        elif tsv_completed.returncode != 0:
+            detail = tsv_completed.stderr.strip() or f"exit code {tsv_completed.returncode}"
+            warnings.append(f"OCR TSV extraction failed: {detail}")
+        else:
+            layout_payload = parse_tesseract_layout(tsv_completed.stdout, page_no, read_image_size(input_path))
+            if layout_payload is not None:
+                layout_json = json.dumps(layout_payload, ensure_ascii=False)
+
+    return make_result(
+        available=text_completed.returncode == 0,
+        provider="tesseract",
+        text=text_completed.stdout.strip(),
+        layout_json=layout_json,
+        warnings=warnings,
+    )
 
 
 def run_pdf_mock(input_path: Path, source_name: str, page_numbers: list[int]) -> dict:
@@ -178,16 +372,22 @@ def run_pdf_mock(input_path: Path, source_name: str, page_numbers: list[int]) ->
     finally:
         close_if_possible(pdf)
 
-    page_texts = [
-        mock_result(str(input_path), pdf_page_source_name(source_name, input_path, page_no))["text"]
-        for page_no in selected_pages
-    ]
-    return {
-        "available": len(page_texts) > 0,
-        "provider": "mock",
-        "text": join_pdf_page_texts(page_texts),
-        "warnings": warnings,
-    }
+    page_texts: list[str] = []
+    layout_pages: list[dict] = []
+    for page_no in selected_pages:
+        page_result = mock_result(str(input_path), pdf_page_source_name(source_name, input_path, page_no))
+        page_texts.append(page_result["text"])
+        if page_result.get("layout_json"):
+            payload = json.loads(page_result["layout_json"])
+            for page in payload.get("pages", []):
+                layout_pages.append({**page, "page_no": page_no})
+    return make_result(
+        available=len(page_texts) > 0,
+        provider="mock",
+        text=join_pdf_page_texts(page_texts),
+        layout_json=json.dumps({"pages": layout_pages}, ensure_ascii=False) if layout_pages else None,
+        warnings=warnings,
+    )
 
 
 def render_pdf_pages(input_path: Path, page_numbers: list[int], image_dir: Path) -> tuple[list[tuple[int, Path]], list[str]]:
@@ -228,24 +428,29 @@ def run_pdf_tesseract(
 
     warnings: list[str] = []
     page_texts: list[str] = []
+    layout_pages: list[dict] = []
     available = False
     with tempfile.TemporaryDirectory(prefix="moonbitmark-pdf-ocr-") as temp_dir_name:
         temp_dir = Path(temp_dir_name)
         rendered_pages, render_warnings = render_pdf_pages(input_path, page_numbers, temp_dir)
         warnings.extend(render_warnings)
         for page_no, image_path in rendered_pages:
-            page_result = run_tesseract(str(image_path), lang, timeout_ms)
+            page_result = run_tesseract(str(image_path), lang, timeout_ms, page_no=page_no)
             warnings.extend(page_result["warnings"])
             page_texts.append((page_result.get("text") or "").strip())
             if page_result.get("available"):
                 available = True
+            if page_result.get("layout_json"):
+                payload = json.loads(page_result["layout_json"])
+                layout_pages.extend(payload.get("pages", []))
 
-    return {
-        "available": available,
-        "provider": "tesseract",
-        "text": join_pdf_page_texts(page_texts),
-        "warnings": warnings,
-    }
+    return make_result(
+        available=available,
+        provider="tesseract",
+        text=join_pdf_page_texts(page_texts),
+        layout_json=json.dumps({"pages": layout_pages}, ensure_ascii=False) if layout_pages else None,
+        warnings=warnings,
+    )
 
 
 def run_pdf_backend(

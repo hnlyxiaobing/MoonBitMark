@@ -252,6 +252,7 @@ fn extract_shared_strings(events : Array[@xml.ParseEvent]) -> Array[String] {
   strings
 }
 
+///|
 fn generate_blocks_with_annotations(
   archive : @libzip.ZipArchive,
   sheets : Array[(String, String)],

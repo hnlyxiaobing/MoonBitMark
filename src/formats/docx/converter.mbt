@@ -135,6 +135,7 @@ pub async fn DocxConverter::convert(
   }
 }
 
+///|
 fn extract_blocks_from_docx_xml_with_annotations(
   xml : String,
   relationships : Map[String, String],

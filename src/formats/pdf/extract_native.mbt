@@ -17,6 +17,7 @@ async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
       available: false,
       provider: None,
       pages: [],
+      layout_json: None,
       warnings: [],
     }
   }
@@ -28,19 +29,31 @@ async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
     bridge.available,
   )
   let raw_pages = if use_bridge { bridge.pages } else { native_pages }
+  let layout_pages = if use_bridge {
+    parse_pdf_layout_json(bridge.layout_json)
+  } else {
+    []
+  }
   let pages : Array[PdfPageExtraction] = []
   let mut page_no = 1
   for raw_text in raw_pages {
     let lines : Array[PdfRawLine] = []
-    for line in normalize_extracted_page_text(raw_text).split("\n").to_array() {
-      let trimmed = collapse_inline_whitespace(line.to_string())
-      lines.push(PdfRawLine::{ text: trimmed })
+    let layout = page_layout_at(layout_pages, page_no)
+    let raw_lines = match layout {
+      Some(value) => value.lines.map(line => collapse_inline_whitespace(line.text))
+      None => normalize_extracted_page_text(raw_text).split("\n").to_array().map(
+        line => collapse_inline_whitespace(line.to_string()),
+      )
+    }
+    for line in raw_lines {
+      lines.push(PdfRawLine::{ text: line })
     }
     pages.push(PdfPageExtraction::{
       page_no,
       source_kind: NativeTextFast,
       raw_text: Some(raw_text),
       lines,
+      layout,
     })
     page_no = page_no + 1
   }

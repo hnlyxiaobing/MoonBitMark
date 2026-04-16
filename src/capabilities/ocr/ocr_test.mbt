@@ -15,6 +15,7 @@ async test "recognize image bytes with mock backend" {
   inspect(result.available, content="true")
   inspect(result.provider, content="Some(\"mock\")")
   inspect(result.text, content="MOCK OCR scan")
+  inspect(result.layout_json is Some(_), content="true")
 }
 
 ///|

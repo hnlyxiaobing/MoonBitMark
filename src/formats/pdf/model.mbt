@@ -72,11 +72,44 @@ priv struct PdfRawLine {
 }
 
 ///|
+priv struct PdfLayoutWord {
+  text : String
+  left : Int
+  top : Int
+  right : Int
+  bottom : Int
+} derive(FromJson)
+
+///|
+priv struct PdfLayoutLine {
+  text : String
+  left : Int
+  top : Int
+  right : Int
+  bottom : Int
+  words : Array[PdfLayoutWord]
+} derive(FromJson)
+
+///|
+priv struct PdfLayoutPage {
+  page_no : Int
+  width : Int
+  height : Int
+  lines : Array[PdfLayoutLine]
+} derive(FromJson)
+
+///|
+priv struct PdfLayoutPayload {
+  pages : Array[PdfLayoutPage]
+} derive(FromJson)
+
+///|
 priv struct PdfPageExtraction {
   page_no : Int
   source_kind : PdfPageProviderKind
   raw_text : String?
   lines : Array[PdfRawLine]
+  layout : PdfLayoutPage?
 }
 
 ///|
@@ -93,6 +126,7 @@ priv struct PdfPageText {
   number : Int
   raw_text : String
   chunks : Array[String]
+  layout : PdfLayoutPage?
 }
 
 ///|

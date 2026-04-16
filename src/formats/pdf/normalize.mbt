@@ -30,6 +30,7 @@ fn normalize_pdf_extraction(
         None => ""
       },
       chunks: normalize_page_chunks(extracted_page, route, prefer_linewise),
+      layout: extracted_page.layout,
     })
     index = index + 1
   }
@@ -45,6 +46,7 @@ fn normalize_pdf_pages(raw_pages : Array[String]) -> PdfNormalizationResult {
       number: page_number,
       raw_text,
       chunks: split_page_chunks(raw_text),
+      layout: None,
     })
     page_number = page_number + 1
   }
@@ -94,6 +96,7 @@ fn finalize_normalized_pages(
       number: page.number,
       raw_text: page.raw_text,
       chunks: merged.0,
+      layout: page.layout,
     })
   }
 
@@ -199,9 +202,18 @@ fn normalize_page_chunks(
   route : PdfPageRoute,
   prefer_linewise : Bool,
 ) -> Array[String] {
+  match page.layout {
+    Some(layout) =>
+      if route.provider == OcrRecovery ||
+        route_flags_contain(route.flags, SuspectMultiColumn) {
+        return layout_page_to_chunks(layout)
+      }
+    None => ()
+  }
   match route.provider {
     NativeTextStructured =>
       normalize_structured_page_chunks(page.lines, route.flags)
+    OcrRecovery => normalize_ocr_recovery_page_chunks(page.lines)
     _ =>
       if prefer_linewise {
         normalize_fallback_page_chunks(page.lines)
@@ -212,6 +224,56 @@ fn normalize_page_chunks(
         }
       }
   }
+}
+
+///|
+fn normalize_ocr_recovery_page_chunks(
+  lines : Array[PdfRawLine],
+) -> Array[String] {
+  let chunks : Array[String] = []
+  for line in lines {
+    let normalized = normalize_ocr_recovery_line(line.text)
+    if normalized == "" {
+      if chunks.length() == 0 || chunks[chunks.length() - 1] != "" {
+        chunks.push("")
+      }
+      continue
+    }
+    chunks.push(normalized)
+  }
+  chunks
+}
+
+///|
+fn normalize_ocr_recovery_line(text : String) -> String {
+  trim_preserve_inline_whitespace(
+    normalize_extracted_page_text(text).replace(old="\t", new="  "),
+  )
+}
+
+///|
+fn trim_preserve_inline_whitespace(text : String) -> String {
+  let chars = marker_chars(
+    text.replace(old="\r\n", new="\n").replace(old="\r", new="\n"),
+  )
+  if chars.length() == 0 {
+    return ""
+  }
+
+  let mut start = 0
+  let mut end = chars.length()
+  while start < end && is_inline_whitespace(chars[start]) {
+    start = start + 1
+  }
+  while end > start && is_inline_whitespace(chars[end - 1]) {
+    end = end - 1
+  }
+  join_chars(chars, start, end)
+}
+
+///|
+fn is_inline_whitespace(ch : Char) -> Bool {
+  ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t'
 }
 
 ///|

@@ -75,6 +75,7 @@ pub(all) struct OcrResult {
   available : Bool
   provider : String?
   text : String
+  layout_json : String?
   warnings : Array[String]
 } derive(Debug, Eq, ToJson)
 
@@ -85,6 +86,7 @@ pub fn OcrResult::not_attempted() -> OcrResult {
     available: false,
     provider: None,
     text: "",
+    layout_json: None,
     warnings: [],
   }
 }

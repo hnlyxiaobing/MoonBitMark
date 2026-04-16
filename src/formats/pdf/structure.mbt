@@ -28,10 +28,18 @@ fn reconstruct_pdf_blocks_with_routes(
           flags: [],
         }
     }
-    let result = if route.provider == NativeTextStructured {
-      reconstruct_structured_page_blocks(page, route, first_heading_emitted)
-    } else {
-      reconstruct_pdf_blocks_with_heading_state([page], first_heading_emitted)
+    let result = match page.layout {
+      Some(_) if route.provider != NativeTextFast =>
+        reconstruct_layout_page_blocks(page, route, first_heading_emitted)
+      _ =>
+        match route.provider {
+          NativeTextStructured =>
+            reconstruct_structured_page_blocks(page, route, first_heading_emitted)
+          OcrRecovery =>
+            reconstruct_ocr_recovery_page_blocks(page, first_heading_emitted)
+          _ =>
+            reconstruct_pdf_blocks_with_heading_state([page], first_heading_emitted)
+        }
     }
 
     for block in result.blocks {
@@ -67,6 +75,109 @@ fn reconstruct_pdf_blocks_with_routes(
       paragraph_count,
       merged_paragraph_count,
     },
+  }
+}
+
+///|
+fn reconstruct_layout_page_blocks(
+  page : PdfPageText,
+  route : PdfPageRoute,
+  first_heading_emitted : Bool,
+) -> PdfStructureResult {
+  match page.layout {
+    Some(layout) => {
+      let lines = layout_lines_in_reading_order(layout)
+      let blocks : Array[@ast.Block] = []
+      let mut current_heading_seen = first_heading_emitted
+      let mut index = 0
+
+      while index < lines.length() {
+        let chunk = collapse_inline_whitespace(lines[index].text)
+        if chunk == "" {
+          index = index + 1
+          continue
+        }
+
+        if route_flags_contain(route.flags, SuspectTable) &&
+          looks_like_table_caption(chunk) {
+          blocks.push(@ast.text_paragraph(chunk))
+          match try_parse_layout_table(lines, index + 1) {
+            Some((headers, rows, next_index)) => {
+              blocks.push(pdf_table_block(headers, rows))
+              index = next_index
+            }
+            None => index = index + 1
+          }
+          continue
+        }
+
+        if (route.provider == OcrRecovery ||
+            route_flags_contain(route.flags, SuspectTable)) &&
+          !looks_like_table_caption(chunk) {
+          match try_parse_layout_table(lines, index) {
+            Some((headers, rows, next_index)) => {
+              blocks.push(pdf_table_block(headers, rows))
+              index = next_index
+              continue
+            }
+            None => ()
+          }
+        }
+
+        match parse_list_item(chunk) {
+          Some(item) => {
+            let items : Array[String] = [item.text]
+            let ordered = item.ordered
+            let mut next_index = index + 1
+            while next_index < lines.length() {
+              let next_chunk = collapse_inline_whitespace(lines[next_index].text)
+              if next_chunk == "" {
+                next_index = next_index + 1
+                continue
+              }
+              match parse_list_item(next_chunk) {
+                Some(next_item) if next_item.ordered == ordered => {
+                  items.push(next_item.text)
+                  next_index = next_index + 1
+                }
+                _ => break
+              }
+            }
+            blocks.push(pdf_list_block(items, ordered))
+            index = next_index
+            continue
+          }
+          None => ()
+        }
+
+        let tail = collect_layout_paragraph(lines, index, route)
+        let text = tail.0
+        if text != "" {
+          if should_promote_to_heading([page], 0, index, text, current_heading_seen) {
+            let level = if current_heading_seen { 2 } else { 1 }
+            blocks.push(@ast.text_heading(level, text))
+            current_heading_seen = true
+          } else {
+            blocks.push(@ast.text_paragraph(text))
+          }
+        }
+        index = tail.1
+      }
+
+      let repaired_blocks = repair_pdf_blocks(blocks, first_heading_emitted)
+      PdfStructureResult::{
+        blocks: repaired_blocks,
+        annotations: [],
+        summary: summarize_pdf_blocks(repaired_blocks, 0),
+      }
+    }
+    None =>
+      match route.provider {
+        NativeTextStructured =>
+          reconstruct_structured_page_blocks(page, route, first_heading_emitted)
+        OcrRecovery => reconstruct_ocr_recovery_page_blocks(page, first_heading_emitted)
+        _ => reconstruct_pdf_blocks_with_heading_state([page], first_heading_emitted)
+      }
   }
 }
 
@@ -126,6 +237,80 @@ fn reconstruct_pdf_blocks_with_heading_state(
     blocks: repaired_blocks,
     annotations: [],
     summary: summarize_pdf_blocks(repaired_blocks, merged_paragraph_count),
+  }
+}
+
+///|
+fn reconstruct_ocr_recovery_page_blocks(
+  page : PdfPageText,
+  first_heading_emitted : Bool,
+) -> PdfStructureResult {
+  let blocks : Array[@ast.Block] = []
+  let mut current_heading_seen = first_heading_emitted
+  let mut index = 0
+
+  while index < page.chunks.length() {
+    let raw_chunk = page.chunks[index]
+    let chunk = collapse_inline_whitespace(raw_chunk)
+    if chunk == "" {
+      index = index + 1
+      continue
+    }
+
+    match try_parse_ocr_whitespace_table(page.chunks, index) {
+      Some((headers, rows, next_index)) => {
+        blocks.push(pdf_table_block(headers, rows))
+        index = next_index
+        continue
+      }
+      None => ()
+    }
+
+    match parse_list_item(chunk) {
+      Some(item) => {
+        let items : Array[String] = [item.text]
+        let ordered = item.ordered
+        let mut next_index = index + 1
+        while next_index < page.chunks.length() {
+          let next_chunk = collapse_inline_whitespace(page.chunks[next_index])
+          if next_chunk == "" {
+            next_index = next_index + 1
+            continue
+          }
+          match parse_list_item(next_chunk) {
+            Some(next_item) if next_item.ordered == ordered => {
+              items.push(next_item.text)
+              next_index = next_index + 1
+            }
+            _ => break
+          }
+        }
+        blocks.push(pdf_list_block(items, ordered))
+        index = next_index
+        continue
+      }
+      None => ()
+    }
+
+    let tail = collect_ocr_recovery_paragraph(page.chunks, index)
+    let text = tail.0
+    if text != "" {
+      if should_promote_to_heading([page], 0, index, text, current_heading_seen) {
+        let level = if current_heading_seen { 2 } else { 1 }
+        blocks.push(@ast.text_heading(level, text))
+        current_heading_seen = true
+      } else {
+        blocks.push(@ast.text_paragraph(text))
+      }
+    }
+    index = tail.1
+  }
+
+  let repaired_blocks = repair_pdf_blocks(blocks, first_heading_emitted)
+  PdfStructureResult::{
+    blocks: repaired_blocks,
+    annotations: [],
+    summary: summarize_pdf_blocks(repaired_blocks, 0),
   }
 }
 
@@ -246,6 +431,78 @@ fn reconstruct_structured_page_blocks(
     annotations: [],
     summary: summarize_pdf_blocks(repaired_blocks, 0),
   }
+}
+
+///|
+fn collect_ocr_recovery_paragraph(
+  chunks : Array[String],
+  start : Int,
+) -> (String, Int) {
+  let parts : Array[String] = []
+  let mut index = start
+  while index < chunks.length() {
+    let raw_chunk = chunks[index]
+    let chunk = collapse_inline_whitespace(raw_chunk)
+    if chunk == "" ||
+      (index > start && ocr_chunk_starts_new_block(chunks, index)) {
+      break
+    }
+    parts.push(chunk)
+    index = index + 1
+    if line_ends_terminal_punctuation(chunk) {
+      break
+    }
+  }
+  (merge_structured_paragraph_parts(parts), index)
+}
+
+///|
+fn collect_layout_paragraph(
+  lines : Array[PdfLayoutLine],
+  start : Int,
+  route : PdfPageRoute,
+) -> (String, Int) {
+  let parts : Array[String] = []
+  let mut index = start
+  while index < lines.length() {
+    let chunk = collapse_inline_whitespace(lines[index].text)
+    if chunk == "" ||
+      (index > start && layout_line_starts_new_block(lines, index, route)) {
+      break
+    }
+    parts.push(chunk)
+    index = index + 1
+    if line_ends_terminal_punctuation(chunk) {
+      break
+    }
+  }
+  (merge_structured_paragraph_parts(parts), index)
+}
+
+///|
+fn layout_line_starts_new_block(
+  lines : Array[PdfLayoutLine],
+  index : Int,
+  route : PdfPageRoute,
+) -> Bool {
+  let chunk = collapse_inline_whitespace(lines[index].text)
+  chunk == "" ||
+  parse_list_item(chunk) is Some(_) ||
+  looks_like_table_caption(chunk) ||
+  (
+    (route.provider == OcrRecovery ||
+      route_flags_contain(route.flags, SuspectTable)) &&
+    try_parse_layout_table(lines, index) is Some(_)
+  )
+}
+
+///|
+fn ocr_chunk_starts_new_block(chunks : Array[String], index : Int) -> Bool {
+  let chunk = collapse_inline_whitespace(chunks[index])
+  chunk == "" ||
+  parse_list_item(chunk) is Some(_) ||
+  is_heading_candidate_text(chunk) ||
+  try_parse_ocr_whitespace_table(chunks, index) is Some(_)
 }
 
 ///|
@@ -831,6 +1088,404 @@ fn transpose_table_groups(
 ///|
 fn looks_like_table_data_line(text : String) -> Bool {
   tokenize_table_values(text).length() > 0
+}
+
+///|
+fn try_parse_layout_table(
+  lines : Array[PdfLayoutLine],
+  start : Int,
+) -> (Array[String], Array[Array[String]], Int)? {
+  let candidate_lines : Array[PdfLayoutLine] = []
+  let mut index = start
+  while index < lines.length() {
+    let line = lines[index]
+    if !looks_like_layout_table_row(line) {
+      break
+    }
+    candidate_lines.push(line)
+    index = index + 1
+  }
+
+  if candidate_lines.length() < 3 {
+    return None
+  }
+  let anchors = cluster_layout_table_columns(candidate_lines)
+  if anchors.length() < 2 {
+    return None
+  }
+
+  let matrix : Array[Array[String]] = []
+  for line in candidate_lines {
+    matrix.push(layout_table_row_cells(line, anchors))
+  }
+
+  let header_rows = detect_layout_table_header_rows(matrix)
+  if header_rows <= 0 || header_rows >= matrix.length() {
+    return None
+  }
+
+  let headers = flatten_layout_table_headers(matrix, anchors.length(), header_rows)
+  let rows : Array[Array[String]] = []
+  let mut row_index = header_rows
+  while row_index < matrix.length() {
+    let normalized = normalize_layout_table_row(matrix[row_index], anchors.length())
+    if row_has_any_text(normalized) {
+      rows.push(normalized)
+    }
+    row_index = row_index + 1
+  }
+  if rows.length() == 0 {
+    return None
+  }
+
+  Some((headers, rows, index))
+}
+
+///|
+fn looks_like_layout_table_row(line : PdfLayoutLine) -> Bool {
+  let text = collapse_inline_whitespace(line.text)
+  if text == "" || looks_like_table_caption(text) || looks_like_figure_caption(text) {
+    return false
+  }
+  if line.words.length() < 2 {
+    return false
+  }
+  let numeric_count = count_layout_numeric_words(line.words)
+  numeric_count > 0 ||
+  line.words.length() >= 3 ||
+  !layout_text_looks_like_sentence(text)
+}
+
+///|
+fn layout_text_looks_like_sentence(text : String) -> Bool {
+  let normalized = collapse_inline_whitespace(text)
+  normalized.has_suffix(".") ||
+  normalized.has_suffix(":") ||
+  tokenize_words(normalized).length() >= 8
+}
+
+///|
+fn count_layout_numeric_words(words : Array[PdfLayoutWord]) -> Int {
+  let mut count = 0
+  for word in words {
+    if looks_like_layout_numeric_value(word.text) {
+      count = count + 1
+    }
+  }
+  count
+}
+
+///|
+fn looks_like_layout_numeric_value(text : String) -> Bool {
+  let normalized = collapse_inline_whitespace(text)
+    .replace(old="%", new="")
+    .replace(old=",", new="")
+    .replace(old="(", new="")
+    .replace(old=")", new="")
+  if normalized == "" {
+    return false
+  }
+  let mut digit_count = 0
+  for ch in normalized {
+    if is_digit_ascii(ch) {
+      digit_count = digit_count + 1
+    } else if ch == '.' || ch == '-' || ch == '+' || ch == '/' {
+      ()
+    } else {
+      return false
+    }
+  }
+  digit_count > 0
+}
+
+///|
+fn cluster_layout_table_columns(lines : Array[PdfLayoutLine]) -> Array[Int] {
+  let anchors : Array[Int] = []
+  for line in lines {
+    for word in line.words {
+      let center = layout_word_center(word)
+      let mut matched = false
+      let mut index = 0
+      while index < anchors.length() {
+        if abs_int(anchors[index] - center) <= 55 {
+          anchors[index] = (anchors[index] + center) / 2
+          matched = true
+          break
+        }
+        index = index + 1
+      }
+      if !matched {
+        insert_int_sorted(anchors, center)
+      }
+    }
+  }
+  anchors
+}
+
+///|
+fn layout_word_center(word : PdfLayoutWord) -> Int {
+  word.left + (word.right - word.left) / 2
+}
+
+///|
+fn layout_table_row_cells(
+  line : PdfLayoutLine,
+  anchors : Array[Int],
+) -> Array[String] {
+  let cells : Array[String] = Array::make(anchors.length(), "")
+  for word in line.words {
+    let covered = layout_word_covered_columns(word, anchors)
+    if covered.length() == 0 {
+      continue
+    }
+    for column in covered {
+      let existing = cells[column]
+      cells[column] = if existing == "" {
+        word.text
+      } else {
+        existing + " " + word.text
+      }
+    }
+  }
+  cells.map(cell => collapse_inline_whitespace(cell))
+}
+
+///|
+fn layout_word_covered_columns(
+  word : PdfLayoutWord,
+  anchors : Array[Int],
+) -> Array[Int] {
+  let covered : Array[Int] = []
+  let center = layout_word_center(word)
+  let mut index = 0
+  while index < anchors.length() {
+    if anchors[index] >= word.left - 18 && anchors[index] <= word.right + 18 {
+      covered.push(index)
+    }
+    index = index + 1
+  }
+  if covered.length() > 0 {
+    return covered
+  }
+
+  let mut best_index = 0
+  let mut best_distance = abs_int(anchors[0] - center)
+  let mut probe = 1
+  while probe < anchors.length() {
+    let distance = abs_int(anchors[probe] - center)
+    if distance < best_distance {
+      best_distance = distance
+      best_index = probe
+    }
+    probe = probe + 1
+  }
+  [best_index]
+}
+
+///|
+fn detect_layout_table_header_rows(rows : Array[Array[String]]) -> Int {
+  let mut header_rows = 0
+  let mut index = 0
+  while index < rows.length() && index < 3 {
+    if layout_table_row_is_data(rows[index]) {
+      break
+    }
+    header_rows = header_rows + 1
+    index = index + 1
+  }
+  if header_rows == 0 { 1 } else { header_rows }
+}
+
+///|
+fn layout_table_row_is_data(row : Array[String]) -> Bool {
+  let mut numeric = 0
+  let mut non_empty = 0
+  for cell in row {
+    let normalized = collapse_inline_whitespace(cell)
+    if normalized == "" {
+      continue
+    }
+    non_empty = non_empty + 1
+    if looks_like_layout_numeric_value(normalized) {
+      numeric = numeric + 1
+    }
+  }
+  non_empty >= 2 && numeric * 2 >= non_empty
+}
+
+///|
+fn flatten_layout_table_headers(
+  rows : Array[Array[String]],
+  column_count : Int,
+  header_rows : Int,
+) -> Array[String] {
+  let headers : Array[String] = []
+  let mut column = 0
+  while column < column_count {
+    let parts : Array[String] = []
+    let mut row = 0
+    while row < header_rows {
+      let cell = collapse_inline_whitespace(rows[row][column])
+      if cell != "" && (parts.length() == 0 || parts[parts.length() - 1] != cell) {
+        parts.push(cell)
+      }
+      row = row + 1
+    }
+    headers.push(
+      if parts.length() == 0 {
+        "Column " + (column + 1).to_string()
+      } else {
+        parts.join(" / ")
+      },
+    )
+    column = column + 1
+  }
+  headers
+}
+
+///|
+fn normalize_layout_table_row(
+  row : Array[String],
+  column_count : Int,
+) -> Array[String] {
+  let normalized : Array[String] = []
+  let mut index = 0
+  while index < column_count {
+    normalized.push(collapse_inline_whitespace(row[index]))
+    index = index + 1
+  }
+  normalized
+}
+
+///|
+fn row_has_any_text(row : Array[String]) -> Bool {
+  for cell in row {
+    if collapse_inline_whitespace(cell) != "" {
+      return true
+    }
+  }
+  false
+}
+
+///|
+fn abs_int(value : Int) -> Int {
+  if value < 0 { -value } else { value }
+}
+
+///|
+fn insert_int_sorted(items : Array[Int], value : Int) -> Unit {
+  let mut index = 0
+  while index < items.length() && items[index] <= value {
+    index = index + 1
+  }
+  items.insert(index, value)
+}
+
+///|
+fn try_parse_ocr_whitespace_table(
+  chunks : Array[String],
+  start : Int,
+) -> (Array[String], Array[Array[String]], Int)? {
+  let rows : Array[Array[String]] = []
+  let mut index = start
+  let mut expected_columns = 0
+
+  while index < chunks.length() {
+    let chunk = chunks[index]
+    let normalized = collapse_inline_whitespace(chunk)
+    if normalized == "" || parse_list_item(normalized) is Some(_) {
+      break
+    }
+    let columns = split_ocr_table_columns(chunk)
+    if columns.length() < 2 {
+      break
+    }
+    if expected_columns == 0 {
+      expected_columns = columns.length()
+    } else if columns.length() != expected_columns {
+      break
+    }
+    rows.push(columns)
+    index = index + 1
+  }
+
+  if rows.length() < 3 || expected_columns < 2 {
+    return None
+  }
+  if !ocr_table_header_is_useful(rows[0]) {
+    return None
+  }
+
+  let body : Array[Array[String]] = []
+  let mut row_index = 1
+  while row_index < rows.length() {
+    body.push(rows[row_index].map(cell => collapse_inline_whitespace(cell)))
+    row_index = row_index + 1
+  }
+  if body.length() < 2 {
+    return None
+  }
+
+  Some((rows[0].map(cell => collapse_inline_whitespace(cell)), body, index))
+}
+
+///|
+fn split_ocr_table_columns(line : String) -> Array[String] {
+  let cells : Array[String] = []
+  let chars = marker_chars(trim_preserve_inline_whitespace(line))
+  let mut current = ""
+  let mut space_run = 0
+  let mut index = 0
+
+  while index < chars.length() {
+    let ch = chars[index]
+    if ch == '\t' {
+      let trimmed = trim_preserve_inline_whitespace(current)
+      if trimmed != "" {
+        cells.push(trimmed)
+      }
+      current = ""
+      space_run = 0
+      index = index + 1
+      continue
+    }
+    if ch == ' ' {
+      space_run = space_run + 1
+      index = index + 1
+      continue
+    }
+    if space_run >= 2 {
+      let trimmed = trim_preserve_inline_whitespace(current)
+      if trimmed != "" {
+        cells.push(trimmed)
+      }
+      current = ""
+    } else if space_run == 1 && current != "" {
+      current = current + " "
+    }
+    space_run = 0
+    current = current + ch.to_string()
+    index = index + 1
+  }
+
+  let trimmed = trim_preserve_inline_whitespace(current)
+  if trimmed != "" {
+    cells.push(trimmed)
+  }
+  cells
+}
+
+///|
+fn ocr_table_header_is_useful(row : Array[String]) -> Bool {
+  let mut text_like_cells = 0
+  for cell in row {
+    let normalized = collapse_inline_whitespace(cell)
+    if normalized == "" || looks_like_table_value(normalized) {
+      continue
+    }
+    text_like_cells = text_like_cells + 1
+  }
+  text_like_cells >= 2
 }
 
 ///|

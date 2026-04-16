@@ -118,7 +118,10 @@ async fn apply_pdf_ocr_recovery(
     ocr_result.text,
   )
   let recovered_extraction = extraction_with_pages(
-    extraction, route_plan, ocr_pages,
+    extraction,
+    route_plan,
+    ocr_pages,
+    ocr_result.layout_json,
   )
   (recovered_extraction, ocr_result, true)
 }
@@ -250,14 +253,23 @@ fn extraction_with_pages(
   extraction : PdfNativeExtraction,
   route_plan : PdfRoutePlan,
   raw_pages : Array[String],
+  layout_json : String?,
 ) -> PdfNativeExtraction {
   let pages : Array[PdfPageExtraction] = []
+  let layouts = parse_pdf_layout_json(layout_json)
   let mut page_no = 1
   for raw_text in raw_pages {
     let lines : Array[PdfRawLine] = []
-    for line in normalize_extracted_page_text(raw_text).split("\n").to_array() {
-      let trimmed = collapse_inline_whitespace(line.to_string())
-      lines.push(PdfRawLine::{ text: trimmed })
+    let layout = page_layout_at(layouts, page_no)
+    let raw_lines = match layout {
+      Some(value) => value.lines.map(line => trim_preserve_inline_whitespace(line.text))
+      None =>
+        normalize_extracted_page_text(raw_text).split("\n").to_array().map(
+          line => trim_preserve_inline_whitespace(line.to_string()),
+        )
+    }
+    for line in raw_lines {
+      lines.push(PdfRawLine::{ text: line })
     }
     let source_kind = match route_plan.pages.get(page_no - 1) {
       Some(route) => route.provider
@@ -268,6 +280,7 @@ fn extraction_with_pages(
       source_kind,
       raw_text: Some(raw_text),
       lines,
+      layout,
     })
     page_no = page_no + 1
   }

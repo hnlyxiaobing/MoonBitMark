@@ -9,6 +9,7 @@ pub fn process_slides(
   (result.0, result.2)
 }
 
+///|
 fn process_slides_with_assets_and_annotations(
   archive : @libzip.ZipArchive,
   slide_refs : Array[SlideRef],
@@ -70,6 +71,7 @@ fn process_slides_with_assets_and_annotations(
   (blocks, annotations, warnings)
 }
 
+///|
 fn process_slide_xml_with_relationships_with_annotations(
   xml : String,
   slide_num : Int,

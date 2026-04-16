@@ -341,6 +341,7 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
   }
 }
 
+///|
 fn build_epub_blocks_with_annotations(
   metadata : EpubMetadata,
   resource : String,
