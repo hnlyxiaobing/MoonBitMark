@@ -5,7 +5,7 @@
 /// Deflate 解压主函数（支持 RFC 1951 多块流）
 pub fn deflate_decompress(input : Bytes) -> Bytes? {
   let reader = BitReader::new(input)
-  let output : Array[Byte] = Array::new()
+  let state = InflateState::new()
 
   // RFC 1951: DEFLATE 数据流由一个或多个块组成，每块有 bfinal 标志
   let mut is_final = false
@@ -27,9 +27,9 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
 
     // 解压当前块到 output（各函数返回 Bool 表示成功/失败）
     let ok = match btype {
-      0 => decompress_stored_block(reader, output)
-      1 => decompress_fixed_huffman_block(reader, output)
-      2 => decompress_dynamic_huffman_block(reader, output)
+      0 => decompress_stored_block(reader, state)
+      1 => decompress_fixed_huffman_block(reader, state)
+      2 => decompress_dynamic_huffman_block(reader, state)
       _ => return None
     }
     if !ok {
@@ -37,7 +37,54 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
     }
   }
 
-  Some(bytes_from_array(output))
+  Some(bytes_from_array(state.output))
+}
+
+///|
+priv struct InflateState {
+  output : Array[Byte]
+  window : Array[Byte]
+  mut window_pos : Int
+  mut produced : Int
+}
+
+///|
+fn InflateState::new() -> InflateState {
+  let output : Array[Byte] = Array::new()
+  let window : Array[Byte] = Array::new()
+  for _ in 0..<32768 {
+    window.push(b'\x00')
+  }
+  InflateState::{ output, window, window_pos: 0, produced: 0 }
+}
+
+///|
+fn InflateState::write_byte(self : InflateState, byte : Byte) -> Unit {
+  self.output.push(byte)
+  self.window[self.window_pos] = byte
+  self.window_pos = (self.window_pos + 1) & 0x7FFF
+  self.produced = self.produced + 1
+}
+
+///|
+fn InflateState::copy_from_distance(
+  self : InflateState,
+  distance : Int,
+  length : Int,
+) -> Bool {
+  if distance <= 0 || distance > 32768 {
+    return false
+  }
+  if distance > self.produced {
+    return false
+  }
+
+  let copy_start = self.window_pos - distance
+  for i in 0..<length {
+    let src_pos = (copy_start + i) & 0x7FFF
+    self.write_byte(self.window[src_pos])
+  }
+  true
 }
 
 ///|
@@ -123,7 +170,7 @@ fn BitReader::read_uint16_le(self : BitReader) -> Result[Int, String] {
 
 ///|
 /// 解压存储块 (无压缩) — 写入 output，返回是否成功
-fn decompress_stored_block(reader : BitReader, output : Array[Byte]) -> Bool {
+fn decompress_stored_block(reader : BitReader, state : InflateState) -> Bool {
   // 对齐到字节边界
   reader.align_to_byte()
 
@@ -148,7 +195,7 @@ fn decompress_stored_block(reader : BitReader, output : Array[Byte]) -> Bool {
   for _ in 0..<len {
     let byte_result = reader.read_byte()
     match byte_result {
-      Ok(b) => output.push(b)
+      Ok(b) => state.write_byte(b)
       Err(_) => return false
     }
   }
@@ -170,16 +217,8 @@ fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 /// 解压固定 Huffman 编码块 — 写入 output，返回是否成功
 fn decompress_fixed_huffman_block(
   reader : BitReader,
-  output : Array[Byte],
+  state : InflateState,
 ) -> Bool {
-  // 使用滑动窗口 - 用 Array 代替 FixedArray 以支持修改
-  let window : Array[Byte] = Array::new()
-  // 预填充窗口
-  for _ in 0..<32768 {
-    window.push(b'\x00')
-  }
-
-  let mut window_pos = 0
   let mut done = false
 
   while !done {
@@ -192,10 +231,7 @@ fn decompress_fixed_huffman_block(
 
     if symbol < 256 {
       // 字面量字节
-      let byte = int_to_byte(symbol)
-      output.push(byte)
-      window[window_pos] = byte
-      window_pos = (window_pos + 1) & 0x7FFF
+      state.write_byte(int_to_byte(symbol))
     } else if symbol == 256 {
       // 块结束
       done = true
@@ -219,15 +255,8 @@ fn decompress_fixed_huffman_block(
         Err(_) => return false
       }
 
-      // 从滑动窗口复制
-      // 保存起始位置，因为 window_pos 会在循环中变化
-      let copy_start = window_pos - distance
-      for i in 0..<length {
-        let src_pos = (copy_start + i) & 0x7FFF
-        let byte = window[src_pos]
-        output.push(byte)
-        window[window_pos] = byte
-        window_pos = (window_pos + 1) & 0x7FFF
+      if !state.copy_from_distance(distance, length) {
+        return false
       }
     }
   }
@@ -479,7 +508,7 @@ fn decode_distance(reader : BitReader, code : Int) -> Result[Int, String] {
 /// 解压动态 Huffman 编码块 — 写入 output，返回是否成功
 fn decompress_dynamic_huffman_block(
   reader : BitReader,
-  output : Array[Byte],
+  state : InflateState,
 ) -> Bool {
   // 读取动态表信息
   let hlit_result = reader.read_bits(5)
@@ -563,17 +592,21 @@ fn decompress_dynamic_huffman_block(
       }
       16 => {
         // 重复上一个码 3-6 次 (LSB first for extra bits)
+        if i == 0 {
+          return false
+        }
         let repeat_result = reader.read_bits(2)
         let repeat = match repeat_result {
           Ok(v) => v + 3
           Err(_) => return false
         }
-        let prev = if i > 0 { lit_len_dist[i - 1] } else { 0 }
+        if i + repeat > total {
+          return false
+        }
+        let prev = lit_len_dist[i - 1]
         for _ in 0..<repeat {
-          if i < total {
-            lit_len_dist[i] = prev
-            i = i + 1
-          }
+          lit_len_dist[i] = prev
+          i = i + 1
         }
       }
       17 => {
@@ -583,11 +616,12 @@ fn decompress_dynamic_huffman_block(
           Ok(v) => v + 3
           Err(_) => return false
         }
+        if i + repeat > total {
+          return false
+        }
         for _ in 0..<repeat {
-          if i < total {
-            lit_len_dist[i] = 0
-            i = i + 1
-          }
+          lit_len_dist[i] = 0
+          i = i + 1
         }
       }
       18 => {
@@ -597,11 +631,12 @@ fn decompress_dynamic_huffman_block(
           Ok(v) => v + 11
           Err(_) => return false
         }
+        if i + repeat > total {
+          return false
+        }
         for _ in 0..<repeat {
-          if i < total {
-            lit_len_dist[i] = 0
-            i = i + 1
-          }
+          lit_len_dist[i] = 0
+          i = i + 1
         }
       }
       _ => return false
@@ -624,13 +659,6 @@ fn decompress_dynamic_huffman_block(
     Err(_) => return false
   }
 
-  // 解码数据
-  let window : Array[Byte] = Array::new()
-  for _ in 0..<32768 {
-    window.push(b'\x00')
-  }
-
-  let mut window_pos = 0
   let mut done = false
 
   while !done {
@@ -642,10 +670,7 @@ fn decompress_dynamic_huffman_block(
 
     if symbol < 256 {
       // 字面量字节
-      let byte = int_to_byte(symbol)
-      output.push(byte)
-      window[window_pos] = byte
-      window_pos = (window_pos + 1) & 0x7FFF
+      state.write_byte(int_to_byte(symbol))
     } else if symbol == 256 {
       // 块结束
       done = true
@@ -667,15 +692,8 @@ fn decompress_dynamic_huffman_block(
         Err(_) => return false
       }
 
-      // 从滑动窗口复制
-      // 保存起始位置，因为 window_pos 会在循环中变化
-      let copy_start = window_pos - distance
-      for j in 0..<length {
-        let src_pos = (copy_start + j) & 0x7FFF
-        let byte = window[src_pos]
-        output.push(byte)
-        window[window_pos] = byte
-        window_pos = (window_pos + 1) & 0x7FFF
+      if !state.copy_from_distance(distance, length) {
+        return false
       }
     }
   }
@@ -715,20 +733,46 @@ fn reverse_low_bits(code : Int, bit_count : Int) -> Int {
 /// 构建 Huffman 树
 fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] {
   // 计算每个码长的数量
-  let max_len = 15
+  let max_allowed_len = 15
+  let mut max_len = 0
 
   // 计算每个长度的符号数量
-  let bl_count : FixedArray[Int] = FixedArray::makei(max_len + 1, fn(_) { 0 })
+  let bl_count : FixedArray[Int] = FixedArray::makei(max_allowed_len + 1, fn(
+    _,
+  ) {
+    0
+  })
   for i in 0..<lengths.length() {
     let len = lengths[i]
-    if len > 0 && len <= max_len {
+    if len < 0 || len > max_allowed_len {
+      return Err("Invalid Huffman code length")
+    }
+    if len > 0 {
       bl_count[len] = bl_count[len] + 1
+      if len > max_len {
+        max_len = len
+      }
+    }
+  }
+  if max_len == 0 {
+    return Err("Empty Huffman tree")
+  }
+
+  let mut remaining = 1
+  for bits in 1..<=max_len {
+    remaining = (remaining << 1) - bl_count[bits]
+    if remaining < 0 {
+      return Err("Oversubscribed Huffman tree")
     }
   }
 
   // 计算每个码长的起始码
   let mut code : Int = 0
-  let next_code : FixedArray[Int] = FixedArray::makei(max_len + 1, fn(_) { 0 })
+  let next_code : FixedArray[Int] = FixedArray::makei(max_allowed_len + 1, fn(
+    _,
+  ) {
+    0
+  })
 
   for bits in 1..<=max_len {
     code = (code + bl_count[bits - 1]) << 1
@@ -743,7 +787,7 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
 
   for i in 0..<lengths.length() {
     let len = lengths[i]
-    if len > 0 && len <= max_len {
+    if len > 0 {
       let reversed_code = reverse_low_bits(next_code[len], len)
       tables[len][reversed_code] = i
       next_code[len] = next_code[len] + 1

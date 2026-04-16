@@ -2,14 +2,6 @@
 
 这里只保留当前仍然会影响使用或开发判断的问题。
 
-## Dynamic Huffman 解压仍有缺陷
-
-- 位置：`src/libzip/deflate.mbt`
-- 影响：使用 dynamic Huffman 压缩的 ZIP 成员可能解压失败或结果不稳定。
-- 受影响格式：主要是依赖 ZIP 容器的输入，最明显的是部分 PPTX，也可能波及 DOCX、XLSX、EPUB。
-
-这是当前最重要的已知问题。仓库里的 Office / EPUB 解析能力建立在 `libzip` 之上，因此这个缺陷会直接影响某些真实文件的可转换性。
-
 ## OCR 仍是 bridge-backed 可选能力
 
 - 位置：`src/capabilities/ocr/`、`scripts/ocr/bridge.py`

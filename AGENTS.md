@@ -250,12 +250,10 @@ For the authoritative boundary list, see `docs/architecture/external_dependencie
 - ✅ ZIP structure parsing
 - ✅ Store decompression (no compression)
 - ✅ Deflate decompression - Fixed Huffman (working)
-- ⚠️ Deflate decompression - Dynamic Huffman (has bug, see docs/KNOWN_ISSUES.md)
+- ✅ Deflate decompression - Dynamic Huffman
 - ✅ CRC32 validation (IEEE 802.3)
 - ✅ XML parsing (tags, attributes, text content)
 
 ## Known Issues
 
 See [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) for a list of known bugs and issues.
-
-**Most critical:** Dynamic Huffman decompression in `src/libzip/deflate.mbt` has a bug that affects PPTX files using dynamic Huffman compression.

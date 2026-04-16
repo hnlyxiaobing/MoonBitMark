@@ -103,17 +103,7 @@ test "deflate decompress simple" {
   let compressed : Bytes = b"\xf3\x48\xcd\xc9\xc9\x57\x08\xcf\x2f\xca\x49\x01\x00"
   let result = deflate_decompress(compressed)
   match result {
-    Some(decompressed) => {
-      let len = decompressed.length()
-      let mut text = ""
-      let mut i = 0
-      while i < len {
-        let b = decompressed[i].to_int()
-        text = text + b.unsafe_to_char().to_string()
-        i = i + 1
-      }
-      assert_eq(text, "Hello World")
-    }
+    Some(decompressed) => assert_eq(bytes_to_ascii(decompressed), "Hello World")
     None => fail("Deflate decompression failed")
   }
 }
@@ -127,19 +117,41 @@ test "deflate decompress dynamic huffman" {
   let compressed : Bytes = b"\x5d\x90\x4b\x6e\xc3\x30\x0c\x44\xf7\x3e\xc5\x9c\xc0\xe7\xe8\x01\x02\x74\x4d\x4b\xd4\xa7\x91\xc8\x44\x9f\x3a\xce\xe9\x43\xb7\x45\x16\x05\xb8\x9b\x19\x3e\x0e\x2f\x89\x71\x9f\xd9\x5d\xb1\x35\xdd\x05\x41\x1f\xf8\x9a\xf5\xd6\xa1\xdf\xdc\x30\x4c\x2e\xf4\x3c\xe0\x35\xae\x58\x2e\x29\x77\xd8\x10\x8a\x4a\x3c\x75\x7e\x0c\x33\xd1\x40\x4f\x3a\x8b\x87\xd3\x7a\x6b\xdc\x3b\xf6\x3c\x12\xfc\x21\x54\xb3\xc3\xc7\x0c\xa1\x92\x98\xea\xb3\xc4\xd5\xf6\xf0\xdb\x99\x55\x40\x25\x6a\xb3\x40\xb5\x58\x29\x20\xa1\x72\x3c\xf9\x87\x1e\x1a\xdf\x27\x8b\x3b\xa0\x01\x4c\x2e\xc1\x25\x6a\xe4\x06\xb7\x85\xc4\x63\x9b\xf9\xc4\xce\x3e\xb4\xbe\x39\xa3\x31\x77\xeb\xd2\xb0\xa9\x9d\x51\xb2\xb9\xa9\xd8\xdd\x16\xf0\xb9\x0f\x12\xc7\x7d\x5d\x3e\x19\xc2\xec\xc1\xa2\x33\xa6\xbf\x32\x8a\x4a\xd7\x5f\xf6\xf9\x82\xc4\xe4\x4f\xf4\xff\x2a\xbb\xb6\x91\xf6\x94\x0b\xaf\xcb\x0b"
   let result = deflate_decompress(compressed)
   match result {
-    Some(decompressed) => {
-      let len = decompressed.length()
-      let mut text = ""
-      let mut i = 0
-      while i < len {
-        let b = decompressed[i].to_int()
-        text = text + b.unsafe_to_char().to_string()
-        i = i + 1
-      }
-      assert_eq(text, original)
-    }
+    Some(decompressed) => assert_eq(bytes_to_ascii(decompressed), original)
     None => fail("Deflate decompression failed")
   }
+}
+
+///|
+test "deflate preserves window across dynamic blocks" {
+  let part = "The quick brown fox jumps over the lazy dog.\n".repeat(64)
+  let original = part + part
+  // Python:
+  //   co = zlib.compressobj(level=6, wbits=-15)
+  //   raw = co.compress(part1) + co.flush(zlib.Z_SYNC_FLUSH)
+  //       + co.compress(part2) + co.flush(zlib.Z_FINISH)
+  // The first block is dynamic Huffman. The second compressed segment may
+  // reference history produced before the block boundary, so the 32KB window
+  // must survive across blocks.
+  let compressed : Bytes = b"\xec\xca\x47\x01\x80\x30\x10\x45\xc1\x3b\x2a\xbe\x02\xd4\xc4\x00\x25\x21\xd4\x85\x40\x68\xea\x11\xc2\x9b\xf3\xb8\xe8\xb5\xe5\xbe\x19\x55\x27\xbb\x16\x05\xbb\x35\xe4\x79\xdd\x65\xa7\x4f\x3a\xa2\xd7\x54\xbd\x8f\x5a\xeb\xca\xc2\x91\xc9\x64\x32\x99\x4c\x26\x93\xc9\xe1\xd7\xf9\x03\x00\x00\xff\xff\x1b\x0d\x8d\x51\xc5\xa3\x8a\x47\x15\x8f\x2a\x1e\x55\x3c\xaa\x78\x54\xf1\xa8\xe2\x51\xc5\xa3\x8a\x15\x88\x56\x0c\x00"
+  let result = deflate_decompress(compressed)
+  match result {
+    Some(decompressed) => assert_eq(bytes_to_ascii(decompressed), original)
+    None => fail("Deflate decompression failed across dynamic blocks")
+  }
+}
+
+///|
+fn bytes_to_ascii(data : Bytes) -> String {
+  let len = data.length()
+  let mut text = ""
+  let mut i = 0
+  while i < len {
+    let b = data[i].to_int()
+    text = text + b.unsafe_to_char().to_string()
+    i = i + 1
+  }
+  text
 }
 
 ///|
