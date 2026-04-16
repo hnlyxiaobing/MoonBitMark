@@ -12,7 +12,9 @@ fn assemble_pdf_document(
   let metadata = build_pdf_metadata(
     route_plan, extraction, normalization, structure,
   )
-  let document = @ast.document(title, metadata, structure.blocks)
+  let document = @ast.document(title, metadata, structure.blocks).with_annotations(
+    structure.annotations,
+  )
   PdfAssemblyResult::{ normalization, metadata, document }
 }
 
@@ -41,6 +43,18 @@ fn build_pdf_metadata(
   metadata["route_structured_pages"] = route_plan.summary.structured_pages.to_string()
   metadata["route_recovery_pages"] = route_plan.summary.recovery_pages.to_string()
   metadata["route_flagged_pages"] = route_plan.summary.flagged_pages.to_string()
+  let recovery_page_numbers = summarize_recovery_page_numbers(route_plan)
+  if recovery_page_numbers != "" {
+    metadata["route_recovery_page_numbers"] = recovery_page_numbers
+  }
+  let recovery_reasons = summarize_recovery_page_reasons(route_plan)
+  if recovery_reasons != "" {
+    metadata["route_recovery_reasons"] = recovery_reasons
+  }
+  let route_page_summary = summarize_route_page_decisions(route_plan)
+  if route_page_summary != "" {
+    metadata["route_page_decisions"] = route_page_summary
+  }
 
   let route_provider_summary = summarize_route_providers(route_plan)
   if route_provider_summary != "" {

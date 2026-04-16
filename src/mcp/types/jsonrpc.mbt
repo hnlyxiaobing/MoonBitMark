@@ -119,11 +119,22 @@ pub fn JsonValue::get_array(self : JsonValue, index : Int) -> JsonValue? {
 
 ///|
 fn escape_json_string(input : String) -> String {
-  let mut escaped = input.replace(old="\\", new="\\\\")
-  escaped = escaped.replace(old="\"", new="\\\"")
-  escaped = escaped.replace(old="\n", new="\\n")
-  escaped = escaped.replace(old="\r", new="\\r")
-  escaped = escaped.replace(old="\t", new="\\t")
+  let mut escaped = ""
+  for ch in input {
+    if ch == '\\' {
+      escaped = escaped + "\\\\"
+    } else if ch == '"' {
+      escaped = escaped + "\\\""
+    } else if ch == '\n' {
+      escaped = escaped + "\\n"
+    } else if ch == '\r' {
+      escaped = escaped + "\\r"
+    } else if ch == '\t' {
+      escaped = escaped + "\\t"
+    } else {
+      escaped = escaped + ch.to_string()
+    }
+  }
   escaped
 }
 

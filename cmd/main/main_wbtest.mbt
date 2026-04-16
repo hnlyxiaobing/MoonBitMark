@@ -133,14 +133,14 @@ test "render semantic json includes provenance and confidence fields" {
           slide_no: Some(2),
           sheet_name: None,
           chapter: Some("Overview"),
-          resource: Some("resource: word/document.xml"),
+          resource: Some("word/document.xml"),
         },
       },
     ],
   }
   inspect(
     render_semantic_json(Some(document)),
-    content="{\"title\":\"Demo\",\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"word/document.xml\"},\"sections\":[{\"id\":\"section-1\",\"title\":\"Intro\",\"level\":1,\"role\":\"Title\",\"block_indices\":[0],\"diagnostics\":[],\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"word/document.xml\"},\"children\":[]}],\"blocks\":[{\"block_id\":\"block-1\",\"index\":0,\"role\":\"Title\",\"text\":\"Intro\",\"source_hint\":\"slide: 2\",\"origin_hint\":\"resource: word/document.xml\",\"diagnostics\":[],\"confidence\":88,\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"resource: word/document.xml\"}}]}",
+    content="{\"title\":\"Demo\",\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"word/document.xml\"},\"sections\":[{\"id\":\"section-1\",\"title\":\"Intro\",\"level\":1,\"role\":\"Title\",\"block_indices\":[0],\"diagnostics\":[],\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"word/document.xml\"},\"children\":[]}],\"blocks\":[{\"block_id\":\"block-1\",\"index\":0,\"role\":\"Title\",\"text\":\"Intro\",\"source_hint\":\"slide: 2\",\"origin_hint\":\"resource: word/document.xml\",\"diagnostics\":[],\"confidence\":88,\"provenance\":{\"source_path\":\"docs/demo.docx\",\"source_url\":null,\"page_no\":null,\"slide_no\":2,\"sheet_name\":null,\"chapter\":\"Overview\",\"resource\":\"word/document.xml\"}}]}",
   )
 }
 

@@ -41,6 +41,11 @@ fn temp_file_path(stem : String) -> String {
 }
 
 ///|
+fn temp_html_path(stem : String) -> String {
+  "_build/test-tmp/" + stem + ".html"
+}
+
+///|
 fn build_long_text() -> String {
   let lines : Array[String] = []
   for index in 0..<600 {
@@ -222,6 +227,7 @@ async test "inspect_document supports json response mode with stable keys" {
       inspect(map.contains("metadata"), content="true")
       inspect(map.contains("diagnostics"), content="true")
       inspect(map.contains("stats"), content="true")
+      inspect(map.contains("explanations"), content="true")
       match map.get("metadata") {
         Some(@types.Object(metadata)) =>
           match metadata.get("detected_format") {
@@ -295,6 +301,7 @@ async test "dump_normalized_ast supports json response mode with stable keys" {
       inspect(map.contains("metadata"), content="true")
       inspect(map.contains("diagnostics"), content="true")
       inspect(map.contains("stats"), content="true")
+      inspect(map.contains("explanations"), content="true")
       inspect(map.contains("normalized_document"), content="true")
       match map.get("stats") {
         Some(@types.Object(stats)) =>
@@ -330,6 +337,7 @@ async test "convert_to_markdown supports json response mode with stable keys" {
       inspect(map.contains("metadata"), content="true")
       inspect(map.contains("diagnostics"), content="true")
       inspect(map.contains("stats"), content="true")
+      inspect(map.contains("explanations"), content="true")
       match map.get("content") {
         Some(@types.String(markdown)) =>
           inspect(markdown.length(), content="120")
@@ -411,6 +419,7 @@ async test "extract_structure supports json response mode with stable keys" {
       inspect(map.contains("metadata"), content="true")
       inspect(map.contains("diagnostics"), content="true")
       inspect(map.contains("stats"), content="true")
+      inspect(map.contains("explanations"), content="true")
       inspect(map.contains("semantic_document"), content="true")
       match map.get("stats") {
         Some(@types.Object(stats)) => {
@@ -426,6 +435,36 @@ async test "extract_structure supports json response mode with stable keys" {
       }
     }
     _ => fail("expected object structured payload")
+  }
+}
+
+///|
+async test "extract_structure json payload serializes as valid jsonrpc response" {
+  let path = temp_html_path("mcp-extract-structure-escaped")
+  write_test_text(
+    path, "<html><head><title>\"Quoted\" Demo</title></head><body><h1>Line 1</h1><table><tr><th>A</th><th>B</th></tr><tr><td>x</td><td>line 1\nline 2</td></tr></table></body></html>",
+  )
+  let result = extract_structure_handler(
+    @types.Object({
+      "uri": @types.String(path),
+      "response_mode": @types.String("json"),
+    }),
+  )
+  inspect(result.is_error, content="false")
+  let response = @types.JsonResponse::{
+    jsonrpc: "2.0",
+    result: Some(result.to_json()),
+    error: None,
+    id: Some(@types.NumberId(99)),
+  }
+  match @types.parse_json(response.to_json().to_string()) {
+    Ok(@types.Object(root)) => {
+      inspect(root.contains("result"), content="true")
+      inspect(root.contains("id"), content="true")
+    }
+    Ok(_) => fail("expected jsonrpc object")
+    Err(message) =>
+      fail("expected valid jsonrpc response, got: " + message.to_string())
   }
 }
 
@@ -467,6 +506,7 @@ async test "compare_with_baseline supports json response mode with stable keys" 
       inspect(map.contains("metadata"), content="true")
       inspect(map.contains("diagnostics"), content="true")
       inspect(map.contains("stats"), content="true")
+      inspect(map.contains("explanations"), content="true")
       inspect(map.contains("comparison"), content="true")
       match map.get("metadata") {
         Some(@types.Object(metadata)) =>

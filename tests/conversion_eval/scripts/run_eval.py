@@ -347,6 +347,8 @@ def collect_case_evidence(
                 "pdf": {
                     "text_fallback_used": extract_loose_json_string(conversion.stdout, "pdf_text_fallback_used"),
                     "route_recovery_pages": extract_loose_json_string(conversion.stdout, "route_recovery_pages"),
+                    "route_recovery_page_numbers": extract_loose_json_string(conversion.stdout, "route_recovery_page_numbers"),
+                    "route_recovery_reasons": extract_loose_json_string(conversion.stdout, "route_recovery_reasons"),
                     "used_fallback": extract_loose_json_bool(conversion.stdout, "used_fallback"),
                 },
             }
@@ -375,6 +377,8 @@ def collect_case_evidence(
         "pdf": {
             "text_fallback_used": parse_boolish(metadata.get("pdf_text_fallback_used")),
             "route_recovery_pages": parse_intish(metadata.get("route_recovery_pages")),
+            "route_recovery_page_numbers": metadata.get("route_recovery_page_numbers"),
+            "route_recovery_reasons": metadata.get("route_recovery_reasons"),
             "used_fallback": stats.get("used_fallback"),
         },
     }

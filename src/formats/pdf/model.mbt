@@ -134,6 +134,7 @@ priv struct PdfStructureSummary {
 ///|
 priv struct PdfStructureResult {
   blocks : Array[@ast.Block]
+  annotations : Array[@ast.BlockAnnotation]
   summary : PdfStructureSummary
 }
 

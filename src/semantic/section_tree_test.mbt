@@ -93,10 +93,48 @@ test "semantic document infers note caption and provenance hints" {
   inspect(semantic.blocks[1].provenance.page_no, content="Some(3)")
   inspect(
     semantic.blocks[1].provenance.resource,
-    content="Some(\"resource: media/chart.png\")",
+    content="Some(\"media/chart.png\")",
   )
   inspect(semantic.blocks[2].role, content="Caption")
   inspect(semantic.blocks[3].role, content="TableBody")
   inspect(semantic.blocks[3].provenance.sheet_name, content="Some(\"Q1\")")
   inspect(semantic.blocks[3].confidence, content="70")
+}
+
+///|
+test "semantic document tracks pptx slide context and html title paragraphs" {
+  let pptx_document = @ast.Document::{
+    title: Some("Deck"),
+    metadata: { "format": "pptx" },
+    blocks: [
+      @ast.Heading(2, [@ast.Text("Slide 3")]),
+      @ast.Heading(3, [@ast.Text("Revenue Review")]),
+      @ast.Paragraph([@ast.Text("Q1 improved")]),
+    ],
+    annotations: [],
+  }
+  let pptx_semantic = semantic_document_of(pptx_document)
+  inspect(pptx_semantic.blocks[0].role, content="Separator")
+  inspect(pptx_semantic.blocks[1].role, content="Title")
+  inspect(pptx_semantic.blocks[1].provenance.slide_no, content="Some(3)")
+  inspect(
+    pptx_semantic.blocks[2].provenance.resource,
+    content="Some(\"ppt/slides/slide3.xml\")",
+  )
+
+  let html_document = @ast.Document::{
+    title: Some("Example Page"),
+    metadata: { "format": "html" },
+    blocks: [
+      @ast.Paragraph([@ast.Text("Example Page")]),
+      @ast.Paragraph([@ast.Text("Body copy")]),
+    ],
+    annotations: [],
+  }
+  let html_semantic = semantic_document_of(html_document)
+  inspect(html_semantic.blocks[0].role, content="Title")
+  inspect(
+    html_semantic.blocks[0].provenance.resource,
+    content="Some(\"html:body\")",
+  )
 }

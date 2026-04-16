@@ -57,7 +57,10 @@ test "pdf structure reconstruction emits headings and lists" {
     "The Evolution of the Word Processor The concept of the word processor predates modern computers.  • IBM MT/ST: Introduced in 1964.  • Wang Laboratories: Built dedicated machines.",
     "Future of Word Processing Today, word processors include AI assistance.  1. Undo/Redo: Easy recovery.  2. Track Changes: Better collaboration.",
   ])
-  let structure = reconstruct_pdf_blocks(normalized.pages)
+  let structure = reconstruct_pdf_blocks_with_heading_state(
+    normalized.pages,
+    false,
+  )
   inspect(
     @ast.render_markdown(@ast.document(None, {}, structure.blocks)),
     content="# The Evolution of the Word Processor\n\nThe concept of the word processor predates modern computers.\n\n- IBM MT/ST: Introduced in 1964.\n- Wang Laboratories: Built dedicated machines.\n\n## Future of Word Processing\n\nToday, word processors include AI assistance.\n\n1. Undo/Redo: Easy recovery.\n2. Track Changes: Better collaboration.",
@@ -66,16 +69,19 @@ test "pdf structure reconstruction emits headings and lists" {
 
 ///|
 test "pdf structure keeps short standalone lines as separate paragraphs" {
-  let structure = reconstruct_pdf_blocks([
-    PdfPageText::{
-      number: 1,
-      raw_text: "",
-      chunks: [
-        "May 5, 2023", "To Whom it May Concern:", "There were 20,000 bottles of water, 10,000 blankets, and 200 laptops delivered on January 23, 2023.",
-        "A total of 3 trucks were used for 15 hours.", "Best Regards,", "Mallori",
-      ],
-    },
-  ])
+  let structure = reconstruct_pdf_blocks_with_heading_state(
+    [
+      PdfPageText::{
+        number: 1,
+        raw_text: "",
+        chunks: [
+          "May 5, 2023", "To Whom it May Concern:", "There were 20,000 bottles of water, 10,000 blankets, and 200 laptops delivered on January 23, 2023.",
+          "A total of 3 trucks were used for 15 hours.", "Best Regards,", "Mallori",
+        ],
+      },
+    ],
+    false,
+  )
   inspect(
     @ast.render_markdown(@ast.document(None, {}, structure.blocks)),
     content="May 5, 2023\n\nTo Whom it May Concern:\n\nThere were 20,000 bottles of water, 10,000 blankets, and 200 laptops delivered on January 23, 2023.\n\nA total of 3 trucks were used for 15 hours.\n\nBest Regards,\n\nMallori",

@@ -463,7 +463,7 @@ async fn dump_normalized_ast_handler(
       Some(normalized_document) => {
         let block_count = normalized_document.blocks.length()
         let annotation_count = normalized_document.annotations.length()
-        let json_content = normalized_document.to_json().to_string()
+        let json_content = render_ast_document_json(normalized_document)
         let summary = render_summary([
           summary_line("tool", "dump_normalized_ast"),
           summary_line("uri", document.request_uri),
@@ -534,7 +534,7 @@ async fn extract_structure_handler(
         let low_confidence_blocks = count_low_confidence_blocks(
           semantic_document.blocks,
         )
-        let json_content = semantic_document.to_json().to_string()
+        let json_content = render_semantic_document_json(semantic_document)
         let summary = render_summary([
           summary_line("tool", "extract_structure"),
           summary_line("uri", document.request_uri),
@@ -1048,6 +1048,25 @@ fn inspect_document_payload(
     "metadata": @types.Object(metadata),
     "diagnostics": @types.Object(diagnostics),
     "stats": @types.Object(stats),
+    "explanations": @types.Object({
+      "headings": @types.Array([]),
+      "tables": @types.Array([]),
+      "ocr": @types.Object({
+        "triggered": @types.Bool(false),
+        "reason": @types.String(
+          "inspect_document is a preflight tool; OCR trigger explanations become concrete after conversion.",
+        ),
+        "may_use_ocr": @types.Bool(may_use_ocr(effective_format)),
+      }),
+      "uncertainties": @types.Array([
+        @types.Object({
+          "kind": @types.String("preflight"),
+          "message": @types.String(
+            "Structural explanations require convert_to_markdown, dump_normalized_ast, or extract_structure.",
+          ),
+        }),
+      ]),
+    }),
   })
 }
 
@@ -1108,6 +1127,7 @@ fn convert_to_markdown_payload(
     "metadata": @types.Object(metadata),
     "diagnostics": @types.Object(diagnostics),
     "stats": @types.Object(stats),
+    "explanations": result_explanations(result),
   })
 }
 
@@ -1120,7 +1140,7 @@ fn dump_normalized_ast_payload(
   result : @core.ConvertResult,
 ) -> @types.JsonValue {
   @types.Object({
-    "content": @types.String(document.to_json().to_string()),
+    "content": @types.String(render_ast_document_json(document)),
     "metadata": @types.Object({
       "tool": @types.String("dump_normalized_ast"),
       "uri": @types.String(uri),
@@ -1139,7 +1159,10 @@ fn dump_normalized_ast_payload(
       "annotation_count": @types.Number(document.annotations.length()),
       "converter_stats": convert_stats_to_json(result.stats),
     }),
-    "normalized_document": parse_structured_json(document.to_json().to_string()),
+    "explanations": result_explanations(result),
+    "normalized_document": parse_structured_json(
+      render_ast_document_json(document),
+    ),
   })
 }
 
@@ -1152,7 +1175,7 @@ fn extract_structure_payload(
   result : @core.ConvertResult,
 ) -> @types.JsonValue {
   @types.Object({
-    "content": @types.String(document.to_json().to_string()),
+    "content": @types.String(render_semantic_document_json(document)),
     "metadata": @types.Object({
       "tool": @types.String("extract_structure"),
       "uri": @types.String(uri),
@@ -1162,7 +1185,7 @@ fn extract_structure_payload(
       "source_type": @types.String(result.source_type),
       "document_metadata": string_map_to_json_object(result.metadata),
       "provenance": parse_structured_json(
-        document.provenance.to_json().to_string(),
+        render_semantic_provenance_json(document.provenance),
       ),
     }),
     "diagnostics": @types.Object({
@@ -1177,7 +1200,10 @@ fn extract_structure_payload(
       "block_count": @types.Number(document.blocks.length()),
       "converter_stats": convert_stats_to_json(result.stats),
     }),
-    "semantic_document": parse_structured_json(document.to_json().to_string()),
+    "explanations": result_explanations(result),
+    "semantic_document": parse_structured_json(
+      render_semantic_document_json(document),
+    ),
   })
 }
 
@@ -1228,6 +1254,7 @@ fn compare_with_baseline_payload(
       ),
       "converter_stats": convert_stats_to_json(result.stats),
     }),
+    "explanations": result_explanations(result),
     "comparison": comparison,
   })
 }
@@ -1277,6 +1304,761 @@ fn compare_with_baseline_summary(
       optional_string(json_object_nullable_string_arg(comparison, "error")),
     ),
   ])
+}
+
+///|
+fn result_explanations(result : @core.ConvertResult) -> @types.JsonValue {
+  @types.Object({
+    "headings": heading_explanations(result),
+    "tables": table_explanations(result),
+    "ocr": ocr_explanation(result),
+    "uncertainties": uncertainty_explanations(result),
+  })
+}
+
+///|
+fn heading_explanations(result : @core.ConvertResult) -> @types.JsonValue {
+  let items : Array[@types.JsonValue] = []
+  match result.normalized_document {
+    Some(document) => {
+      let annotations = @ast.normalize_annotations(
+        document.annotations,
+        document.blocks.length(),
+      )
+      let semantic_blocks = match result.semantic_document {
+        Some(semantic_document) => semantic_document.blocks
+        None => []
+      }
+      for index, block in document.blocks {
+        match block {
+          @ast.Heading(level, inlines) => {
+            let annotation = annotations[index]
+            let text = @ast.plain_text_of_inlines(inlines)
+            let semantic_block = semantic_blocks.get(index)
+            items.push(
+              @types.Object({
+                "block_id": @types.String(annotation.id),
+                "index": @types.Number(index),
+                "level": @types.Number(level),
+                "text": @types.String(text),
+                "role": json_optional_string(
+                  semantic_role_label(semantic_block),
+                ),
+                "reason": @types.String(
+                  heading_reason(
+                    result.metadata,
+                    document.title,
+                    text,
+                    annotation,
+                    semantic_block,
+                  ),
+                ),
+                "diagnostics": string_array_to_json(annotation.diagnostics),
+                "provenance": semantic_provenance_json(semantic_block),
+              }),
+            )
+          }
+          _ => ()
+        }
+      }
+    }
+    None => ()
+  }
+  @types.Array(items)
+}
+
+///|
+fn table_explanations(result : @core.ConvertResult) -> @types.JsonValue {
+  let items : Array[@types.JsonValue] = []
+  match result.normalized_document {
+    Some(document) => {
+      let annotations = @ast.normalize_annotations(
+        document.annotations,
+        document.blocks.length(),
+      )
+      let semantic_blocks = match result.semantic_document {
+        Some(semantic_document) => semantic_document.blocks
+        None => []
+      }
+      for index, block in document.blocks {
+        let annotation = annotations[index]
+        let semantic_block = semantic_blocks.get(index)
+        match block {
+          @ast.Table(headers, rows) =>
+            items.push(
+              @types.Object({
+                "block_id": @types.String(annotation.id),
+                "index": @types.Number(index),
+                "outcome": @types.String("table"),
+                "text": @types.String(@ast.plain_text_of_block(block)),
+                "header_columns": @types.Number(headers.length()),
+                "body_rows": @types.Number(rows.length()),
+                "reason": @types.String(
+                  table_reason(result.metadata, annotation),
+                ),
+                "diagnostics": string_array_to_json(annotation.diagnostics),
+                "provenance": semantic_provenance_json(semantic_block),
+              }),
+            )
+          _ =>
+            match
+              find_annotation_diagnostic(
+                annotation, "Table-like layout was downgraded",
+              ) {
+              Some(reason) =>
+                items.push(
+                  @types.Object({
+                    "block_id": @types.String(annotation.id),
+                    "index": @types.Number(index),
+                    "outcome": @types.String("paragraph_fallback"),
+                    "text": @types.String(@ast.plain_text_of_block(block)),
+                    "reason": @types.String(reason),
+                    "diagnostics": string_array_to_json(annotation.diagnostics),
+                    "provenance": semantic_provenance_json(semantic_block),
+                  }),
+                )
+              None => ()
+            }
+        }
+      }
+    }
+    None => ()
+  }
+  @types.Array(items)
+}
+
+///|
+fn ocr_explanation(result : @core.ConvertResult) -> @types.JsonValue {
+  let attempted = metadata_bool(result.metadata, "ocr_attempted")
+  let available = metadata_bool(result.metadata, "ocr_available")
+  let used = metadata_bool(result.metadata, "ocr_fallback_used")
+  let recovery_pages = metadata_int(result.metadata, "route_recovery_pages")
+  let recovery_page_numbers = metadata_csv_numbers(
+    result.metadata,
+    "route_recovery_page_numbers",
+  )
+  let reason = if used {
+    "OCR fallback merged recovered page text back into the normalized document."
+  } else if recovery_pages > 0 && attempted && !available {
+    "Some pages were routed to OCR because the extracted PDF text looked empty or unusable, but no backend produced usable text."
+  } else if recovery_pages > 0 {
+    "Some pages were routed to OCR because the extracted PDF text looked empty or unusable."
+  } else if attempted && !available {
+    "OCR was requested for this conversion, but no usable backend was available."
+  } else {
+    "OCR was not part of the active conversion path."
+  }
+  @types.Object({
+    "mode": json_optional_string(result.metadata.get("ocr_mode")),
+    "backend": json_optional_string(result.metadata.get("ocr_backend")),
+    "provider": json_optional_string(result.metadata.get("ocr_provider")),
+    "attempted": @types.Bool(attempted),
+    "available": @types.Bool(available),
+    "used": @types.Bool(used),
+    "triggered": @types.Bool(recovery_pages > 0 || attempted),
+    "recovery_pages": @types.Number(recovery_pages),
+    "recovery_page_numbers": recovery_page_numbers,
+    "recovery_reasons": json_optional_string(
+      result.metadata.get("route_recovery_reasons"),
+    ),
+    "reason": @types.String(reason),
+    "warning": json_optional_string(first_ocr_warning(result)),
+  })
+}
+
+///|
+fn uncertainty_explanations(result : @core.ConvertResult) -> @types.JsonValue {
+  let items : Array[@types.JsonValue] = []
+  for warning in result.warnings {
+    items.push(
+      @types.Object({
+        "kind": @types.String("warning"),
+        "message": @types.String(warning),
+      }),
+    )
+  }
+  for diagnostic in result.diagnostics {
+    if diagnostic.level == @core.Warning {
+      items.push(
+        @types.Object({
+          "kind": @types.String("diagnostic"),
+          "message": @types.String(diagnostic.message),
+          "phase": json_optional_string(phase_label(diagnostic.phase)),
+          "source": json_optional_string(source_label(diagnostic.source)),
+        }),
+      )
+    }
+  }
+  match result.semantic_document {
+    Some(document) =>
+      for block in document.blocks {
+        if block.confidence < 60 || block.diagnostics.length() > 0 {
+          items.push(
+            @types.Object({
+              "kind": @types.String("block"),
+              "block_id": @types.String(block.block_id),
+              "message": @types.String(block_uncertainty_message(block)),
+              "confidence": @types.Number(block.confidence),
+              "provenance": parse_structured_json(
+                render_semantic_provenance_json(block.provenance),
+              ),
+            }),
+          )
+        }
+      }
+    None => ()
+  }
+  @types.Array(items)
+}
+
+///|
+fn heading_reason(
+  metadata : Map[String, String],
+  document_title : String?,
+  text : String,
+  annotation : @ast.BlockAnnotation,
+  semantic_block : @semantic.SemanticBlock?,
+) -> String {
+  match
+    find_annotation_diagnostic(annotation, "Normalized heading level from ") {
+    Some(reason) => reason
+    None =>
+      match metadata.get("format") {
+        Some("pptx") if looks_like_slide_heading_text(text) =>
+          "PPTX slide boundary heading was synthesized from the slide order."
+        Some("docx") if matches_optional_title(text, document_title) =>
+          "DOCX heading text matched the document title, so it anchors the title section."
+        Some("docx") =>
+          "DOCX paragraph-style or title heuristics produced this heading and normalization kept the level."
+        Some("html") if matches_optional_title(text, document_title) =>
+          "HTML heading text matched the document title and remained the title anchor."
+        Some("html") =>
+          "HTML heading tags were preserved as structural headings."
+        Some("pdf") =>
+          "PDF structure heuristics promoted this chunk to a heading."
+        Some("pptx") =>
+          "PPTX slide content heading was kept below the slide separator."
+        _ =>
+          match semantic_block {
+            Some(block) if block.role == @semantic.Title =>
+              "Leading structural heading was kept as the document title."
+            Some(block) if block.role == @semantic.Subtitle =>
+              "Heading was retained below the title as a section heading."
+            _ =>
+              "Converter emitted this heading and structural normalization kept the level."
+          }
+      }
+  }
+}
+
+///|
+fn table_reason(
+  metadata : Map[String, String],
+  annotation : @ast.BlockAnnotation,
+) -> String {
+  match find_annotation_diagnostic(annotation, "Normalized table shape") {
+    Some(reason) => reason
+    None =>
+      match metadata.get("format") {
+        Some("html") =>
+          "HTML table structure was preserved after row and span normalization."
+        Some("docx") => "DOCX table cells were preserved as a Markdown table."
+        Some("pptx") => "PPTX table cells were preserved as a Markdown table."
+        Some("pdf") =>
+          "PDF structure heuristics recovered a stable table grid for this page."
+        _ => "Table structure was preserved by the converter."
+      }
+  }
+}
+
+///|
+fn block_uncertainty_message(block : @semantic.SemanticBlock) -> String {
+  if block.diagnostics.length() > 0 {
+    block.diagnostics.join("; ")
+  } else {
+    "Block confidence fell below the stable threshold."
+  }
+}
+
+///|
+fn semantic_role_label(block : @semantic.SemanticBlock?) -> String? {
+  match block {
+    Some(value) => Some("\{value.role}")
+    None => None
+  }
+}
+
+///|
+fn semantic_provenance_json(
+  block : @semantic.SemanticBlock?,
+) -> @types.JsonValue {
+  match block {
+    Some(value) =>
+      parse_structured_json(render_semantic_provenance_json(value.provenance))
+    None => @types.Null
+  }
+}
+
+///|
+fn find_annotation_diagnostic(
+  annotation : @ast.BlockAnnotation,
+  prefix : String,
+) -> String? {
+  for diagnostic in annotation.diagnostics {
+    if diagnostic.has_prefix(prefix) {
+      return Some(diagnostic)
+    }
+  }
+  None
+}
+
+///|
+fn metadata_bool(metadata : Map[String, String], key : String) -> Bool {
+  match metadata.get(key) {
+    Some("true") => true
+    Some("True") => true
+    Some("1") => true
+    _ => false
+  }
+}
+
+///|
+fn metadata_int(metadata : Map[String, String], key : String) -> Int {
+  match metadata.get(key) {
+    Some(value) =>
+      match try_parse_int(value) {
+        Some(number) => number
+        None => 0
+      }
+    None => 0
+  }
+}
+
+///|
+fn metadata_csv_numbers(
+  metadata : Map[String, String],
+  key : String,
+) -> @types.JsonValue {
+  let items : Array[@types.JsonValue] = []
+  match metadata.get(key) {
+    Some(value) =>
+      for part in value.split(",").to_array() {
+        match try_parse_int(part.to_string().trim().to_string()) {
+          Some(number) => items.push(@types.Number(number))
+          None => ()
+        }
+      }
+    None => ()
+  }
+  @types.Array(items)
+}
+
+///|
+fn try_parse_int(text : String) -> Int? {
+  let trimmed = text.trim().to_string()
+  if trimmed == "" {
+    return None
+  }
+  let mut value = 0
+  for ch in trimmed {
+    if ch < '0' || ch > '9' {
+      return None
+    }
+    value = value * 10 + (ch.to_int() - '0'.to_int())
+  }
+  Some(value)
+}
+
+///|
+fn first_ocr_warning(result : @core.ConvertResult) -> String? {
+  for warning in result.warnings {
+    if warning.contains("OCR") {
+      return Some(warning)
+    }
+  }
+  for diagnostic in result.diagnostics {
+    if diagnostic.message.contains("OCR") {
+      return Some(diagnostic.message)
+    }
+  }
+  None
+}
+
+///|
+fn looks_like_slide_heading_text(text : String) -> Bool {
+  let trimmed = text.trim().to_string()
+  trimmed.has_prefix("Slide ") &&
+  try_parse_int(trimmed[6:].trim().to_string()) is Some(_)
+}
+
+///|
+fn matches_optional_title(text : String, title : String?) -> Bool {
+  match title {
+    Some(value) =>
+      text.trim().to_lower().to_string() == value.trim().to_lower().to_string()
+    None => false
+  }
+}
+
+///|
+fn render_ast_document_json(document : @ast.Document) -> String {
+  mcp_json_object([
+    mcp_json_field("title", mcp_json_string_or_null(document.title)),
+    mcp_json_field("metadata", mcp_json_of_string_map(document.metadata)),
+    mcp_json_field("blocks", mcp_json_array_of_blocks(document.blocks)),
+    mcp_json_field(
+      "annotations",
+      mcp_json_array_of_annotations(document.annotations),
+    ),
+  ])
+}
+
+///|
+fn mcp_json_array_of_blocks(blocks : Array[@ast.Block]) -> String {
+  let items : Array[String] = []
+  for block in blocks {
+    items.push(mcp_json_of_block(block))
+  }
+  mcp_json_array(items)
+}
+
+///|
+fn mcp_json_of_block(block : @ast.Block) -> String {
+  match block {
+    @ast.Heading(level, inlines) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("heading")),
+        mcp_json_field("level", level.to_string()),
+        mcp_json_field("inlines", mcp_json_array_of_inlines(inlines)),
+      ])
+    @ast.Paragraph(inlines) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("paragraph")),
+        mcp_json_field("inlines", mcp_json_array_of_inlines(inlines)),
+      ])
+    @ast.List(items, ordered) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("list")),
+        mcp_json_field("ordered", if ordered { "true" } else { "false" }),
+        mcp_json_field("items", mcp_json_array_of_inline_groups(items)),
+      ])
+    @ast.Quote(lines) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("quote")),
+        mcp_json_field("lines", mcp_json_array_of_strings(lines)),
+      ])
+    @ast.CodeBlock(lang, content) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("code_block")),
+        mcp_json_field("lang", mcp_json_string_or_null(lang)),
+        mcp_json_field("content", mcp_json_string(content)),
+      ])
+    @ast.Table(headers, rows) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("table")),
+        mcp_json_field("headers", mcp_json_array_of_inline_groups(headers)),
+        mcp_json_field("rows", mcp_json_array_of_inline_rows(rows)),
+      ])
+    @ast.Image(alt, url, caption) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("image")),
+        mcp_json_field("alt", mcp_json_string(alt)),
+        mcp_json_field("url", mcp_json_string(url)),
+        mcp_json_field(
+          "caption",
+          match caption {
+            Some(inlines) => mcp_json_array_of_inlines(inlines)
+            None => "null"
+          },
+        ),
+      ])
+    @ast.HorizontalRule =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("horizontal_rule")),
+      ])
+  }
+}
+
+///|
+fn mcp_json_array_of_annotations(
+  annotations : Array[@ast.BlockAnnotation],
+) -> String {
+  let items : Array[String] = []
+  for annotation in annotations {
+    items.push(
+      mcp_json_object([
+        mcp_json_field("id", mcp_json_string(annotation.id)),
+        mcp_json_field(
+          "source_hint",
+          mcp_json_string_or_null(annotation.source_hint),
+        ),
+        mcp_json_field(
+          "origin_hint",
+          mcp_json_string_or_null(annotation.origin_hint),
+        ),
+        mcp_json_field(
+          "diagnostics",
+          mcp_json_array_of_strings(annotation.diagnostics),
+        ),
+      ]),
+    )
+  }
+  mcp_json_array(items)
+}
+
+///|
+fn mcp_json_array_of_inline_groups(items : Array[Array[@ast.Inline]]) -> String {
+  let groups : Array[String] = []
+  for item in items {
+    groups.push(mcp_json_array_of_inlines(item))
+  }
+  mcp_json_array(groups)
+}
+
+///|
+fn mcp_json_array_of_inline_rows(
+  rows : Array[Array[Array[@ast.Inline]]],
+) -> String {
+  let rendered_rows : Array[String] = []
+  for row in rows {
+    rendered_rows.push(mcp_json_array_of_inline_groups(row))
+  }
+  mcp_json_array(rendered_rows)
+}
+
+///|
+fn mcp_json_array_of_inlines(inlines : Array[@ast.Inline]) -> String {
+  let items : Array[String] = []
+  for inline in inlines {
+    items.push(mcp_json_of_inline(inline))
+  }
+  mcp_json_array(items)
+}
+
+///|
+fn mcp_json_of_inline(inline : @ast.Inline) -> String {
+  match inline {
+    @ast.Text(content) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("text")),
+        mcp_json_field("content", mcp_json_string(content)),
+      ])
+    @ast.Emphasis(children) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("emphasis")),
+        mcp_json_field("children", mcp_json_array_of_inlines(children)),
+      ])
+    @ast.Strong(children) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("strong")),
+        mcp_json_field("children", mcp_json_array_of_inlines(children)),
+      ])
+    @ast.Link(children, url) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("link")),
+        mcp_json_field("children", mcp_json_array_of_inlines(children)),
+        mcp_json_field("url", mcp_json_string(url)),
+      ])
+    @ast.Image(alt, url) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("image")),
+        mcp_json_field("alt", mcp_json_string(alt)),
+        mcp_json_field("url", mcp_json_string(url)),
+      ])
+    @ast.Code(content) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("code")),
+        mcp_json_field("content", mcp_json_string(content)),
+      ])
+    @ast.LineBreak =>
+      mcp_json_object([mcp_json_field("type", mcp_json_string("line_break"))])
+  }
+}
+
+///|
+fn render_semantic_document_json(
+  document : @semantic.SemanticDocument,
+) -> String {
+  mcp_json_object([
+    mcp_json_field("title", mcp_json_string_or_null(document.title)),
+    mcp_json_field(
+      "provenance",
+      render_semantic_provenance_json(document.provenance),
+    ),
+    mcp_json_field("sections", mcp_json_array_of_sections(document.sections)),
+    mcp_json_field("blocks", mcp_json_array_of_semantic_blocks(document.blocks)),
+  ])
+}
+
+///|
+fn mcp_json_array_of_sections(sections : Array[@semantic.Section]) -> String {
+  let items : Array[String] = []
+  for section in sections {
+    items.push(mcp_json_of_section(section))
+  }
+  mcp_json_array(items)
+}
+
+///|
+fn mcp_json_of_section(section : @semantic.Section) -> String {
+  mcp_json_object([
+    mcp_json_field("id", mcp_json_string(section.id)),
+    mcp_json_field("title", mcp_json_string_or_null(section.title)),
+    mcp_json_field("level", section.level.to_string()),
+    mcp_json_field("role", mcp_json_string("\{section.role}")),
+    mcp_json_field(
+      "block_indices",
+      mcp_json_array_of_ints(section.block_indices),
+    ),
+    mcp_json_field(
+      "diagnostics",
+      mcp_json_array_of_strings(section.diagnostics),
+    ),
+    mcp_json_field(
+      "provenance",
+      render_semantic_provenance_json(section.provenance),
+    ),
+    mcp_json_field("children", mcp_json_array_of_sections(section.children)),
+  ])
+}
+
+///|
+fn mcp_json_array_of_semantic_blocks(
+  blocks : Array[@semantic.SemanticBlock],
+) -> String {
+  let items : Array[String] = []
+  for block in blocks {
+    items.push(
+      mcp_json_object([
+        mcp_json_field("block_id", mcp_json_string(block.block_id)),
+        mcp_json_field("index", block.index.to_string()),
+        mcp_json_field("role", mcp_json_string("\{block.role}")),
+        mcp_json_field("text", mcp_json_string(block.text)),
+        mcp_json_field(
+          "source_hint",
+          mcp_json_string_or_null(block.source_hint),
+        ),
+        mcp_json_field(
+          "origin_hint",
+          mcp_json_string_or_null(block.origin_hint),
+        ),
+        mcp_json_field(
+          "diagnostics",
+          mcp_json_array_of_strings(block.diagnostics),
+        ),
+        mcp_json_field("confidence", block.confidence.to_string()),
+        mcp_json_field(
+          "provenance",
+          render_semantic_provenance_json(block.provenance),
+        ),
+      ]),
+    )
+  }
+  mcp_json_array(items)
+}
+
+///|
+fn render_semantic_provenance_json(provenance : @semantic.Provenance) -> String {
+  mcp_json_object([
+    mcp_json_field(
+      "source_path",
+      mcp_json_string_or_null(provenance.source_path),
+    ),
+    mcp_json_field("source_url", mcp_json_string_or_null(provenance.source_url)),
+    mcp_json_field(
+      "page_no",
+      match provenance.page_no {
+        Some(value) => value.to_string()
+        None => "null"
+      },
+    ),
+    mcp_json_field(
+      "slide_no",
+      match provenance.slide_no {
+        Some(value) => value.to_string()
+        None => "null"
+      },
+    ),
+    mcp_json_field("sheet_name", mcp_json_string_or_null(provenance.sheet_name)),
+    mcp_json_field("chapter", mcp_json_string_or_null(provenance.chapter)),
+    mcp_json_field("resource", mcp_json_string_or_null(provenance.resource)),
+  ])
+}
+
+///|
+fn mcp_json_array_of_ints(values : Array[Int]) -> String {
+  let items : Array[String] = []
+  for value in values {
+    items.push(value.to_string())
+  }
+  mcp_json_array(items)
+}
+
+///|
+fn mcp_json_of_string_map(values : Map[String, String]) -> String {
+  let fields : Array[String] = []
+  for key, value in values {
+    fields.push(mcp_json_field(key, mcp_json_string(value)))
+  }
+  mcp_json_object(fields)
+}
+
+///|
+fn mcp_json_array_of_strings(values : Array[String]) -> String {
+  let items : Array[String] = []
+  for value in values {
+    items.push(mcp_json_string(value))
+  }
+  mcp_json_array(items)
+}
+
+///|
+fn mcp_json_field(key : String, value : String) -> String {
+  "\"" + mcp_escape_json_string(key) + "\":" + value
+}
+
+///|
+fn mcp_json_object(fields : Array[String]) -> String {
+  "{" + fields.join(",") + "}"
+}
+
+///|
+fn mcp_json_array(items : Array[String]) -> String {
+  "[" + items.join(",") + "]"
+}
+
+///|
+fn mcp_json_string(value : String) -> String {
+  "\"" + mcp_escape_json_string(value) + "\""
+}
+
+///|
+fn mcp_json_string_or_null(value : String?) -> String {
+  match value {
+    Some(text) => mcp_json_string(text)
+    None => "null"
+  }
+}
+
+///|
+fn mcp_escape_json_string(value : String) -> String {
+  let mut escaped = ""
+  for ch in value {
+    if ch == '\\' {
+      escaped = escaped + "\\\\"
+    } else if ch == '"' {
+      escaped = escaped + "\\\""
+    } else if ch == '\n' {
+      escaped = escaped + "\\n"
+    } else if ch == '\r' {
+      escaped = escaped + "\\r"
+    } else if ch == '\t' {
+      escaped = escaped + "\\t"
+    } else {
+      escaped = escaped + ch.to_string()
+    }
+  }
+  escaped
 }
 
 ///|

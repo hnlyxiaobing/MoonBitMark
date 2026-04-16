@@ -321,6 +321,61 @@ fn summarize_route_layout_complexity(route_plan : PdfRoutePlan) -> String {
 }
 
 ///|
+fn summarize_recovery_page_numbers(route_plan : PdfRoutePlan) -> String {
+  let pages : Array[String] = []
+  for page in route_plan.pages {
+    if page.provider == OcrRecovery {
+      pages.push(page.page_no.to_string())
+    }
+  }
+  pages.join(",")
+}
+
+///|
+fn summarize_recovery_page_reasons(route_plan : PdfRoutePlan) -> String {
+  let parts : Array[String] = []
+  for page in route_plan.pages {
+    if page.provider != OcrRecovery {
+      continue
+    }
+    let flags = summarize_route_page_flags(page)
+    if flags == "" {
+      parts.push("page " + page.page_no.to_string() + ": scanned")
+    } else {
+      parts.push("page " + page.page_no.to_string() + ": " + flags)
+    }
+  }
+  parts.join("; ")
+}
+
+///|
+fn summarize_route_page_decisions(route_plan : PdfRoutePlan) -> String {
+  let parts : Array[String] = []
+  for page in route_plan.pages {
+    let flags = summarize_route_page_flags(page)
+    let detail = if flags == "" {
+      page.provider.label() +
+      "(" +
+      page.text_quality.label() +
+      "/" +
+      page.layout_complexity.label() +
+      ")"
+    } else {
+      page.provider.label() +
+      "(" +
+      page.text_quality.label() +
+      "/" +
+      page.layout_complexity.label() +
+      ";" +
+      flags +
+      ")"
+    }
+    parts.push(page.page_no.to_string() + ":" + detail)
+  }
+  parts.join("; ")
+}
+
+///|
 fn reserved_provider_kinds() -> Array[PdfPageProviderKind] {
   [NativeTextFast, NativeTextStructured, LayoutEnhanced, OcrRecovery, Hybrid]
 }

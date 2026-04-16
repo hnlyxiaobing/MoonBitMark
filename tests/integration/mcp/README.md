@@ -57,3 +57,7 @@
 - `MOONBITMARK_MCP_ALLOWED_ROOTS`, `MOONBITMARK_MCP_ENABLE_OCR`, `MOONBITMARK_MCP_MAX_OUTPUT_CHARS`, and `MOONBITMARK_MCP_MAX_UPLOAD_BYTES` all stay effective on the HTTP path
 
 These are contract checks for the current local MCP surface. They do not claim SSE support, streaming responses, authentication, or multipart/raw-binary upload endpoints.
+
+For development rounds that touch OCR and MCP together, prefer the repo-level smoke entrypoint:
+
+- `powershell -ExecutionPolicy Bypass -File scripts/run_ocr_mcp_smoke.ps1`

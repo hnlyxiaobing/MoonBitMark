@@ -44,6 +44,14 @@ test "pdf assembly metadata records route summary" {
   )
   inspect(assembled.metadata.get("route_recovery_pages"), content="Some(\"1\")")
   inspect(
+    assembled.metadata.get("route_recovery_page_numbers"),
+    content="Some(\"2\")",
+  )
+  inspect(
+    assembled.metadata.get("route_recovery_reasons"),
+    content="Some(\"page 2: scanned\")",
+  )
+  inspect(
     assembled.metadata.get("route_native_fast_pages"),
     content="Some(\"1\")",
   )
@@ -54,6 +62,15 @@ test "pdf assembly metadata records route summary" {
   inspect(
     assembled.metadata.get("route_layout_complexity"),
     content="Some(\"simple:2\")",
+  )
+  inspect(assembled.document.annotations.length(), content="3")
+  inspect(
+    assembled.document.annotations[0].source_hint,
+    content="Some(\"page: 1\")",
+  )
+  inspect(
+    assembled.document.annotations[0].origin_hint,
+    content="Some(\"resource: pdf/native_text_fast\")",
   )
 }
 
@@ -102,5 +119,10 @@ test "pdf assembly metadata records fallback extraction details" {
   inspect(
     assembled.metadata.get("route_layout_complexity"),
     content="Some(\"simple:1\")",
+  )
+  inspect(assembled.document.annotations.length(), content="2")
+  inspect(
+    assembled.document.annotations[0].source_hint,
+    content="Some(\"page: 1\")",
   )
 }

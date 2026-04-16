@@ -15,6 +15,19 @@ $textInput = Join-Path $tempRoot 'smoke.txt'
 1..800 | ForEach-Object {
     "mcp smoke line $_"
 } | Set-Content -Path $textInput -Encoding utf8
+$htmlInput = Join-Path $tempRoot 'explanations.html'
+@'
+<html>
+  <head><title>Explanation Demo</title></head>
+  <body>
+    <h1>Quarterly Results</h1>
+    <table>
+      <tr><th>Quarter</th><th>Revenue</th></tr>
+      <tr><td>Q1</td><td>10</td></tr>
+    </table>
+  </body>
+</html>
+'@ | Set-Content -Path $htmlInput -Encoding utf8
 $uploadedText = "uploaded stdio line 1`nuploaded stdio line 2"
 $uploadedBytes = [System.Text.Encoding]::UTF8.GetBytes($uploadedText) | ForEach-Object { [int]$_ }
 
@@ -286,7 +299,40 @@ if ($previewJsonResponse.result.structuredContent.stats.returned_chars -le 0) {
 if ($null -eq $previewJsonResponse.result.structuredContent.diagnostics.conversion_diagnostics) {
     throw 'convert_to_markdown json mode did not return diagnostics.conversion_diagnostics.'
 }
+if ($null -eq $previewJsonResponse.result.structuredContent.explanations) {
+    throw 'convert_to_markdown json mode did not return explanations.'
+}
+if ($null -eq $previewJsonResponse.result.structuredContent.explanations.ocr.reason) {
+    throw 'convert_to_markdown json mode did not return explanations.ocr.reason.'
+}
 Assert-ContainsText -Text $previewJsonResponse.result.structuredContent.content -Expected 'mcp smoke line 1' -Context 'preview json content'
+
+$structureJsonRequest = @{
+    jsonrpc = '2.0'
+    method = 'tools/call'
+    params = @{
+        name = 'extract_structure'
+        arguments = @{
+            uri = (Normalize-MoonBitMarkPath $htmlInput)
+            response_mode = 'json'
+        }
+    }
+    id = 415
+} | ConvertTo-Json -Compress -Depth 5
+
+$structureJsonResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $structureJsonRequest
+if ($structureJsonResponse.result.isError -ne $false) {
+    throw 'extract_structure unexpectedly returned an error result.'
+}
+if ($structureJsonResponse.result.structuredContent.explanations.headings.Count -lt 1) {
+    throw 'extract_structure did not return heading explanations for the HTML fixture.'
+}
+if ($structureJsonResponse.result.structuredContent.explanations.tables.Count -lt 1) {
+    throw 'extract_structure did not return table explanations for the HTML fixture.'
+}
+if ($null -eq $structureJsonResponse.result.structuredContent.explanations.uncertainties) {
+    throw 'extract_structure did not return uncertainties.'
+}
 
 $storeRequest = @{
     jsonrpc = '2.0'
@@ -444,4 +490,4 @@ if ($invalidModeResponse.result.isError -ne $true) {
 }
 Assert-ContainsText -Text $invalidModeResponse.result.content[0].text -Expected "'mode' must be 'preview' or 'full'" -Context 'invalid mode error'
 
-Write-Host 'MCP stdio smoke checks passed, including launcher paths, inspect_document, preview/full conversion, and a negative mode path.'
+Write-Host 'MCP stdio smoke checks passed, including launcher paths, explanation payloads, preview/full conversion, and a negative mode path.'

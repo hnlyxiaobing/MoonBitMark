@@ -73,6 +73,8 @@ pub fn semantic_document_of(document : @ast.Document) -> SemanticDocument {
   let blocks : Array[SemanticBlock] = []
   let mut sections : Array[Section] = []
   let mut section_counter = 1
+  let mut current_page_no = document_provenance.page_no
+  let mut current_slide_no = document_provenance.slide_no
   let mut index = 0
   while index < document.blocks.length() {
     let block = document.blocks[index]
@@ -81,11 +83,22 @@ pub fn semantic_document_of(document : @ast.Document) -> SemanticDocument {
       block,
       annotation,
       document.metadata,
+      document.title,
       index,
       index > 0,
       document.blocks.get(index - 1),
+      current_page_no,
+      current_slide_no,
     )
     blocks.push(semantic_block)
+    match semantic_block.provenance.page_no {
+      Some(value) => current_page_no = Some(value)
+      None => ()
+    }
+    match semantic_block.provenance.slide_no {
+      Some(value) => current_slide_no = Some(value)
+      None => ()
+    }
     match block {
       @ast.Heading(level, inlines) => {
         let section = Section::{
@@ -123,18 +136,25 @@ fn semantic_block_of(
   block : @ast.Block,
   annotation : @ast.BlockAnnotation,
   metadata : Map[String, String],
+  document_title : String?,
   index : Int,
   has_previous : Bool,
   previous_block : @ast.Block?,
+  current_page_no : Int?,
+  current_slide_no : Int?,
 ) -> SemanticBlock {
   let text = @ast.plain_text_of_block(block)
-  let provenance = provenance_of(metadata, annotation)
+  let provenance = provenance_of(
+    metadata, annotation, block, text, current_page_no, current_slide_no,
+  )
   SemanticBlock::{
     block_id: annotation.id,
     index,
     role: semantic_role_of(
       block,
       text,
+      metadata,
+      document_title,
       index == 0,
       has_previous,
       previous_block,
@@ -152,14 +172,22 @@ fn semantic_block_of(
 fn semantic_role_of(
   block : @ast.Block,
   text : String,
+  metadata : Map[String, String],
+  document_title : String?,
   is_first : Bool,
   has_previous : Bool,
   previous_block : @ast.Block?,
 ) -> SemanticRole {
+  let format_name = metadata.get("format")
   let normalized = text.trim().to_lower().to_string()
   match block {
     @ast.Heading(level, _) =>
-      if is_first {
+      if format_name == Some("pptx") && looks_like_slide_heading(text) {
+        Separator
+      } else if is_first || matches_document_title(text, document_title) {
+        Title
+      } else if format_name == Some("pptx") &&
+        previous_block_is_slide_heading(previous_block) {
         Title
       } else if level <= 2 && !has_previous {
         Subtitle
@@ -174,7 +202,11 @@ fn semantic_role_of(
         Body
       }
     @ast.Paragraph(_) =>
-      if normalized.has_prefix("note:") ||
+      if format_name == Some("html") &&
+        is_first &&
+        matches_document_title(text, document_title) {
+        Title
+      } else if normalized.has_prefix("note:") ||
         normalized.has_prefix("warning:") ||
         normalized.has_prefix("tip:") {
         Note
@@ -211,6 +243,14 @@ fn semantic_role_of(
         _ => Image
       }
     @ast.HorizontalRule => Separator
+  }
+}
+
+///|
+fn previous_block_is_slide_heading(previous_block : @ast.Block?) -> Bool {
+  match previous_block {
+    Some(block) => looks_like_slide_heading(@ast.plain_text_of_block(block))
+    None => false
   }
 }
 
@@ -257,6 +297,7 @@ fn confidence_of(
 
 ///|
 fn document_provenance_of(metadata : Map[String, String]) -> Provenance {
+  let format_name = metadata.get("format")
   Provenance::{
     source_path: metadata.get("source_path"),
     source_url: metadata.get("source_url"),
@@ -264,7 +305,11 @@ fn document_provenance_of(metadata : Map[String, String]) -> Provenance {
     slide_no: parse_optional_int(metadata.get("slide_no")),
     sheet_name: metadata.get("sheet_name"),
     chapter: metadata.get("chapter"),
-    resource: metadata.get("resource"),
+    resource: default_resource_for_format(
+      format_name,
+      metadata.get("resource"),
+      parse_optional_int(metadata.get("slide_no")),
+    ),
   }
 }
 
@@ -272,19 +317,187 @@ fn document_provenance_of(metadata : Map[String, String]) -> Provenance {
 fn provenance_of(
   metadata : Map[String, String],
   annotation : @ast.BlockAnnotation,
+  block : @ast.Block,
+  text : String,
+  current_page_no : Int?,
+  current_slide_no : Int?,
 ) -> Provenance {
   let base = document_provenance_of(metadata)
-  let source_hint = first_present(annotation.source_hint, base.source_path)
-  let origin_hint = first_present(annotation.origin_hint, base.resource)
-  {
-    ..base,
-    source_path: source_hint,
-    resource: origin_hint,
-    page_no: page_no_from_hints(annotation, base.page_no),
-    slide_no: slide_no_from_hints(annotation, base.slide_no),
+  let format_name = metadata.get("format")
+  let inferred_page_no = page_no_from_hints(annotation, base.page_no)
+  let inferred_slide_no = slide_no_from_hints(annotation, base.slide_no)
+  let slide_no = match inferred_slide_no {
+    Some(value) => Some(value)
+    None =>
+      infer_slide_no_from_block(
+        format_name,
+        block,
+        text,
+        current_slide_no,
+        base.slide_no,
+      )
+  }
+  Provenance::{
+    source_path: first_present(
+      path_like_hint(annotation.source_hint),
+      base.source_path,
+    ),
+    source_url: first_present(
+      url_like_hint(annotation.source_hint),
+      base.source_url,
+    ),
+    resource: resource_from_hints(
+      annotation.origin_hint,
+      annotation.source_hint,
+      default_resource_for_format(format_name, base.resource, slide_no),
+    ),
+    page_no: match inferred_page_no {
+      Some(value) => Some(value)
+      None => first_present_int(current_page_no, base.page_no)
+    },
+    slide_no,
     sheet_name: sheet_name_from_hints(annotation, base.sheet_name),
     chapter: chapter_from_hints(annotation, base.chapter),
   }
+}
+
+///|
+fn default_resource_for_format(
+  format_name : String?,
+  current : String?,
+  slide_no : Int?,
+) -> String? {
+  match format_name {
+    Some("pptx") =>
+      match slide_no {
+        Some(value) => Some("ppt/slides/slide" + value.to_string() + ".xml")
+        None =>
+          match current {
+            Some(value) if value != "" => Some(value)
+            _ => Some("ppt/presentation.xml")
+          }
+      }
+    _ =>
+      match current {
+        Some(value) if value != "" => Some(value)
+        _ =>
+          match format_name {
+            Some("docx") => Some("word/document.xml")
+            Some("html") => Some("html:body")
+            Some("pdf") => Some("pdf/document")
+            _ => None
+          }
+      }
+  }
+}
+
+///|
+fn path_like_hint(text : String?) -> String? {
+  match text {
+    Some(value) => {
+      let trimmed = value.trim().to_string()
+      if trimmed.contains("/") ||
+        trimmed.contains("\\") ||
+        (
+          trimmed.length() >= 2 &&
+          trimmed[1:2].to_string() == ":" &&
+          is_ascii_letter(trimmed[0])
+        ) {
+        Some(trimmed)
+      } else {
+        None
+      }
+    }
+    None => None
+  }
+}
+
+///|
+fn url_like_hint(text : String?) -> String? {
+  match text {
+    Some(value) => {
+      let trimmed = value.trim().to_string()
+      if trimmed.has_prefix("http://") || trimmed.has_prefix("https://") {
+        Some(trimmed)
+      } else {
+        None
+      }
+    }
+    None => None
+  }
+}
+
+///|
+fn resource_from_hints(
+  origin_hint : String?,
+  source_hint : String?,
+  fallback : String?,
+) -> String? {
+  match extract_text_after_prefix(origin_hint, "resource:") {
+    Some(value) => Some(value)
+    None =>
+      match extract_text_after_prefix(source_hint, "resource:") {
+        Some(value) => Some(value)
+        None => fallback
+      }
+  }
+}
+
+///|
+fn infer_slide_no_from_block(
+  format_name : String?,
+  block : @ast.Block,
+  text : String,
+  current_slide_no : Int?,
+  fallback : Int?,
+) -> Int? {
+  match format_name {
+    Some("pptx") =>
+      match slide_heading_number(block, text) {
+        Some(value) => Some(value)
+        None => first_present_int(current_slide_no, fallback)
+      }
+    _ => fallback
+  }
+}
+
+///|
+fn slide_heading_number(block : @ast.Block, text : String) -> Int? {
+  match block {
+    @ast.Heading(_, _) =>
+      if looks_like_slide_heading(text) {
+        parse_decimal_digits(text.trim().to_string()[6:].trim().to_string())
+      } else {
+        None
+      }
+    _ => None
+  }
+}
+
+///|
+fn looks_like_slide_heading(text : String) -> Bool {
+  let trimmed = text.trim().to_string()
+  trimmed.has_prefix("Slide ") &&
+  parse_decimal_digits(trimmed[6:].trim().to_string()) is Some(_)
+}
+
+///|
+fn matches_document_title(text : String, document_title : String?) -> Bool {
+  match document_title {
+    Some(title) =>
+      normalize_title_like_text(text) == normalize_title_like_text(title)
+    None => false
+  }
+}
+
+///|
+fn normalize_title_like_text(text : String) -> String {
+  text.trim().to_lower().to_string()
+}
+
+///|
+fn is_ascii_letter(ch : UInt16) -> Bool {
+  (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
 }
 
 ///|

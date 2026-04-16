@@ -42,6 +42,12 @@ if ($json.metadata.ocr_fallback_used -ne 'true') {
 if ($json.metadata.route_recovery_pages -ne '2') {
     throw "Unexpected PDF recovery page count: $($json.metadata.route_recovery_pages)"
 }
+if ($json.metadata.route_recovery_page_numbers -ne '1,2') {
+    throw "Unexpected PDF recovery page numbers: $($json.metadata.route_recovery_page_numbers)"
+}
+if (-not $json.metadata.route_recovery_reasons.Contains('page 1')) {
+    throw "PDF OCR smoke did not report recovery reasons: $($json.metadata.route_recovery_reasons)"
+}
 if ($json.metadata.pdf_text_fallback_used -ne 'false') {
     throw 'PDF OCR smoke unexpectedly reported text fallback usage.'
 }

@@ -1,18 +1,12 @@
 ///|
-fn reconstruct_pdf_blocks(pages : Array[PdfPageText]) -> PdfStructureResult {
-  reconstruct_pdf_blocks_with_heading_state(pages, false)
-}
 
 ///|
 fn reconstruct_pdf_blocks_with_routes(
   pages : Array[PdfPageText],
   route_plan : PdfRoutePlan,
 ) -> PdfStructureResult {
-  if route_plan.summary.structured_pages == 0 {
-    return reconstruct_pdf_blocks(pages)
-  }
-
   let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
   let mut heading_count = 0
   let mut list_block_count = 0
   let mut list_item_count = 0
@@ -43,6 +37,14 @@ fn reconstruct_pdf_blocks_with_routes(
     for block in result.blocks {
       blocks.push(block)
     }
+    let page_annotations = build_pdf_page_annotations(
+      route,
+      result.blocks,
+      blocks.length() - result.blocks.length(),
+    )
+    for annotation in page_annotations {
+      annotations.push(annotation)
+    }
     heading_count = heading_count + result.summary.heading_count
     list_block_count = list_block_count + result.summary.list_block_count
     list_item_count = list_item_count + result.summary.list_item_count
@@ -57,6 +59,7 @@ fn reconstruct_pdf_blocks_with_routes(
 
   PdfStructureResult::{
     blocks,
+    annotations,
     summary: PdfStructureSummary::{
       heading_count,
       list_block_count,
@@ -121,6 +124,7 @@ fn reconstruct_pdf_blocks_with_heading_state(
   )
   PdfStructureResult::{
     blocks: repaired_blocks,
+    annotations: [],
     summary: summarize_pdf_blocks(repaired_blocks, merged_paragraph_count),
   }
 }
@@ -239,8 +243,103 @@ fn reconstruct_structured_page_blocks(
   let repaired_blocks = repair_pdf_blocks(blocks, first_heading_emitted)
   PdfStructureResult::{
     blocks: repaired_blocks,
+    annotations: [],
     summary: summarize_pdf_blocks(repaired_blocks, 0),
   }
+}
+
+///|
+fn build_pdf_page_annotations(
+  route : PdfPageRoute,
+  blocks : Array[@ast.Block],
+  start_index : Int,
+) -> Array[@ast.BlockAnnotation] {
+  let annotations : Array[@ast.BlockAnnotation] = []
+  let page_has_table = pdf_page_contains_table(blocks)
+  let route_flag_summary = summarize_route_page_flags(route)
+  let provider_resource = "resource: pdf/" + route.provider.label()
+  let mut table_downgrade_marked = false
+  let mut multi_column_marked = false
+
+  for offset, block in blocks {
+    let diagnostics : Array[String] = []
+    if route.provider == OcrRecovery {
+      diagnostics.push(
+        "PDF page was routed to OCR recovery because extracted text looked empty or unusable.",
+      )
+    }
+    if route_flag_summary != "" {
+      diagnostics.push("PDF route flags: " + route_flag_summary)
+    }
+    if route_flags_contain(route.flags, SuspectTable) &&
+      !page_has_table &&
+      !table_downgrade_marked &&
+      pdf_block_can_explain_table_downgrade(block) {
+      diagnostics.push(
+        "Table-like layout was downgraded to paragraph-level content because no stable table grid was reconstructed.",
+      )
+      table_downgrade_marked = true
+    }
+    if route_flags_contain(route.flags, SuspectMultiColumn) &&
+      !multi_column_marked &&
+      pdf_block_is_textual(block) {
+      diagnostics.push(
+        "Multi-column layout heuristics were triggered on this page, so block ordering may still be approximate.",
+      )
+      multi_column_marked = true
+    }
+    annotations.push(@ast.BlockAnnotation::{
+      id: "block-" + (start_index + offset + 1).to_string(),
+      source_hint: Some("page: " + route.page_no.to_string()),
+      origin_hint: Some(provider_resource),
+      diagnostics,
+    })
+  }
+  annotations
+}
+
+///|
+fn pdf_page_contains_table(blocks : Array[@ast.Block]) -> Bool {
+  for block in blocks {
+    if block is @ast.Table(_, _) {
+      return true
+    }
+  }
+  false
+}
+
+///|
+fn pdf_block_can_explain_table_downgrade(block : @ast.Block) -> Bool {
+  match block {
+    @ast.Paragraph(_) => true
+    @ast.List(_, _) => true
+    @ast.CodeBlock(_, _) => true
+    _ => false
+  }
+}
+
+///|
+fn pdf_block_is_textual(block : @ast.Block) -> Bool {
+  match block {
+    @ast.Heading(_, _) => true
+    @ast.Paragraph(_) => true
+    @ast.List(_, _) => true
+    @ast.Quote(_) => true
+    @ast.CodeBlock(_, _) => true
+    _ => false
+  }
+}
+
+///|
+fn summarize_route_page_flags(route : PdfPageRoute) -> String {
+  if route.flags.length() == 0 {
+    return ""
+  }
+  let labels : Array[String] = []
+  for flag in route.flags {
+    labels.push(flag.label())
+  }
+  labels.join(",")
 }
 
 ///|
