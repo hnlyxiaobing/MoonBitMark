@@ -12,6 +12,7 @@
 - send `convert_to_markdown` in preview mode and explicit full mode
 - send `upload_document` and reuse the returned `resource_uri`
 - verify `response_mode=json` returns `structuredContent`
+- verify explanation payloads are present for structured MCP debug tools
 - cover a negative `mode` validation path
 - verify notifications do not emit stdout responses
 

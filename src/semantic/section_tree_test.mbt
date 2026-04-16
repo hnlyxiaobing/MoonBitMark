@@ -138,3 +138,96 @@ test "semantic document tracks pptx slide context and html title paragraphs" {
     content="Some(\"html:body\")",
   )
 }
+
+///|
+test "semantic document uses composite hints to stabilize roles" {
+  let document = @ast.Document::{
+    title: Some("Quarterly Review"),
+    metadata: { "format": "mixed" },
+    blocks: [
+      @ast.Paragraph([@ast.Text("Quarterly Review")]),
+      @ast.Paragraph([@ast.Text("Figure 2. Revenue by quarter")]),
+      @ast.Paragraph([@ast.Text("Speaker note")]),
+      @ast.Paragraph([@ast.Text("Quoted callout")]),
+    ],
+    annotations: [
+      @ast.BlockAnnotation::{
+        id: "h1",
+        source_hint: None,
+        origin_hint: Some(
+          "resource: word/document.xml; kind: title; style: Title",
+        ),
+        diagnostics: [],
+      },
+      @ast.BlockAnnotation::{
+        id: "h2",
+        source_hint: None,
+        origin_hint: Some(
+          "resource: html:figcaption; tag: figcaption; kind: caption",
+        ),
+        diagnostics: [],
+      },
+      @ast.BlockAnnotation::{
+        id: "h3",
+        source_hint: Some("slide: 3"),
+        origin_hint: Some(
+          "resource: ppt/notesSlides/notesSlide3.xml; kind: notes",
+        ),
+        diagnostics: [],
+      },
+      @ast.BlockAnnotation::{
+        id: "h4",
+        source_hint: None,
+        origin_hint: Some("resource: html:blockquote; tag: blockquote"),
+        diagnostics: [],
+      },
+    ],
+  }
+  let semantic = semantic_document_of(document)
+  inspect(semantic.blocks[0].role, content="Title")
+  inspect(semantic.blocks[1].role, content="Caption")
+  inspect(semantic.blocks[2].role, content="Note")
+  inspect(semantic.blocks[2].provenance.slide_no, content="Some(3)")
+  inspect(semantic.blocks[3].role, content="Quote")
+}
+
+///|
+test "semantic document preserves provenance from xlsx epub and pdf hints" {
+  let document = @ast.Document::{
+    title: Some("Sources"),
+    metadata: { "format": "aggregate" },
+    blocks: [
+      @ast.Heading(2, [@ast.Text("Worksheet")]),
+      @ast.Paragraph([@ast.Text("Chapter opener")]),
+      @ast.Paragraph([@ast.Text("Page body")]),
+    ],
+    annotations: [
+      @ast.BlockAnnotation::{
+        id: "p1",
+        source_hint: Some("sheet: Summary"),
+        origin_hint: Some("resource: xl/worksheets/sheet1.xml; kind: sheet"),
+        diagnostics: [],
+      },
+      @ast.BlockAnnotation::{
+        id: "p2",
+        source_hint: Some("chapter: Intro"),
+        origin_hint: Some("resource: OPS/chapter1.xhtml; kind: heading"),
+        diagnostics: [],
+      },
+      @ast.BlockAnnotation::{
+        id: "p3",
+        source_hint: Some("page: 7"),
+        origin_hint: Some("resource: pdf/native_text_fast/page/7; kind: page"),
+        diagnostics: [],
+      },
+    ],
+  }
+  let semantic = semantic_document_of(document)
+  inspect(semantic.blocks[0].provenance.sheet_name, content="Some(\"Summary\")")
+  inspect(semantic.blocks[1].provenance.chapter, content="Some(\"Intro\")")
+  inspect(semantic.blocks[2].provenance.page_no, content="Some(7)")
+  inspect(
+    semantic.blocks[2].provenance.resource,
+    content="Some(\"pdf/native_text_fast/page/7\")",
+  )
+}

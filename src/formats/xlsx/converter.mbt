@@ -39,7 +39,7 @@ pub async fn XlsxConverter::convert(
       // Parse shared strings
       let (shared_strings, helper_warnings_a) = parse_shared_strings(archive)
       // Parse each sheet and generate markdown
-      let (blocks, helper_warnings_b) = generate_blocks(
+      let (blocks, annotations, helper_warnings_b) = generate_blocks_with_annotations(
         archive, sheets, shared_strings,
       )
       let metadata = Map::new()
@@ -61,7 +61,9 @@ pub async fn XlsxConverter::convert(
         warnings.push("No sheets discovered in xl/workbook.xml.")
       }
       let title = @core.file_stem(file_path)
-      let doc = @ast.document(title, metadata, blocks)
+      let doc = @ast.document(title, metadata, blocks).with_annotations(
+        annotations,
+      )
       let rendered_markdown = @ast.render_markdown(doc)
       if rendered_markdown == "" {
         warnings.push("XLSX conversion produced empty Markdown output.")
@@ -250,15 +252,14 @@ fn extract_shared_strings(events : Array[@xml.ParseEvent]) -> Array[String] {
   strings
 }
 
-///|
-/// Generate AST blocks from all sheets
-fn generate_blocks(
+fn generate_blocks_with_annotations(
   archive : @libzip.ZipArchive,
   sheets : Array[(String, String)],
   shared_strings : Array[String],
-) -> (Array[@ast.Block], Array[String]) {
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
   let (sheet_paths, warnings) = parse_sheet_paths(archive)
   let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
 
   let mut idx = 0
   while idx < sheets.length() {
@@ -273,9 +274,13 @@ fn generate_blocks(
           warnings.push(warning)
         }
         blocks.push(@ast.text_heading(2, sheet_name))
+        annotations.push(xlsx_block_annotation(sheet_name, path, "sheet"))
         let normalized_blocks = normalize_sheet_blocks(sheet_blocks, sheet_name)
         for block in normalized_blocks {
           blocks.push(block)
+          annotations.push(
+            xlsx_block_annotation(sheet_name, path, xlsx_block_kind(block)),
+          )
         }
       }
       None =>
@@ -286,7 +291,31 @@ fn generate_blocks(
     idx = idx + 1
   }
 
-  (blocks, warnings)
+  (blocks, annotations, warnings)
+}
+
+///|
+fn xlsx_block_kind(block : @ast.Block) -> String {
+  match block {
+    @ast.Heading(_, _) => "region-heading"
+    @ast.Table(_, _) => "worksheet-table"
+    @ast.Paragraph(_) => "worksheet-paragraph"
+    _ => "worksheet-block"
+  }
+}
+
+///|
+fn xlsx_block_annotation(
+  sheet_name : String,
+  sheet_path : String,
+  kind : String,
+) -> @ast.BlockAnnotation {
+  @ast.BlockAnnotation::{
+    id: "",
+    source_hint: Some("sheet: " + sheet_name),
+    origin_hint: Some("resource: " + sheet_path + "; kind: " + kind),
+    diagnostics: [],
+  }
 }
 
 ///|

@@ -257,7 +257,11 @@ fn build_pdf_page_annotations(
   let annotations : Array[@ast.BlockAnnotation] = []
   let page_has_table = pdf_page_contains_table(blocks)
   let route_flag_summary = summarize_route_page_flags(route)
-  let provider_resource = "resource: pdf/" + route.provider.label()
+  let provider_resource = "resource: pdf/" +
+    route.provider.label() +
+    "/page/" +
+    route.page_no.to_string() +
+    "; kind: page"
   let mut table_downgrade_marked = false
   let mut multi_column_marked = false
 

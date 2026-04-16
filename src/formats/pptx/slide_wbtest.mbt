@@ -113,7 +113,9 @@ test "pptx grouped shapes keep nested text order" {
 
 ///|
 test "pptx related image assets are attached to the slide" {
-  let (blocks, warnings) = extract_related_asset_blocks(
+  let (blocks, annotations, warnings) = extract_related_asset_blocks(
+    1,
+    "ppt/slides/slide1.xml",
     [
       SlideRelationship::{
         target: "ppt/media/image1.png",
@@ -126,5 +128,11 @@ test "pptx related image assets are attached to the slide" {
   inspect(
     @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="#### Slide Assets\n\n![image1.png](moonbitmark-raw://pptx/1)",
+  )
+  inspect(annotations.length(), content="2")
+  inspect(annotations[0].source_hint, content="Some(\"slide: 1\")")
+  inspect(
+    annotations[1].origin_hint,
+    content="Some(\"resource: ppt/media/image1.png; kind: asset\")",
   )
 }

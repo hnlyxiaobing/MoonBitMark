@@ -58,7 +58,12 @@ test "docx ordered list paragraphs are grouped into one markdown list" {
     num_to_abstract: { "42": "7" },
     level_formats: { "7:0": "decimal" },
   }
-  let (blocks, warnings) = extract_blocks_from_docx_xml(xml, {}, numbering, {})
+  let (blocks, _, warnings) = extract_blocks_from_docx_xml_with_annotations(
+    xml,
+    {},
+    numbering,
+    {},
+  )
   inspect(warnings.length(), content="0")
   inspect(
     @ast.render_markdown(@ast.document(None, {}, blocks)),
@@ -79,7 +84,12 @@ test "docx inserts spaces across adjacent runs" {
     num_to_abstract: { "42": "7" },
     level_formats: { "7:0": "decimal" },
   }
-  let (blocks, warnings) = extract_blocks_from_docx_xml(xml, {}, numbering, {})
+  let (blocks, _, warnings) = extract_blocks_from_docx_xml_with_annotations(
+    xml,
+    {},
+    numbering,
+    {},
+  )
   inspect(warnings.length(), content="0")
   inspect(
     @ast.render_markdown(@ast.document(None, {}, blocks)),
@@ -104,7 +114,7 @@ test "docx tables become markdown tables" {
     "</w:tbl>" +
     "</w:body>" +
     "</w:document>"
-  let (blocks, warnings) = extract_blocks_from_docx_xml(
+  let (blocks, _, warnings) = extract_blocks_from_docx_xml_with_annotations(
     xml,
     {},
     DocxNumbering::{ num_to_abstract: {}, level_formats: {} },

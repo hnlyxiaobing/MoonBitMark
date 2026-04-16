@@ -2,6 +2,14 @@
 
 MoonBitMark 是一个用 MoonBit 实现的文档转 Markdown 工具。当前主入口是 CLI；MCP 提供实验性的本地服务接口。
 
+当前共享链路已经包含：
+
+- 统一 engine / converter registry
+- 共享 normalize passes
+- semantic section tree / role / provenance 派生
+- PDF 页级 OCR fallback 恢复链路
+- 面向 MCP 与 eval 的结构化 diagnostics / explanations
+
 ## 支持的输入
 
 - TXT
@@ -65,12 +73,18 @@ _build\native\release\build\cmd\main\main.exe --dump-ast tests\conversion_eval\f
 - `--diag-json`
 - `--detect-only`
 - `--dump-ast`
+- `--dump-raw-ast`
+- `--dump-normalized-ast`
+- `--dump-semantic`
 - `--debug`
 
 其中：
 
 - `--diag-json` 输出结构化 diagnostics、stats 和 metadata。
 - `--dump-ast` 输出统一 AST 的 strict JSON。
+- `--dump-raw-ast` 输出 normalize 之前的原始 AST。
+- `--dump-normalized-ast` 输出共享 normalize passes 之后的 AST。
+- `--dump-semantic` 输出派生得到的 semantic section tree / role / provenance。
 - `--detect-only` 只做检测，不执行转换。
 
 ## 项目结构
@@ -84,6 +98,8 @@ src/
 ├── formats/          各格式转换器
 ├── libzip/           纯 MoonBit ZIP / Deflate
 ├── mcp/              MCP 协议、handler 与传输
+├── normalize/        共享结构归一化 passes
+├── semantic/         Section tree / role / provenance 派生层
 └── xml/              纯 MoonBit XML parser
 
 cmd/
@@ -121,6 +137,7 @@ pwsh -File scripts/benchmark.ps1 -InputPath <input-file> -Iterations 10
 MCP smoke tests：
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_ocr_mcp_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_stdio_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_resources_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_prompts_smoke.ps1
@@ -143,7 +160,7 @@ powershell -ExecutionPolicy Bypass -File tests/ocr/pdf_ocr_force_smoke.ps1
 - CLI 是当前主公共入口。
 - DOCX、PPTX、XLSX、EPUB 的容器解析依赖仓库内的 `libzip + xml`。
 - OCR 是可选能力，依赖 `python scripts/ocr/bridge.py` 和可用 backend。
-- PDF 主路径使用 MoonBit 包 `bobzhang/mbtpdf`，必要时可走 `scripts/pdf/bridge.py` fallback。
+- PDF 主路径使用 MoonBit 包 `bobzhang/mbtpdf`，必要时可按页触发 OCR fallback，并把恢复页信息写回 metadata / diagnostics / eval。
 - MCP 仍是实验性接口，默认以本地 STDIO 或 loopback HTTP 使用为前提。
 - Windows native release 构建依赖 MSVC。
 

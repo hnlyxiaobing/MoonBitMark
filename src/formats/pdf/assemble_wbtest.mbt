@@ -70,7 +70,7 @@ test "pdf assembly metadata records route summary" {
   )
   inspect(
     assembled.document.annotations[0].origin_hint,
-    content="Some(\"resource: pdf/native_text_fast\")",
+    content="Some(\"resource: pdf/native_text_fast/page/1; kind: page\")",
   )
 }
 

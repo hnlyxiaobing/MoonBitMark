@@ -21,6 +21,9 @@ MoonBitMark 的 MCP 接口仍是实验性的，本地可用入口有两个：
 
 - `inspect_document`
 - `convert_to_markdown`
+- `dump_normalized_ast`
+- `extract_structure`
+- `compare_with_baseline`
 - `upload_document`
 - `convert_uploaded_document`
 
@@ -95,6 +98,34 @@ curl http://127.0.0.1:8765/healthz
 4. 需要结构化结果时传 `response_mode=json`
 5. 如果客户端只有字节流，先用 `upload_document` 取得 `resource_uri`
 
+## 结构化输出
+
+当 `response_mode=json` 时，工具会在 `structuredContent` 中返回稳定字段，而不仅是文本 summary。
+
+当前公共字段包括：
+
+- `content`
+- `metadata`
+- `diagnostics`
+- `stats`
+
+调试型工具会额外返回：
+
+- `explanations.headings`
+- `explanations.tables`
+- `explanations.ocr`
+- `explanations.uncertainties`
+- `normalized_document` 或 `semantic_document`
+
+解释性输出当前主要回答：
+
+- 为什么 heading 被判成当前层级
+- 为什么 table 被保留或降级
+- 为什么触发或未触发 OCR
+- 当前有哪些不确定点
+
+`inspect_document` 仍是 preflight 工具，因此它的解释更偏“可能发生什么”；真正的结构解释要以 `convert_to_markdown`、`dump_normalized_ast` 或 `extract_structure` 的结果为准。
+
 ## 不在当前范围内
 
 - SSE
@@ -106,6 +137,7 @@ curl http://127.0.0.1:8765/healthz
 ## 验证
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_ocr_mcp_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_stdio_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_resources_smoke.ps1
 powershell -ExecutionPolicy Bypass -File tests/integration/mcp_prompts_smoke.ps1

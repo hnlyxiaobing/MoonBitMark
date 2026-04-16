@@ -152,6 +152,7 @@ fn semantic_block_of(
     index,
     role: semantic_role_of(
       block,
+      annotation,
       text,
       metadata,
       document_title,
@@ -171,6 +172,7 @@ fn semantic_block_of(
 ///|
 fn semantic_role_of(
   block : @ast.Block,
+  annotation : @ast.BlockAnnotation,
   text : String,
   metadata : Map[String, String],
   document_title : String?,
@@ -180,10 +182,22 @@ fn semantic_role_of(
 ) -> SemanticRole {
   let format_name = metadata.get("format")
   let normalized = text.trim().to_lower().to_string()
+  let style_hint = lowercase_hint_value(annotation, "style:")
+  let tag_hint = lowercase_hint_value(annotation, "tag:")
+  let kind_hint = lowercase_hint_value(annotation, "kind:")
+  let resource_hint = lowercase_hint_value(annotation, "resource:")
   match block {
     @ast.Heading(level, _) =>
-      if format_name == Some("pptx") && looks_like_slide_heading(text) {
+      if is_notes_origin(kind_hint, resource_hint) {
+        Note
+      } else if is_caption_origin(style_hint, tag_hint, kind_hint) {
+        Caption
+      } else if format_name == Some("pptx") && looks_like_slide_heading(text) {
         Separator
+      } else if is_title_origin(style_hint, tag_hint, kind_hint) {
+        Title
+      } else if is_subtitle_origin(style_hint, kind_hint) {
+        Subtitle
       } else if is_first || matches_document_title(text, document_title) {
         Title
       } else if format_name == Some("pptx") &&
@@ -202,7 +216,18 @@ fn semantic_role_of(
         Body
       }
     @ast.Paragraph(_) =>
-      if format_name == Some("html") &&
+      if is_notes_origin(kind_hint, resource_hint) ||
+        is_note_origin(style_hint, kind_hint) {
+        Note
+      } else if is_title_origin(style_hint, tag_hint, kind_hint) {
+        Title
+      } else if is_subtitle_origin(style_hint, kind_hint) {
+        Subtitle
+      } else if is_caption_origin(style_hint, tag_hint, kind_hint) {
+        Caption
+      } else if is_quote_origin(style_hint, tag_hint, kind_hint) {
+        Quote
+      } else if format_name == Some("html") &&
         is_first &&
         matches_document_title(text, document_title) {
         Title
@@ -224,7 +249,10 @@ fn semantic_role_of(
         Body
       }
     @ast.List(_, _) =>
-      if normalized.has_prefix("note:") || normalized.has_prefix("warning:") {
+      if is_notes_origin(kind_hint, resource_hint) ||
+        is_note_origin(style_hint, kind_hint) ||
+        normalized.has_prefix("note:") ||
+        normalized.has_prefix("warning:") {
         Note
       } else {
         Body
@@ -264,6 +292,88 @@ fn paragraph_looks_like_caption(text : String) -> Bool {
   trimmed.has_prefix("Fig. ") ||
   trimmed.has_prefix("Table ") ||
   trimmed.has_prefix("Image ")
+}
+
+///|
+fn lowercase_hint_value(
+  annotation : @ast.BlockAnnotation,
+  prefix : String,
+) -> String? {
+  match extract_text_after_prefix(annotation.origin_hint, prefix) {
+    Some(value) => Some(value.to_lower().to_string())
+    None =>
+      match extract_text_after_prefix(annotation.source_hint, prefix) {
+        Some(value) => Some(value.to_lower().to_string())
+        None => None
+      }
+  }
+}
+
+///|
+fn is_notes_origin(kind_hint : String?, resource_hint : String?) -> Bool {
+  kind_hint == Some("notes") ||
+  (match resource_hint {
+    Some(value) => value.contains("/notesslides/")
+    None => false
+  })
+}
+
+///|
+fn is_caption_origin(
+  style_hint : String?,
+  tag_hint : String?,
+  kind_hint : String?,
+) -> Bool {
+  match style_hint {
+    Some(value) if value.contains("caption") => true
+    _ =>
+      tag_hint == Some("figcaption") ||
+      kind_hint == Some("chart") ||
+      kind_hint == Some("caption")
+  }
+}
+
+///|
+fn is_title_origin(
+  style_hint : String?,
+  tag_hint : String?,
+  kind_hint : String?,
+) -> Bool {
+  match style_hint {
+    Some(value) =>
+      value == "title" ||
+      value.contains("document title") ||
+      value.contains("maintitle")
+    None => tag_hint == Some("title") || kind_hint == Some("title")
+  }
+}
+
+///|
+fn is_subtitle_origin(style_hint : String?, kind_hint : String?) -> Bool {
+  match style_hint {
+    Some(value) => value.contains("subtitle")
+    None => kind_hint == Some("subtitle")
+  }
+}
+
+///|
+fn is_note_origin(style_hint : String?, kind_hint : String?) -> Bool {
+  match style_hint {
+    Some(value) => value.contains("note") || value.contains("footnote")
+    None => kind_hint == Some("note")
+  }
+}
+
+///|
+fn is_quote_origin(
+  style_hint : String?,
+  tag_hint : String?,
+  kind_hint : String?,
+) -> Bool {
+  match style_hint {
+    Some(value) => value.contains("quote")
+    None => tag_hint == Some("blockquote") || kind_hint == Some("quote")
+  }
 }
 
 ///|
@@ -603,16 +713,37 @@ fn extract_number_after_prefix(text : String?, prefix : String) -> Int? {
 fn extract_text_after_prefix(text : String?, prefix : String) -> String? {
   match text {
     Some(value) => {
-      let trimmed = value.trim().to_string()
-      let lowered = trimmed.to_lower().to_string()
-      if lowered.has_prefix(prefix) {
-        Some(trimmed[prefix.length():].trim().to_string())
-      } else {
-        None
+      for segment in split_hint_segments(value) {
+        let trimmed = segment.trim().to_string()
+        let lowered = trimmed.to_lower().to_string()
+        if lowered.has_prefix(prefix) {
+          return Some(trimmed[prefix.length():].trim().to_string())
+        }
       }
+      None
     }
     None => None
   }
+}
+
+///|
+fn split_hint_segments(text : String) -> Array[String] {
+  let segments : Array[String] = []
+  let mut current = ""
+  for ch in text {
+    if ch == ';' || ch == '|' || ch == '\n' {
+      if current.trim() != "" {
+        segments.push(current)
+      }
+      current = ""
+    } else {
+      current = current + ch.to_string()
+    }
+  }
+  if current.trim() != "" {
+    segments.push(current)
+  }
+  segments
 }
 
 ///|

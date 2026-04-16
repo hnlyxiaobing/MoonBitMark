@@ -9,8 +9,10 @@ input path / url
   -> engine.detect
   -> converter registry
   -> concrete converter
-  -> AST / metadata / diagnostics / assets
-  -> renderer / postprocess
+  -> raw AST / metadata / diagnostics / assets
+  -> normalize passes
+  -> semantic document derivation
+  -> renderer / postprocess / MCP debug payloads
   -> ConvertResult
 ```
 
@@ -35,6 +37,8 @@ src/
 ├── formats/          各格式转换器
 ├── libzip/           纯 MoonBit ZIP / Deflate
 ├── mcp/              MCP 协议、handler 与传输
+├── normalize/        heading / list / table / paragraph 等共享归一化
+├── semantic/         Section tree、SemanticRole、Provenance 等语义派生
 └── xml/              纯 MoonBit XML parser
 
 cmd/
@@ -65,6 +69,24 @@ cmd/
 
 只要格式转换器产出相同 AST，最终 Markdown 行为就会收敛到同一套渲染规则。
 
+### `src/normalize/`
+
+负责 converter 之后、renderer 之前的共享结构整理：
+
+- heading 层级修复
+- list 形态归一
+- table 结构修复与降级
+- paragraph whitespace / merge 策略
+
+### `src/semantic/`
+
+负责从统一 AST 派生更强的语义中间层，用于调试、评测和 MCP 展示：
+
+- section tree
+- semantic role
+- provenance
+- block confidence 与诊断聚合
+
 ### `src/capabilities/ocr/`
 
 OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `ConvertContext` 透传给各转换器。
@@ -93,6 +115,7 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 - 默认路径使用 `bobzhang/mbtpdf`。
 - 必要时可以走 Python bridge fallback。
 - OCR 只作为恢复路径介入，不是完整版面理解系统。
+- 当前已经支持页级 OCR fallback 决策链，并把恢复页号、原因和页决策摘要写回 metadata。
 
 ## 外部依赖边界
 
@@ -114,6 +137,25 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 - `MOONBITMARK_MCP_MAX_UPLOAD_BYTES`：限制上传文档大小。
 - `MOONBITMARK_MCP_HTTP_ALLOW_NONLOCAL`：控制 HTTP server 是否允许非 loopback 绑定。
 
+## MCP 展示面
+
+当前 MCP 已暴露以下核心工具：
+
+- `inspect_document`
+- `convert_to_markdown`
+- `dump_normalized_ast`
+- `extract_structure`
+- `compare_with_baseline`
+- `upload_document`
+- `convert_uploaded_document`
+
+其中 `response_mode=json` 会返回 `structuredContent`，包含：
+
+- 主结果内容
+- metadata / diagnostics / stats
+- headings / tables / OCR / uncertainties 的 explanations
+- normalized AST 或 semantic document 等结构化调试对象
+
 ## 验证入口
 
 - 基础验证：`moon check`、`moon test`
@@ -122,3 +164,4 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 - CLI smoke：`tests/cli/*.ps1`
 - OCR smoke：`tests/ocr/*.ps1`
 - MCP smoke：`tests/integration/mcp*_smoke.ps1`
+- OCR + MCP 联合 smoke：`scripts/run_ocr_mcp_smoke.ps1`

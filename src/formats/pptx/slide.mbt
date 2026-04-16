@@ -5,20 +5,21 @@ pub fn process_slides(
   archive : @libzip.ZipArchive,
   slide_refs : Array[SlideRef],
 ) -> (Array[@ast.Block], Array[String]) {
-  process_slides_with_assets(archive, slide_refs, {})
+  let result = process_slides_with_assets_and_annotations(archive, slide_refs, {})
+  (result.0, result.2)
 }
 
-///|
-fn process_slides_with_assets(
+fn process_slides_with_assets_and_annotations(
   archive : @libzip.ZipArchive,
   slide_refs : Array[SlideRef],
   asset_placeholders : Map[String, String],
-) -> (Array[@ast.Block], Array[String]) {
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
   let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
   let warnings : Array[String] = []
 
   if slide_refs.length() == 0 {
-    return (blocks, warnings)
+    return (blocks, annotations, warnings)
   }
 
   for slide_ref in slide_refs {
@@ -40,7 +41,7 @@ fn process_slides_with_assets(
             "Failed to decode slide XML as UTF-8: Slide \{slide_ref.slide_num} (\{slide_path}).",
           )
         } else {
-          let (slide_blocks, slide_warnings) = process_slide_xml_with_relationships(
+          let (slide_blocks, slide_annotations, slide_warnings) = process_slide_xml_with_relationships_with_annotations(
             xml_string,
             slide_ref.slide_num,
             slide_path,
@@ -54,6 +55,9 @@ fn process_slides_with_assets(
           for block in slide_blocks {
             blocks.push(block)
           }
+          for annotation in slide_annotations {
+            annotations.push(annotation)
+          }
         }
       }
       None =>
@@ -63,59 +67,70 @@ fn process_slides_with_assets(
     }
   }
 
-  (blocks, warnings)
+  (blocks, annotations, warnings)
 }
 
-///|
-fn process_slide_xml_with_relationships(
+fn process_slide_xml_with_relationships_with_annotations(
   xml : String,
   slide_num : Int,
   slide_path : String,
   archive : @libzip.ZipArchive,
   relationships : Array[SlideRelationship],
   asset_placeholders : Map[String, String],
-) -> (Array[@ast.Block], Array[String]) {
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
   let (blocks, warning) = process_slide_xml(xml, slide_num, slide_path)
+  let annotations : Array[@ast.BlockAnnotation] = annotate_pptx_blocks(
+    blocks, slide_num, slide_path, "slide",
+  )
   let warnings : Array[String] = []
   match warning {
     Some(message) => {
       warnings.push(message)
-      return (blocks, warnings)
+      return (blocks, annotations, warnings)
     }
     None => ()
   }
 
-  let (chart_blocks, chart_warnings) = extract_related_chart_blocks(
-    archive, slide_path, relationships,
+  let (chart_blocks, chart_annotations, chart_warnings) = extract_related_chart_blocks(
+    archive, slide_num, slide_path, relationships,
   )
   for block in chart_blocks {
     blocks.push(block)
+  }
+  for annotation in chart_annotations {
+    annotations.push(annotation)
   }
   for chart_warning in chart_warnings {
     warnings.push(chart_warning)
   }
 
-  let (note_blocks, note_warnings) = extract_related_note_blocks(
-    archive, slide_path, relationships,
+  let (note_blocks, note_annotations, note_warnings) = extract_related_note_blocks(
+    archive, slide_num, slide_path, relationships,
   )
   for block in note_blocks {
     blocks.push(block)
+  }
+  for annotation in note_annotations {
+    annotations.push(annotation)
   }
   for note_warning in note_warnings {
     warnings.push(note_warning)
   }
 
-  let (asset_blocks, asset_warnings) = extract_related_asset_blocks(
-    relationships, asset_placeholders,
+  let (asset_blocks, asset_annotations, asset_warnings) = extract_related_asset_blocks(
+    slide_num, slide_path, relationships, asset_placeholders,
   )
   for block in asset_blocks {
     blocks.push(block)
+  }
+  for annotation in asset_annotations {
+    annotations.push(annotation)
   }
   for asset_warning in asset_warnings {
     warnings.push(asset_warning)
   }
 
-  (blocks, warnings)
+  (blocks, annotations, warnings)
 }
 
 ///|
@@ -217,10 +232,12 @@ fn slide_relationship_path(slide_path : String) -> String {
 ///|
 fn extract_related_note_blocks(
   archive : @libzip.ZipArchive,
+  slide_num : Int,
   slide_path : String,
   relationships : Array[SlideRelationship],
-) -> (Array[@ast.Block], Array[String]) {
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
   let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
   let warnings : Array[String] = []
   for relationship in relationships {
     if relationship.type_name.has_suffix("/notesSlide") {
@@ -245,6 +262,15 @@ fn extract_related_note_blocks(
             for block in note_blocks {
               blocks.push(block)
             }
+            for
+              annotation in annotate_pptx_blocks(
+                note_blocks,
+                slide_num,
+                relationship.target,
+                "notes",
+              ) {
+              annotations.push(annotation)
+            }
           }
         }
         None =>
@@ -254,7 +280,7 @@ fn extract_related_note_blocks(
       }
     }
   }
-  (blocks, warnings)
+  (blocks, annotations, warnings)
 }
 
 ///|
@@ -322,10 +348,12 @@ fn extract_notes_paragraphs(events : Array[@xml.ParseEvent]) -> Array[String] {
 ///|
 fn extract_related_chart_blocks(
   archive : @libzip.ZipArchive,
+  slide_num : Int,
   slide_path : String,
   relationships : Array[SlideRelationship],
-) -> (Array[@ast.Block], Array[String]) {
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
   let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
   let warnings : Array[String] = []
   let mut chart_index = 1
   for relationship in relationships {
@@ -354,6 +382,15 @@ fn extract_related_chart_blocks(
                 for block in chart_blocks {
                   blocks.push(block)
                 }
+                for
+                  annotation in annotate_pptx_blocks(
+                    chart_blocks,
+                    slide_num,
+                    relationship.target,
+                    "chart",
+                  ) {
+                  annotations.push(annotation)
+                }
                 chart_index = chart_index + 1
               }
               None => ()
@@ -367,15 +404,18 @@ fn extract_related_chart_blocks(
       }
     }
   }
-  (blocks, warnings)
+  (blocks, annotations, warnings)
 }
 
 ///|
 fn extract_related_asset_blocks(
+  slide_num : Int,
+  slide_path : String,
   relationships : Array[SlideRelationship],
   asset_placeholders : Map[String, String],
-) -> (Array[@ast.Block], Array[String]) {
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
   let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
   let warnings : Array[String] = []
   let seen_targets : Array[String] = []
   for relationship in relationships {
@@ -390,6 +430,9 @@ fn extract_related_asset_blocks(
       Some(placeholder) => {
         if blocks.length() == 0 {
           blocks.push(@ast.text_heading(4, "Slide Assets"))
+          annotations.push(
+            pptx_block_annotation(slide_num, slide_path, "asset-index"),
+          )
         }
         if pptx_relationship_is_image(relationship) {
           blocks.push(
@@ -407,6 +450,9 @@ fn extract_related_asset_blocks(
             ]),
           )
         }
+        annotations.push(
+          pptx_block_annotation(slide_num, relationship.target, "asset"),
+        )
       }
       None =>
         warnings.push(
@@ -415,7 +461,35 @@ fn extract_related_asset_blocks(
         )
     }
   }
-  (blocks, warnings)
+  (blocks, annotations, warnings)
+}
+
+///|
+fn annotate_pptx_blocks(
+  blocks : Array[@ast.Block],
+  slide_num : Int,
+  resource : String,
+  kind : String,
+) -> Array[@ast.BlockAnnotation] {
+  let annotations : Array[@ast.BlockAnnotation] = []
+  for _ in blocks {
+    annotations.push(pptx_block_annotation(slide_num, resource, kind))
+  }
+  annotations
+}
+
+///|
+fn pptx_block_annotation(
+  slide_num : Int,
+  resource : String,
+  kind : String,
+) -> @ast.BlockAnnotation {
+  @ast.BlockAnnotation::{
+    id: "",
+    source_hint: Some("slide: " + slide_num.to_string()),
+    origin_hint: Some("resource: " + resource + "; kind: " + kind),
+    diagnostics: [],
+  }
 }
 
 ///|

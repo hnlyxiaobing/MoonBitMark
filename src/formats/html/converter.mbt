@@ -1,6 +1,9 @@
 // HTML Converter - Converts HTML files to Markdown (with URL support)
 
 ///|
+type HtmlAnnotatedBlock = (@ast.Block, @ast.BlockAnnotation)
+
+///|
 /// Converter for HTML files
 pub(all) struct HtmlConverter {
   dummy : Int
@@ -172,10 +175,10 @@ fn html_to_document_with_base(
   base_url : String?,
 ) -> @ast.Document {
   let blocks = prepend_html_title_block(
-    html_to_blocks_with_base(html, base_url),
+    html_to_annotated_blocks_with_base(html, base_url),
     title,
   )
-  @ast.document(title, {}, blocks)
+  build_html_document(title, blocks)
 }
 
 ///|
@@ -189,6 +192,19 @@ fn html_to_blocks_with_base(
   base_url : String?,
 ) -> Array[@ast.Block] {
   let blocks : Array[@ast.Block] = []
+  for pair in html_to_annotated_blocks_with_base(html, base_url) {
+    blocks.push(pair.0)
+  }
+  blocks
+}
+
+///|
+fn html_to_annotated_blocks_with_base(
+  html : String,
+  base_url : String?,
+) -> Array[HtmlAnnotatedBlock] {
+  let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
   let body = preprocess_html(html)
   let mut remaining = body
   while remaining.trim() != "" {
@@ -202,20 +218,22 @@ fn html_to_blocks_with_base(
       None => ()
     }
     match parse_next_html_block(remaining, base_url) {
-      Some((block, rest)) => {
-        blocks.push(block)
+      Some((pair, rest)) => {
+        blocks.push(pair.0)
+        annotations.push(pair.1)
         remaining = rest
       }
       None => {
         let paragraph = plain_text_fragment(remaining, base_url)
         if paragraph != "" {
           blocks.push(@ast.text_paragraph(paragraph))
+          annotations.push(html_block_annotation("p"))
         }
         remaining = ""
       }
     }
   }
-  blocks
+  zip_html_blocks(blocks, annotations)
 }
 
 ///|
@@ -239,71 +257,110 @@ fn extract_body_html(html : String) -> String {
 fn parse_next_html_block(
   html : String,
   base_url : String?,
-) -> (@ast.Block, String)? {
+) -> (HtmlAnnotatedBlock, String)? {
   if html == "" {
     return None
   }
   if html.has_prefix("<h1") {
-    return parse_heading_html_block(html, 1, base_url)
+    return annotate_html_parse_result(
+      parse_heading_html_block(html, 1, base_url),
+      "h1",
+    )
   }
   if html.has_prefix("<h2") {
-    return parse_heading_html_block(html, 2, base_url)
+    return annotate_html_parse_result(
+      parse_heading_html_block(html, 2, base_url),
+      "h2",
+    )
   }
   if html.has_prefix("<h3") {
-    return parse_heading_html_block(html, 3, base_url)
+    return annotate_html_parse_result(
+      parse_heading_html_block(html, 3, base_url),
+      "h3",
+    )
   }
   if html.has_prefix("<h4") {
-    return parse_heading_html_block(html, 4, base_url)
+    return annotate_html_parse_result(
+      parse_heading_html_block(html, 4, base_url),
+      "h4",
+    )
   }
   if html.has_prefix("<h5") {
-    return parse_heading_html_block(html, 5, base_url)
+    return annotate_html_parse_result(
+      parse_heading_html_block(html, 5, base_url),
+      "h5",
+    )
   }
   if html.has_prefix("<h6") {
-    return parse_heading_html_block(html, 6, base_url)
+    return annotate_html_parse_result(
+      parse_heading_html_block(html, 6, base_url),
+      "h6",
+    )
   }
   if html.has_prefix("<pre") {
-    return parse_pre_html_block(html)
+    return annotate_html_parse_result(parse_pre_html_block(html), "pre")
   }
   if html.has_prefix("<p") {
-    return parse_paragraph_html_block(html, "p", base_url)
+    return annotate_html_parse_result(
+      parse_paragraph_html_block(html, "p", base_url),
+      "p",
+    )
   }
   if html.has_prefix("<figcaption") {
-    return parse_paragraph_html_block(html, "figcaption", base_url)
+    return annotate_html_parse_result(
+      parse_paragraph_html_block(html, "figcaption", base_url),
+      "figcaption",
+    )
   }
   if html.has_prefix("<img") {
-    return parse_image_html_block(html, base_url)
+    return annotate_html_parse_result(
+      parse_image_html_block(html, base_url),
+      "img",
+    )
   }
   if html.has_prefix("<blockquote") {
-    return parse_blockquote_html_block(html, base_url)
+    return annotate_html_parse_result(
+      parse_blockquote_html_block(html, base_url),
+      "blockquote",
+    )
   }
   if html.has_prefix("<ul") {
-    return parse_list_html_block(html, false, base_url)
+    return annotate_html_parse_result(
+      parse_list_html_block(html, false, base_url),
+      "ul",
+    )
   }
   if html.has_prefix("<ol") {
-    return parse_list_html_block(html, true, base_url)
+    return annotate_html_parse_result(
+      parse_list_html_block(html, true, base_url),
+      "ol",
+    )
   }
   if html.has_prefix("<table") {
-    return parse_table_html_block(html, base_url)
+    return annotate_html_parse_result(
+      parse_table_html_block(html, base_url),
+      "table",
+    )
   }
   if html.has_prefix("<hr") {
     let rest = match find_from(html, ">", 0) {
       Some(end) => html[end + 1:].to_string()
       None => ""
     }
-    return Some((@ast.HorizontalRule, rest))
+    return Some(((@ast.HorizontalRule, html_block_annotation("hr")), rest))
   }
   None
 }
 
 ///|
 fn prepend_html_title_block(
-  blocks : Array[@ast.Block],
+  blocks : Array[HtmlAnnotatedBlock],
   title : String?,
-) -> Array[@ast.Block] {
-  let result : Array[@ast.Block] = []
+) -> Array[HtmlAnnotatedBlock] {
+  let result : Array[HtmlAnnotatedBlock] = []
   match title {
     Some(value) if !leading_html_block_matches_title(blocks, value) =>
-      result.push(@ast.text_paragraph(value))
+      result.push((@ast.text_paragraph(value), html_block_annotation("title")))
     _ => ()
   }
   for block in blocks {
@@ -314,12 +371,12 @@ fn prepend_html_title_block(
 
 ///|
 fn leading_html_block_matches_title(
-  blocks : Array[@ast.Block],
+  blocks : Array[HtmlAnnotatedBlock],
   title : String,
 ) -> Bool {
   match blocks {
     [first, ..] =>
-      normalize_html_block_text(html_block_text(first)) ==
+      normalize_html_block_text(html_block_text(first.0)) ==
       normalize_html_block_text(title)
     [] => false
   }
@@ -339,6 +396,56 @@ fn html_block_text(block : @ast.Block) -> String {
 ///|
 fn normalize_html_block_text(text : String) -> String {
   text.trim().to_lower().to_string()
+}
+
+///|
+fn annotate_html_parse_result(
+  parsed : (@ast.Block, String)?,
+  tag : String,
+) -> (HtmlAnnotatedBlock, String)? {
+  match parsed {
+    Some((block, rest)) => Some(((block, html_block_annotation(tag)), rest))
+    None => None
+  }
+}
+
+///|
+fn html_block_annotation(tag : String) -> @ast.BlockAnnotation {
+  @ast.BlockAnnotation::{
+    id: "",
+    source_hint: None,
+    origin_hint: Some("resource: html:" + tag + "; tag: " + tag),
+    diagnostics: [],
+  }
+}
+
+///|
+fn zip_html_blocks(
+  blocks : Array[@ast.Block],
+  annotations : Array[@ast.BlockAnnotation],
+) -> Array[HtmlAnnotatedBlock] {
+  let pairs : Array[HtmlAnnotatedBlock] = []
+  let normalized = @ast.normalize_annotations(annotations, blocks.length())
+  let mut index = 0
+  while index < blocks.length() {
+    pairs.push((blocks[index], normalized[index]))
+    index = index + 1
+  }
+  pairs
+}
+
+///|
+fn build_html_document(
+  title : String?,
+  annotated_blocks : Array[HtmlAnnotatedBlock],
+) -> @ast.Document {
+  let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
+  for pair in annotated_blocks {
+    blocks.push(pair.0)
+    annotations.push(pair.1)
+  }
+  @ast.document(title, {}, blocks).with_annotations(annotations)
 }
 
 ///|

@@ -66,7 +66,7 @@ pub async fn PptxConverter::convert(
           let (assets, asset_warnings, asset_placeholders) = extract_pptx_assets(
             archive,
           )
-          let (slide_blocks, slide_warnings) = process_slides_with_assets(
+          let (slide_blocks, slide_annotations, slide_warnings) = process_slides_with_assets_and_annotations(
             archive, slide_ids, asset_placeholders,
           )
           let metadata = Map::new()
@@ -92,7 +92,9 @@ pub async fn PptxConverter::convert(
             available=ocr_provider != None,
           )
           let title = @core.file_stem(file_path)
-          let doc = @ast.document(title, metadata, slide_blocks)
+          let doc = @ast.document(title, metadata, slide_blocks).with_annotations(
+            slide_annotations,
+          )
           let rendered_markdown = @ast.render_markdown(doc)
           let markdown_with_assets = append_pptx_asset_gallery(
             rendered_markdown, assets, ocr_appendix,

@@ -60,7 +60,7 @@ pub async fn DocxConverter::convert(
                 ),
               )
           }
-          let (content_blocks, docx_warnings) = extract_blocks_from_docx_xml(
+          let (content_blocks, content_annotations, docx_warnings) = extract_blocks_from_docx_xml_with_annotations(
             xml_string, relationships, numbering, asset_placeholders,
           )
           let metadata = Map::new()
@@ -96,7 +96,9 @@ pub async fn DocxConverter::convert(
           let blocks = append_docx_asset_blocks(
             content_blocks, assets, ocr_blocks,
           )
-          let doc = @ast.document(title, metadata, blocks)
+          let doc = @ast.document(title, metadata, blocks).with_annotations(
+            @ast.normalize_annotations(content_annotations, blocks.length()),
+          )
           let rendered_markdown = @ast.render_markdown(doc)
           @core.ConvertResult::markdown_only(rendered_markdown, "docx")
           .with_title(title)
@@ -133,13 +135,12 @@ pub async fn DocxConverter::convert(
   }
 }
 
-///|
-fn extract_blocks_from_docx_xml(
+fn extract_blocks_from_docx_xml_with_annotations(
   xml : String,
   relationships : Map[String, String],
   numbering : DocxNumbering,
   asset_placeholders : Map[String, String],
-) -> (Array[@ast.Block], Array[String]) raise {
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) raise {
   match @xml.parse_xml(xml) {
     Ok(events) =>
       process_docx_events(events, relationships, numbering, asset_placeholders)
@@ -195,7 +196,9 @@ priv struct DocxContext {
   mut current_table_row : Array[String]
   mut current_table_rows : Array[Array[String]]
   blocks : Array[@ast.Block]
+  annotations : Array[@ast.BlockAnnotation]
   warnings : Array[String]
+  mut current_block_resource : String?
 }
 
 ///|
@@ -204,7 +207,7 @@ fn process_docx_events(
   relationships : Map[String, String],
   numbering : DocxNumbering,
   asset_placeholders : Map[String, String],
-) -> (Array[@ast.Block], Array[String]) {
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
   let ctx = DocxContext::{
     relationships,
     numbering,
@@ -234,7 +237,9 @@ fn process_docx_events(
     current_table_row: [],
     current_table_rows: [],
     blocks: [],
+    annotations: [],
     warnings: [],
+    current_block_resource: None,
   }
 
   for event in events {
@@ -251,7 +256,7 @@ fn process_docx_events(
 
   finalize_docx_paragraph(ctx)
   flush_docx_pending_list(ctx)
-  (ctx.blocks, ctx.warnings)
+  (ctx.blocks, ctx.annotations, ctx.warnings)
 }
 
 ///|
@@ -370,6 +375,7 @@ fn begin_docx_paragraph(ctx : DocxContext) -> Unit {
   ctx.current_list_level = 0
   ctx.current_hyperlink = None
   ctx.pending_image_alt = None
+  ctx.current_block_resource = None
 }
 
 ///|
@@ -393,11 +399,13 @@ fn finalize_docx_paragraph(ctx : DocxContext) -> Unit {
       append_docx_table_cell_paragraph(ctx, ctx.current_inlines)
     } else if ctx.heading_level > 0 {
       flush_docx_pending_list(ctx)
-      ctx.blocks.push(
+      push_docx_block(
+        ctx,
         @ast.text_heading(
           ctx.heading_level,
           render_docx_heading_text(ctx.current_inlines),
         ),
+        "heading",
       )
     } else if ctx.in_list {
       append_docx_list_item(
@@ -409,12 +417,14 @@ fn finalize_docx_paragraph(ctx : DocxContext) -> Unit {
     } else if ctx.blocks.length() == 0 &&
       docx_is_promotable_title(ctx.current_inlines) {
       flush_docx_pending_list(ctx)
-      ctx.blocks.push(
+      push_docx_block(
+        ctx,
         @ast.text_heading(1, render_docx_heading_text(ctx.current_inlines)),
+        "title",
       )
     } else {
       flush_docx_pending_list(ctx)
-      ctx.blocks.push(@ast.Paragraph(ctx.current_inlines))
+      push_docx_block(ctx, @ast.Paragraph(ctx.current_inlines), "paragraph")
     }
   }
   ctx.in_paragraph = false
@@ -454,7 +464,11 @@ fn append_docx_list_item(
 ///|
 fn flush_docx_pending_list(ctx : DocxContext) -> Unit {
   if ctx.has_pending_list && ctx.pending_list_items.length() > 0 {
-    ctx.blocks.push(@ast.List(ctx.pending_list_items, ctx.pending_list_ordered))
+    push_docx_block(
+      ctx,
+      @ast.List(ctx.pending_list_items, ctx.pending_list_ordered),
+      "list",
+    )
   }
   ctx.pending_list_items = []
   ctx.has_pending_list = false
@@ -737,6 +751,7 @@ fn handle_docx_blip(ctx : DocxContext, attrs : Map[String, String]) -> Unit {
                 _ => @core.file_name_only(target)
               }
               ctx.current_inlines.push(@ast.Image(alt, placeholder))
+              ctx.current_block_resource = Some(target)
               ctx.pending_image_alt = None
             }
             None =>
@@ -963,6 +978,7 @@ fn begin_docx_table(ctx : DocxContext) -> Unit {
   ctx.current_cell_paragraphs = []
   ctx.current_table_row = []
   ctx.current_table_rows = []
+  ctx.current_block_resource = None
 }
 
 ///|
@@ -1017,13 +1033,46 @@ fn finish_docx_table(ctx : DocxContext) -> Unit {
   }
   let rows = docx_compact_table_rows(ctx.current_table_rows)
   if rows.length() > 0 {
-    ctx.blocks.push(docx_table_block(rows))
+    push_docx_block(ctx, docx_table_block(rows), "table")
   }
   ctx.in_table = false
   ctx.in_table_cell = false
   ctx.current_cell_paragraphs = []
   ctx.current_table_row = []
   ctx.current_table_rows = []
+}
+
+///|
+fn push_docx_block(
+  ctx : DocxContext,
+  block : @ast.Block,
+  kind : String,
+) -> Unit {
+  ctx.blocks.push(block)
+  ctx.annotations.push(docx_block_annotation(ctx, kind))
+  ctx.current_block_resource = None
+}
+
+///|
+fn docx_block_annotation(
+  ctx : DocxContext,
+  kind : String,
+) -> @ast.BlockAnnotation {
+  let resource = match ctx.current_block_resource {
+    Some(value) if value != "" => value
+    _ => "word/document.xml"
+  }
+  let details : Array[String] = ["resource: " + resource, "kind: " + kind]
+  match ctx.current_paragraph_style {
+    Some(style) if style != "" => details.push("style: " + style)
+    _ => ()
+  }
+  @ast.BlockAnnotation::{
+    id: "",
+    source_hint: None,
+    origin_hint: Some(details.join("; ")),
+    diagnostics: [],
+  }
 }
 
 ///|

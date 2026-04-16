@@ -34,9 +34,15 @@ pub async fn EpubConverter::convert(
             Some(opf_data) => {
               let epub_pkg = parse_opf(opf_data)
               let warnings : Array[String] = []
-              let blocks = build_epub_blocks(epub_pkg.metadata)
+              let (blocks, annotations) = build_epub_blocks_with_annotations(
+                epub_pkg.metadata,
+                opf_path,
+              )
               if epub_has_navigation_manifest(epub_pkg.manifest) {
                 blocks.push(@ast.text_heading(2, "table of contents"))
+                annotations.push(
+                  epub_block_annotation(None, opf_path, "table-of-contents"),
+                )
               }
 
               // Process spine items
@@ -46,10 +52,22 @@ pub async fn EpubConverter::convert(
                   Some(manifest_item) => {
                     let full_path = @core.join_path(opf_dir, manifest_item.href)
                     match @libzip.read_file_entry_decompressed(zip, full_path) {
-                      Some(content) =>
-                        for block in parse_xhtml_blocks(content, full_path) {
+                      Some(content) => {
+                        let spine_blocks = parse_xhtml_blocks(
+                          content, full_path,
+                        )
+                        let chapter = epub_chapter_hint(spine_blocks)
+                        for block in spine_blocks {
                           blocks.push(block)
+                          annotations.push(
+                            epub_block_annotation(
+                              chapter,
+                              full_path,
+                              epub_block_kind(block),
+                            ),
+                          )
                         }
+                      }
                       None =>
                         warnings.push(
                           "Missing spine resource in archive: " + full_path,
@@ -93,7 +111,13 @@ pub async fn EpubConverter::convert(
               let final_blocks = append_epub_asset_blocks(
                 blocks, assets, ocr_blocks,
               )
-              let doc = @ast.document(title, metadata, final_blocks)
+              let final_annotations = @ast.normalize_annotations(
+                annotations,
+                final_blocks.length(),
+              )
+              let doc = @ast.document(title, metadata, final_blocks).with_annotations(
+                final_annotations,
+              )
               let rendered_markdown = @ast.render_markdown(doc)
               @core.ConvertResult::markdown_only(rendered_markdown, "epub")
               .with_title(title)
@@ -317,14 +341,67 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
   }
 }
 
-///|
-fn build_epub_blocks(metadata : EpubMetadata) -> Array[@ast.Block] {
+fn build_epub_blocks_with_annotations(
+  metadata : EpubMetadata,
+  resource : String,
+) -> (Array[@ast.Block], Array[@ast.BlockAnnotation]) {
   let blocks : Array[@ast.Block] = []
+  let annotations : Array[@ast.BlockAnnotation] = []
   match metadata.title {
-    Some(title) if title != "" => blocks.push(@ast.text_heading(1, title))
+    Some(title) if title != "" => {
+      blocks.push(@ast.text_heading(1, title))
+      annotations.push(
+        epub_block_annotation(Some(title), resource, "metadata-title"),
+      )
+    }
     _ => ()
   }
-  blocks
+  (blocks, annotations)
+}
+
+///|
+fn epub_block_kind(block : @ast.Block) -> String {
+  match block {
+    @ast.Heading(_, _) => "chapter-heading"
+    @ast.Table(_, _) => "chapter-table"
+    @ast.List(_, _) => "chapter-list"
+    @ast.Block::Image(_, _, _) => "chapter-image"
+    _ => "chapter-block"
+  }
+}
+
+///|
+fn epub_chapter_hint(blocks : Array[@ast.Block]) -> String? {
+  for block in blocks {
+    match block {
+      @ast.Heading(_, inlines) => {
+        let title = normalize_epub_text(@ast.plain_text_of_inlines(inlines))
+        if title != "" {
+          return Some(title)
+        }
+      }
+      _ => ()
+    }
+  }
+  None
+}
+
+///|
+fn epub_block_annotation(
+  chapter : String?,
+  resource : String,
+  kind : String,
+) -> @ast.BlockAnnotation {
+  let source_hint = match chapter {
+    Some(value) if value != "" => Some("chapter: " + value)
+    _ => None
+  }
+  @ast.BlockAnnotation::{
+    id: "",
+    source_hint,
+    origin_hint: Some("resource: " + resource + "; kind: " + kind),
+    diagnostics: [],
+  }
 }
 
 ///|
