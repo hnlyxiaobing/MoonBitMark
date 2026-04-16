@@ -13,6 +13,7 @@
 - send `upload_document` and reuse the returned `resource_uri`
 - verify `response_mode=json` returns `structuredContent`
 - verify explanation payloads are present for structured MCP debug tools
+- verify explanation payloads include normalizer traces and compare debug sections on the relevant tools
 - cover a negative `mode` validation path
 - verify notifications do not emit stdout responses
 

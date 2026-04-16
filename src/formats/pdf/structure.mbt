@@ -34,11 +34,16 @@ fn reconstruct_pdf_blocks_with_routes(
       _ =>
         match route.provider {
           NativeTextStructured =>
-            reconstruct_structured_page_blocks(page, route, first_heading_emitted)
+            reconstruct_structured_page_blocks(
+              page, route, first_heading_emitted,
+            )
           OcrRecovery =>
             reconstruct_ocr_recovery_page_blocks(page, first_heading_emitted)
           _ =>
-            reconstruct_pdf_blocks_with_heading_state([page], first_heading_emitted)
+            reconstruct_pdf_blocks_with_heading_state(
+              [page],
+              first_heading_emitted,
+            )
         }
     }
 
@@ -111,8 +116,10 @@ fn reconstruct_layout_page_blocks(
           continue
         }
 
-        if (route.provider == OcrRecovery ||
-            route_flags_contain(route.flags, SuspectTable)) &&
+        if (
+            route.provider == OcrRecovery ||
+            route_flags_contain(route.flags, SuspectTable)
+          ) &&
           !looks_like_table_caption(chunk) {
           match try_parse_layout_table(lines, index) {
             Some((headers, rows, next_index)) => {
@@ -130,7 +137,9 @@ fn reconstruct_layout_page_blocks(
             let ordered = item.ordered
             let mut next_index = index + 1
             while next_index < lines.length() {
-              let next_chunk = collapse_inline_whitespace(lines[next_index].text)
+              let next_chunk = collapse_inline_whitespace(
+                lines[next_index].text,
+              )
               if next_chunk == "" {
                 next_index = next_index + 1
                 continue
@@ -153,7 +162,13 @@ fn reconstruct_layout_page_blocks(
         let tail = collect_layout_paragraph(lines, index, route)
         let text = tail.0
         if text != "" {
-          if should_promote_to_heading([page], 0, index, text, current_heading_seen) {
+          if should_promote_to_heading(
+              [page],
+              0,
+              index,
+              text,
+              current_heading_seen,
+            ) {
             let level = if current_heading_seen { 2 } else { 1 }
             blocks.push(@ast.text_heading(level, text))
             current_heading_seen = true
@@ -175,8 +190,13 @@ fn reconstruct_layout_page_blocks(
       match route.provider {
         NativeTextStructured =>
           reconstruct_structured_page_blocks(page, route, first_heading_emitted)
-        OcrRecovery => reconstruct_ocr_recovery_page_blocks(page, first_heading_emitted)
-        _ => reconstruct_pdf_blocks_with_heading_state([page], first_heading_emitted)
+        OcrRecovery =>
+          reconstruct_ocr_recovery_page_blocks(page, first_heading_emitted)
+        _ =>
+          reconstruct_pdf_blocks_with_heading_state(
+            [page],
+            first_heading_emitted,
+          )
       }
   }
 }
@@ -490,8 +510,10 @@ fn layout_line_starts_new_block(
   parse_list_item(chunk) is Some(_) ||
   looks_like_table_caption(chunk) ||
   (
-    (route.provider == OcrRecovery ||
-      route_flags_contain(route.flags, SuspectTable)) &&
+    (
+      route.provider == OcrRecovery ||
+      route_flags_contain(route.flags, SuspectTable)
+    ) &&
     try_parse_layout_table(lines, index) is Some(_)
   )
 }
@@ -1124,11 +1146,18 @@ fn try_parse_layout_table(
     return None
   }
 
-  let headers = flatten_layout_table_headers(matrix, anchors.length(), header_rows)
+  let headers = flatten_layout_table_headers(
+    matrix,
+    anchors.length(),
+    header_rows,
+  )
   let rows : Array[Array[String]] = []
   let mut row_index = header_rows
   while row_index < matrix.length() {
-    let normalized = normalize_layout_table_row(matrix[row_index], anchors.length())
+    let normalized = normalize_layout_table_row(
+      matrix[row_index],
+      anchors.length(),
+    )
     if row_has_any_text(normalized) {
       rows.push(normalized)
     }
@@ -1138,13 +1167,20 @@ fn try_parse_layout_table(
     return None
   }
 
-  Some((headers, rows, index))
+  let compacted = compact_layout_table_columns(headers, rows)
+  if compacted.0.length() < 2 || compacted.1.length() == 0 {
+    return None
+  }
+
+  Some((compacted.0, compacted.1, index))
 }
 
 ///|
 fn looks_like_layout_table_row(line : PdfLayoutLine) -> Bool {
   let text = collapse_inline_whitespace(line.text)
-  if text == "" || looks_like_table_caption(text) || looks_like_figure_caption(text) {
+  if text == "" ||
+    looks_like_table_caption(text) ||
+    looks_like_figure_caption(text) {
     return false
   }
   if line.words.length() < 2 {
@@ -1293,7 +1329,11 @@ fn detect_layout_table_header_rows(rows : Array[Array[String]]) -> Int {
     header_rows = header_rows + 1
     index = index + 1
   }
-  if header_rows == 0 { 1 } else { header_rows }
+  if header_rows == 0 {
+    1
+  } else {
+    header_rows
+  }
 }
 
 ///|
@@ -1326,7 +1366,8 @@ fn flatten_layout_table_headers(
     let mut row = 0
     while row < header_rows {
       let cell = collapse_inline_whitespace(rows[row][column])
-      if cell != "" && (parts.length() == 0 || parts[parts.length() - 1] != cell) {
+      if cell != "" &&
+        (parts.length() == 0 || parts[parts.length() - 1] != cell) {
         parts.push(cell)
       }
       row = row + 1
@@ -1358,6 +1399,72 @@ fn normalize_layout_table_row(
 }
 
 ///|
+fn compact_layout_table_columns(
+  headers : Array[String],
+  rows : Array[Array[String]],
+) -> (Array[String], Array[Array[String]]) {
+  let keep_indices : Array[Int] = []
+  let mut index = 0
+  while index < headers.length() {
+    if !should_remove_empty_spanned_header_column(headers, rows, index) {
+      keep_indices.push(index)
+    }
+    index = index + 1
+  }
+  if keep_indices.length() == headers.length() {
+    return (headers, rows)
+  }
+
+  let next_headers : Array[String] = []
+  for keep in keep_indices {
+    next_headers.push(headers[keep])
+  }
+  let next_rows : Array[Array[String]] = []
+  for row in rows {
+    let next_row : Array[String] = []
+    for keep in keep_indices {
+      next_row.push(row[keep])
+    }
+    next_rows.push(next_row)
+  }
+  (next_headers, next_rows)
+}
+
+///|
+fn should_remove_empty_spanned_header_column(
+  headers : Array[String],
+  rows : Array[Array[String]],
+  index : Int,
+) -> Bool {
+  if index <= 0 || index + 1 >= headers.length() {
+    return false
+  }
+  let current = collapse_inline_whitespace(headers[index])
+  if current == "" || current.contains(" / ") {
+    return false
+  }
+  if !layout_table_column_is_empty(rows, index) {
+    return false
+  }
+  let left = collapse_inline_whitespace(headers[index - 1])
+  let right = collapse_inline_whitespace(headers[index + 1])
+  left.has_prefix(current + " / ") && right.has_prefix(current + " / ")
+}
+
+///|
+fn layout_table_column_is_empty(
+  rows : Array[Array[String]],
+  index : Int,
+) -> Bool {
+  for row in rows {
+    if collapse_inline_whitespace(row[index]) != "" {
+      return false
+    }
+  }
+  true
+}
+
+///|
 fn row_has_any_text(row : Array[String]) -> Bool {
   for cell in row {
     if collapse_inline_whitespace(cell) != "" {
@@ -1369,7 +1476,11 @@ fn row_has_any_text(row : Array[String]) -> Bool {
 
 ///|
 fn abs_int(value : Int) -> Int {
-  if value < 0 { -value } else { value }
+  if value < 0 {
+    -value
+  } else {
+    value
+  }
 }
 
 ///|

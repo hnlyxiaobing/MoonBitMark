@@ -361,8 +361,20 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 760,
         bottom: 160,
         words: [
-          PdfLayoutWord::{ text: "Quarter", left: 90, top: 120, right: 240, bottom: 160 },
-          PdfLayoutWord::{ text: "Metrics", left: 360, top: 120, right: 760, bottom: 160 },
+          PdfLayoutWord::{
+            text: "Quarter",
+            left: 90,
+            top: 120,
+            right: 240,
+            bottom: 160,
+          },
+          PdfLayoutWord::{
+            text: "Metrics",
+            left: 360,
+            top: 120,
+            right: 760,
+            bottom: 160,
+          },
         ],
       },
       PdfLayoutLine::{
@@ -372,8 +384,20 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 760,
         bottom: 210,
         words: [
-          PdfLayoutWord::{ text: "Revenue", left: 420, top: 170, right: 540, bottom: 210 },
-          PdfLayoutWord::{ text: "Margin", left: 620, top: 170, right: 760, bottom: 210 },
+          PdfLayoutWord::{
+            text: "Revenue",
+            left: 420,
+            top: 170,
+            right: 540,
+            bottom: 210,
+          },
+          PdfLayoutWord::{
+            text: "Margin",
+            left: 620,
+            top: 170,
+            right: 760,
+            bottom: 210,
+          },
         ],
       },
       PdfLayoutLine::{
@@ -383,9 +407,27 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 720,
         bottom: 275,
         words: [
-          PdfLayoutWord::{ text: "Q1", left: 100, top: 235, right: 170, bottom: 275 },
-          PdfLayoutWord::{ text: "12.4", left: 450, top: 235, right: 520, bottom: 275 },
-          PdfLayoutWord::{ text: "31%", left: 650, top: 235, right: 720, bottom: 275 },
+          PdfLayoutWord::{
+            text: "Q1",
+            left: 100,
+            top: 235,
+            right: 170,
+            bottom: 275,
+          },
+          PdfLayoutWord::{
+            text: "12.4",
+            left: 450,
+            top: 235,
+            right: 520,
+            bottom: 275,
+          },
+          PdfLayoutWord::{
+            text: "31%",
+            left: 650,
+            top: 235,
+            right: 720,
+            bottom: 275,
+          },
         ],
       },
       PdfLayoutLine::{
@@ -395,9 +437,27 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 720,
         bottom: 330,
         words: [
-          PdfLayoutWord::{ text: "Q2", left: 100, top: 290, right: 170, bottom: 330 },
-          PdfLayoutWord::{ text: "14.1", left: 450, top: 290, right: 520, bottom: 330 },
-          PdfLayoutWord::{ text: "34%", left: 650, top: 290, right: 720, bottom: 330 },
+          PdfLayoutWord::{
+            text: "Q2",
+            left: 100,
+            top: 290,
+            right: 170,
+            bottom: 330,
+          },
+          PdfLayoutWord::{
+            text: "14.1",
+            left: 450,
+            top: 290,
+            right: 520,
+            bottom: 330,
+          },
+          PdfLayoutWord::{
+            text: "34%",
+            left: 650,
+            top: 290,
+            right: 720,
+            bottom: 330,
+          },
         ],
       },
     ],

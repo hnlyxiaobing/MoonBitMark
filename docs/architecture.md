@@ -77,6 +77,7 @@ cmd/
 - list 形态归一
 - table 结构修复与降级
 - paragraph whitespace / merge 策略
+- 这些 pass 的 block 级决策轨迹现在会通过 MCP explanations 对外暴露
 
 ### `src/semantic/`
 
@@ -116,6 +117,7 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 - 必要时可以走 Python bridge fallback。
 - OCR 只作为恢复路径介入，不是完整版面理解系统。
 - 当前已经支持页级 OCR fallback 决策链，并把恢复页号、原因和页决策摘要写回 metadata。
+- 恢复页的 normalize/structure 路径已经与普通页重新汇合，当前额外保留 linewise whitespace 线索，并支持一类基于多空格分列的 OCR 表格重建。
 
 ## 外部依赖边界
 
@@ -153,7 +155,8 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 
 - 主结果内容
 - metadata / diagnostics / stats
-- headings / tables / OCR / uncertainties 的 explanations
+- normalizer / headings / tables / OCR / uncertainties 的 explanations
+- compare_with_baseline 额外提供 comparison debug explanations 与 agreement metrics 解读
 - normalized AST 或 semantic document 等结构化调试对象
 
 ## 验证入口

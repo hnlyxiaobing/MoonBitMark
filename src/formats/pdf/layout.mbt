@@ -58,7 +58,9 @@ fn layout_page_to_chunks(layout : PdfLayoutPage) -> Array[String] {
 }
 
 ///|
-fn layout_lines_in_reading_order(layout : PdfLayoutPage) -> Array[PdfLayoutLine] {
+fn layout_lines_in_reading_order(
+  layout : PdfLayoutPage,
+) -> Array[PdfLayoutLine] {
   let lines : Array[PdfLayoutLine] = []
   for line in layout.lines {
     if collapse_inline_whitespace(line.text) != "" {

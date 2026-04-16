@@ -70,6 +70,60 @@ fn extract_structured_content(
 }
 
 ///|
+fn json_object_field(
+  value : @types.JsonValue,
+  key : String,
+) -> @types.JsonValue raise {
+  match value {
+    @types.Object(map) =>
+      match map.get(key) {
+        Some(field) => field
+        None => fail("expected field: " + key)
+      }
+    _ => fail("expected object for key lookup: " + key)
+  }
+}
+
+///|
+fn json_array_at(
+  value : @types.JsonValue,
+  index : Int,
+) -> @types.JsonValue raise {
+  match value {
+    @types.Array(items) =>
+      match items.get(index) {
+        Some(item) => item
+        None => fail("expected array index: " + index.to_string())
+      }
+    _ => fail("expected array")
+  }
+}
+
+///|
+fn json_string_field(value : @types.JsonValue, key : String) -> String raise {
+  match json_object_field(value, key) {
+    @types.String(text) => text
+    _ => fail("expected string field: " + key)
+  }
+}
+
+///|
+fn json_int_field(value : @types.JsonValue, key : String) -> Int raise {
+  match json_object_field(value, key) {
+    @types.Number(number) => number
+    _ => fail("expected int field: " + key)
+  }
+}
+
+///|
+fn json_array_length(value : @types.JsonValue) -> Int raise {
+  match value {
+    @types.Array(items) => items.length()
+    _ => fail("expected array length")
+  }
+}
+
+///|
 fn bytes_json_array(bytes : Bytes) -> @types.JsonValue {
   let items : Array[@types.JsonValue] = []
   for byte in bytes {
@@ -317,6 +371,96 @@ async test "dump_normalized_ast supports json response mode with stable keys" {
 }
 
 ///|
+test "normalizer explanation replays per-block decisions" {
+  let raw_document = @ast.Document::{
+    title: Some("Demo"),
+    metadata: { "format": "html" },
+    blocks: [
+      @ast.Heading(9, [@ast.Text("Title")]),
+      @ast.List([[@ast.Text("keep")], []], false),
+      @ast.Table([], [[[@ast.Text("A")], [@ast.Text("B")]], [[@ast.Text("1")]]]),
+      @ast.Paragraph([@ast.Text("alpha   beta")]),
+    ],
+    annotations: [
+      @ast.BlockAnnotation::{
+        id: "block-1",
+        source_hint: Some("tag:h9"),
+        origin_hint: Some("html"),
+        diagnostics: ["Normalized heading level from 9 to 6"],
+      },
+      @ast.BlockAnnotation::{
+        id: "block-2",
+        source_hint: Some("tag:ul"),
+        origin_hint: Some("html"),
+        diagnostics: ["Removed empty list items during normalization"],
+      },
+      @ast.BlockAnnotation::{
+        id: "block-3",
+        source_hint: Some("tag:table"),
+        origin_hint: Some("html"),
+        diagnostics: ["Normalized table shape to a rectangular layout"],
+      },
+      @ast.BlockAnnotation::{
+        id: "block-4",
+        source_hint: Some("tag:p"),
+        origin_hint: Some("html"),
+        diagnostics: ["Normalized paragraph whitespace"],
+      },
+    ],
+  }
+  let normalized_document = @ast.Document::{
+    title: Some("Demo"),
+    metadata: { "format": "html" },
+    blocks: [
+      @ast.Heading(6, [@ast.Text("Title")]),
+      @ast.List([[@ast.Text("keep")]], false),
+      @ast.Table([[@ast.Text("A")], [@ast.Text("B")]], [[[@ast.Text("1")], []]]),
+      @ast.Paragraph([@ast.Text("alpha beta")]),
+    ],
+    annotations: raw_document.annotations,
+  }
+  let result = @core.ConvertResult::markdown_only("# Demo", "html").with_ast_views(
+    Some(raw_document),
+    Some(normalized_document),
+    Some(@semantic.semantic_document_of(normalized_document)),
+  )
+  let payload = normalizer_explanation(result)
+  inspect(json_int_field(payload, "block_count"), content="4")
+  inspect(json_int_field(payload, "changed_blocks"), content="4")
+  let first_block = json_array_at(json_object_field(payload, "blocks"), 0)
+  let first_decision = json_array_at(
+    json_object_field(first_block, "decisions"),
+    0,
+  )
+  inspect(json_string_field(first_decision, "step"), content="heading_levels")
+  inspect(json_string_field(first_decision, "status"), content="changed")
+  let second_block = json_array_at(json_object_field(payload, "blocks"), 1)
+  let second_decision = json_array_at(
+    json_object_field(second_block, "decisions"),
+    1,
+  )
+  inspect(json_string_field(second_decision, "step"), content="list_items")
+  inspect(json_string_field(second_decision, "status"), content="changed")
+  let third_block = json_array_at(json_object_field(payload, "blocks"), 2)
+  let third_decision = json_array_at(
+    json_object_field(third_block, "decisions"),
+    2,
+  )
+  inspect(json_string_field(third_decision, "step"), content="table_shape")
+  inspect(json_string_field(third_decision, "status"), content="changed")
+  let fourth_block = json_array_at(json_object_field(payload, "blocks"), 3)
+  let fourth_decision = json_array_at(
+    json_object_field(fourth_block, "decisions"),
+    3,
+  )
+  inspect(
+    json_string_field(fourth_decision, "step"),
+    content="inline_whitespace",
+  )
+  inspect(json_string_field(fourth_decision, "status"), content="changed")
+}
+
+///|
 async test "convert_to_markdown supports json response mode with stable keys" {
   let path = temp_file_path("mcp-full-json")
   write_test_text(path, build_long_text())
@@ -524,9 +668,55 @@ async test "compare_with_baseline supports json response mode with stable keys" 
           }
         _ => fail("expected diagnostics object")
       }
+      let explanations = json_object_field(payload, "explanations")
+      let comparison_debug = json_object_field(explanations, "comparison_debug")
+      inspect(
+        json_string_field(comparison_debug, "status"),
+        content="unsupported_format",
+      )
     }
     _ => fail("expected object structured payload")
   }
+}
+
+///|
+test "comparison debug explanation reports metrics and highlights" {
+  let comparison = @types.Object({
+    "tool": @types.String("markitdown"),
+    "format": @types.String("pdf"),
+    "available": @types.Bool(true),
+    "supported": @types.Bool(true),
+    "python_exe": @types.String("python"),
+    "duration_ms": @types.Number(42),
+    "baseline_markdown": @types.String("# Baseline"),
+    "baseline_chars": @types.Number(10),
+    "comparison_basis": @types.String("candidate_vs_baseline"),
+    "agreement": @types.Object({
+      "overall_score": @types.Float(0.88),
+      "sequence_similarity": @types.Float(0.91),
+      "token_f1": @types.Float(0.9),
+      "structure_similarity": @types.Float(0.83),
+      "table_similarity": @types.Float(0.55),
+      "heading_structure_score": @types.Float(0.99),
+      "list_nesting_score": @types.Float(0.92),
+      "table_shape_score": @types.Float(0.52),
+      "paragraph_segmentation_score": @types.Float(0.79),
+      "asset_link_score": @types.Float(1.0),
+    }),
+  })
+  let payload = comparison_debug_explanation(
+    @core.ConvertResult::markdown_only("# Candidate", "pdf"),
+    comparison,
+  )
+  inspect(json_string_field(payload, "status"), content="compared")
+  inspect(
+    json_array_length(json_object_field(payload, "metrics")).to_string(),
+    content="10",
+  )
+  let highlights = json_object_field(payload, "highlights")
+  assert_true(json_array_length(highlights) >= 2)
+  let first_highlight = json_array_at(highlights, 0)
+  inspect(json_string_field(first_highlight, "kind"), content="risk")
 }
 
 ///|

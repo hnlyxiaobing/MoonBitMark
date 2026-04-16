@@ -262,11 +262,13 @@ fn extraction_with_pages(
     let lines : Array[PdfRawLine] = []
     let layout = page_layout_at(layouts, page_no)
     let raw_lines = match layout {
-      Some(value) => value.lines.map(line => trim_preserve_inline_whitespace(line.text))
+      Some(value) =>
+        value.lines.map(line => trim_preserve_inline_whitespace(line.text))
       None =>
-        normalize_extracted_page_text(raw_text).split("\n").to_array().map(
-          line => trim_preserve_inline_whitespace(line.to_string()),
-        )
+        normalize_extracted_page_text(raw_text)
+        .split("\n")
+        .to_array()
+        .map(line => trim_preserve_inline_whitespace(line.to_string()))
     }
     for line in raw_lines {
       lines.push(PdfRawLine::{ text: line })

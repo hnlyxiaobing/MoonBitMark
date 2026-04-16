@@ -111,18 +111,22 @@ curl http://127.0.0.1:8765/healthz
 
 调试型工具会额外返回：
 
+- `explanations.normalizer`
 - `explanations.headings`
 - `explanations.tables`
 - `explanations.ocr`
 - `explanations.uncertainties`
+- `explanations.comparison_debug`（仅 `compare_with_baseline`）
 - `normalized_document` 或 `semantic_document`
 
 解释性输出当前主要回答：
 
+- normalizer 对每个 block 做了哪些步骤、哪些步骤生效、改前改后是什么
 - 为什么 heading 被判成当前层级
 - 为什么 table 被保留或降级
 - 为什么触发或未触发 OCR
 - 当前有哪些不确定点
+- baseline compare 这次为什么能跑/没跑、agreement metric 哪些强、哪些弱
 
 `inspect_document` 仍是 preflight 工具，因此它的解释更偏“可能发生什么”；真正的结构解释要以 `convert_to_markdown`、`dump_normalized_ast` 或 `extract_structure` 的结果为准。
 

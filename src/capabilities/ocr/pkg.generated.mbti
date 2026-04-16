@@ -40,6 +40,7 @@ pub(all) struct OcrResult {
   available : Bool
   provider : String?
   text : String
+  layout_json : String?
   warnings : Array[String]
 } derive(Eq, ToJson, @debug.Debug)
 pub fn OcrResult::is_useful(Self) -> Bool

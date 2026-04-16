@@ -40,10 +40,13 @@ async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
     let lines : Array[PdfRawLine] = []
     let layout = page_layout_at(layout_pages, page_no)
     let raw_lines = match layout {
-      Some(value) => value.lines.map(line => collapse_inline_whitespace(line.text))
-      None => normalize_extracted_page_text(raw_text).split("\n").to_array().map(
-        line => collapse_inline_whitespace(line.to_string()),
-      )
+      Some(value) =>
+        value.lines.map(line => collapse_inline_whitespace(line.text))
+      None =>
+        normalize_extracted_page_text(raw_text)
+        .split("\n")
+        .to_array()
+        .map(line => collapse_inline_whitespace(line.to_string()))
     }
     for line in raw_lines {
       lines.push(PdfRawLine::{ text: line })

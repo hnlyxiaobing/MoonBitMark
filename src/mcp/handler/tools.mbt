@@ -1254,7 +1254,7 @@ fn compare_with_baseline_payload(
       ),
       "converter_stats": convert_stats_to_json(result.stats),
     }),
-    "explanations": result_explanations(result),
+    "explanations": compare_result_explanations(result, comparison),
     "comparison": comparison,
   })
 }
@@ -1309,11 +1309,906 @@ fn compare_with_baseline_summary(
 ///|
 fn result_explanations(result : @core.ConvertResult) -> @types.JsonValue {
   @types.Object({
+    "normalizer": normalizer_explanation(result),
     "headings": heading_explanations(result),
     "tables": table_explanations(result),
     "ocr": ocr_explanation(result),
     "uncertainties": uncertainty_explanations(result),
   })
+}
+
+///|
+fn compare_result_explanations(
+  result : @core.ConvertResult,
+  comparison : @types.JsonValue,
+) -> @types.JsonValue {
+  @types.Object({
+    "normalizer": normalizer_explanation(result),
+    "headings": heading_explanations(result),
+    "tables": table_explanations(result),
+    "ocr": ocr_explanation(result),
+    "uncertainties": uncertainty_explanations(result),
+    "comparison_debug": comparison_debug_explanation(result, comparison),
+  })
+}
+
+///|
+fn normalizer_explanation(result : @core.ConvertResult) -> @types.JsonValue {
+  let blocks : Array[@types.JsonValue] = []
+  let mut heading_changes = 0
+  let mut list_changes = 0
+  let mut table_changes = 0
+  let mut whitespace_changes = 0
+  let mut changed_blocks = 0
+  match result.normalized_document {
+    Some(document) => {
+      let annotations = @ast.normalize_annotations(
+        document.annotations,
+        document.blocks.length(),
+      )
+      let semantic_blocks = match result.semantic_document {
+        Some(semantic_document) => semantic_document.blocks
+        None => []
+      }
+      let raw_blocks = match result.raw_document {
+        Some(raw_document) => raw_document.blocks
+        None => []
+      }
+      for index, block in document.blocks {
+        let annotation = annotations[index]
+        let semantic_block = semantic_blocks.get(index)
+        let raw_block = raw_blocks.get(index)
+        let trace = normalizer_decision_trace(raw_block, block, annotation)
+        if trace.1 {
+          heading_changes = heading_changes + 1
+        }
+        if trace.2 {
+          list_changes = list_changes + 1
+        }
+        if trace.3 {
+          table_changes = table_changes + 1
+        }
+        if trace.4 {
+          whitespace_changes = whitespace_changes + 1
+        }
+        if trace.1 || trace.2 || trace.3 || trace.4 {
+          changed_blocks = changed_blocks + 1
+        }
+        blocks.push(
+          @types.Object({
+            "block_id": @types.String(annotation.id),
+            "index": @types.Number(index),
+            "block_kind": @types.String(block_kind_label(block)),
+            "text": @types.String(@ast.plain_text_of_block(block)),
+            "source_hint": json_optional_string(annotation.source_hint),
+            "origin_hint": json_optional_string(annotation.origin_hint),
+            "role": json_optional_string(semantic_role_label(semantic_block)),
+            "confidence": json_optional_int(
+              semantic_confidence_value(semantic_block),
+            ),
+            "diagnostics": string_array_to_json(annotation.diagnostics),
+            "decisions": @types.Array(trace.0),
+          }),
+        )
+      }
+    }
+    None => ()
+  }
+  let reason = if blocks.length() == 0 {
+    "Normalizer trace is unavailable because the conversion did not produce a normalized AST."
+  } else if changed_blocks == 0 {
+    "Normalizer ran its full pipeline and kept every block stable."
+  } else {
+    "Normalizer replay shows which blocks were kept, changed, or skipped at each normalization step."
+  }
+  @types.Object({
+    "pipeline": @types.Array([
+      normalizer_step_summary(
+        "heading_levels", "Clamp heading levels into Markdown-compatible depth.",
+        heading_changes,
+      ),
+      normalizer_step_summary(
+        "list_items", "Remove empty list items and stabilize inline whitespace inside list entries.",
+        list_changes,
+      ),
+      normalizer_step_summary(
+        "table_shape", "Rectangularize table rows and normalize cell text shape.",
+        table_changes,
+      ),
+      normalizer_step_summary(
+        "inline_whitespace", "Compact paragraph, heading, and image inline whitespace to canonical spacing.",
+        whitespace_changes,
+      ),
+    ]),
+    "block_count": @types.Number(blocks.length()),
+    "changed_blocks": @types.Number(changed_blocks),
+    "reason": @types.String(reason),
+    "blocks": @types.Array(blocks),
+  })
+}
+
+///|
+fn normalizer_step_summary(
+  step : String,
+  description : String,
+  changed_blocks : Int,
+) -> @types.JsonValue {
+  @types.Object({
+    "step": @types.String(step),
+    "description": @types.String(description),
+    "changed_blocks": @types.Number(changed_blocks),
+  })
+}
+
+///|
+fn normalizer_decision_trace(
+  raw_block : @ast.Block?,
+  normalized_block : @ast.Block,
+  annotation : @ast.BlockAnnotation,
+) -> (Array[@types.JsonValue], Bool, Bool, Bool, Bool) {
+  let heading = heading_level_decision(raw_block, normalized_block, annotation)
+  let list = list_normalization_decision(
+    raw_block, normalized_block, annotation,
+  )
+  let table = table_shape_decision(raw_block, normalized_block, annotation)
+  let whitespace = inline_whitespace_decision(
+    raw_block, normalized_block, annotation,
+  )
+  (
+    [heading.0, list.0, table.0, whitespace.0],
+    heading.1,
+    list.1,
+    table.1,
+    whitespace.1,
+  )
+}
+
+///|
+fn heading_level_decision(
+  raw_block : @ast.Block?,
+  normalized_block : @ast.Block,
+  annotation : @ast.BlockAnnotation,
+) -> (@types.JsonValue, Bool) {
+  let diagnostic = find_annotation_diagnostic(
+    annotation, "Normalized heading level from ",
+  )
+  match normalized_block {
+    @ast.Heading(level, _) =>
+      match raw_block {
+        Some(@ast.Heading(raw_level, _)) => {
+          let changed = diagnostic is Some(_) || raw_level != level
+          let reason = match diagnostic {
+            Some(message) => message
+            None =>
+              if changed {
+                "Heading level changed during normalization."
+              } else {
+                "Heading level was already within the supported Markdown range."
+              }
+          }
+          (
+            normalizer_decision_item(
+              "heading_levels",
+              true,
+              changed,
+              reason,
+              Some(raw_level.to_string()),
+              Some(level.to_string()),
+            ),
+            changed,
+          )
+        }
+        _ =>
+          (
+            normalizer_decision_item(
+              "heading_levels",
+              true,
+              false,
+              "Heading reached the normalizer without a raw heading trace, so the final level was kept as-is.",
+              None,
+              Some(level.to_string()),
+            ),
+            false,
+          )
+      }
+    _ =>
+      (
+        normalizer_decision_item(
+          "heading_levels",
+          false,
+          false,
+          "Heading-level normalization only applies to heading blocks.",
+          None,
+          None,
+        ),
+        false,
+      )
+  }
+}
+
+///|
+fn list_normalization_decision(
+  raw_block : @ast.Block?,
+  normalized_block : @ast.Block,
+  annotation : @ast.BlockAnnotation,
+) -> (@types.JsonValue, Bool) {
+  let diagnostic = find_annotation_diagnostic(
+    annotation, "Removed empty list items during normalization",
+  )
+  match normalized_block {
+    @ast.List(items, _) => {
+      let after_count = items.length().to_string()
+      match raw_block {
+        Some(@ast.List(raw_items, _)) => {
+          let changed = diagnostic is Some(_) ||
+            !json_block_eq(raw_block, normalized_block)
+          let reason = match diagnostic {
+            Some(message) => message
+            None =>
+              if changed {
+                "List normalization rewrote item content while preserving the list block."
+              } else {
+                "List items already satisfied the normalizer rules."
+              }
+          }
+          (
+            normalizer_decision_item(
+              "list_items",
+              true,
+              changed,
+              reason,
+              Some(raw_items.length().to_string()),
+              Some(after_count),
+            ),
+            changed,
+          )
+        }
+        _ =>
+          (
+            normalizer_decision_item(
+              "list_items",
+              true,
+              false,
+              "List normalization trace starts from the normalized list because the raw list block was unavailable.",
+              None,
+              Some(after_count),
+            ),
+            false,
+          )
+      }
+    }
+    _ =>
+      (
+        normalizer_decision_item(
+          "list_items",
+          false,
+          false,
+          "List normalization only applies to list blocks.",
+          None,
+          None,
+        ),
+        false,
+      )
+  }
+}
+
+///|
+fn table_shape_decision(
+  raw_block : @ast.Block?,
+  normalized_block : @ast.Block,
+  annotation : @ast.BlockAnnotation,
+) -> (@types.JsonValue, Bool) {
+  let diagnostic = find_annotation_diagnostic(
+    annotation, "Normalized table shape",
+  )
+  match normalized_block {
+    @ast.Table(headers, rows) => {
+      let after_shape = table_shape_label(headers, rows)
+      match raw_block {
+        Some(@ast.Table(raw_headers, raw_rows)) => {
+          let changed = diagnostic is Some(_) ||
+            !json_block_eq(raw_block, normalized_block)
+          let reason = match diagnostic {
+            Some(message) => message
+            None =>
+              if changed {
+                "Table normalization changed the grid shape or normalized cell contents."
+              } else {
+                "Table already had a stable rectangular layout."
+              }
+          }
+          (
+            normalizer_decision_item(
+              "table_shape",
+              true,
+              changed,
+              reason,
+              Some(table_shape_label(raw_headers, raw_rows)),
+              Some(after_shape),
+            ),
+            changed,
+          )
+        }
+        _ =>
+          (
+            normalizer_decision_item(
+              "table_shape",
+              true,
+              false,
+              "Table normalization trace starts from the normalized grid because the raw table block was unavailable.",
+              None,
+              Some(after_shape),
+            ),
+            false,
+          )
+      }
+    }
+    _ =>
+      (
+        normalizer_decision_item(
+          "table_shape",
+          false,
+          false,
+          "Table-shape normalization only applies to table blocks.",
+          None,
+          None,
+        ),
+        false,
+      )
+  }
+}
+
+///|
+fn inline_whitespace_decision(
+  raw_block : @ast.Block?,
+  normalized_block : @ast.Block,
+  annotation : @ast.BlockAnnotation,
+) -> (@types.JsonValue, Bool) {
+  let diagnostic = find_annotation_diagnostic(
+    annotation, "Normalized paragraph whitespace",
+  )
+  let before = block_inline_signature(raw_block)
+  let after = block_inline_signature(Some(normalized_block))
+  let applicable = before is Some(_) || after is Some(_)
+  let changed = applicable && before != after
+  let reason = if !applicable {
+    "Inline whitespace normalization only applies to paragraphs, headings, and image captions."
+  } else {
+    match diagnostic {
+      Some(message) => message
+      None =>
+        if changed {
+          "Inline spacing was compacted to the canonical Markdown form."
+        } else {
+          "Inline spacing already matched the canonical Markdown form."
+        }
+    }
+  }
+  (
+    normalizer_decision_item(
+      "inline_whitespace", applicable, changed, reason, before, after,
+    ),
+    changed,
+  )
+}
+
+///|
+fn normalizer_decision_item(
+  step : String,
+  applicable : Bool,
+  changed : Bool,
+  reason : String,
+  before : String?,
+  after : String?,
+) -> @types.JsonValue {
+  let status = if !applicable {
+    "not_applicable"
+  } else if changed {
+    "changed"
+  } else {
+    "kept"
+  }
+  @types.Object({
+    "step": @types.String(step),
+    "status": @types.String(status),
+    "reason": @types.String(reason),
+    "before": json_optional_string(before),
+    "after": json_optional_string(after),
+  })
+}
+
+///|
+fn block_kind_label(block : @ast.Block) -> String {
+  match block {
+    @ast.Heading(_, _) => "heading"
+    @ast.Paragraph(_) => "paragraph"
+    @ast.List(_, _) => "list"
+    @ast.Quote(_) => "quote"
+    @ast.CodeBlock(_, _) => "code_block"
+    @ast.Table(_, _) => "table"
+    @ast.Block::Image(_, _, _) => "image"
+    @ast.HorizontalRule => "horizontal_rule"
+  }
+}
+
+///|
+fn table_shape_label(
+  headers : Array[Array[@ast.Inline]],
+  rows : Array[Array[Array[@ast.Inline]]],
+) -> String {
+  let mut width = headers.length()
+  for row in rows {
+    if row.length() > width {
+      width = row.length()
+    }
+  }
+  width.to_string() + "x" + (rows.length() + 1).to_string()
+}
+
+///|
+fn block_inline_signature(block : @ast.Block?) -> String? {
+  match block {
+    Some(@ast.Paragraph(inlines)) => Some(@ast.plain_text_of_inlines(inlines))
+    Some(@ast.Heading(_, inlines)) => Some(@ast.plain_text_of_inlines(inlines))
+    Some(@ast.Block::Image(alt, _, caption)) =>
+      Some(alt + "|" + inline_caption_signature(caption))
+    _ => None
+  }
+}
+
+///|
+fn inline_caption_signature(caption : Array[@ast.Inline]?) -> String {
+  match caption {
+    Some(inlines) => @ast.plain_text_of_inlines(inlines)
+    None => ""
+  }
+}
+
+///|
+fn semantic_confidence_value(block : @semantic.SemanticBlock?) -> Int? {
+  match block {
+    Some(value) => Some(value.confidence)
+    None => None
+  }
+}
+
+///|
+fn comparison_debug_explanation(
+  result : @core.ConvertResult,
+  comparison : @types.JsonValue,
+) -> @types.JsonValue {
+  let status = comparison_status(comparison)
+  let available = json_object_bool_arg_or_false(comparison, "available")
+  let supported = json_object_bool_arg_or_false(comparison, "supported")
+  let error = json_object_nullable_string_arg(comparison, "error")
+  let baseline = json_object_nullable_string_arg(comparison, "tool")
+  let format_name = json_object_nullable_string_arg(comparison, "format")
+  @types.Object({
+    "status": @types.String(status),
+    "baseline": json_optional_string(baseline),
+    "format": json_optional_string(format_name),
+    "comparison_basis": json_optional_string(
+      json_object_nullable_string_arg(comparison, "comparison_basis"),
+    ),
+    "candidate_chars": @types.Number(result.markdown.length()),
+    "baseline_chars": json_optional_int(
+      json_object_nullable_int_arg(comparison, "baseline_chars"),
+    ),
+    "duration_ms": json_optional_int(
+      json_object_nullable_int_arg(comparison, "duration_ms"),
+    ),
+    "python_exe": json_optional_string(
+      json_object_nullable_string_arg(comparison, "python_exe"),
+    ),
+    "reason": @types.String(comparison_reason(comparison)),
+    "steps": @types.Array([
+      comparison_step_item(
+        "baseline_availability",
+        if available {
+          "ready"
+        } else {
+          "missing"
+        },
+        if available {
+          "Baseline runtime is available."
+        } else {
+          "No usable baseline runtime was detected."
+        },
+      ),
+      comparison_step_item(
+        "format_support",
+        if supported {
+          "supported"
+        } else {
+          "unsupported"
+        },
+        if supported {
+          "The selected baseline advertises support for this format."
+        } else {
+          "The selected baseline does not support this format."
+        },
+      ),
+      comparison_step_item(
+        "baseline_run",
+        comparison_run_status(comparison),
+        comparison_run_reason(comparison),
+      ),
+      comparison_step_item(
+        "agreement_analysis",
+        comparison_agreement_status(comparison),
+        comparison_agreement_reason(comparison),
+      ),
+    ]),
+    "metrics": @types.Array(comparison_metric_items(comparison)),
+    "highlights": @types.Array(comparison_highlights(comparison)),
+    "baseline_error": json_optional_string(error),
+  })
+}
+
+///|
+fn comparison_step_item(
+  step : String,
+  status : String,
+  reason : String,
+) -> @types.JsonValue {
+  @types.Object({
+    "step": @types.String(step),
+    "status": @types.String(status),
+    "reason": @types.String(reason),
+  })
+}
+
+///|
+fn comparison_status(comparison : @types.JsonValue) -> String {
+  if !json_object_bool_arg_or_false(comparison, "available") {
+    "baseline_unavailable"
+  } else if !json_object_bool_arg_or_false(comparison, "supported") {
+    "unsupported_format"
+  } else if json_object_nullable_string_arg(comparison, "error") is Some(_) {
+    "baseline_error"
+  } else if json_nested_float_arg(comparison, "agreement", "overall_score")
+    is Some(_) {
+    "compared"
+  } else if json_object_nullable_string_arg(comparison, "baseline_markdown")
+    is Some(_) {
+    "baseline_only"
+  } else {
+    "no_baseline_output"
+  }
+}
+
+///|
+fn comparison_reason(comparison : @types.JsonValue) -> String {
+  match comparison_status(comparison) {
+    "baseline_unavailable" =>
+      "Comparison stopped before running because the requested baseline runtime is unavailable."
+    "unsupported_format" =>
+      "Comparison stopped because the requested baseline does not support this format."
+    "baseline_error" =>
+      "Baseline execution returned an error before agreement metrics could be computed."
+    "compared" =>
+      "Baseline output and candidate Markdown were both available, so full agreement metrics were computed."
+    "baseline_only" =>
+      "Baseline Markdown was produced, but no candidate-vs-baseline agreement metrics were emitted."
+    _ => "Comparison did not yield baseline Markdown or agreement metrics."
+  }
+}
+
+///|
+fn comparison_run_status(comparison : @types.JsonValue) -> String {
+  match comparison_status(comparison) {
+    "baseline_unavailable" => "skipped"
+    "unsupported_format" => "skipped"
+    "baseline_error" => "failed"
+    _ =>
+      if json_object_nullable_string_arg(comparison, "baseline_markdown")
+        is Some(_) {
+        "completed"
+      } else {
+        "empty"
+      }
+  }
+}
+
+///|
+fn comparison_run_reason(comparison : @types.JsonValue) -> String {
+  match comparison_status(comparison) {
+    "baseline_unavailable" =>
+      "The helper did not find a Python environment that can run this baseline."
+    "unsupported_format" =>
+      "The helper refused to run the baseline because the format is outside its supported set."
+    "baseline_error" =>
+      match json_object_nullable_string_arg(comparison, "error") {
+        Some(message) => message
+        None => "Baseline execution failed."
+      }
+    _ =>
+      if json_object_nullable_string_arg(comparison, "baseline_markdown")
+        is Some(_) {
+        "Baseline Markdown was generated successfully."
+      } else {
+        "Baseline run finished without Markdown output."
+      }
+  }
+}
+
+///|
+fn comparison_agreement_status(comparison : @types.JsonValue) -> String {
+  if json_nested_float_arg(comparison, "agreement", "overall_score") is Some(_) {
+    "computed"
+  } else if comparison_status(comparison) == "baseline_error" {
+    "blocked"
+  } else {
+    "not_available"
+  }
+}
+
+///|
+fn comparison_agreement_reason(comparison : @types.JsonValue) -> String {
+  match json_nested_float_arg(comparison, "agreement", "overall_score") {
+    Some(score) =>
+      "Overall agreement landed at " +
+      score.to_string() +
+      " after combining sequence and structure similarity."
+    None =>
+      match comparison_status(comparison) {
+        "baseline_error" =>
+          "Agreement metrics were blocked because baseline execution failed."
+        "unsupported_format" =>
+          "Agreement metrics were skipped because the baseline does not support this format."
+        "baseline_unavailable" =>
+          "Agreement metrics were skipped because no baseline runtime was available."
+        _ => "Agreement metrics were not emitted by the baseline helper."
+      }
+  }
+}
+
+///|
+fn comparison_metric_items(
+  comparison : @types.JsonValue,
+) -> Array[@types.JsonValue] {
+  let items : Array[@types.JsonValue] = []
+  append_comparison_metric(
+    items,
+    "overall_score",
+    json_nested_float_arg(comparison, "agreement", "overall_score"),
+  )
+  append_comparison_metric(
+    items,
+    "sequence_similarity",
+    json_nested_float_arg(comparison, "agreement", "sequence_similarity"),
+  )
+  append_comparison_metric(
+    items,
+    "token_f1",
+    json_nested_float_arg(comparison, "agreement", "token_f1"),
+  )
+  append_comparison_metric(
+    items,
+    "structure_similarity",
+    json_nested_float_arg(comparison, "agreement", "structure_similarity"),
+  )
+  append_comparison_metric(
+    items,
+    "table_similarity",
+    json_nested_float_arg(comparison, "agreement", "table_similarity"),
+  )
+  append_comparison_metric(
+    items,
+    "heading_structure_score",
+    json_nested_float_arg(comparison, "agreement", "heading_structure_score"),
+  )
+  append_comparison_metric(
+    items,
+    "list_nesting_score",
+    json_nested_float_arg(comparison, "agreement", "list_nesting_score"),
+  )
+  append_comparison_metric(
+    items,
+    "table_shape_score",
+    json_nested_float_arg(comparison, "agreement", "table_shape_score"),
+  )
+  append_comparison_metric(
+    items,
+    "paragraph_segmentation_score",
+    json_nested_float_arg(
+      comparison, "agreement", "paragraph_segmentation_score",
+    ),
+  )
+  append_comparison_metric(
+    items,
+    "asset_link_score",
+    json_nested_float_arg(comparison, "agreement", "asset_link_score"),
+  )
+  items
+}
+
+///|
+fn append_comparison_metric(
+  items : Array[@types.JsonValue],
+  metric : String,
+  score : Float?,
+) -> Unit {
+  match score {
+    Some(value) =>
+      items.push(
+        @types.Object({
+          "metric": @types.String(metric),
+          "score": @types.Float(value),
+          "status": @types.String(comparison_metric_status(value)),
+          "label": @types.String(comparison_metric_label(metric)),
+          "reason": @types.String(comparison_metric_reason(metric, value)),
+        }),
+      )
+    None => ()
+  }
+}
+
+///|
+fn comparison_metric_status(score : Float) -> String {
+  if score >= 0.95 {
+    "strong"
+  } else if score >= 0.8 {
+    "close"
+  } else if score >= 0.6 {
+    "drift"
+  } else {
+    "weak"
+  }
+}
+
+///|
+fn comparison_metric_label(metric : String) -> String {
+  match metric {
+    "overall_score" => "Overall agreement"
+    "sequence_similarity" => "Sequence similarity"
+    "token_f1" => "Token overlap"
+    "structure_similarity" => "Structure similarity"
+    "table_similarity" => "Table fidelity"
+    "heading_structure_score" => "Heading structure"
+    "list_nesting_score" => "List nesting"
+    "table_shape_score" => "Table shape"
+    "paragraph_segmentation_score" => "Paragraph segmentation"
+    "asset_link_score" => "Asset links"
+    _ => metric
+  }
+}
+
+///|
+fn comparison_metric_reason(metric : String, score : Float) -> String {
+  let band = comparison_metric_status(score)
+  match metric {
+    "overall_score" =>
+      if band == "strong" || band == "close" {
+        "Candidate Markdown stays broadly aligned with the baseline across sequence and structure."
+      } else {
+        "Candidate Markdown diverges materially from the baseline and deserves closer review."
+      }
+    "sequence_similarity" =>
+      if band == "strong" || band == "close" {
+        "Text ordering stayed close to the baseline."
+      } else {
+        "Line ordering or nearby phrasing drifted relative to the baseline."
+      }
+    "token_f1" =>
+      if band == "strong" || band == "close" {
+        "Most baseline tokens are still present in the candidate."
+      } else {
+        "Token coverage drift suggests missing or extra content."
+      }
+    "structure_similarity" =>
+      if band == "strong" || band == "close" {
+        "Headings, lists, paragraphs, and tables remain structurally close."
+      } else {
+        "Document structure diverged from the baseline."
+      }
+    "table_similarity" =>
+      if band == "strong" || band == "close" {
+        "Table content and ordering remain close to the baseline."
+      } else {
+        "Table content or ordering drifted relative to the baseline."
+      }
+    "heading_structure_score" =>
+      if band == "strong" || band == "close" {
+        "Heading hierarchy stayed close to the baseline."
+      } else {
+        "Heading depth or ordering diverged from the baseline."
+      }
+    "list_nesting_score" =>
+      if band == "strong" || band == "close" {
+        "List nesting remained stable."
+      } else {
+        "List grouping or indentation drifted relative to the baseline."
+      }
+    "table_shape_score" =>
+      if band == "strong" || band == "close" {
+        "Recovered tables kept a compatible row/column shape."
+      } else {
+        "Recovered tables no longer match the baseline row/column shape."
+      }
+    "paragraph_segmentation_score" =>
+      if band == "strong" || band == "close" {
+        "Paragraph boundaries stayed close to the baseline."
+      } else {
+        "Paragraph splitting or merging drifted relative to the baseline."
+      }
+    "asset_link_score" =>
+      if band == "strong" || band == "close" {
+        "Asset links stayed aligned with the baseline."
+      } else {
+        "Asset link coverage drifted relative to the baseline."
+      }
+    _ => "Metric recorded for debug analysis."
+  }
+}
+
+///|
+fn comparison_highlights(
+  comparison : @types.JsonValue,
+) -> Array[@types.JsonValue] {
+  let items : Array[@types.JsonValue] = []
+  push_comparison_highlight(
+    items,
+    "overall_score",
+    json_nested_float_arg(comparison, "agreement", "overall_score"),
+  )
+  push_comparison_highlight(
+    items,
+    "structure_similarity",
+    json_nested_float_arg(comparison, "agreement", "structure_similarity"),
+  )
+  push_comparison_highlight(
+    items,
+    "table_similarity",
+    json_nested_float_arg(comparison, "agreement", "table_similarity"),
+  )
+  push_comparison_highlight(
+    items,
+    "heading_structure_score",
+    json_nested_float_arg(comparison, "agreement", "heading_structure_score"),
+  )
+  push_comparison_highlight(
+    items,
+    "table_shape_score",
+    json_nested_float_arg(comparison, "agreement", "table_shape_score"),
+  )
+  push_comparison_highlight(
+    items,
+    "paragraph_segmentation_score",
+    json_nested_float_arg(
+      comparison, "agreement", "paragraph_segmentation_score",
+    ),
+  )
+  items
+}
+
+///|
+fn push_comparison_highlight(
+  items : Array[@types.JsonValue],
+  metric : String,
+  score : Float?,
+) -> Unit {
+  match score {
+    Some(value) if value < 0.8 =>
+      items.push(
+        @types.Object({
+          "kind": @types.String("risk"),
+          "metric": @types.String(metric),
+          "score": @types.Float(value),
+          "message": @types.String(comparison_metric_reason(metric, value)),
+        }),
+      )
+    Some(value) if value >= 0.98 =>
+      items.push(
+        @types.Object({
+          "kind": @types.String("strength"),
+          "metric": @types.String(metric),
+          "score": @types.Float(value),
+          "message": @types.String(comparison_metric_reason(metric, value)),
+        }),
+      )
+    _ => ()
+  }
 }
 
 ///|
@@ -1596,6 +2491,14 @@ fn semantic_provenance_json(
     Some(value) =>
       parse_structured_json(render_semantic_provenance_json(value.provenance))
     None => @types.Null
+  }
+}
+
+///|
+fn json_block_eq(left : @ast.Block?, right : @ast.Block) -> Bool {
+  match left {
+    Some(value) => value == right
+    None => false
   }
 }
 
