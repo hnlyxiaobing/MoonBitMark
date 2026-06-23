@@ -5,6 +5,7 @@ pub(all) struct ToolDefinition {
   name : String
   description : String
   input_schema : @types.JsonValue
+  annotations : @types.McpToolAnnotations?
 }
 
 ///|
@@ -39,6 +40,7 @@ pub fn ToolRegistry::list(self : ToolRegistry) -> Array[@types.McpTool] {
       name: tool.name,
       description: tool.description,
       input_schema: tool.input_schema,
+      annotations: tool.annotations,
     })
   }
   items
@@ -59,6 +61,8 @@ pub async fn ToolRegistry::call(
     "compare_with_baseline" => compare_with_baseline_handler(args)
     "upload_document" => upload_document_handler(args)
     "convert_uploaded_document" => convert_uploaded_document_handler(args)
+    "list_documents" => list_documents_handler(args)
+    "delete_document" => delete_document_handler(args)
     _ => error_tool_result("Tool not found: " + name)
   }
 }
@@ -208,41 +212,142 @@ pub fn ToolRegistry::register_convert_tools(
   store_schema["properties"] = @types.Object(store_properties)
   store_schema["required"] = @types.Array(store_required)
 
+  let list_documents_properties : Map[String, @types.JsonValue] = Map::new()
+  list_documents_properties["response_mode"] = @types.Object(
+    response_mode_schema,
+  )
+
+  let list_documents_schema : Map[String, @types.JsonValue] = Map::new()
+  list_documents_schema["type"] = @types.String("object")
+  list_documents_schema["properties"] = @types.Object(list_documents_properties)
+
+  let delete_resource_uri_schema : Map[String, @types.JsonValue] = Map::new()
+  delete_resource_uri_schema["type"] = @types.String("string")
+  delete_resource_uri_schema["description"] = @types.String(
+    "Resource URI of the stored document to delete, e.g. moonbitmark://document/<id>",
+  )
+
+  let delete_properties : Map[String, @types.JsonValue] = Map::new()
+  delete_properties["resource_uri"] = @types.Object(delete_resource_uri_schema)
+  delete_properties["response_mode"] = @types.Object(response_mode_schema)
+
+  let delete_required : Array[@types.JsonValue] = [
+    @types.String("resource_uri"),
+  ]
+
+  let delete_document_schema : Map[String, @types.JsonValue] = Map::new()
+  delete_document_schema["type"] = @types.String("object")
+  delete_document_schema["properties"] = @types.Object(delete_properties)
+  delete_document_schema["required"] = @types.Array(delete_required)
+
   self
   .register(ToolDefinition::{
     name: "inspect_document",
     description: "Inspect document: detect format, size, OCR/bridge risk, preview recommendation.",
     input_schema: @types.Object(inspect_schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("Inspect Document"),
+      read_only_hint: Some(true),
+      destructive_hint: Some(false),
+      idempotent_hint: Some(true),
+      open_world_hint: Some(false),
+    }),
   })
   .register(ToolDefinition::{
     name: "convert_to_markdown",
     description: "Convert to Markdown: preview by default, full when explicitly requested.",
     input_schema: @types.Object(schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("Convert to Markdown"),
+      read_only_hint: Some(true),
+      destructive_hint: Some(false),
+      idempotent_hint: Some(true),
+      open_world_hint: Some(false),
+    }),
   })
   .register(ToolDefinition::{
     name: "dump_normalized_ast",
     description: "Return the normalized AST after shared structural passes for debugging, regression review, or downstream tooling.",
     input_schema: @types.Object(inspect_schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("Dump Normalized AST"),
+      read_only_hint: Some(true),
+      destructive_hint: Some(false),
+      idempotent_hint: Some(true),
+      open_world_hint: Some(false),
+    }),
   })
   .register(ToolDefinition::{
     name: "extract_structure",
     description: "Return the canonical semantic document with section tree, roles, provenance, confidence, and diagnostics.",
     input_schema: @types.Object(inspect_schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("Extract Structure"),
+      read_only_hint: Some(true),
+      destructive_hint: Some(false),
+      idempotent_hint: Some(true),
+      open_world_hint: Some(false),
+    }),
   })
   .register(ToolDefinition::{
     name: "compare_with_baseline",
     description: "Run a local baseline converter such as markitdown or docling against the same document and report agreement metrics plus baseline availability.",
     input_schema: @types.Object(inspect_schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("Compare with Baseline"),
+      read_only_hint: Some(true),
+      destructive_hint: Some(false),
+      idempotent_hint: Some(true),
+      open_world_hint: Some(false),
+    }),
   })
   .register(ToolDefinition::{
     name: "upload_document",
     description: "Store uploaded bytes as a reusable moonbitmark://document/<id> resource.",
     input_schema: @types.Object(store_schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("Upload Document"),
+      read_only_hint: Some(false),
+      destructive_hint: Some(false),
+      idempotent_hint: Some(false),
+      open_world_hint: Some(false),
+    }),
   })
   .register(ToolDefinition::{
     name: "convert_uploaded_document",
     description: "Convert uploaded bytes to Markdown without shared file paths; supports data_base64 or data_bytes and defaults to preview mode.",
     input_schema: @types.Object(upload_schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("Convert Uploaded Document"),
+      read_only_hint: Some(false),
+      destructive_hint: Some(false),
+      idempotent_hint: Some(false),
+      open_world_hint: Some(false),
+    }),
+  })
+  .register(ToolDefinition::{
+    name: "list_documents",
+    description: "List all currently stored uploaded documents with their resource URIs, filenames, MIME types, and sizes.",
+    input_schema: @types.Object(list_documents_schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("List Documents"),
+      read_only_hint: Some(true),
+      destructive_hint: Some(false),
+      idempotent_hint: Some(true),
+      open_world_hint: Some(false),
+    }),
+  })
+  .register(ToolDefinition::{
+    name: "delete_document",
+    description: "Delete a stored document resource by its moonbitmark://document/<id> URI.",
+    input_schema: @types.Object(delete_document_schema),
+    annotations: Some(@types.McpToolAnnotations::{
+      title: Some("Delete Document"),
+      read_only_hint: Some(false),
+      destructive_hint: Some(true),
+      idempotent_hint: Some(true),
+      open_world_hint: Some(false),
+    }),
   })
 }
 
@@ -667,7 +772,36 @@ async fn compare_with_baseline_handler(
           response_mode, summary, baseline_markdown, payload,
         )
       }
-      Err(message) => error_tool_result(message)
+      Err(message) => {
+        let fallback : @types.JsonValue = @types.Object({
+          "available": @types.Bool(false),
+          "supported": @types.Bool(false),
+          "error": @types.String(message),
+        })
+        let summary = compare_with_baseline_summary(
+          document.request_uri,
+          document.input_kind,
+          detected_format,
+          effective_format,
+          baseline,
+          fallback,
+        )
+        let payload = compare_with_baseline_payload(
+          document.request_uri,
+          document.input_kind,
+          detected_format,
+          effective_format,
+          baseline,
+          result,
+          fallback,
+        )
+        tool_result_for_response_mode(
+          response_mode,
+          summary,
+          None,
+          payload,
+        )
+      }
     }
   } catch {
     error => error_tool_result("Error comparing baseline: " + error.to_string())
@@ -3548,5 +3682,90 @@ fn optional_float_string(value : Float?) -> String {
   match value {
     Some(number) => number.to_string()
     None => "null"
+  }
+}
+
+///|
+async fn list_documents_handler(
+  args : @types.JsonValue,
+) -> @types.McpToolResult {
+  let response_mode = match response_mode_arg(args) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let docs = list_stored_documents()
+  let summary_lines : Array[String] = [
+    summary_line("tool", "list_documents"),
+    summary_line("document_count", docs.length().to_string()),
+  ]
+  for doc in docs {
+    summary_lines.push(summary_line("resource_uri", doc.resource_uri))
+    summary_lines.push(summary_line("filename", doc.filename))
+    summary_lines.push(
+      summary_line("mime_type", optional_string(doc.mime_type)),
+    )
+    summary_lines.push(summary_line("byte_size", doc.byte_size.to_string()))
+  }
+  let summary = render_summary(summary_lines)
+  let doc_entries : Array[@types.JsonValue] = []
+  for doc in docs {
+    doc_entries.push(
+      @types.Object({
+        "resource_uri": @types.String(doc.resource_uri),
+        "filename": @types.String(doc.filename),
+        "mime_type": json_optional_string(doc.mime_type),
+        "byte_size": @types.Number(doc.byte_size),
+      }),
+    )
+  }
+  let payload = @types.Object({
+    "content": @types.String(summary),
+    "metadata": @types.Object({ "tool": @types.String("list_documents") }),
+    "diagnostics": @types.Object({
+      "document_count": @types.Number(docs.length()),
+    }),
+    "stats": @types.Object({ "document_count": @types.Number(docs.length()) }),
+    "documents": @types.Array(doc_entries),
+  })
+  tool_result_for_response_mode(response_mode, summary, None, payload)
+}
+
+///|
+async fn delete_document_handler(
+  args : @types.JsonValue,
+) -> @types.McpToolResult {
+  let response_mode = match response_mode_arg(args) {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let resource_uri = match required_string_arg(args, "resource_uri") {
+    Ok(value) => value
+    Err(message) => return error_tool_result(message)
+  }
+  let result = delete_document_resource(resource_uri)
+  match result {
+    Ok(deleted) => {
+      let summary = render_summary([
+        summary_line("tool", "delete_document"),
+        summary_line("resource_uri", deleted.resource_uri),
+        summary_line("source_filename", deleted.filename),
+        summary_line("mime_type", optional_string(deleted.mime_type)),
+        summary_line("byte_size", deleted.byte_size.to_string()),
+        summary_line("deleted", "true"),
+      ])
+      let payload = @types.Object({
+        "content": @types.String(summary),
+        "metadata": @types.Object({
+          "tool": @types.String("delete_document"),
+          "resource_uri": @types.String(deleted.resource_uri),
+          "source_filename": @types.String(deleted.filename),
+          "mime_type": json_optional_string(deleted.mime_type),
+        }),
+        "diagnostics": @types.Object({ "deleted": @types.Bool(true) }),
+        "stats": @types.Object({ "byte_size": @types.Number(deleted.byte_size) }),
+      })
+      tool_result_for_response_mode(response_mode, summary, None, payload)
+    }
+    Err(message) => error_tool_result("Error deleting document: " + message)
   }
 }

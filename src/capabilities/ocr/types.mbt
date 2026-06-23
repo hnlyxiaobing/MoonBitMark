@@ -6,7 +6,7 @@ pub(all) enum OcrMode {
 } derive(Debug, Eq, ToJson)
 
 ///|
-pub impl Show for OcrMode with output(self, logger) {
+pub impl Show for OcrMode with fn output(self, logger) {
   self.to_repr().output(logger)
 }
 

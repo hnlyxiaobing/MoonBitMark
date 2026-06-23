@@ -99,9 +99,11 @@ async fn McpDispatcher::handle_request(
 
   match request.method_name {
     "initialize" => Some(self.handle_initialize(request.id))
+    "ping" => Some(self.handle_ping(request.id))
     "tools/list" => Some(self.handle_tools_list(request.id))
     "tools/call" => Some(self.handle_tools_call(request.params, request.id))
-    "resources/list" => Some(self.handle_resources_list(request.id))
+    "resources/list" =>
+      Some(self.handle_resources_list(request.params, request.id))
     "resources/read" =>
       Some(self.handle_resources_read(request.params, request.id))
     "prompts/list" => Some(self.handle_prompts_list(request.id))
@@ -142,13 +144,27 @@ fn McpDispatcher::handle_initialize(
       protocol_version: "2024-11-05",
     },
     instructions: Some(
-      "Use prompts/get for guided flows, resources/read for boundaries, inspect first for unknown or large documents, keep convert_to_markdown in preview mode unless you need the full Markdown, prefer upload_document plus resource_uri when the client only has bytes, keep convert_uploaded_document as the one-shot upload plus convert path, and remember that file roots, HTTP access, OCR, upload size, and output caps are controlled by MOONBITMARK_MCP_* environment variables.",
+      "Use prompts/get for guided flows (convert-document, diagnose-conversion-failure, batch-convert), resources/read for boundaries, inspect first for unknown or large documents, keep convert_to_markdown in preview mode unless you need the full Markdown, prefer upload_document plus resource_uri when the client only has bytes, use list_documents to enumerate stored resources and delete_document to remove them, keep convert_uploaded_document as the one-shot upload plus convert path, and remember that file roots, HTTP access, OCR, upload size, and output caps are controlled by MOONBITMARK_MCP_* environment variables.",
     ),
   }
 
   @types.JsonResponse::{
     jsonrpc: "2.0",
     result: Some(result.to_json()),
+    error: None,
+    id,
+  }
+}
+
+///|
+fn McpDispatcher::handle_ping(
+  self : McpDispatcher,
+  id : @types.JsonId?,
+) -> @types.JsonResponse {
+  ignore(self)
+  @types.JsonResponse::{
+    jsonrpc: "2.0",
+    result: Some(@types.Object(Map::new())),
     error: None,
     id,
   }
@@ -171,10 +187,21 @@ fn McpDispatcher::handle_tools_list(
 ///|
 fn McpDispatcher::handle_resources_list(
   self : McpDispatcher,
+  params : @types.JsonValue?,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
+  let cursor = parse_cursor_param(params)
+  let all_resources = self.resources.list()
+  let (page, next_cursor) = paginate_list(all_resources, cursor)
+  let templates = self.resources.list_templates()
   let result = @types.McpResourcesListResult::{
-    resources: self.resources.list(),
+    resources: page,
+    next_cursor,
+    resource_templates: if templates.length() > 0 {
+      Some(templates)
+    } else {
+      None
+    },
   }
   @types.JsonResponse::{
     jsonrpc: "2.0",
@@ -441,4 +468,50 @@ fn parse_get_prompt_params(
     }
     _ => Err("Prompt get params must be an object")
   }
+}
+
+///|
+fn mcp_default_page_size() -> Int {
+  50
+}
+
+///|
+fn parse_cursor_param(params : @types.JsonValue?) -> String? {
+  match params {
+    Some(@types.Object(map)) =>
+      match map.get("cursor") {
+        Some(@types.String(value)) if value.trim() != "" => Some(value)
+        _ => None
+      }
+    _ => None
+  }
+}
+
+///|
+fn[T] paginate_list(items : Array[T], cursor : String?) -> (Array[T], String?) {
+  let page_size = mcp_default_page_size()
+  let start = match cursor {
+    Some(value) => @strconv.from_str(value) catch { _ => 0 }
+    None => 0
+  }
+  if start >= items.length() {
+    return ([], None)
+  }
+  let end = if start + page_size > items.length() {
+    items.length()
+  } else {
+    start + page_size
+  }
+  let page : Array[T] = []
+  let mut i = start
+  while i < end {
+    page.push(items[i])
+    i = i + 1
+  }
+  let next_cursor = if end < items.length() {
+    Some(end.to_string())
+  } else {
+    None
+  }
+  (page, next_cursor)
 }

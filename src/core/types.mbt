@@ -241,7 +241,7 @@ pub(all) enum OutputMode {
 } derive(Debug, Eq, ToJson)
 
 ///|
-pub impl Show for OutputMode with output(self, logger) {
+pub impl Show for OutputMode with fn output(self, logger) {
   self.to_repr().output(logger)
 }
 
@@ -271,9 +271,9 @@ pub fn ConvertContext::default() -> ConvertContext {
 
 ///|
 pub(open) trait DocumentConverter {
-  name() -> String
-  priority() -> Int
-  accepts(StreamInfo) -> Bool
+  fn name() -> String
+  fn priority() -> Int
+  fn accepts(StreamInfo) -> Bool
 }
 
 ///|

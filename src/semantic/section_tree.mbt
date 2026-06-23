@@ -15,7 +15,7 @@ pub(all) enum SemanticRole {
 } derive(Debug, Eq, ToJson)
 
 ///|
-pub impl Show for SemanticRole with output(self, logger) {
+pub impl Show for SemanticRole with fn output(self, logger) {
   self.to_repr().output(logger)
 }
 

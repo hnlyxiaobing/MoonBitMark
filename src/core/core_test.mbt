@@ -69,7 +69,9 @@ test "file helpers normalize basename and stem" {
   )
   inspect(
     @core.file_stem("docs\\nested/report.final.txt"),
-    content="Some(\"report.final\")",
+    content=(
+      #|Some(report.final)
+    ),
   )
   inspect(@core.path_extension("docs/nested/archive.DOCX"), content="docx")
 }

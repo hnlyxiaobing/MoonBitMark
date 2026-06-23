@@ -2,11 +2,16 @@ $ErrorActionPreference = 'Stop'
 
 function Get-MoonBitMarkRepoRoot {
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$ScriptPath
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string]$ScriptPath = ""
     )
 
-    $current = (Resolve-Path $ScriptPath).Path
+    if ([string]::IsNullOrEmpty($ScriptPath)) {
+        $current = (Get-Location).Path
+    } else {
+        $current = (Resolve-Path $ScriptPath).Path
+    }
     while ($null -ne $current) {
         if (Test-Path (Join-Path $current 'moon.mod.json')) {
             return $current

@@ -1,10 +1,20 @@
 // MoonBitMark MCP Types - MCP Protocol Models
 
 ///|
+pub(all) struct McpToolAnnotations {
+  title : String?
+  read_only_hint : Bool?
+  destructive_hint : Bool?
+  idempotent_hint : Bool?
+  open_world_hint : Bool?
+}
+
+///|
 pub(all) struct McpTool {
   name : String
   description : String
   input_schema : JsonValue
+  annotations : McpToolAnnotations?
 }
 
 ///|
@@ -97,8 +107,19 @@ pub(all) struct McpResourceContents {
 }
 
 ///|
+pub(all) struct McpResourceTemplate {
+  uri_template : String
+  name : String
+  title : String?
+  description : String?
+  mime_type : String?
+}
+
+///|
 pub(all) struct McpResourcesListResult {
   resources : Array[McpResource]
+  next_cursor : String?
+  resource_templates : Array[McpResourceTemplate]?
 }
 
 ///|
@@ -165,6 +186,36 @@ pub fn McpTool::to_json(self : McpTool) -> JsonValue {
   map["name"] = String(self.name)
   map["description"] = String(self.description)
   map["inputSchema"] = self.input_schema
+  match self.annotations {
+    Some(value) => map["annotations"] = value.to_json()
+    None => ()
+  }
+  Object(map)
+}
+
+///|
+pub fn McpToolAnnotations::to_json(self : McpToolAnnotations) -> JsonValue {
+  let map : Map[String, JsonValue] = Map::new()
+  match self.title {
+    Some(value) => map["title"] = String(value)
+    None => ()
+  }
+  match self.read_only_hint {
+    Some(value) => map["readOnlyHint"] = Bool(value)
+    None => ()
+  }
+  match self.destructive_hint {
+    Some(value) => map["destructiveHint"] = Bool(value)
+    None => ()
+  }
+  match self.idempotent_hint {
+    Some(value) => map["idempotentHint"] = Bool(value)
+    None => ()
+  }
+  match self.open_world_hint {
+    Some(value) => map["openWorldHint"] = Bool(value)
+    None => ()
+  }
   Object(map)
 }
 
@@ -305,6 +356,40 @@ pub fn McpResourcesListResult::to_json(
 
   let map : Map[String, JsonValue] = Map::new()
   map["resources"] = Array(items)
+  match self.next_cursor {
+    Some(value) => map["nextCursor"] = String(value)
+    None => ()
+  }
+  match self.resource_templates {
+    Some(templates) => {
+      let template_items : Array[JsonValue] = []
+      for template in templates {
+        template_items.push(template.to_json())
+      }
+      map["resourceTemplates"] = Array(template_items)
+    }
+    None => ()
+  }
+  Object(map)
+}
+
+///|
+pub fn McpResourceTemplate::to_json(self : McpResourceTemplate) -> JsonValue {
+  let map : Map[String, JsonValue] = Map::new()
+  map["uriTemplate"] = String(self.uri_template)
+  map["name"] = String(self.name)
+  match self.title {
+    Some(value) => map["title"] = String(value)
+    None => ()
+  }
+  match self.description {
+    Some(value) => map["description"] = String(value)
+    None => ()
+  }
+  match self.mime_type {
+    Some(value) => map["mimeType"] = String(value)
+    None => ()
+  }
   Object(map)
 }
 
@@ -395,5 +480,53 @@ pub fn McpGetPromptResult::to_json(self : McpGetPromptResult) -> JsonValue {
     None => ()
   }
   map["messages"] = Array(items)
+  Object(map)
+}
+
+///|
+pub(all) enum McpLoggingLevel {
+  Debug
+  Info
+  Notice
+  Warning
+  Error
+  Critical
+  Alert
+  Emergency
+}
+
+///|
+pub fn McpLoggingLevel::to_string(self : McpLoggingLevel) -> String {
+  match self {
+    Debug => "debug"
+    Info => "info"
+    Notice => "notice"
+    Warning => "warning"
+    Error => "error"
+    Critical => "critical"
+    Alert => "alert"
+    Emergency => "emergency"
+  }
+}
+
+///|
+pub(all) struct McpLoggingNotification {
+  level : McpLoggingLevel
+  logger : String
+  data : JsonValue
+}
+
+///|
+pub fn McpLoggingNotification::to_jsonrpc(
+  self : McpLoggingNotification,
+) -> JsonValue {
+  let params : Map[String, JsonValue] = Map::new()
+  params["level"] = String(self.level.to_string())
+  params["logger"] = String(self.logger)
+  params["data"] = self.data
+  let map : Map[String, JsonValue] = Map::new()
+  map["jsonrpc"] = String("2.0")
+  map["method"] = String("notifications/message")
+  map["params"] = Object(params)
   Object(map)
 }

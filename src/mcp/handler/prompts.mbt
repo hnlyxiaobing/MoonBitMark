@@ -51,6 +51,7 @@ pub fn PromptRegistry::get(
     "convert-document" => convert_document_prompt(arguments)
     "diagnose-conversion-failure" =>
       diagnose_conversion_failure_prompt(arguments)
+    "batch-convert" => batch_convert_prompt(arguments)
     _ => Err("Prompt not found")
   }
 }
@@ -102,6 +103,31 @@ pub fn PromptRegistry::register_static_prompts(
         prompt_argument(
           "last_mode", "Optional last convert_to_markdown mode such as preview or full.",
           false,
+        ),
+      ]),
+    },
+  })
+  .register(PromptDefinition::{
+    prompt: @types.McpPrompt::{
+      name: "batch-convert",
+      title: None,
+      description: Some(
+        "Convert multiple documents in batch: inspect each, convert with preview-first, and collect results.",
+      ),
+      arguments: Some([
+        prompt_argument(
+          "uris", "Comma-separated list of file paths or URLs to convert.", true,
+        ),
+        prompt_argument(
+          "mode", "Target mode for all conversions: preview or full. Default is preview.",
+          false,
+        ),
+        prompt_argument(
+          "format_hint", "Optional advisory format hint applied to all inputs.",
+          false,
+        ),
+        prompt_argument(
+          "max_chars", "Optional character cap applied to each conversion.", false,
         ),
       ]),
     },
@@ -270,4 +296,87 @@ fn max_chars_segment(max_chars : String?) -> String {
     Some(value) => ", max_chars=" + value
     None => ""
   }
+}
+
+///|
+fn batch_convert_prompt(
+  arguments : @types.JsonValue,
+) -> Result[@types.McpGetPromptResult, String] {
+  let uris_text = match required_prompt_string(arguments, "uris") {
+    Ok(value) => value
+    Err(message) => return Err(message)
+  }
+  let mode = optional_prompt_string(arguments, "mode")
+  let format_hint = optional_prompt_string(arguments, "format_hint")
+  let max_chars = optional_prompt_string(arguments, "max_chars")
+  let effective_mode = match mode {
+    Some(value) => value
+    None => "preview"
+  }
+  let uris = split_and_trim_uris(uris_text)
+  if uris.length() == 0 {
+    return Err("No valid URIs found in the uris argument")
+  }
+
+  let uri_lines : Array[String] = []
+  let mut index = 0
+  while index < uris.length() {
+    uri_lines.push("- [" + (index + 1).to_string() + "] " + uris[index])
+    index = index + 1
+  }
+
+  let header_lines = [
+    "Batch convert " +
+    uris.length().to_string() +
+    " document(s) with MoonBitMark.",
+    "",
+    "Inputs:",
+  ]
+  for line in uri_lines {
+    header_lines.push(line)
+  }
+  header_lines.push("")
+  header_lines.push("Mode: " + effective_mode)
+  header_lines.push("Optional format_hint: " + optional_text(format_hint))
+  header_lines.push("Optional max_chars: " + optional_text(max_chars))
+  header_lines.push("")
+  header_lines.push("Required flow:")
+  header_lines.push(
+    "1. For each URI, call inspect_document first to detect format and check preview recommendation.",
+  )
+  header_lines.push(
+    "2. Call convert_to_markdown for each input with mode=" +
+    effective_mode +
+    format_hint_segment(format_hint) +
+    max_chars_segment(max_chars) +
+    ".",
+  )
+  header_lines.push(
+    "3. If any input is large or unknown format, keep preview mode and only expand individually if needed.",
+  )
+  header_lines.push(
+    "4. Collect and summarize: detected format, truncation status, warnings, and returned Markdown for each input.",
+  )
+  header_lines.push(
+    "5. If any conversion fails, read moonbitmark://known-issues before retrying.",
+  )
+
+  Ok(@types.McpGetPromptResult::{
+    description: Some(
+      "Guide an agent through batch conversion of multiple documents with MoonBitMark.",
+    ),
+    messages: [prompt_message("user", header_lines.join("\n"))],
+  })
+}
+
+///|
+fn split_and_trim_uris(text : String) -> Array[String] {
+  let result : Array[String] = []
+  for part in text.split(",") {
+    let trimmed = part.trim().to_string()
+    if trimmed != "" {
+      result.push(trimmed)
+    }
+  }
+  result
 }

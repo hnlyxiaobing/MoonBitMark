@@ -1,6 +1,8 @@
 ///|
 test "docx file stem helper" {
-  inspect(@core.file_stem("book/chapter1.docx"), content="Some(\"chapter1\")")
+  inspect(@core.file_stem("book/chapter1.docx"), content=(
+    #|Some(chapter1)
+  ))
 }
 
 ///|

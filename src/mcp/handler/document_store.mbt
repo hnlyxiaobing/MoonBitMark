@@ -110,6 +110,105 @@ fn render_document_resource_text(stored : StoredDocument) -> String {
 }
 
 ///|
+async fn list_stored_documents() -> Array[StoredDocument] {
+  let meta_dir = document_meta_dir()
+  if !@fs.exists(meta_dir) {
+    return []
+  }
+  let entries = @fs.readdir(
+    meta_dir,
+    include_hidden=true,
+    include_special=false,
+    sort=false,
+  ) catch {
+    _ => return []
+  }
+  let docs : Array[StoredDocument] = []
+  for entry in entries {
+    if !entry.has_suffix(".meta.txt") {
+      continue
+    }
+    let id = entry[:entry.length() - 9].to_string()
+    let meta_path = document_meta_path(id)
+    let blob_path = document_blob_path(id)
+    if !@fs.exists(meta_path) || !@fs.exists(blob_path) {
+      continue
+    }
+    let metadata = match read_document_meta(meta_path) {
+      Ok(value) => value
+      Err(_) => continue
+    }
+    let filename = match metadata.get("filename") {
+      Some(value) if value != "" => value
+      _ => continue
+    }
+    let byte_size = match metadata.get("byte_size") {
+      Some(value) => @strconv.from_str(value[:]) catch { _ => continue }
+      None => continue
+    }
+    let mime_type = match metadata.get("mime_type") {
+      Some(value) if value != "" => Some(value)
+      _ => None
+    }
+    docs.push(StoredDocument::{
+      resource_uri: document_resource_uri(id),
+      filename,
+      mime_type,
+      byte_size,
+      blob_path,
+    })
+  }
+  docs
+}
+
+///|
+async fn delete_document_resource(
+  resource_uri : String,
+) -> Result[StoredDocument, String] {
+  let id = match parse_document_resource_id(resource_uri) {
+    Ok(value) => value
+    Err(message) => return Err(message)
+  }
+  let meta_path = document_meta_path(id)
+  let blob_path = document_blob_path(id)
+  if !@fs.exists(meta_path) && !@fs.exists(blob_path) {
+    return Err("Resource not found")
+  }
+  let metadata = match read_document_meta(meta_path) {
+    Ok(value) => value
+    Err(_) => {
+      ignore(@fs.remove(blob_path) catch { _ => () })
+      ignore(@fs.remove(meta_path) catch { _ => () })
+      return Err(
+        "Stored document metadata is malformed; cleaned up orphaned files",
+      )
+    }
+  }
+  let filename = match metadata.get("filename") {
+    Some(value) if value != "" => value
+    _ => "unknown"
+  }
+  let byte_size = match metadata.get("byte_size") {
+    Some(value) => @strconv.from_str(value[:]) catch { _ => 0 }
+    None => 0
+  }
+  let mime_type = match metadata.get("mime_type") {
+    Some(value) if value != "" => Some(value)
+    _ => None
+  }
+  let stored = StoredDocument::{
+    resource_uri,
+    filename,
+    mime_type,
+    byte_size,
+    blob_path,
+  }
+  ignore(@fs.remove(blob_path) catch { _ => () })
+  ignore(@fs.remove(meta_path) catch { _ => () })
+  Ok(stored)
+}
+
+///|
 async fn sweep_stale_document_resources() -> Unit {
   let meta_dir = document_meta_dir()
   if !@fs.exists(meta_dir) {

@@ -83,6 +83,25 @@ pub(all) struct McpInitializeResult {
 }
 pub fn McpInitializeResult::to_json(Self) -> JsonValue
 
+pub(all) enum McpLoggingLevel {
+  Debug
+  Info
+  Notice
+  Warning
+  Error
+  Critical
+  Alert
+  Emergency
+}
+pub fn McpLoggingLevel::to_string(Self) -> String
+
+pub(all) struct McpLoggingNotification {
+  level : McpLoggingLevel
+  logger : String
+  data : JsonValue
+}
+pub fn McpLoggingNotification::to_jsonrpc(Self) -> JsonValue
+
 pub(all) struct McpPrompt {
   name : String
   title : String?
@@ -130,8 +149,19 @@ pub(all) struct McpResourceContents {
 }
 pub fn McpResourceContents::to_json(Self) -> JsonValue
 
+pub(all) struct McpResourceTemplate {
+  uri_template : String
+  name : String
+  title : String?
+  description : String?
+  mime_type : String?
+}
+pub fn McpResourceTemplate::to_json(Self) -> JsonValue
+
 pub(all) struct McpResourcesListResult {
   resources : Array[McpResource]
+  next_cursor : String?
+  resource_templates : Array[McpResourceTemplate]?
 }
 pub fn McpResourcesListResult::to_json(Self) -> JsonValue
 
@@ -173,8 +203,18 @@ pub(all) struct McpTool {
   name : String
   description : String
   input_schema : JsonValue
+  annotations : McpToolAnnotations?
 }
 pub fn McpTool::to_json(Self) -> JsonValue
+
+pub(all) struct McpToolAnnotations {
+  title : String?
+  read_only_hint : Bool?
+  destructive_hint : Bool?
+  idempotent_hint : Bool?
+  open_world_hint : Bool?
+}
+pub fn McpToolAnnotations::to_json(Self) -> JsonValue
 
 pub(all) struct McpToolCallParams {
   name : String

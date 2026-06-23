@@ -130,9 +130,13 @@ test "pptx related image assets are attached to the slide" {
     content="#### Slide Assets\n\n![image1.png](moonbitmark-raw://pptx/1)",
   )
   inspect(annotations.length(), content="2")
-  inspect(annotations[0].source_hint, content="Some(\"slide: 1\")")
+  inspect(annotations[0].source_hint, content=(
+    #|Some(slide: 1)
+  ))
   inspect(
     annotations[1].origin_hint,
-    content="Some(\"resource: ppt/media/image1.png; kind: asset\")",
+    content=(
+      #|Some(resource: ppt/media/image1.png; kind: asset)
+    ),
   )
 }

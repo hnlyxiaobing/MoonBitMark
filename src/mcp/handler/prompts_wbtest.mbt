@@ -4,12 +4,13 @@ fn extract_prompt_text(message : @types.McpPromptMessage) -> String {
 }
 
 ///|
-test "prompt registry lists the two documented prompts" {
+test "prompt registry lists the documented prompts" {
   let registry = PromptRegistry::new().register_static_prompts()
   let prompts = registry.list()
-  inspect(prompts.length(), content="2")
+  inspect(prompts.length(), content="3")
   inspect(prompts[0].name, content="convert-document")
   inspect(prompts[1].name, content="diagnose-conversion-failure")
+  inspect(prompts[2].name, content="batch-convert")
   match prompts[0].arguments {
     Some(arguments) => inspect(arguments.length(), content="5")
     None => fail("expected convert-document arguments")

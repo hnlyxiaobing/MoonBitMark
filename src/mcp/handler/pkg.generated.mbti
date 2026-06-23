@@ -50,6 +50,18 @@ pub fn McpServer::new(@transport.StdioTransport) -> Self
 pub fn McpServer::new_with_logger(@transport.StdioTransport, @util.Logger) -> Self
 pub async fn McpServer::run(Self) -> Unit
 
+pub(all) struct NotificationLogger {
+  name : String
+  min_level : @types.McpLoggingLevel
+}
+pub async fn NotificationLogger::debug(Self, String) -> Unit
+pub async fn NotificationLogger::error(Self, String) -> Unit
+pub async fn NotificationLogger::info(Self, String) -> Unit
+pub async fn NotificationLogger::log(Self, @types.McpLoggingLevel, String) -> Unit
+pub fn NotificationLogger::new(String) -> Self
+pub fn NotificationLogger::set_min_level(Self, @types.McpLoggingLevel) -> Self
+pub async fn NotificationLogger::warn(Self, String) -> Unit
+
 pub(all) struct PromptDefinition {
   prompt : @types.McpPrompt
 }
@@ -70,17 +82,21 @@ pub(all) struct ResourceDefinition {
 
 pub(all) struct ResourceRegistry {
   resources : Array[ResourceDefinition]
+  resource_templates : Array[@types.McpResourceTemplate]
 }
 pub fn ResourceRegistry::list(Self) -> Array[@types.McpResource]
+pub fn ResourceRegistry::list_templates(Self) -> Array[@types.McpResourceTemplate]
 pub fn ResourceRegistry::new() -> Self
 pub async fn ResourceRegistry::read(Self, String) -> Result[@types.McpResourceContents, String]
 pub fn ResourceRegistry::register(Self, ResourceDefinition) -> Self raise
 pub fn ResourceRegistry::register_static_resources(Self) -> Self raise
+pub fn ResourceRegistry::register_template(Self, @types.McpResourceTemplate) -> Self raise
 
 pub(all) struct ToolDefinition {
   name : String
   description : String
   input_schema : @types.JsonValue
+  annotations : @types.McpToolAnnotations?
 }
 
 pub(all) struct ToolRegistry {

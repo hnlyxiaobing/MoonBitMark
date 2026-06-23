@@ -4,7 +4,9 @@ test "parse args enables frontmatter and output file" {
     "moonbitmark", "--frontmatter", "demo.docx", "out.md",
   ])
   inspect(options.input, content="demo.docx")
-  inspect(options.output, content="Some(\"out.md\")")
+  inspect(options.output, content=(
+    #|Some(out.md)
+  ))
   inspect(options.ctx.output_mode, content="FrontMatterMarkdown")
 }
 
@@ -14,7 +16,9 @@ test "parse args supports metadata and asset flags" {
     "moonbitmark", "--no-metadata", "--asset-dir", "assets", "demo.epub",
   ])
   inspect(options.ctx.keep_metadata, content="false")
-  inspect(options.ctx.asset_output_dir, content="Some(\"assets\")")
+  inspect(options.ctx.asset_output_dir, content=(
+    #|Some(assets)
+  ))
 }
 
 ///|
@@ -26,7 +30,9 @@ test "parse args supports ocr flags" {
   inspect(options.ctx.ocr.mode, content="Force")
   inspect(options.ctx.ocr.language, content="chi_sim")
   inspect(options.ctx.ocr.enable_embedded_images, content="true")
-  inspect(options.ctx.ocr.backend, content="Some(\"mock\")")
+  inspect(options.ctx.ocr.backend, content=(
+    #|Some(mock)
+  ))
   inspect(options.ctx.ocr.timeout_ms, content="Some(2500)")
 }
 

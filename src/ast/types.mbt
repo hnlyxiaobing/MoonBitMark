@@ -38,7 +38,7 @@ pub(all) struct Document {
 } derive(Debug, Eq, ToJson)
 
 ///|
-pub impl Show for Block with output(self, logger) {
+pub impl Show for Block with fn output(self, logger) {
   self.to_repr().output(logger)
 }
 

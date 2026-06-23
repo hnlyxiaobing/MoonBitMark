@@ -7,9 +7,9 @@ fn extract_resource_text(content : @types.McpResourceContents) -> String {
 test "resource registry lists the documented static resources" {
   let registry = ResourceRegistry::new().register_static_resources()
   let resources = registry.list()
-  inspect(resources.length(), content="5")
+  inspect(resources.length(), content="6")
   inspect(resources[0].uri, content="moonbitmark://capabilities")
-  inspect(resources[4].uri, content="moonbitmark://mcp-usage")
+  inspect(resources[5].uri, content="moonbitmark://server-info")
   inspect(resources[0].mime_type == Some("text/markdown"), content="true")
 }
 

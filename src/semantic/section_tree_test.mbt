@@ -38,11 +38,17 @@ test "semantic document groups blocks under heading sections" {
   }
   let semantic = semantic_document_of(document)
   inspect(semantic.sections.length(), content="1")
-  inspect(semantic.sections[0].title, content="Some(\"Intro\")")
-  inspect(semantic.sections[0].children[0].title, content="Some(\"Detail\")")
+  inspect(semantic.sections[0].title, content=(
+    #|Some(Intro)
+  ))
+  inspect(semantic.sections[0].children[0].title, content=(
+    #|Some(Detail)
+  ))
   inspect(semantic.blocks[3].role, content="Code")
   inspect(semantic.blocks[0].role, content="Title")
-  inspect(semantic.provenance.source_path, content="Some(\"docs/demo.docx\")")
+  inspect(semantic.provenance.source_path, content=(
+    #|Some(docs/demo.docx)
+  ))
   inspect(semantic.blocks[0].confidence, content="85")
 }
 
@@ -93,11 +99,15 @@ test "semantic document infers note caption and provenance hints" {
   inspect(semantic.blocks[1].provenance.page_no, content="Some(3)")
   inspect(
     semantic.blocks[1].provenance.resource,
-    content="Some(\"media/chart.png\")",
+    content=(
+      #|Some(media/chart.png)
+    ),
   )
   inspect(semantic.blocks[2].role, content="Caption")
   inspect(semantic.blocks[3].role, content="TableBody")
-  inspect(semantic.blocks[3].provenance.sheet_name, content="Some(\"Q1\")")
+  inspect(semantic.blocks[3].provenance.sheet_name, content=(
+    #|Some(Q1)
+  ))
   inspect(semantic.blocks[3].confidence, content="70")
 }
 
@@ -119,7 +129,9 @@ test "semantic document tracks pptx slide context and html title paragraphs" {
   inspect(pptx_semantic.blocks[1].provenance.slide_no, content="Some(3)")
   inspect(
     pptx_semantic.blocks[2].provenance.resource,
-    content="Some(\"ppt/slides/slide3.xml\")",
+    content=(
+      #|Some(ppt/slides/slide3.xml)
+    ),
   )
 
   let html_document = @ast.Document::{
@@ -135,7 +147,9 @@ test "semantic document tracks pptx slide context and html title paragraphs" {
   inspect(html_semantic.blocks[0].role, content="Title")
   inspect(
     html_semantic.blocks[0].provenance.resource,
-    content="Some(\"html:body\")",
+    content=(
+      #|Some(html:body)
+    ),
   )
 }
 
@@ -223,11 +237,17 @@ test "semantic document preserves provenance from xlsx epub and pdf hints" {
     ],
   }
   let semantic = semantic_document_of(document)
-  inspect(semantic.blocks[0].provenance.sheet_name, content="Some(\"Summary\")")
-  inspect(semantic.blocks[1].provenance.chapter, content="Some(\"Intro\")")
+  inspect(semantic.blocks[0].provenance.sheet_name, content=(
+    #|Some(Summary)
+  ))
+  inspect(semantic.blocks[1].provenance.chapter, content=(
+    #|Some(Intro)
+  ))
   inspect(semantic.blocks[2].provenance.page_no, content="Some(7)")
   inspect(
     semantic.blocks[2].provenance.resource,
-    content="Some(\"pdf/native_text_fast/page/7\")",
+    content=(
+      #|Some(pdf/native_text_fast/page/7)
+    ),
   )
 }

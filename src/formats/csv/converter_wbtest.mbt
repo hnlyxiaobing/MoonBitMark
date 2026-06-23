@@ -56,6 +56,8 @@ async test "csv converter supports bytes input source" {
       Some("text/csv"),
     ),
   )
-  inspect(result.title, content="Some(\"bytes-sheet\")")
+  inspect(result.title, content=(
+    #|Some(bytes-sheet)
+  ))
   assert_true(result.markdown.contains("| name | team |"))
 }

@@ -1,6 +1,8 @@
 ///|
 test "json file stem helper" {
-  inspect(@core.file_stem("fixtures/data.json"), content="Some(\"data\")")
+  inspect(@core.file_stem("fixtures/data.json"), content=(
+    #|Some(data)
+  ))
 }
 
 ///|
@@ -13,6 +15,8 @@ async test "json converter supports bytes input source" {
       Some("application/json"),
     ),
   )
-  inspect(result.title, content="Some(\"bytes-data\")")
+  inspect(result.title, content=(
+    #|Some(bytes-data)
+  ))
   assert_true(result.markdown.contains("``` json"))
 }

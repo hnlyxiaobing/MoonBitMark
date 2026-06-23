@@ -17,12 +17,16 @@ test "pdf scientific table parser rebuilds column-major table" {
     Some((headers, rows, next_index)) => {
       inspect(
         headers,
-        content="[\"Inhibitor concentration (g)\", \"bc (V/dec)\", \"ba (V/dec)\", \"Ecorr (V)\", \"icorr (A/cm2)\", \"Polarization resistance (Ω)\", \"Corrosion rate (mm/year)\"]",
+        content=(
+          #|[Inhibitor concentration (g), bc (V/dec), ba (V/dec), Ecorr (V), icorr (A/cm2), Polarization resistance (Ω), Corrosion rate (mm/year)]
+        ),
       )
       inspect(rows.length(), content="6")
       inspect(
         rows[0],
-        content="[\"0\", \"0.0335\", \"0.0409\", \"-0.9393\", \"0.0003\", \"24.0910\", \"2.8163\"]",
+        content=(
+          #|[0, 0.0335, 0.0409, -0.9393, 0.0003, 24.0910, 2.8163]
+        ),
       )
       inspect(next_index, content="17")
     }
@@ -91,7 +95,9 @@ test "pdf normalization drops standalone page furniture" {
   let normalized = normalize_pdf_pages([
     "454\nJournal Header / Data in Brief 22 (2019) 451-457\nBody paragraph.\n1",
   ])
-  inspect(normalized.pages[0].chunks, content="[\"Body paragraph.\"]")
+  inspect(normalized.pages[0].chunks, content=(
+    #|[Body paragraph.]
+  ))
 }
 
 ///|
@@ -100,7 +106,9 @@ test "pdf scientific caption splitter keeps inline figure references" {
     split_scientific_caption_boundary(
       "The plot gives a straight line as shown in Fig. 5. The strong correlation reveals adsorption.",
     ),
-    content="[\"The plot gives a straight line as shown in Fig. 5. The strong correlation reveals adsorption.\"]",
+    content=(
+      #|[The plot gives a straight line as shown in Fig. 5. The strong correlation reveals adsorption.]
+    ),
   )
 }
 
@@ -150,7 +158,9 @@ test "pdf fallback linewise normalization rebuilds headings and bullet lines" {
   ])
   inspect(
     chunks,
-    content="[\"The Evolution of the Word Processor\", \"Pre-Digital Era (19th - Early 20th Century)\", \"The origins of word processing can be traced back to the invention of the typewriter in the mid-19th century. Patented in 1868 by Christopher Latham Sholes, the typewriter revolutionized written communication by enabling people to produce legible documents.\", \"• IBM MT/ST (Magnetic Tape/Selectric Typewriter): Introduced in 1964.\"]",
+    content=(
+      #|[The Evolution of the Word Processor, Pre-Digital Era (19th - Early 20th Century), The origins of word processing can be traced back to the invention of the typewriter in the mid-19th century. Patented in 1868 by Christopher Latham Sholes, the typewriter revolutionized written communication by enabling people to produce legible documents., • IBM MT/ST (Magnetic Tape/Selectric Typewriter): Introduced in 1964.]
+    ),
   )
 }
 
@@ -270,7 +280,9 @@ test "pdf ocr recovery normalization preserves linewise block candidates" {
   ])
   inspect(
     chunks,
-    content="[\"Project Status\", \"\", \"•\", \"Recovered backlog item\", \"\", \"Quarter  Revenue  Margin\", \"Q1  12.4  31%\", \"Q2  14.1  34%\"]",
+    content=(
+      #|[Project Status, , •, Recovered backlog item, , Quarter  Revenue  Margin, Q1  12.4  31%, Q2  14.1  34%]
+    ),
   )
 }
 
@@ -343,7 +355,9 @@ test "pdf layout chunks reorder two-column reading order" {
   })
   inspect(
     chunks,
-    content="[\"Neural Networks Overview\", \"\", \"Left column begins here.\", \"Left column continues here.\", \"\", \"Right column begins here.\", \"Right column continues here.\"]",
+    content=(
+      #|[Neural Networks Overview, , Left column begins here., Left column continues here., , Right column begins here., Right column continues here.]
+    ),
   )
 }
 

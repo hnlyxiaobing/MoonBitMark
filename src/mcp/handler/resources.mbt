@@ -9,11 +9,12 @@ pub(all) struct ResourceDefinition {
 ///|
 pub(all) struct ResourceRegistry {
   resources : Array[ResourceDefinition]
+  resource_templates : Array[@types.McpResourceTemplate]
 }
 
 ///|
 pub fn ResourceRegistry::new() -> ResourceRegistry {
-  ResourceRegistry::{ resources: [] }
+  ResourceRegistry::{ resources: [], resource_templates: [] }
 }
 
 ///|
@@ -29,7 +30,23 @@ pub fn ResourceRegistry::register(
 
   let resources = self.resources
   resources.push(resource)
-  ResourceRegistry::{ resources, }
+  ResourceRegistry::{ resources, resource_templates: self.resource_templates }
+}
+
+///|
+pub fn ResourceRegistry::register_template(
+  self : ResourceRegistry,
+  template : @types.McpResourceTemplate,
+) -> ResourceRegistry raise {
+  for existing in self.resource_templates {
+    if existing.uri_template == template.uri_template {
+      fail("Resource template already registered: " + template.uri_template)
+    }
+  }
+
+  let templates = self.resource_templates
+  templates.push(template)
+  ResourceRegistry::{ resources: self.resources, resource_templates: templates }
 }
 
 ///|
@@ -41,6 +58,13 @@ pub fn ResourceRegistry::list(
     items.push(resource.resource)
   }
   items
+}
+
+///|
+pub fn ResourceRegistry::list_templates(
+  self : ResourceRegistry,
+) -> Array[@types.McpResourceTemplate] {
+  self.resource_templates
 }
 
 ///|
@@ -114,6 +138,24 @@ pub fn ResourceRegistry::register_static_resources(
       mcp_usage_resource_text(),
     ),
   )
+  .register(
+    static_text_resource(
+      "moonbitmark://server-info",
+      "server-info",
+      "Server runtime info",
+      "Current security configuration and runtime limits.",
+      server_info_resource_text(),
+    ),
+  )
+  .register_template(@types.McpResourceTemplate::{
+    uri_template: "moonbitmark://document/{id}",
+    name: "stored-document",
+    title: Some("Stored uploaded document"),
+    description: Some(
+      "Dynamic resource for an uploaded document stored via upload_document. Use with inspect_document or convert_to_markdown.",
+    ),
+    mime_type: Some("text/markdown"),
+  })
 }
 
 ///|
@@ -141,11 +183,15 @@ fn static_text_resource(
 fn capabilities_resource_text() -> String {
   [
     "# MoonBitMark MCP capabilities", "", "- Transports: local STDIO and loopback-first HTTP POST /mcp.",
-    "- Verified methods: initialize, tools/list, tools/call, resources/list, resources/read.",
-    "- Prompts: prompts/list, prompts/get.", "- Tools: inspect_document, convert_to_markdown, upload_document, convert_uploaded_document.",
-    "- Structured mode: inspect_document, convert_to_markdown, upload_document, and convert_uploaded_document all accept response_mode=text|json; conversion json responses expose structuredContent with content, metadata, diagnostics, and stats.",
+    "- Verified methods: initialize, ping, tools/list, tools/call, resources/list, resources/read, prompts/list, prompts/get.",
+    "- Prompts: convert-document, diagnose-conversion-failure, batch-convert.", "- Tools: inspect_document, convert_to_markdown, upload_document, convert_uploaded_document, list_documents, delete_document.",
+    "- Tool annotations: each tool exposes readOnlyHint, destructiveHint, idempotentHint, and openWorldHint.",
+    "- Structured mode: inspect_document, convert_to_markdown, upload_document, convert_uploaded_document, list_documents, and delete_document all accept response_mode=text|json; conversion json responses expose structuredContent with content, metadata, diagnostics, and stats.",
     "- Remote-ready input: upload_document stores bytes as moonbitmark://document/<id>, inspect_document and convert_to_markdown accept resource_uri, and convert_uploaded_document remains the one-shot bytes convenience path.",
-    "- Resource set: capabilities, supported-formats, known-issues, ocr-boundaries, mcp-usage, plus dynamic moonbitmark://document/<id> resources created by upload_document.",
+    "- Document management: list_documents enumerates stored resources; delete_document removes a stored resource by URI.",
+    "- Resource set: capabilities, supported-formats, known-issues, ocr-boundaries, mcp-usage, server-info, plus dynamic moonbitmark://document/<id> resources created by upload_document.",
+    "- Resource templates: moonbitmark://document/{id} is exposed as a resource template in resources/list.",
+    "- Logging: server may emit notifications/message JSON-RPC notifications for structured logging instead of writing to stdout.",
     "- Conversion default: convert_to_markdown uses preview mode unless mode=full is requested.",
     "- Runtime gates: file access is limited by MOONBITMARK_MCP_ALLOWED_ROOTS, HTTP is disabled unless MOONBITMARK_MCP_ALLOW_HTTP is enabled, OCR is disabled unless MOONBITMARK_MCP_ENABLE_OCR is enabled, uploads are capped by MOONBITMARK_MCP_MAX_UPLOAD_BYTES, and returned Markdown can be clamped by MOONBITMARK_MCP_MAX_OUTPUT_CHARS.",
     "- Current non-goals: SSE transport, streaming responses, and long-running progress channels.",
@@ -211,4 +257,33 @@ fn mcp_usage_resource_text() -> String {
     "- powershell -ExecutionPolicy Bypass -File tests/integration/mcp_http_smoke.ps1",
     "- powershell -ExecutionPolicy Bypass -File tests/integration/mcp_http_security_smoke.ps1",
   ].join("\n")
+}
+
+///|
+fn server_info_resource_text() -> String {
+  match load_mcp_security_config() {
+    Ok(config) =>
+      [
+        "# Server runtime info",
+        "",
+        "- allowed_roots: " + config.allowed_roots.join(";"),
+        "- allow_http: " + config.allow_http.to_string(),
+        "- enable_ocr: " + config.enable_ocr.to_string(),
+        "- max_output_chars: " + optional_int_string(config.max_output_chars),
+        "- max_upload_bytes: " + config.max_upload_bytes.to_string(),
+        "- server_version: 0.3.0",
+        "- protocol_version: 2024-11-05",
+        "",
+        "Environment variables:",
+        "",
+        "- MOONBITMARK_MCP_ALLOWED_ROOTS: semicolon-separated allowed file roots.",
+        "- MOONBITMARK_MCP_ALLOW_HTTP: 1/true to allow HTTP inputs.",
+        "- MOONBITMARK_MCP_ENABLE_OCR: 1/true to enable OCR auto mode.",
+        "- MOONBITMARK_MCP_MAX_OUTPUT_CHARS: optional positive integer cap on returned Markdown.",
+        "- MOONBITMARK_MCP_MAX_UPLOAD_BYTES: optional positive integer cap for uploads. Default: 10485760.",
+        "- MOONBITMARK_MCP_HTTP_ALLOW_NONLOCAL: 1/true to allow binding 0.0.0.0.",
+      ].join("\n")
+    Err(_) =>
+      "# Server info\n\nServer configuration could not be loaded. Check environment variables.\n"
+  }
 }

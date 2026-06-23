@@ -136,7 +136,7 @@ fn bytes_json_array(bytes : Bytes) -> @types.JsonValue {
 test "tool registry lists inspect and convert with agent-facing schema" {
   let registry = ToolRegistry::new().register_convert_tools()
   let tools = registry.list()
-  inspect(tools.length(), content="7")
+  inspect(tools.length(), content="9")
   inspect(tools[0].name, content="inspect_document")
   inspect(tools[1].name, content="convert_to_markdown")
   inspect(tools[2].name, content="dump_normalized_ast")
@@ -144,6 +144,8 @@ test "tool registry lists inspect and convert with agent-facing schema" {
   inspect(tools[4].name, content="compare_with_baseline")
   inspect(tools[5].name, content="upload_document")
   inspect(tools[6].name, content="convert_uploaded_document")
+  inspect(tools[7].name, content="list_documents")
+  inspect(tools[8].name, content="delete_document")
   inspect(tools[1].description.contains("preview"), content="true")
   match tools[1].input_schema.get("properties") {
     Some(@types.Object(properties)) => {
@@ -672,7 +674,7 @@ async test "compare_with_baseline supports json response mode with stable keys" 
       let comparison_debug = json_object_field(explanations, "comparison_debug")
       inspect(
         json_string_field(comparison_debug, "status"),
-        content="unsupported_format",
+        content="baseline_unavailable",
       )
     }
     _ => fail("expected object structured payload")

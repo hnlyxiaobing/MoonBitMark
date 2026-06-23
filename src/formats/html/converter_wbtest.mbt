@@ -2,7 +2,9 @@
 test "html title and warnings" {
   inspect(
     extract_title("<html><head><title> Demo </title></head></html>"),
-    content="Some(\"Demo\")",
+    content=(
+      #|Some(Demo)
+    ),
   )
   inspect(
     collect_html_warnings("<style>a{}</style><script>x()</script>").length(),
@@ -92,7 +94,9 @@ test "html resolves base urls and filters unsafe link/image sources" {
     html_document_base(
       "https://example.com/posts/page.html", "<html><head><base href=\"../articles/\"></head></html>",
     ),
-    content="Some(\"https://example.com/articles\")",
+    content=(
+      #|Some(https://example.com/articles)
+    ),
   )
   let doc = html_to_document_with_base(
     "<body><p><a href=\"guide.html#intro\">Guide</a></p><p><a href=\"javascript:alert(1)\">Bad Link</a></p><p><img alt=\"Lazy\" data-src=\"images/lazy.png\"/></p><p><img alt=\"Tracker\" src=\"javascript:evil()\"/></p></body>",

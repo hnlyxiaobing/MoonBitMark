@@ -216,8 +216,8 @@ pub(all) struct StreamInfo {
 
 // Traits
 pub(open) trait DocumentConverter {
-  name() -> String
-  priority() -> Int
-  accepts(StreamInfo) -> Bool
+  fn name() -> String
+  fn priority() -> Int
+  fn accepts(StreamInfo) -> Bool
 }
 
