@@ -95,6 +95,7 @@ pub fn join_path(base_dir : String, target : String) -> String {
   if normalized_target.contains("://") || normalized_target.has_prefix("#") {
     return normalized_target
   }
+  let is_absolute = normalize_path(base_dir).has_prefix("/")
   let segments = split_path_segments(base_dir)
   for part in split_path_segments(normalized_target) {
     if part == "." {
@@ -106,7 +107,12 @@ pub fn join_path(base_dir : String, target : String) -> String {
       segments.push(part)
     }
   }
-  segments.join("/")
+  let joined = segments.join("/")
+  if is_absolute {
+    "/" + joined
+  } else {
+    joined
+  }
 }
 
 ///|
