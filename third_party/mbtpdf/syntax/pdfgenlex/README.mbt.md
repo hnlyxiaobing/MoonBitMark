@@ -46,28 +46,35 @@ pub(all) enum Token {
 ## Lexing from Strings
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ## Lexing from Input
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ## Debug Output
 
 ```mbt check
+
 ```
 
 ## Token Categories

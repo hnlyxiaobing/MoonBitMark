@@ -37,6 +37,7 @@ Represents the matrix:
 ### Identity Matrix
 
 ```mbt check
+
 ```
 
 ## Creating Transforms
@@ -44,6 +45,7 @@ Represents the matrix:
 ### Translation
 
 ```mbt check
+
 ```
 
 ### Scaling
@@ -116,6 +118,7 @@ let combined = tr1.append(tr2)
 ### Composition
 
 ```mbt check
+
 ```
 
 ### Inversion
@@ -144,6 +147,7 @@ let matrix = op.to_matrix()
 ### With Matrix
 
 ```mbt check
+
 ```
 
 ### With Transform
@@ -174,4 +178,5 @@ let m = @pdftransform.TransformMatrix::recompose(
 ## Debug Utilities
 
 ```mbt check
+
 ```

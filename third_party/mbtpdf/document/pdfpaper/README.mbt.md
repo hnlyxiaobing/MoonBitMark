@@ -49,11 +49,13 @@ pub struct Paper {
 Convert any paper to landscape orientation:
 
 ```mbt check
+
 ```
 
 ## Accessors
 
 ```mbt check
+
 ```
 
 ## Creating Custom Sizes

@@ -15,12 +15,15 @@ The `pdfsyntax` package provides:
 ### Parsing Objects from Strings
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ## Lexing
@@ -28,29 +31,35 @@ The `pdfsyntax` package provides:
 ### Lexing Names
 
 ```mbt check
+
 ```
 
 ### Lexing Numbers
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ### Lexing Strings
 
 ```mbt check
+
 ```
 
 ### Lexing Hex Strings
 
 ```mbt check
+
 ```
 
 ### Lexing Comments
 
 ```mbt check
+
 ```
 
 ## Parsing
@@ -71,6 +80,7 @@ Returns a tuple of (object number, parsed object). The object number is 0 for st
 ### Parsing Objects with Object Numbers
 
 ```mbt check
+
 ```
 
 ## Lexeme Utilities
@@ -78,6 +88,7 @@ Returns a tuple of (object number, parsed object). The object number is 0 for st
 ### Token to String
 
 ```mbt check
+
 ```
 
 ## Input Utilities
@@ -85,21 +96,25 @@ Returns a tuple of (object number, parsed object). The object number is 0 for st
 ### Skip Whitespace
 
 ```mbt check
+
 ```
 
 ### Read Until Predicate
 
 ```mbt check
+
 ```
 
 ### Read Lines
 
 ```mbt check
+
 ```
 
 ### Find EOF Marker
 
 ```mbt check
+
 ```
 
 ## Advanced Lexing

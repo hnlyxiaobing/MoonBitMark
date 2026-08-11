@@ -55,6 +55,7 @@ pub let read_debug : Ref[Bool]
 Log a message using the current logger.
 
 ```moonbit check
+
 ```
 
 ### with_silenced_logs
@@ -62,6 +63,7 @@ Log a message using the current logger.
 Run an action with logging suppressed, restoring the previous state.
 
 ```moonbit check
+
 ```
 
 ### with_logger

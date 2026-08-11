@@ -323,5 +323,3 @@ pub fn PdfObject::to_string_including_data(self : PdfObject) -> String {
   write_pdf_object(self, true, true, sb)
   sb.to_string()
 }
-
-

@@ -96,16 +96,19 @@ pdf.addobj_given_num((42, @pdf.PdfObject::Integer(100)))
 ### Basic Lookup
 
 ```mbt check
+
 ```
 
 ### Following Indirect References
 
 ```mbt check
+
 ```
 
 ### Dictionary Key Lookup
 
 ```mbt check
+
 ```
 
 ### Nested Chain Lookup
@@ -113,6 +116,7 @@ pdf.addobj_given_num((42, @pdf.PdfObject::Integer(100)))
 For deeply nested dictionaries, use `lookup_chain`:
 
 ```mbt check
+
 ```
 
 ## Dictionary Manipulation
@@ -120,6 +124,7 @@ For deeply nested dictionaries, use `lookup_chain`:
 ### Adding Entries
 
 ```mbt check
+
 ```
 
 ## Traits
@@ -130,16 +135,19 @@ For deeply nested dictionaries, use `lookup_chain`:
 types into `PdfObject` numeric nodes.
 
 ```mbt check
+
 ```
 
 ### Replacing Entries
 
 ```mbt check
+
 ```
 
 ### Removing Entries
 
 ```mbt check
+
 ```
 
 ## Object Iteration
@@ -202,6 +210,7 @@ match obj {
 ### Parsing Rectangles
 
 ```mbt check
+
 ```
 
 ### Matrices
@@ -289,9 +298,11 @@ let entries = pdf.contents_of_nametree(tree)
 ## Character Classification
 
 ```mbt nocheck
+
 ```
 
 ```mbt check
+
 ```
 
 ## Error Handling

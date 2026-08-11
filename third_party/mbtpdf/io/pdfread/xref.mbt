@@ -176,7 +176,6 @@ fn[A] Array::get_slice(
   Some(self[start:finish])
 }
 
-
 ///|
 fn read_xref_line_stream(
   input : @pdfio.Input,

@@ -53,11 +53,13 @@ Missing components default to sensible values (month/day to 1, time to 0, offset
 **Example:**
 
 ```moonbit check
+
 ```
 
 **Short form example:**
 
 ```moonbit check
+
 ```
 
 ### Date::to_pdf_string
@@ -67,6 +69,7 @@ Formats a `Date` struct into a PDF date string. Validates the date components an
 **Example:**
 
 ```moonbit check
+
 ```
 
 ## Special Case: The 19100 Y2K Quirk
@@ -76,6 +79,7 @@ Some legacy PDF software from the Y2K era incorrectly computed the year as `1900
 This parser recognizes the `19100` prefix as a special case and interprets it as year 2000 for compatibility with these malformed documents.
 
 ```moonbit check
+
 ```
 
 ## Error Handling
@@ -83,4 +87,5 @@ This parser recognizes the `19100` prefix as a special case and interprets it as
 Both methods raise `BadDate` on invalid input:
 
 ```moonbit check
+
 ```

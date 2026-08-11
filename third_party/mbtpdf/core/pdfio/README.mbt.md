@@ -27,27 +27,33 @@ pub type RawBytes = MutableBytes
 ### Creating Buffers
 
 ```mbt check
+
 ```
 
 ### Byte Access
 
 ```mbt check
+
 ```
 
 ### Conversions
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ```mbt check
+
 ```
 
 ### Copying
 
 ```mbt check
+
 ```
 
 ## Input Streams
@@ -70,26 +76,31 @@ pub struct Input {
 ### Creating Input from Bytes
 
 ```mbt check
+
 ```
 
 ### Creating Input from String
 
 ```mbt check
+
 ```
 
 ### Peeking and Rewinding
 
 ```mbt check
+
 ```
 
 ### Reading Lines
 
 ```mbt check
+
 ```
 
 ### Extracting Bytes from Input
 
 ```mbt check
+
 ```
 
 ## Output Streams
@@ -112,6 +123,7 @@ pub struct Output {
 ### Creating Output Buffers
 
 ```mbt check
+
 ```
 
 ## Native File/Channel IO
@@ -129,26 +141,31 @@ For reading data at the bit level (MSB-first order).
 ### Creating a Bitstream
 
 ```mbt nocheck
+
 ```
 
 ### Bit-Level Reading
 
 ```mbt check
+
 ```
 
 ### Bitstream Position
 
 ```mbt nocheck
+
 ```
 
 ### Alignment
 
 ```mbt nocheck
+
 ```
 
 ### Write Bitstreams
 
 ```mbt check
+
 ```
 
 ## Constants
@@ -163,9 +180,11 @@ pub let no_more : Int = -1 // Indicates end of input
 ### Transform Bytes In-Place (Internal)
 
 ```mbt nocheck
+
 ```
 
 ### Fill Bytes (Internal)
 
 ```mbt nocheck
+
 ```
