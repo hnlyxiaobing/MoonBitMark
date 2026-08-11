@@ -2,6 +2,20 @@ $ErrorActionPreference = 'Stop'
 
 . "$PSScriptRoot\..\TestHelpers.ps1"
 
+function Get-McpErrorText {
+    param($Result)
+    if ($Result.content -and $Result.content.Count -gt 0) { return $Result.content[0].text }
+    return '(no content)'
+}
+
+function Assert-McpNotError {
+    param($Result, [string]$ToolName)
+    if ($Result.isError -ne $false) {
+        $errorText = Get-McpErrorText -Result $Result
+        throw "$ToolName unexpectedly returned an error result. Error: $errorText"
+    }
+}
+
 $repoRoot = Get-MoonBitMarkRepoRoot -ScriptPath $PSScriptRoot
 $binary = Get-OrBuild-MoonBitMarkBinary -RepoRoot $repoRoot -ExecutableName 'mcp-server.exe'
 $cmdLauncher = Join-Path $repoRoot 'scripts\mcp\moonbitmark-mcp.cmd'
@@ -214,9 +228,7 @@ $inspectRequest = @{
 } | ConvertTo-Json -Compress -Depth 5
 
 $inspectResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $inspectRequest
-if ($inspectResponse.result.isError -ne $false) {
-    throw 'inspect_document unexpectedly returned an error result.'
-}
+Assert-McpNotError -Result $inspectResponse.result -ToolName 'inspect_document'
 $inspectSummary = Convert-SummaryTextToMap -Text $inspectResponse.result.content[0].text
 if ($inspectSummary['detected_format'] -ne 'text') {
     throw "inspect_document detected unexpected format: $($inspectSummary['detected_format'])"
@@ -263,9 +275,9 @@ $previewCallRequest = @{
 
 $previewCallResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $previewCallRequest
 if ($previewCallResponse.result.isError -ne $false) {
-    throw 'preview convert_to_markdown unexpectedly returned an error result.'
-}
-$previewSummary = Convert-SummaryTextToMap -Text $previewCallResponse.result.content[0].text
+    $errorText = Get-McpErrorText -Result $previewCallResponse.result
+    throw "preview convert_to_markdown unexpectedly returned an error result. Error: $errorText"
+}$previewSummary = Convert-SummaryTextToMap -Text $previewCallResponse.result.content[0].text
 if ($previewSummary['mode'] -ne 'preview') {
     throw "convert_to_markdown defaulted to unexpected mode: $($previewSummary['mode'])"
 }
@@ -320,9 +332,9 @@ $structureJsonRequest = @{
 
 $structureJsonResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $structureJsonRequest
 if ($structureJsonResponse.result.isError -ne $false) {
-    throw 'extract_structure unexpectedly returned an error result.'
-}
-if ($structureJsonResponse.result.structuredContent.explanations.headings.Count -lt 1) {
+    $errorText = Get-McpErrorText -Result $structureJsonResponse.result
+    throw "extract_structure unexpectedly returned an error result. Error: $errorText"
+}if ($structureJsonResponse.result.structuredContent.explanations.headings.Count -lt 1) {
     throw 'extract_structure did not return heading explanations for the HTML fixture.'
 }
 if ($structureJsonResponse.result.structuredContent.explanations.tables.Count -lt 1) {
@@ -348,9 +360,9 @@ $storeRequest = @{
 
 $storeResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $storeRequest
 if ($storeResponse.result.isError -ne $false) {
-    throw 'upload_document unexpectedly returned an error result.'
-}
-$resourceUri = $storeResponse.result.structuredContent.metadata.resource_uri
+    $errorText = Get-McpErrorText -Result $storeResponse.result
+    throw "upload_document unexpectedly returned an error result. Error: $errorText"
+}$resourceUri = $storeResponse.result.structuredContent.metadata.resource_uri
 if ([string]::IsNullOrWhiteSpace($resourceUri)) {
     throw 'upload_document did not return a resource_uri.'
 }
@@ -423,9 +435,9 @@ $uploadCallRequest = @{
 
 $uploadCallResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $uploadCallRequest
 if ($uploadCallResponse.result.isError -ne $false) {
-    throw 'convert_uploaded_document unexpectedly returned an error result.'
-}
-if ($uploadCallResponse.result.structuredContent.metadata.tool -ne 'convert_uploaded_document') {
+    $errorText = Get-McpErrorText -Result $uploadCallResponse.result
+    throw "convert_uploaded_document unexpectedly returned an error result. Error: $errorText"
+}if ($uploadCallResponse.result.structuredContent.metadata.tool -ne 'convert_uploaded_document') {
     throw "convert_uploaded_document returned unexpected tool metadata: $($uploadCallResponse.result.structuredContent.metadata.tool)"
 }
 if ($uploadCallResponse.result.structuredContent.metadata.source_filename -ne 'uploaded-stdio.txt') {
@@ -456,9 +468,9 @@ $fullCallRequest = @{
 
 $fullCallResponse = Invoke-McpRequest -FilePath 'cmd.exe' -Arguments $cmdLauncherArgs -RequestJson $fullCallRequest
 if ($fullCallResponse.result.isError -ne $false) {
-    throw 'full convert_to_markdown unexpectedly returned an error result.'
-}
-$fullSummary = Convert-SummaryTextToMap -Text $fullCallResponse.result.content[0].text
+    $errorText = Get-McpErrorText -Result $fullCallResponse.result
+    throw "full convert_to_markdown unexpectedly returned an error result. Error: $errorText"
+}$fullSummary = Convert-SummaryTextToMap -Text $fullCallResponse.result.content[0].text
 if ($fullSummary['mode'] -ne 'full') {
     throw "full convert_to_markdown returned unexpected mode: $($fullSummary['mode'])"
 }
