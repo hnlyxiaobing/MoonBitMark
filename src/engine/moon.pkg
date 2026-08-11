@@ -19,3 +19,17 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/encoding/base64",
 }
+
+warnings = "-29"
+
+options(
+  targets: {
+    "detect_native.mbt": [ "native" ],
+    "detect_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+    "engine_fs_native.mbt": [ "native" ],
+    "engine_fs_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+    "engine_wbtest.mbt": [ "native" ],
+    "materialization_fs_native.mbt": [ "native" ],
+    "materialization_fs_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+  },
+)

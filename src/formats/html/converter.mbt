@@ -971,16 +971,6 @@ fn plain_text_fragment(fragment : String, base_url : String?) -> String {
 }
 
 ///|
-/// Convert from URL
-pub async fn convert_from_url(url : String) -> String {
-  let (response, data) = @http.get(url)
-  if response.code != 200 {
-    fail("HTTP request failed with status code: " + response.code.to_string())
-  }
-  data.text()
-}
-
-///|
 /// Convert from local file
 pub async fn convert_from_file(file_path : String) -> String {
   @core.strip_utf8_bom(@core.read_utf8_file(file_path))

@@ -1,0 +1,10 @@
+import {
+  "bobzhang/mbtpdf/core/pdfio",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/io",
+}
+
+options(
+  targets: { "pdfiofs.mbt": [ "native", "wasm" ] },
+)

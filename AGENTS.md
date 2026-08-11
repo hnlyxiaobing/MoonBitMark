@@ -229,7 +229,27 @@ suberror MyError { NotFound, InvalidInput(String) }
 ## Dependencies
 
 - `moonbitlang/async` - File system, HTTP client
-- `bobzhang/mbtpdf` - PDF text extraction
+- `bobzhang/mbtpdf` - PDF text extraction. Vendored at `third_party/mbtpdf`
+  (via `moon.work`) so its native-only I/O packages (`io/pdfiofs`,
+  `io/pdfreadfs`, `io/pdfwritefs`) can carry per-file `targets` restrictions;
+  keep the vendored copy's `warn-list = "-all"` and do not edit it beyond
+  target/portability fixes.
+
+## Multi-Target Layout
+
+The project's supported runtime is `native` (`preferred_target`). Files that
+touch the filesystem, processes, stdio, or sockets are split per target:
+
+- `*_native.mbt` holds the real implementation (`targets: [ "native" ]`).
+- `*_stub.mbt` holds the wasm/js fallback (`targets: [ "wasm", "wasm-gc", "js" ]`)
+  that degrades gracefully or aborts with a clear message.
+- Packages that only make sense as native executables/servers (`cmd/*`,
+  `src/mcp/handler`, `src/mcp/transport*`) declare
+  `supported_targets = "native"` in their `moon.pkg` instead of per-file
+  targets.
+
+`moon check` must stay clean (0 errors, 0 warnings) for both the default
+native target and `--target wasm-gc`.
 
 ## Runtime Boundaries
 

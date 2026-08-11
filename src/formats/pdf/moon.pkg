@@ -13,3 +13,17 @@ import {
   "bobzhang/mbtpdf/io/pdfreadfs",
   "bobzhang/mbtpdf/text/pdftext" @pdftextlib,
 }
+
+warnings = "-29"
+
+options(
+  targets: {
+    "assemble_wbtest.mbt": [ "native" ],
+    "converter_wbtest.mbt": [ "native" ],
+    "extract_bridge.mbt": [ "native" ],
+    "extract_native.mbt": [ "native" ],
+    "extract_native_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+    "route_wbtest.mbt": [ "native" ],
+    "table_wbtest.mbt": [ "native" ],
+  },
+)

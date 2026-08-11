@@ -1,6 +1,16 @@
 import {
   "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/core",
+  "moonbitlang/async",
   "moonbitlang/async/http",
   "moonbitlang/async/io",
 }
+
+warnings = "-29"
+
+options(
+  targets: {
+    "url_fetch_native.mbt": [ "native" ],
+    "url_fetch_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+  },
+)

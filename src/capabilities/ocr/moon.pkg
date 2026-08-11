@@ -6,3 +6,13 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
 }
+
+warnings = "-29"
+
+options(
+  targets: {
+    "provider_native.mbt": [ "native" ],
+    "provider_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+    "ocr_test.mbt": [ "native" ],
+  },
+)

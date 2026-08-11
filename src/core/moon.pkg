@@ -2,7 +2,17 @@ import {
   "moonbitlang/moonbitmark/src/ast",
   "moonbitlang/moonbitmark/src/capabilities/ocr",
   "moonbitlang/moonbitmark/src/semantic",
+  "moonbitlang/async",
   "moonbitlang/async/fs",
   "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",
 }
+
+warnings = "-29"
+
+options(
+  targets: {
+    "file_io_native.mbt": [ "native" ],
+    "file_io_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+  },
+)

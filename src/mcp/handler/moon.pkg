@@ -16,3 +16,5 @@ import {
   "moonbitlang/moonbitmark/src/engine",
   "moonbitlang/moonbitmark/src/semantic",
 }
+
+supported_targets = "native"

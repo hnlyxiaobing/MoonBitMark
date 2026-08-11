@@ -6,3 +6,5 @@ import {
   "moonbitlang/moonbitmark/src/mcp/handler",
   "moonbitlang/moonbitmark/src/mcp/types",
 }
+
+supported_targets = "native"
