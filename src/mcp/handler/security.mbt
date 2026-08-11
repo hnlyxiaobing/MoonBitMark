@@ -211,20 +211,21 @@ fn is_http_input(input : String) -> Bool {
 fn resolve_file_path(path : String) -> String {
   let normalized = canonicalize_path(@core.normalize_path(path))
   if is_absolute_path(normalized) {
-    normalize_compare_path(normalized)
+    normalized
   } else {
-    normalize_compare_path(
-      canonicalize_path(
-        @core.normalize_path(current_dir_or_dot()) + "/" + normalized,
-      ),
+    canonicalize_path(
+      @core.normalize_path(current_dir_or_dot()) + "/" + normalized,
     )
   }
 }
 
 ///|
 fn path_within_allowed_roots(path : String, roots : Array[String]) -> Bool {
+  let compare_path = normalize_compare_path(path)
   for root in roots {
-    if path == root || path.has_prefix(root + "/") {
+    let compare_root = normalize_compare_path(root)
+    if compare_path == compare_root ||
+      compare_path.has_prefix(compare_root + "/") {
       return true
     }
   }

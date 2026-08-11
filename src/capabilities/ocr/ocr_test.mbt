@@ -15,25 +15,25 @@ async test "recognize image bytes with mock backend" {
   inspect(
     result.available,
     content=(
-      #|false
+      #|true
     ),
   )
   debug_inspect(
     result.provider,
     content=(
-      #|None
+      #|Some("mock")
     ),
   )
   inspect(
     result.text,
     content=(
-      #|
+      #|MOCK OCR scan
     ),
   )
   inspect(
     result.layout_json is Some(_),
     content=(
-      #|false
+      #|true
     ),
   )
 }

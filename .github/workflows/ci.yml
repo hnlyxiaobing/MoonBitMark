@@ -36,6 +36,11 @@ jobs:
           moon version --all
           moon update
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: moon check
         shell: bash
         run: moon check
