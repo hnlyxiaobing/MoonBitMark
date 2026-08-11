@@ -31,6 +31,7 @@ jobs:
         shell: bash
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          export PATH="$HOME/.moon/bin:$PATH"
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           moon version --all
           moon update
@@ -57,6 +58,7 @@ jobs:
         shell: bash
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          export PATH="$HOME/.moon/bin:$PATH"
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           moon version --all
           moon update
@@ -89,10 +91,13 @@ jobs:
           python-version: "3.11"
 
       - name: Set up MoonBit
-        shell: bash
+        shell: pwsh
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
-          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          Invoke-WebRequest -Uri "https://cli.moonbitlang.com/install/powershell.ps1" -OutFile "$env:TEMP\install-moonbit.ps1"
+          & "$env:TEMP\install-moonbit.ps1"
+          $moonBin = "$env:USERPROFILE\.moon\bin"
+          $env:PATH = "$moonBin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $moonBin
           moon version --all
           moon update
 
@@ -156,10 +161,13 @@ jobs:
           python -m pip install "markitdown[all]" docling
 
       - name: Set up MoonBit
-        shell: bash
+        shell: pwsh
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
-          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          Invoke-WebRequest -Uri "https://cli.moonbitlang.com/install/powershell.ps1" -OutFile "$env:TEMP\install-moonbit.ps1"
+          & "$env:TEMP\install-moonbit.ps1"
+          $moonBin = "$env:USERPROFILE\.moon\bin"
+          $env:PATH = "$moonBin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $moonBin
           moon version --all
           moon update
 
