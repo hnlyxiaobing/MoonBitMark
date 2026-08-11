@@ -8,8 +8,8 @@ import {
   "moonbitlang/core/json",
   "moonbitlang/moonbitmark/src/core",
   "moonbitlang/moonbitmark/src/capabilities/ocr",
-  "bobzhang/mbtpdf/pdfcrypt",
-  "bobzhang/mbtpdf/pdfpage",
-  "bobzhang/mbtpdf/pdfread",
-  "bobzhang/mbtpdf/pdftext" @pdftextlib,
+  "bobzhang/mbtpdf/crypto/pdfcrypt",
+  "bobzhang/mbtpdf/document/pdfpage",
+  "bobzhang/mbtpdf/io/pdfreadfs",
+  "bobzhang/mbtpdf/text/pdftext" @pdftextlib,
 }
