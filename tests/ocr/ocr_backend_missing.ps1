@@ -3,9 +3,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\..\TestHelpers.ps1"
 
 $repoRoot = Get-MoonBitMarkRepoRoot -ScriptPath $PSScriptRoot
-$binary = Join-Path $repoRoot '_build\native\release\build\cmd\main\main.exe'
-Ensure-MoonBitMarkReleaseBinary -RepoRoot $repoRoot -BinaryPath $binary
-
+$binary = Get-OrBuild-MoonBitMarkBinary -RepoRoot $repoRoot -ExecutableName 'main.exe'
 $imageInput = Join-Path $repoRoot 'tests\conversion_eval\fixtures\inputs\image\example.jpg'
 $pythonPath = (Get-Command python).Source
 $pythonDir = Split-Path -Parent $pythonPath

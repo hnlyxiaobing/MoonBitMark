@@ -3,9 +3,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\..\TestHelpers.ps1"
 
 $repoRoot = Get-MoonBitMarkRepoRoot -ScriptPath $PSScriptRoot
-$binary = Join-Path $repoRoot '_build\native\release\build\cmd\main\main.exe'
-Ensure-MoonBitMarkReleaseBinary -RepoRoot $repoRoot -BinaryPath $binary
-
+$binary = Get-OrBuild-MoonBitMarkBinary -RepoRoot $repoRoot -ExecutableName 'main.exe'
 $tempRoot = Join-Path $repoRoot '_build\test-tmp\cli-negative'
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 

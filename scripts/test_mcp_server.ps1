@@ -6,7 +6,8 @@ Write-Host "========================================="
 Write-Host ""
 
 # 检查构建产物是否存在
-$BINARY = "_build\native\release\build\cmd\mcp-server\main.exe"
+$BINARY = Get-ChildItem -Path "_build\native\release\build" -Recurse -File -Filter "mcp-server.exe" -ErrorAction SilentlyContinue |
+    Select-Object -First 1 -ExpandProperty FullName
 
 if (-not (Test-Path $BINARY)) {
     Write-Host "❌ 错误: MCP 服务器二进制文件不存在"

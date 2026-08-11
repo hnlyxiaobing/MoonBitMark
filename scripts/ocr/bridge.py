@@ -37,12 +37,11 @@ def make_result(
 ) -> dict:
     return {
         "available": available,
-        "provider": provider,
+        "provider": provider if provider is not None else "",
         "text": text,
-        "layout_json": layout_json,
+        "layout_json": layout_json if layout_json is not None else "",
         "warnings": warnings,
     }
-
 
 def synthesize_mock_layout(text: str, page_no: int) -> dict:
     words = [word for word in text.split() if word]

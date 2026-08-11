@@ -325,6 +325,14 @@ def detect_runner(explicit_runner: str | None) -> RunnerInfo:
         REPO_ROOT / "_build" / "native" / "release" / "build" / "cmd" / "main" / "main.exe",
         REPO_ROOT / "_build" / "native" / "debug" / "build" / "cmd" / "main" / "main.exe",
     ]
+    # Module-prefixed layout (e.g. _build/native/release/build/moonbitlang/moonbitmark/cmd/main/main.exe)
+    # depends on the module name in moon.mod, so glob for it as well.
+    candidates.extend(
+        sorted((REPO_ROOT / "_build" / "native" / "release" / "build").glob("*/cmd/main/main.exe"))
+    )
+    candidates.extend(
+        sorted((REPO_ROOT / "_build" / "native" / "debug" / "build").glob("*/cmd/main/main.exe"))
+    )
     stale_candidates: list[tuple[Path, str]] = []
     for candidate in candidates:
         if candidate.exists():

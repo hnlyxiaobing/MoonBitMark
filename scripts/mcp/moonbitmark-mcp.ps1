@@ -7,7 +7,8 @@ $ErrorActionPreference = 'Stop'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptDir '..\..')).Path
-$releaseBinary = Join-Path $repoRoot '_build\native\release\build\cmd\mcp-server\mcp-server.exe'
+. (Join-Path $repoRoot 'tests\TestHelpers.ps1')
+$releaseBinary = Get-MoonBitMarkBuildArtifact -RepoRoot $repoRoot -ExecutableName 'mcp-server.exe'
 $skipReleaseBinary = $env:MOONBITMARK_MCP_SKIP_RELEASE_BINARY -eq '1'
 
 Push-Location $repoRoot

@@ -9,7 +9,7 @@ echo "========================================="
 echo ""
 
 # 检查构建产物是否存在
-BINARY="_build/native/release/build/cmd/mcp-server/main.exe"
+BINARY=$(find _build/native/release/build -type f -name "mcp-server.exe" 2>/dev/null | head -n 1)
 
 if [ ! -f "$BINARY" ]; then
     echo "❌ 错误: MCP 服务器二进制文件不存在"

@@ -40,7 +40,7 @@
 
 `tests/integration/mcp_http_smoke.ps1` verifies the standalone HTTP transport:
 
-- start `_build/native/release/build/cmd/mcp-http-server/mcp-http-server.exe`
+- start `_build/native/release/build/moonbitlang/moonbitmark/cmd/mcp-http-server/mcp-http-server.exe`
 - wait for `GET /healthz`
 - verify `POST /mcp` handles notifications with `204 No Content`
 - verify malformed JSON returns `400 Bad Request`

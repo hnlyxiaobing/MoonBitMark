@@ -221,9 +221,9 @@ def main() -> int:
     provider, pages, layout_pages, warnings = extract_pages(Path(args.input))
     payload = {
         "available": provider is not None and any(page.strip() for page in pages),
-        "provider": provider,
+        "provider": provider if provider is not None else "",
         "pages": pages,
-        "layout_json": json.dumps({"pages": layout_pages}, ensure_ascii=False) if layout_pages else None,
+        "layout_json": json.dumps({"pages": layout_pages}, ensure_ascii=False) if layout_pages else "",
         "warnings": warnings,
     }
     output_path = Path(args.output_json)

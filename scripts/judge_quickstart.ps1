@@ -9,8 +9,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\..\tests\TestHelpers.ps1"
 
 $repoRoot = Get-MoonBitMarkRepoRoot -ScriptPath $PSScriptRoot
-$binary = Join-Path $repoRoot '_build\native\release\build\cmd\main\main.exe'
-$outputRoot = Join-Path $repoRoot '_build\judge-quickstart'
+$binary = Get-OrBuild-MoonBitMarkBinary -RepoRoot $repoRoot -ExecutableName 'main.exe'$outputRoot = Join-Path $repoRoot '_build\judge-quickstart'
 $htmlInput = Join-Path $repoRoot 'tests\conversion_eval\fixtures\inputs\html\simple_table.html'
 $pdfInput = Join-Path $repoRoot 'tests\conversion_eval\fixtures\inputs\pdf\multi_page.pdf'
 $markdownOutput = Join-Path $outputRoot 'html_simple_table.md'

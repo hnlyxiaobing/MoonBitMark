@@ -2,16 +2,20 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$InputPath,
     [int]$Iterations = 5,
-    [string]$BinaryPath = "_build/native/release/build/cmd/main/main.exe",
+    [string]$BinaryPath = "",
     [string]$OutputPath = "$env:TEMP\moonbitmark-benchmark-output.md"
 )
 
 $ErrorActionPreference = "Stop"
 
+if ([string]::IsNullOrEmpty($BinaryPath)) {
+    . "$PSScriptRoot\..\tests\TestHelpers.ps1"
+    $repoRoot = Get-MoonBitMarkRepoRoot -ScriptPath $PSScriptRoot
+    $BinaryPath = Get-MoonBitMarkBuildArtifact -RepoRoot $repoRoot -ExecutableName 'main.exe'
+}
 if (-not (Test-Path $BinaryPath)) {
     throw "Binary not found: $BinaryPath. Build it first with scripts/build.bat."
-}
-if (-not (Test-Path $InputPath)) {
+}if (-not (Test-Path $InputPath)) {
     throw "Input not found: $InputPath"
 }
 if ($Iterations -le 0) {

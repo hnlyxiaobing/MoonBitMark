@@ -49,15 +49,15 @@ moon build --target native --release
 运行 CLI：
 
 ```bash
-_build/native/release/build/cmd/main/main.exe <input> [output]
+_build/native/release/build/moonbitlang/moonbitmark/cmd/main/main.exe <input> [output]
 ```
 
 示例：
 
 ```powershell
-_build\native\release\build\cmd\main\main.exe tests\conversion_eval\fixtures\inputs\html\simple_table.html
-_build\native\release\build\cmd\main\main.exe --diag-json tests\conversion_eval\fixtures\inputs\pdf\multi_page.pdf
-_build\native\release\build\cmd\main\main.exe --dump-ast tests\conversion_eval\fixtures\inputs\html\simple_table.html
+_build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe tests\conversion_eval\fixtures\inputs\html\simple_table.html
+_build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe --diag-json tests\conversion_eval\fixtures\inputs\pdf\multi_page.pdf
+_build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe --dump-ast tests\conversion_eval\fixtures\inputs\html\simple_table.html
 ```
 
 ## CLI 选项

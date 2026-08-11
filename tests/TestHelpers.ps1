@@ -12,18 +12,79 @@ function Get-MoonBitMarkRepoRoot {
     } else {
         $current = (Resolve-Path $ScriptPath).Path
     }
-    while ($null -ne $current) {
+    while ($null -ne $current -and $current -ne '') {
+        # MoonBit projects use either moon.mod.json (legacy) or moon.mod (current).
         if (Test-Path (Join-Path $current 'moon.mod.json')) {
             return $current
         }
+        if (Test-Path (Join-Path $current 'moon.mod')) {
+            return $current
+        }
         $parent = Split-Path -Parent $current
-        if ($parent -eq $current) {
+        # Split-Path -Parent returns an empty string at a drive root (e.g. 'D:\'
+        # -> ''), which must be treated as "no more parents" instead of letting
+        # the loop continue with an empty path and failing later on Join-Path.
+        if ([string]::IsNullOrEmpty($parent) -or $parent -eq $current) {
             break
         }
         $current = $parent
     }
 
     throw "Unable to locate repo root from: $ScriptPath"
+}
+
+function Get-MoonBitMarkBuildArtifact {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ExecutableName
+    )
+
+    $releaseBuildRoot = Join-Path $RepoRoot '_build\native\release\build'
+    if (-not (Test-Path $releaseBuildRoot)) {
+        return $null
+    }
+    # MoonBit places release artifacts under
+    # _build/native/release/build/<module>/cmd/<package>/<name>.exe. The module
+    # prefix (e.g. moonbitlang/moonbitmark) is toolchain-dependent, so locate
+    # the executable by name under the cmd/ tree instead of hard-coding it.
+    $match = Get-ChildItem -Path $releaseBuildRoot -Recurse -File -Filter $ExecutableName -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match '\\cmd\\[^\\/]+\\[^\\/]+\.exe$' } |
+        Select-Object -First 1
+    if ($null -eq $match) {
+        return $null
+    }
+    return $match.FullName
+}
+
+function Get-OrBuild-MoonBitMarkBinary {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ExecutableName
+    )
+
+    $found = Get-MoonBitMarkBuildArtifact -RepoRoot $RepoRoot -ExecutableName $ExecutableName
+    if (-not [string]::IsNullOrEmpty($found)) {
+        return $found
+    }
+
+    Push-Location $RepoRoot
+    try {
+        moon build --target native --release | Out-Host
+    } finally {
+        Pop-Location
+    }
+
+    $found = Get-MoonBitMarkBuildArtifact -RepoRoot $RepoRoot -ExecutableName $ExecutableName
+    if ([string]::IsNullOrEmpty($found)) {
+        throw "Unable to locate release binary '$ExecutableName' under $(Join-Path $RepoRoot '_build\native\release\build')"
+    }
+    return $found
 }
 
 function Ensure-MoonBitMarkReleaseBinary {
@@ -35,15 +96,17 @@ function Ensure-MoonBitMarkReleaseBinary {
         [string]$BinaryPath
     )
 
-    $needsBuild = -not (Test-Path $BinaryPath)
+    $executableName = Split-Path -Leaf $BinaryPath
+    $resolved = Get-MoonBitMarkBuildArtifact -RepoRoot $RepoRoot -ExecutableName $executableName
+    $needsBuild = [string]::IsNullOrEmpty($resolved)
     if (-not $needsBuild) {
-        $binaryTime = (Get-Item $BinaryPath).LastWriteTimeUtc
+        $binaryTime = (Get-Item $resolved).LastWriteTimeUtc
         $sourceRoots = @(
             (Join-Path $RepoRoot 'src'),
             (Join-Path $RepoRoot 'cmd'),
             (Join-Path $RepoRoot 'scripts')
         )
-        $latestSource = Get-ChildItem -Path $sourceRoots -Recurse -File |
+        $latestSource = Get-ChildItem -Path $sourceRoots -Recurse -File -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTimeUtc -Descending |
             Select-Object -First 1
         if ($null -ne $latestSource -and $latestSource.LastWriteTimeUtc -gt $binaryTime) {
@@ -60,11 +123,12 @@ function Ensure-MoonBitMarkReleaseBinary {
         }
     }
 
-    if (-not (Test-Path $BinaryPath)) {
+    $resolved = Get-MoonBitMarkBuildArtifact -RepoRoot $RepoRoot -ExecutableName $executableName
+    if ([string]::IsNullOrEmpty($resolved)) {
         throw "Missing release binary: $BinaryPath"
     }
+    return $resolved
 }
-
 function Invoke-NativeCommand {
     param(
         [Parameter(Mandatory = $true)]

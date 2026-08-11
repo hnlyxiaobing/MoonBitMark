@@ -1,15 +1,11 @@
 $ErrorActionPreference = 'Stop'
 
-# Set repo root directly
-$repoRoot = 'D:\MoonBit\MoonBitMark'
+. "$PSScriptRoot\..\TestHelpers.ps1"
 
-. "$repoRoot\tests\TestHelpers.ps1"
-
-$binary = Join-Path $repoRoot '_build\native\release\build\cmd\mcp-server\mcp-server.exe'
+$repoRoot = Get-MoonBitMarkRepoRoot -ScriptPath $PSScriptRoot
+$binary = Get-OrBuild-MoonBitMarkBinary -RepoRoot $repoRoot -ExecutableName 'mcp-server.exe'
 $cmdLauncher = Join-Path $repoRoot 'scripts\mcp\moonbitmark-mcp.cmd'
 $psLauncher = Join-Path $repoRoot 'scripts\mcp\moonbitmark-mcp.ps1'
-Ensure-MoonBitMarkReleaseBinary -RepoRoot $repoRoot -BinaryPath $binary
-
 $tempRoot = Join-Path $repoRoot '_build\test-tmp\mcp'
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 

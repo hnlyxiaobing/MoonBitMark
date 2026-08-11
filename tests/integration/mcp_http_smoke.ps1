@@ -3,9 +3,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\..\TestHelpers.ps1"
 
 $repoRoot = Get-MoonBitMarkRepoRoot -ScriptPath $PSScriptRoot
-$binary = Join-Path $repoRoot '_build\native\release\build\cmd\mcp-http-server\mcp-http-server.exe'
-Ensure-MoonBitMarkReleaseBinary -RepoRoot $repoRoot -BinaryPath $binary
-
+$binary = Get-OrBuild-MoonBitMarkBinary -RepoRoot $repoRoot -ExecutableName 'mcp-http-server.exe'
 $tempRoot = Join-Path $repoRoot '_build\test-tmp\mcp-http'
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 $textInput = Join-Path $tempRoot 'smoke.txt'

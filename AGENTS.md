@@ -23,8 +23,7 @@ scripts/build.bat
 moon build --target native --release
 
 # Run the compiled binary
-_build/native/release/build/cmd/main/main.exe <input> [output]
-
+_build/native/release/build/moonbitlang/moonbitmark/cmd/main/main.exe <input> [output]
 # Run tests
 moon test
 
