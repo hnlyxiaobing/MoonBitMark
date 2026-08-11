@@ -221,7 +221,7 @@ fn PdfRouteFlag::label(self : PdfRouteFlag) -> String {
 
 ///|
 fn summarize_route_flags(route_plan : PdfRoutePlan) -> String {
-  let counts : Map[String, Int] = {}
+  let counts : Map[String, Int] = Map([])
   for page in route_plan.pages {
     for flag in page.flags {
       let label = flag.label()
@@ -250,7 +250,7 @@ fn summarize_route_flags(route_plan : PdfRoutePlan) -> String {
 
 ///|
 fn summarize_route_providers(route_plan : PdfRoutePlan) -> String {
-  let counts : Map[String, Int] = {}
+  let counts : Map[String, Int] = Map([])
   for page in route_plan.pages {
     let label = page.provider.label()
     counts[label] = match counts.get(label) {
@@ -275,7 +275,7 @@ fn summarize_route_providers(route_plan : PdfRoutePlan) -> String {
 
 ///|
 fn summarize_route_text_quality(route_plan : PdfRoutePlan) -> String {
-  let counts : Map[String, Int] = {}
+  let counts : Map[String, Int] = Map([])
   for page in route_plan.pages {
     let label = page.text_quality.label()
     counts[label] = match counts.get(label) {
@@ -299,7 +299,7 @@ fn summarize_route_text_quality(route_plan : PdfRoutePlan) -> String {
 
 ///|
 fn summarize_route_layout_complexity(route_plan : PdfRoutePlan) -> String {
-  let counts : Map[String, Int] = {}
+  let counts : Map[String, Int] = Map([])
   for page in route_plan.pages {
     let label = page.layout_complexity.label()
     counts[label] = match counts.get(label) {
@@ -385,7 +385,7 @@ fn reserved_provider_kinds() -> Array[PdfPageProviderKind] {
 fn non_empty_lines(text : String) -> Array[String] {
   let lines : Array[String] = []
   for raw_line in normalize_extracted_page_text(text).split("\n").to_array() {
-    let line = collapse_inline_whitespace(raw_line.to_string())
+    let line = collapse_inline_whitespace(raw_line.to_owned())
     if line != "" {
       lines.push(line)
     }

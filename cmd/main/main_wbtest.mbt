@@ -4,9 +4,12 @@ test "parse args enables frontmatter and output file" {
     "moonbitmark", "--frontmatter", "demo.docx", "out.md",
   ])
   inspect(options.input, content="demo.docx")
-  inspect(options.output, content=(
-    #|Some(out.md)
-  ))
+  debug_inspect(
+    options.output,
+    content=(
+      #|Some("out.md")
+    ),
+  )
   inspect(options.ctx.output_mode, content="FrontMatterMarkdown")
 }
 
@@ -16,9 +19,12 @@ test "parse args supports metadata and asset flags" {
     "moonbitmark", "--no-metadata", "--asset-dir", "assets", "demo.epub",
   ])
   inspect(options.ctx.keep_metadata, content="false")
-  inspect(options.ctx.asset_output_dir, content=(
-    #|Some(assets)
-  ))
+  debug_inspect(
+    options.ctx.asset_output_dir,
+    content=(
+      #|Some("assets")
+    ),
+  )
 }
 
 ///|
@@ -30,10 +36,13 @@ test "parse args supports ocr flags" {
   inspect(options.ctx.ocr.mode, content="Force")
   inspect(options.ctx.ocr.language, content="chi_sim")
   inspect(options.ctx.ocr.enable_embedded_images, content="true")
-  inspect(options.ctx.ocr.backend, content=(
-    #|Some(mock)
-  ))
-  inspect(options.ctx.ocr.timeout_ms, content="Some(2500)")
+  debug_inspect(
+    options.ctx.ocr.backend,
+    content=(
+      #|Some("mock")
+    ),
+  )
+  debug_inspect(options.ctx.ocr.timeout_ms, content="Some(2500)")
 }
 
 ///|
@@ -152,50 +161,69 @@ test "render semantic json includes provenance and confidence fields" {
 
 ///|
 test "parse args rejects missing input" {
-  let result : Result[CliOptions, Error] = try? parse_args([
-    "moonbitmark", "--frontmatter",
-  ])
-  guard result is Err(_) else {
-    fail("expected parse_args to fail without an input")
+  try parse_args(["moonbitmark", "--frontmatter"]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("expected parse_args to fail without an input")
   }
 }
 
 ///|
 test "parse args rejects output with detect only" {
-  let result : Result[CliOptions, Error] = try? parse_args([
-    "moonbitmark", "--detect-only", "demo.docx", "out.md",
-  ])
-  guard result is Err(_) else {
-    fail("expected parse_args to reject output with detect-only")
+  try
+    parse_args(["moonbitmark", "--detect-only", "demo.docx", "out.md"])
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("expected parse_args to reject output with detect-only")
   }
 }
 
 ///|
 test "parse args rejects dump ast with detect only" {
-  let result : Result[CliOptions, Error] = try? parse_args([
-    "moonbitmark", "--detect-only", "--dump-ast", "demo.docx",
-  ])
-  guard result is Err(_) else {
-    fail("expected parse_args to reject dump-ast with detect-only")
+  try
+    parse_args(["moonbitmark", "--detect-only", "--dump-ast", "demo.docx"])
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("expected parse_args to reject dump-ast with detect-only")
   }
 }
 
 ///|
 test "parse args rejects invalid ocr mode" {
-  let result : Result[CliOptions, Error] = try? parse_args([
-    "moonbitmark", "--ocr", "sometimes", "demo.png",
-  ])
-  guard result is Err(_) else {
-    fail("expected parse_args to reject invalid ocr mode")
+  try parse_args(["moonbitmark", "--ocr", "sometimes", "demo.png"]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("expected parse_args to reject invalid ocr mode")
   }
 }
 
 ///|
 test "validate output path rejects input overwrite" {
-  let result : Result[Unit, Error] = try? validate_output_path(
-    "fixtures\\scan.png", "fixtures/scan.png",
-  )
-  guard result is Err(_) else {
-    fail("expected validate_output_path to reject overwrite path")
+  try validate_output_path("fixtures\\scan.png", "fixtures/scan.png") catch {
+    _ => ()
+  } noraise {
+    _ => fail("expected validate_output_path to reject overwrite path")
   }
+}
+
+///|
+test "strip failure wrappers keeps plain messages untouched" {
+  inspect(strip_failure_wrappers("plain error"), content="plain error")
+}
+
+///|
+test "strip failure wrappers unwraps runtime failure envelope" {
+  let wrapped = "Failure(src/engine/engine.mbt:10:1-10:5@pkg FAILED: Error: ConversionFailed\n  Hint: try again)"
+  inspect(
+    strip_failure_wrappers(wrapped),
+    content="Error: ConversionFailed\n  Hint: try again",
+  )
+}
+
+///|
+test "strip failure wrappers unwraps nested envelopes" {
+  let nested = "Failure(a FAILED: Failure(b FAILED: inner message))"
+  inspect(strip_failure_wrappers(nested), content="inner message")
 }

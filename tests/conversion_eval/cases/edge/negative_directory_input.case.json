@@ -1,0 +1,12 @@
+{
+  "id": "negative_directory_input",
+  "format": "text",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/corrupt",
+  "description": "A directory passed as input should fail with a clean diagnostic (exit 1, no internal Failure trace).",
+  "expect_exit_code": 1,
+  "error_must_include": ["Unsupported input"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {},
+  "notes": "Input is a directory, not a file; format is recorded as text only because the schema requires a known format."
+}

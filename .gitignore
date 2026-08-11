@@ -37,9 +37,25 @@ tests/conversion_eval/fixtures/inputs/**/*.pdf
 tests/conversion_eval/fixtures/inputs/**/*.pptx
 tests/conversion_eval/fixtures/inputs/**/*.txt
 tests/conversion_eval/fixtures/inputs/**/*.xlsx
+# Negative-case fixtures are tiny synthetic files; keep them tracked so the
+# eval's error-path cases run on any checkout.
+!tests/conversion_eval/fixtures/inputs/corrupt/*.docx
+!tests/conversion_eval/fixtures/inputs/corrupt/*.pdf
+!tests/conversion_eval/fixtures/inputs/corrupt/*.txt
+!tests/conversion_eval/fixtures/inputs/corrupt/*.pptx
+!tests/conversion_eval/fixtures/inputs/corrupt/*.xlsx
+!tests/conversion_eval/fixtures/inputs/corrupt/*.epub
+# Hand-crafted case fixtures are small and deterministic; keep them tracked.
+!tests/conversion_eval/fixtures/inputs/csv/semicolon_ragged.csv
+!tests/conversion_eval/fixtures/inputs/json/minified.json
+!tests/conversion_eval/fixtures/inputs/text/markdown_specials.txt
+!tests/conversion_eval/fixtures/inputs/text/wrapped_paragraphs.txt
+!tests/conversion_eval/fixtures/inputs/pdf/blank_scanned_mock.pdf
+!tests/conversion_eval/fixtures/inputs/pptx/notes_chart_semantics.pptx
 tests/conversion_eval/fixtures/expected/markdown/*.md
 !tests/conversion_eval/fixtures/expected/markdown/html_*.md
 !tests/conversion_eval/fixtures/expected/markdown/pdf_*.md
+!tests/conversion_eval/fixtures/expected/markdown/text_markdown_specials.md
 tests/conversion_eval/fixtures/expected/metadata/*.json
 tests/conversion_eval/reports/history/**
 tests/conversion_eval/reports/latest/**

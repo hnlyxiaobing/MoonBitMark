@@ -167,7 +167,7 @@ pub(all) struct McpGetPromptResult {
 
 ///|
 pub fn TextContent::to_json(self : TextContent) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["type"] = String(self.type_)
   map["text"] = String(self.text)
   Object(map)
@@ -182,7 +182,7 @@ pub fn McpContent::to_json(self : McpContent) -> JsonValue {
 
 ///|
 pub fn McpTool::to_json(self : McpTool) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["name"] = String(self.name)
   map["description"] = String(self.description)
   map["inputSchema"] = self.input_schema
@@ -195,7 +195,7 @@ pub fn McpTool::to_json(self : McpTool) -> JsonValue {
 
 ///|
 pub fn McpToolAnnotations::to_json(self : McpToolAnnotations) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   match self.title {
     Some(value) => map["title"] = String(value)
     None => ()
@@ -226,7 +226,7 @@ pub fn McpToolResult::to_json(self : McpToolResult) -> JsonValue {
     items.push(content.to_json())
   }
 
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["content"] = Array(items)
   map["isError"] = Bool(self.is_error)
   match self.structured_content {
@@ -238,7 +238,7 @@ pub fn McpToolResult::to_json(self : McpToolResult) -> JsonValue {
 
 ///|
 pub fn McpServerInfo::to_json(self : McpServerInfo) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["name"] = String(self.name)
   map["version"] = String(self.version)
   map["protocolVersion"] = String(self.protocol_version)
@@ -249,10 +249,10 @@ pub fn McpServerInfo::to_json(self : McpServerInfo) -> JsonValue {
 pub fn McpServerCapabilities::to_json(
   self : McpServerCapabilities,
 ) -> JsonValue {
-  let tools_map : Map[String, JsonValue] = Map::new()
+  let tools_map : Map[String, JsonValue] = Map([])
   tools_map["listChanged"] = Bool(self.tools.list_changed)
 
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["tools"] = Object(tools_map)
   match self.resources {
     Some(value) => map["resources"] = value.to_json()
@@ -269,7 +269,7 @@ pub fn McpServerCapabilities::to_json(
 pub fn McpServerCapabilitiesResources::to_json(
   self : McpServerCapabilitiesResources,
 ) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["subscribe"] = Bool(self.subscribe)
   map["listChanged"] = Bool(self.list_changed)
   Object(map)
@@ -279,14 +279,14 @@ pub fn McpServerCapabilitiesResources::to_json(
 pub fn McpServerCapabilitiesPrompts::to_json(
   self : McpServerCapabilitiesPrompts,
 ) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["listChanged"] = Bool(self.list_changed)
   Object(map)
 }
 
 ///|
 pub fn McpInitializeResult::to_json(self : McpInitializeResult) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["protocolVersion"] = String(self.protocol_version)
   map["capabilities"] = self.capabilities.to_json()
   map["serverInfo"] = self.server_info.to_json()
@@ -304,14 +304,14 @@ pub fn McpToolsListResult::to_json(self : McpToolsListResult) -> JsonValue {
     items.push(tool.to_json())
   }
 
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["tools"] = Array(items)
   Object(map)
 }
 
 ///|
 pub fn McpResource::to_json(self : McpResource) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["uri"] = String(self.uri)
   map["name"] = String(self.name)
   match self.title {
@@ -335,7 +335,7 @@ pub fn McpResource::to_json(self : McpResource) -> JsonValue {
 
 ///|
 pub fn McpResourceContents::to_json(self : McpResourceContents) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["uri"] = String(self.uri)
   match self.mime_type {
     Some(value) => map["mimeType"] = String(value)
@@ -354,7 +354,7 @@ pub fn McpResourcesListResult::to_json(
     items.push(resource.to_json())
   }
 
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["resources"] = Array(items)
   match self.next_cursor {
     Some(value) => map["nextCursor"] = String(value)
@@ -375,7 +375,7 @@ pub fn McpResourcesListResult::to_json(
 
 ///|
 pub fn McpResourceTemplate::to_json(self : McpResourceTemplate) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["uriTemplate"] = String(self.uri_template)
   map["name"] = String(self.name)
   match self.title {
@@ -402,14 +402,14 @@ pub fn McpResourcesReadResult::to_json(
     items.push(resource.to_json())
   }
 
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["contents"] = Array(items)
   Object(map)
 }
 
 ///|
 pub fn McpPromptArgument::to_json(self : McpPromptArgument) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["name"] = String(self.name)
   match self.description {
     Some(value) => map["description"] = String(value)
@@ -424,7 +424,7 @@ pub fn McpPromptArgument::to_json(self : McpPromptArgument) -> JsonValue {
 
 ///|
 pub fn McpPrompt::to_json(self : McpPrompt) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["name"] = String(self.name)
   match self.title {
     Some(value) => map["title"] = String(value)
@@ -449,7 +449,7 @@ pub fn McpPrompt::to_json(self : McpPrompt) -> JsonValue {
 
 ///|
 pub fn McpPromptMessage::to_json(self : McpPromptMessage) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["role"] = String(self.role)
   map["content"] = self.content.to_json()
   Object(map)
@@ -462,7 +462,7 @@ pub fn McpPromptsListResult::to_json(self : McpPromptsListResult) -> JsonValue {
     items.push(prompt.to_json())
   }
 
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["prompts"] = Array(items)
   Object(map)
 }
@@ -474,7 +474,7 @@ pub fn McpGetPromptResult::to_json(self : McpGetPromptResult) -> JsonValue {
     items.push(message.to_json())
   }
 
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   match self.description {
     Some(value) => map["description"] = String(value)
     None => ()
@@ -520,11 +520,11 @@ pub(all) struct McpLoggingNotification {
 pub fn McpLoggingNotification::to_jsonrpc(
   self : McpLoggingNotification,
 ) -> JsonValue {
-  let params : Map[String, JsonValue] = Map::new()
+  let params : Map[String, JsonValue] = Map([])
   params["level"] = String(self.level.to_string())
   params["logger"] = String(self.logger)
   params["data"] = self.data
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["jsonrpc"] = String("2.0")
   map["method"] = String("notifications/message")
   map["params"] = Object(params)

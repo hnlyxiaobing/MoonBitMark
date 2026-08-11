@@ -12,18 +12,30 @@ async test "recognize image bytes with mock backend" {
     config,
     temp_stem="ocr-test-mock",
   )
-  inspect(result.available, content=(
-    #|false
-  ))
-  inspect(result.provider, content=(
-    #|None
-  ))
-  inspect(result.text, content=(
-    #|
-  ))
-  inspect(result.layout_json is Some(_), content=(
-    #|false
-  ))
+  inspect(
+    result.available,
+    content=(
+      #|false
+    ),
+  )
+  debug_inspect(
+    result.provider,
+    content=(
+      #|None
+    ),
+  )
+  inspect(
+    result.text,
+    content=(
+      #|
+    ),
+  )
+  inspect(
+    result.layout_json is Some(_),
+    content=(
+      #|false
+    ),
+  )
 }
 
 ///|

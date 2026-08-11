@@ -42,7 +42,7 @@ pub async fn XlsxConverter::convert(
       let (blocks, annotations, helper_warnings_b) = generate_blocks_with_annotations(
         archive, sheets, shared_strings,
       )
-      let metadata = Map::new()
+      let metadata = Map([])
       metadata["format"] = "xlsx"
       metadata["sheet_count"] = sheets.length().to_string()
       metadata["shared_string_count"] = shared_strings.length().to_string()
@@ -355,23 +355,23 @@ fn parse_sheet_paths(
       let xml_string = @utf8.decode(xml_bytes) catch {
         _ =>
           return (
-            Map::new(),
+            Map([]),
             ["Failed to decode xl/_rels/workbook.xml.rels as UTF-8."],
           )
       }
       match @xml.parse_xml(xml_string) {
         Ok(events) => (extract_sheet_paths(events), [])
-        Err(_) => (Map::new(), ["Failed to parse xl/_rels/workbook.xml.rels."])
+        Err(_) => (Map([]), ["Failed to parse xl/_rels/workbook.xml.rels."])
       }
     }
-    None => (Map::new(), ["Failed to read xl/_rels/workbook.xml.rels."])
+    None => (Map([]), ["Failed to read xl/_rels/workbook.xml.rels."])
   }
 }
 
 ///|
 /// Extract r:id -> Target path mapping from rels XML
 fn extract_sheet_paths(events : Array[@xml.ParseEvent]) -> Map[String, String] {
-  let paths : Map[String, String] = Map::new()
+  let paths : Map[String, String] = Map([])
 
   for event in events {
     match event {
@@ -602,7 +602,7 @@ fn normalize_xlsx_cell_text(text : String) -> String {
   .replace(old="\r\n", new="\n")
   .replace(old="\r", new="\n")
   .trim()
-  .to_string()
+  .to_owned()
 }
 
 ///|
@@ -673,7 +673,7 @@ fn normalize_sheet_rows(data : SheetData) -> Array[Array[String]] {
 
 ///|
 fn detect_sheet_regions(rows : Array[Array[String]]) -> Array[SheetRegion] {
-  let cell_map : Map[String, String] = Map::new()
+  let cell_map : Map[String, String] = Map([])
   let positions : Array[SheetCellPos] = []
   for row_index, row in rows {
     for col_index, cell in row {
@@ -683,7 +683,7 @@ fn detect_sheet_regions(rows : Array[Array[String]]) -> Array[SheetRegion] {
       }
     }
   }
-  let visited : Map[String, Bool] = Map::new()
+  let visited : Map[String, Bool] = Map([])
   let regions : Array[SheetRegion] = []
   for position in positions {
     let key = sheet_cell_key(position.row, position.col)
@@ -1072,7 +1072,7 @@ fn xlsx_warning_diagnostics(
         ),
       )
     } else if warning.has_prefix("Failed to extract XLSX asset: ") {
-      let path = warning[30:].to_string()
+      let path = warning[30:].to_owned()
       diagnostics.push(
         @core.warning_diagnostic(
           warning,
@@ -1093,7 +1093,7 @@ fn extract_warning_path(message : String) -> String {
       match @core.find_last_char(message, ')') {
         Some(end) =>
           if end > start {
-            message[start + 1:end].to_string()
+            message[start + 1:end].to_owned()
           } else {
             message
           }

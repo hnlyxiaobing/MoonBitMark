@@ -18,7 +18,7 @@ pub(all) struct McpHttpServer {
   dispatcher : @handler.McpDispatcher
   server : @moonbitlang/async/http.Server
 }
-pub fn McpHttpServer::new(McpHttpServerConfig) -> Self raise
+pub async fn McpHttpServer::new(McpHttpServerConfig) -> Self
 pub async fn McpHttpServer::run(Self) -> Unit
 
 pub(all) struct McpHttpServerConfig {
@@ -30,4 +30,3 @@ pub fn McpHttpServerConfig::new(bind_host? : String, port? : Int) -> Self raise
 // Type aliases
 
 // Traits
-

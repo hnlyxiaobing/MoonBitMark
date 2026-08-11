@@ -7,7 +7,7 @@ pub(all) enum OcrMode {
 
 ///|
 pub impl Show for OcrMode with fn output(self, logger) {
-  self.to_repr().output(logger)
+  Show::output(self.to_repr(), logger)
 }
 
 ///|
@@ -52,7 +52,7 @@ pub fn OcrConfig::should_process_embedded_images(self : OcrConfig) -> Bool {
 ///|
 pub fn OcrConfig::backend_or_auto(self : OcrConfig) -> String {
   match self.backend {
-    Some(value) if value.trim() != "" => value.trim().to_string()
+    Some(value) if value.trim() != "" => value.trim().to_owned()
     _ => "auto"
   }
 }

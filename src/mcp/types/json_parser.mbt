@@ -138,7 +138,7 @@ fn parse_unicode_escape(
     return Err(UnexpectedEnd)
   }
 
-  let hex = input[state.index:state.index + 4].to_string()
+  let hex = input[state.index:state.index + 4].to_owned()
   state.index = state.index + 4
 
   match hex_to_int(hex) {
@@ -157,7 +157,7 @@ fn parse_object(
   state : ParserState,
 ) -> Result[JsonValue, JsonParseError] {
   state.index = state.index + 1
-  let entries : Map[String, JsonValue] = Map::new()
+  let entries : Map[String, JsonValue] = Map([])
 
   skip_whitespace(input, state)
   if is_current_char(input, state, 125) {
@@ -271,7 +271,7 @@ fn parse_number(
     }
   }
 
-  let number_text = input[start:state.index].to_string()
+  let number_text = input[start:state.index].to_owned()
   if has_decimal || has_exponent {
     match parse_float(number_text) {
       Some(value) => Ok(Float(value))
@@ -295,7 +295,7 @@ fn parse_literal(
     return Err(UnexpectedEnd)
   }
 
-  let actual = input[state.index:state.index + literal.length()].to_string()
+  let actual = input[state.index:state.index + literal.length()].to_owned()
   if actual == literal {
     state.index = state.index + literal.length()
     Ok(value)

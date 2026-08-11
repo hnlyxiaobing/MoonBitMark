@@ -36,7 +36,9 @@ async fn convert_uploaded_document_handler(
     Err(message) => return error_tool_result(message)
   }
   let engine = @engine.MarkItDown::new()
-  let detection = try? engine.detect_source(document.input_source)
+  let detection = Ok(engine.detect_source(document.input_source)) catch {
+    e => Err(e)
+  }
   let detected_format = match detection {
     Ok(value) => value.converter_name
     Err(_) => "unknown"

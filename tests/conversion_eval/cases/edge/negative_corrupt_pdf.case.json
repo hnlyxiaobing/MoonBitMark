@@ -1,0 +1,11 @@
+{
+  "id": "negative_corrupt_pdf",
+  "format": "pdf",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/corrupt/corrupt.pdf",
+  "description": "Corrupt PDF should fail with a clean diagnostic (exit 1, no internal Failure trace).",
+  "expect_exit_code": 1,
+  "error_must_include": ["PdfError"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {}
+}

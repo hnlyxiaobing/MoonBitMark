@@ -6,7 +6,7 @@ pub fn document_of_markdownish(
 ) -> Document {
   let blocks : Array[Block] = []
   for chunk in markdown.split("\n\n").to_array() {
-    let trimmed = chunk.trim().to_string()
+    let trimmed = chunk.trim().to_owned()
     if trimmed == "" {
       continue
     }
@@ -46,7 +46,7 @@ fn parse_heading_block(chunk : String) -> Block {
       break
     }
   }
-  let text = chunk[index:].trim().to_string()
+  let text = chunk[index:].trim().to_owned()
   Heading(level, text_inlines(text))
 }
 
@@ -56,16 +56,16 @@ fn parse_code_block(chunk : String) -> Block {
   if lines.length() == 0 {
     return CodeBlock(None, "")
   }
-  let header = lines[0].trim().to_string()
+  let header = lines[0].trim().to_owned()
   let lang = if header.length() > 3 {
-    Some(header[3:].trim().to_string())
+    Some(header[3:].trim().to_owned())
   } else {
     None
   }
   let content_lines : Array[String] = []
   let mut index = 1
   while index < lines.length() - 1 {
-    content_lines.push(lines[index].to_string())
+    content_lines.push(lines[index].to_owned())
     index = index + 1
   }
   CodeBlock(lang, content_lines.join("\n"))
@@ -85,9 +85,9 @@ fn is_quote_block(chunk : String) -> Bool {
 fn parse_quote_block(chunk : String) -> Block {
   let lines : Array[String] = []
   for line in chunk.split("\n").to_array() {
-    let trimmed = line.trim_start().to_string()
+    let trimmed = line.trim_start().to_owned()
     if trimmed.has_prefix("> ") {
-      lines.push(trimmed[2:].to_string())
+      lines.push(trimmed[2:].to_owned())
     }
   }
   Quote(lines)
@@ -100,7 +100,7 @@ fn is_list_block(chunk : String) -> Bool {
     return false
   }
   for line in lines {
-    let trimmed = line.trim_start().to_string()
+    let trimmed = line.trim_start().to_owned()
     if trimmed == "" {
       continue
     }
@@ -121,14 +121,14 @@ fn parse_list_block(chunk : String) -> Block {
   let lines = chunk.split("\n").to_array()
   let mut ordered = false
   for line in lines {
-    let trimmed = line.trim_start().to_string()
+    let trimmed = line.trim_start().to_owned()
     if trimmed.has_prefix("- ") {
-      items.push(text_inlines(trimmed[2:].to_string()))
+      items.push(text_inlines(trimmed[2:].to_owned()))
     } else {
       match ordered_list_prefix_length(trimmed) {
         Some(prefix_len) => {
           ordered = true
-          items.push(text_inlines(trimmed[prefix_len:].to_string()))
+          items.push(text_inlines(trimmed[prefix_len:].to_owned()))
         }
         None => ()
       }
@@ -166,11 +166,11 @@ fn is_table_block(chunk : String) -> Bool {
 ///|
 fn parse_table_block(chunk : String) -> Block {
   let lines = chunk.split("\n").to_array()
-  let headers = split_table_row(lines[0].to_string())
+  let headers = split_table_row(lines[0].to_owned())
   let rows : Array[Array[Array[Inline]]] = []
   let mut index = 2
   while index < lines.length() {
-    let row = split_table_row(lines[index].to_string())
+    let row = split_table_row(lines[index].to_owned())
     if row.length() > 0 {
       rows.push(row)
     }
@@ -181,20 +181,20 @@ fn parse_table_block(chunk : String) -> Block {
 
 ///|
 fn split_table_row(line : String) -> Array[Array[Inline]] {
-  let trimmed = line.trim().to_string()
+  let trimmed = line.trim().to_owned()
   let without_left = if trimmed.has_prefix("|") {
-    trimmed[1:].to_string()
+    trimmed[1:].to_owned()
   } else {
     trimmed
   }
   let content = if without_left.has_suffix("|") {
-    without_left[:without_left.length() - 1].to_string()
+    without_left[:without_left.length() - 1].to_owned()
   } else {
     without_left
   }
   let cells : Array[Array[Inline]] = []
   for cell in content.split("|").to_array() {
-    cells.push(text_inlines(cell.trim().to_string()))
+    cells.push(text_inlines(cell.trim().to_owned()))
   }
   cells
 }

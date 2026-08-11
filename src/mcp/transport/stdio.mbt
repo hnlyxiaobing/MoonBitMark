@@ -35,7 +35,7 @@ pub async fn StdioTransport::write_line(
 ///|
 fn trim_line_end(line : String) -> String {
   if line.has_suffix("\r") {
-    line.trim_end(chars="\r").to_string()
+    line.trim_end(chars="\r").to_owned()
   } else {
     line
   }

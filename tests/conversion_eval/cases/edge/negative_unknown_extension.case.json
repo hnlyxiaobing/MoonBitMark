@@ -1,0 +1,11 @@
+{
+  "id": "negative_unknown_extension",
+  "format": "text",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/corrupt/unknown.xyz",
+  "description": "Unsupported extension should fail with a clear detection error (exit 1, no internal Failure trace).",
+  "expect_exit_code": 1,
+  "error_must_include": ["Unsupported input"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {}
+}

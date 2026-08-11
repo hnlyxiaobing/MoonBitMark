@@ -15,17 +15,25 @@ test "pdf scientific table parser rebuilds column-major table" {
   inspect(parsed is Some(_), content="true")
   match parsed {
     Some((headers, rows, next_index)) => {
-      inspect(
+      debug_inspect(
         headers,
         content=(
-          #|[Inhibitor concentration (g), bc (V/dec), ba (V/dec), Ecorr (V), icorr (A/cm2), Polarization resistance (Ω), Corrosion rate (mm/year)]
+          #|[
+          #|  "Inhibitor concentration (g)",
+          #|  "bc (V/dec)",
+          #|  "ba (V/dec)",
+          #|  "Ecorr (V)",
+          #|  "icorr (A/cm2)",
+          #|  "Polarization resistance (Ω)",
+          #|  "Corrosion rate (mm/year)",
+          #|]
         ),
       )
       inspect(rows.length(), content="6")
-      inspect(
+      debug_inspect(
         rows[0],
         content=(
-          #|[0, 0.0335, 0.0409, -0.9393, 0.0003, 24.0910, 2.8163]
+          #|["0", "0.0335", "0.0409", "-0.9393", "0.0003", "24.0910", "2.8163"]
         ),
       )
       inspect(next_index, content="17")
@@ -95,19 +103,22 @@ test "pdf normalization drops standalone page furniture" {
   let normalized = normalize_pdf_pages([
     "454\nJournal Header / Data in Brief 22 (2019) 451-457\nBody paragraph.\n1",
   ])
-  inspect(normalized.pages[0].chunks, content=(
-    #|[Body paragraph.]
-  ))
+  debug_inspect(
+    normalized.pages[0].chunks,
+    content=(
+      #|["Body paragraph."]
+    ),
+  )
 }
 
 ///|
 test "pdf scientific caption splitter keeps inline figure references" {
-  inspect(
+  debug_inspect(
     split_scientific_caption_boundary(
       "The plot gives a straight line as shown in Fig. 5. The strong correlation reveals adsorption.",
     ),
     content=(
-      #|[The plot gives a straight line as shown in Fig. 5. The strong correlation reveals adsorption.]
+      #|["The plot gives a straight line as shown in Fig. 5. The strong correlation reveals adsorption."]
     ),
   )
 }
@@ -156,10 +167,15 @@ test "pdf fallback linewise normalization rebuilds headings and bullet lines" {
       text: "IBM MT/ST (Magnetic Tape/Selectric Typewriter): Introduced in 1964.",
     },
   ])
-  inspect(
+  debug_inspect(
     chunks,
     content=(
-      #|[The Evolution of the Word Processor, Pre-Digital Era (19th - Early 20th Century), The origins of word processing can be traced back to the invention of the typewriter in the mid-19th century. Patented in 1868 by Christopher Latham Sholes, the typewriter revolutionized written communication by enabling people to produce legible documents., • IBM MT/ST (Magnetic Tape/Selectric Typewriter): Introduced in 1964.]
+      #|[
+      #|  "The Evolution of the Word Processor",
+      #|  "Pre-Digital Era (19th - Early 20th Century)",
+      #|  "The origins of word processing can be traced back to the invention of the typewriter in the mid-19th century. Patented in 1868 by Christopher Latham Sholes, the typewriter revolutionized written communication by enabling people to produce legible documents.",
+      #|  "• IBM MT/ST (Magnetic Tape/Selectric Typewriter): Introduced in 1964.",
+      #|]
     ),
   )
 }
@@ -278,10 +294,19 @@ test "pdf ocr recovery normalization preserves linewise block candidates" {
     PdfRawLine::{ text: "Q1  12.4  31%" },
     PdfRawLine::{ text: "Q2  14.1  34%" },
   ])
-  inspect(
+  debug_inspect(
     chunks,
     content=(
-      #|[Project Status, , •, Recovered backlog item, , Quarter  Revenue  Margin, Q1  12.4  31%, Q2  14.1  34%]
+      #|[
+      #|  "Project Status",
+      #|  "",
+      #|  "•",
+      #|  "Recovered backlog item",
+      #|  "",
+      #|  "Quarter  Revenue  Margin",
+      #|  "Q1  12.4  31%",
+      #|  "Q2  14.1  34%",
+      #|]
     ),
   )
 }
@@ -309,7 +334,6 @@ test "pdf layout chunks reorder two-column reading order" {
   let chunks = layout_page_to_chunks(PdfLayoutPage::{
     page_no: 1,
     width: 1000,
-    height: 1000,
     lines: [
       PdfLayoutLine::{
         text: "Neural Networks Overview",
@@ -353,10 +377,18 @@ test "pdf layout chunks reorder two-column reading order" {
       },
     ],
   })
-  inspect(
+  debug_inspect(
     chunks,
     content=(
-      #|[Neural Networks Overview, , Left column begins here., Left column continues here., , Right column begins here., Right column continues here.]
+      #|[
+      #|  "Neural Networks Overview",
+      #|  "",
+      #|  "Left column begins here.",
+      #|  "Left column continues here.",
+      #|  "",
+      #|  "Right column begins here.",
+      #|  "Right column continues here.",
+      #|]
     ),
   )
 }
@@ -366,7 +398,6 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
   let layout = PdfLayoutPage::{
     page_no: 1,
     width: 1000,
-    height: 1000,
     lines: [
       PdfLayoutLine::{
         text: "Quarter Metrics",
@@ -375,20 +406,8 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 760,
         bottom: 160,
         words: [
-          PdfLayoutWord::{
-            text: "Quarter",
-            left: 90,
-            top: 120,
-            right: 240,
-            bottom: 160,
-          },
-          PdfLayoutWord::{
-            text: "Metrics",
-            left: 360,
-            top: 120,
-            right: 760,
-            bottom: 160,
-          },
+          PdfLayoutWord::{ text: "Quarter", left: 90, right: 240 },
+          PdfLayoutWord::{ text: "Metrics", left: 360, right: 760 },
         ],
       },
       PdfLayoutLine::{
@@ -398,20 +417,8 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 760,
         bottom: 210,
         words: [
-          PdfLayoutWord::{
-            text: "Revenue",
-            left: 420,
-            top: 170,
-            right: 540,
-            bottom: 210,
-          },
-          PdfLayoutWord::{
-            text: "Margin",
-            left: 620,
-            top: 170,
-            right: 760,
-            bottom: 210,
-          },
+          PdfLayoutWord::{ text: "Revenue", left: 420, right: 540 },
+          PdfLayoutWord::{ text: "Margin", left: 620, right: 760 },
         ],
       },
       PdfLayoutLine::{
@@ -421,27 +428,9 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 720,
         bottom: 275,
         words: [
-          PdfLayoutWord::{
-            text: "Q1",
-            left: 100,
-            top: 235,
-            right: 170,
-            bottom: 275,
-          },
-          PdfLayoutWord::{
-            text: "12.4",
-            left: 450,
-            top: 235,
-            right: 520,
-            bottom: 275,
-          },
-          PdfLayoutWord::{
-            text: "31%",
-            left: 650,
-            top: 235,
-            right: 720,
-            bottom: 275,
-          },
+          PdfLayoutWord::{ text: "Q1", left: 100, right: 170 },
+          PdfLayoutWord::{ text: "12.4", left: 450, right: 520 },
+          PdfLayoutWord::{ text: "31%", left: 650, right: 720 },
         ],
       },
       PdfLayoutLine::{
@@ -451,27 +440,9 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 720,
         bottom: 330,
         words: [
-          PdfLayoutWord::{
-            text: "Q2",
-            left: 100,
-            top: 290,
-            right: 170,
-            bottom: 330,
-          },
-          PdfLayoutWord::{
-            text: "14.1",
-            left: 450,
-            top: 290,
-            right: 520,
-            bottom: 330,
-          },
-          PdfLayoutWord::{
-            text: "34%",
-            left: 650,
-            top: 290,
-            right: 720,
-            bottom: 330,
-          },
+          PdfLayoutWord::{ text: "Q2", left: 100, right: 170 },
+          PdfLayoutWord::{ text: "14.1", left: 450, right: 520 },
+          PdfLayoutWord::{ text: "34%", left: 650, right: 720 },
         ],
       },
     ],

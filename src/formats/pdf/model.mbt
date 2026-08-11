@@ -75,9 +75,7 @@ priv struct PdfRawLine {
 priv struct PdfLayoutWord {
   text : String
   left : Int
-  top : Int
   right : Int
-  bottom : Int
 } derive(FromJson)
 
 ///|
@@ -94,7 +92,6 @@ priv struct PdfLayoutLine {
 priv struct PdfLayoutPage {
   page_no : Int
   width : Int
-  height : Int
   lines : Array[PdfLayoutLine]
 } derive(FromJson)
 

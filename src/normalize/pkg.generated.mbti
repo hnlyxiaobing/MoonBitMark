@@ -15,4 +15,3 @@ pub fn normalize_document(@ast.Document) -> @ast.Document
 // Type aliases
 
 // Traits
-

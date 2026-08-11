@@ -41,7 +41,7 @@ async fn resolve_uri_document(
   uri : String,
   config : McpSecurityConfig,
 ) -> Result[ResolvedMcpDocument, String] {
-  let request_uri = uri.trim().to_string()
+  let request_uri = uri.trim().to_owned()
   if request_uri == "" {
     return Err("Error: 'uri' parameter is required")
   }
@@ -206,7 +206,7 @@ fn decode_uploaded_bytes_array(
 ///|
 fn uploaded_filename(raw_name : String) -> String {
   let name = sanitize_meta_value(
-    @core.file_name_only(raw_name.trim().to_string()),
+    @core.file_name_only(raw_name.trim().to_owned()),
   )
   if name == "" {
     "upload.bin"
@@ -224,7 +224,7 @@ fn uploaded_request_uri(filename : String) -> String {
 fn optional_raw_string_arg(args : @types.JsonValue, key : String) -> String? {
   match args.get(key) {
     Some(@types.String(value)) if value.trim() != "" =>
-      Some(value.trim().to_string())
+      Some(value.trim().to_owned())
     _ => None
   }
 }

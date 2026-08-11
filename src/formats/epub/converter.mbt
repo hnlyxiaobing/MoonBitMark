@@ -253,7 +253,7 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
   match @xml.parse_xml(xml_string) {
     Ok(events) => {
       let metadata = EpubMetadata::default()
-      let manifest : Map[String, ManifestItem] = Map::new()
+      let manifest : Map[String, ManifestItem] = Map([])
       let spine : Array[SpineItem] = Array::new()
       let mut current_element = ""
       let mut in_metadata = false
@@ -473,7 +473,7 @@ fn parse_epub_gutenberg_document(xml_string : String) -> Array[@ast.Block] {
     match find_next_epub_block_start(rest) {
       Some((index, tag, level)) => {
         if index > 0 {
-          rest = rest[index:].to_string()
+          rest = rest[index:].to_owned()
         }
         match extract_epub_tag_block(rest, tag) {
           Some((fragment, remaining)) => {
@@ -517,13 +517,13 @@ fn extract_epub_gutenberg_prelude(body : String) -> Array[@ast.Block] {
 fn extract_epub_body(xml_string : String) -> String {
   match xml_string.find("<body") {
     Some(body_start) =>
-      match xml_string[body_start:].to_string().find(">") {
+      match xml_string[body_start:].to_owned().find(">") {
         Some(body_tag_end_rel) => {
           let content_start = body_start + body_tag_end_rel + 1
-          match xml_string[content_start:].to_string().find("</body>") {
+          match xml_string[content_start:].to_owned().find("</body>") {
             Some(body_end_rel) =>
-              xml_string[content_start:content_start + body_end_rel].to_string()
-            None => xml_string[content_start:].to_string()
+              xml_string[content_start:content_start + body_end_rel].to_owned()
+            None => xml_string[content_start:].to_owned()
           }
         }
         None => xml_string
@@ -553,7 +553,7 @@ fn strip_epub_divs_with_marker(text : String, marker : String) -> String {
   while result.contains("<div") && result.contains(marker) {
     match extract_epub_div_range(result, marker) {
       Some((div_start, div_end)) =>
-        result = result[:div_start].to_string() + result[div_end:].to_string()
+        result = result[:div_start].to_owned() + result[div_end:].to_owned()
       None => break
     }
   }
@@ -563,7 +563,7 @@ fn strip_epub_divs_with_marker(text : String, marker : String) -> String {
 ///|
 fn extract_epub_div_with_marker(text : String, marker : String) -> String? {
   match extract_epub_div_range(text, marker) {
-    Some((div_start, div_end)) => Some(text[div_start:div_end].to_string())
+    Some((div_start, div_end)) => Some(text[div_start:div_end].to_owned())
     None => None
   }
 }
@@ -572,7 +572,7 @@ fn extract_epub_div_with_marker(text : String, marker : String) -> String? {
 fn extract_epub_div_range(text : String, marker : String) -> (Int, Int)? {
   match text.find(marker) {
     Some(marker_index) =>
-      match find_last_epub_substring(text[:marker_index].to_string(), "<div") {
+      match find_last_epub_substring(text[:marker_index].to_owned(), "<div") {
         Some(div_start) =>
           match find_matching_epub_div_end(text, div_start) {
             Some(div_end) => Some((div_start, div_end))
@@ -593,7 +593,7 @@ fn find_last_epub_substring(text : String, pattern : String) -> Int? {
   let mut index = 0
   let max_start = text.length() - pattern.length()
   while index <= max_start {
-    if text[index:index + pattern.length()].to_string() == pattern {
+    if text[index:index + pattern.length()].to_owned() == pattern {
       last = Some(index)
     }
     index = index + 1
@@ -606,7 +606,7 @@ fn find_matching_epub_div_end(text : String, div_start : Int) -> Int? {
   let mut depth = 0
   let mut index = div_start
   while index < text.length() {
-    let remaining = text[index:].to_string()
+    let remaining = text[index:].to_owned()
     let next_open = remaining.find("<div")
     let next_close = remaining.find("</div>")
     match (next_open, next_close) {
@@ -646,10 +646,10 @@ fn strip_epub_tag_blocks(text : String, tag : String) -> String {
   while result.contains(open_marker) {
     match result.find(open_marker) {
       Some(start) =>
-        match result[start:].to_string().find(close_marker) {
+        match result[start:].to_owned().find(close_marker) {
           Some(close_rel) => {
             let close_end = start + close_rel + close_marker.length()
-            result = result[:start].to_string() + result[close_end:].to_string()
+            result = result[:start].to_owned() + result[close_end:].to_owned()
           }
           None => break
         }
@@ -741,12 +741,10 @@ fn extract_epub_tag_block(text : String, tag : String) -> (String, String)? {
   let close_marker = "</" + tag + ">"
   match text.find(open_marker) {
     Some(start) =>
-      match text[start:].to_string().find(close_marker) {
+      match text[start:].to_owned().find(close_marker) {
         Some(close_rel) => {
           let close_end = start + close_rel + close_marker.length()
-          Some(
-            (text[start:close_end].to_string(), text[close_end:].to_string()),
-          )
+          Some((text[start:close_end].to_owned(), text[close_end:].to_owned()))
         }
         None => None
       }
@@ -796,8 +794,8 @@ fn epub_fragment_inner_text(fragment : String) -> String {
       let content_start = start_end + 1
       match find_last_epub_substring(fragment, "</") {
         Some(end_start) if end_start >= content_start =>
-          fragment[content_start:end_start].to_string()
-        _ => fragment[content_start:].to_string()
+          fragment[content_start:end_start].to_owned()
+        _ => fragment[content_start:].to_owned()
       }
     }
     None => fragment
@@ -848,7 +846,7 @@ fn strip_epub_markup(text : String) -> String {
 fn strip_epub_namespace(name : String) -> String {
   if name.contains(":") {
     match name.find(":") {
-      Some(index) => name[index + 1:].to_string()
+      Some(index) => name[index + 1:].to_owned()
       None => name
     }
   } else {
@@ -1329,7 +1327,7 @@ fn is_epub_media_fragment(text : String) -> Bool {
 fn strip_epub_media_tokens(text : String) -> String {
   let kept : Array[String] = []
   for token in text.split(" ").to_array() {
-    let piece = token.to_string()
+    let piece = token.to_owned()
     let lowered = piece.to_lower().to_string()
     if lowered == "" {
       continue
@@ -1378,7 +1376,7 @@ fn trim_epub_known_suffixes(text : String) -> String {
 fn trim_epub_before_marker(text : String, marker : String) -> String {
   let lowered = text.to_lower().to_string()
   match lowered.find(marker) {
-    Some(index) => text[:index].to_string()
+    Some(index) => text[:index].to_owned()
     None => text
   }
 }
@@ -1509,7 +1507,7 @@ fn normalize_epub_text(text : String) -> String {
       previous_was_space = false
     }
   }
-  result.trim().to_string()
+  result.trim().to_owned()
 }
 
 ///|
@@ -1597,7 +1595,7 @@ fn metadata_of_epub(
   metadata_source : EpubMetadata,
   opf_path : String,
 ) -> Map[String, String] {
-  let metadata = Map::new()
+  let metadata = Map([])
   metadata["format"] = "epub"
   metadata["opf_path"] = opf_path
   match metadata_source.language {
@@ -1743,7 +1741,7 @@ fn epub_warning_diagnostics(
   let diagnostics : Array[@core.ConversionDiagnostic] = []
   for warning in warnings {
     if warning.has_prefix("Missing spine resource in archive: ") {
-      let path = warning[35:].to_string()
+      let path = warning[35:].to_owned()
       diagnostics.push(
         @core.warning_diagnostic(
           warning,
@@ -1753,7 +1751,7 @@ fn epub_warning_diagnostics(
         ),
       )
     } else if warning.has_prefix("Missing manifest item for spine idref: ") {
-      let idref = warning[39:].to_string()
+      let idref = warning[39:].to_owned()
       diagnostics.push(
         @core.warning_diagnostic(
           warning,

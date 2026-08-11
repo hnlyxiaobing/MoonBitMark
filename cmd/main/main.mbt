@@ -1,6 +1,70 @@
 // MoonBitMark CLI - File to Markdown Converter
 
 ///|
+suberror CliError {
+  CliError(String)
+}
+
+///|
+pub impl Show for CliError with fn output(self, logger) {
+  match self {
+    CliError(message) => logger.write_string(message)
+  }
+}
+
+///|
+/// Strip nested `Failure(<location> FAILED: <message>)` wrappers that
+/// `fail()` adds around error messages, so CLI users see the actionable
+/// diagnostic instead of internal source locations.
+fn strip_failure_wrappers(text : String) -> String {
+  let mut result = text
+  while true {
+    match find_failure_wrapper(result) {
+      Some((open, close)) =>
+        result = result[:open].to_owned() +
+          extract_failure_content(result[open:close].to_owned()) +
+          result[close + 1:].to_owned()
+      None => break
+    }
+  }
+  result
+}
+
+///|
+/// Locate the next `Failure( ... )` span. Returns the index of `Failure(`
+/// itself and the index of its matching closing parenthesis.
+fn find_failure_wrapper(text : String) -> (Int, Int)? {
+  let marker = "Failure("
+  guard text.find(marker) is Some(open) else { return None }
+  let mut depth = 0
+  let mut index = open
+  while index < text.length() {
+    let ch = text.get_char(index).unwrap()
+    if ch == '(' {
+      depth = depth + 1
+    } else if ch == ')' {
+      depth = depth - 1
+      if depth == 0 {
+        return Some((open, index))
+      }
+    }
+    index = index + 1
+  }
+  None
+}
+
+///|
+/// Unwrap one `Failure(<location> FAILED: <message>` body, keeping only the
+/// message part.
+fn extract_failure_content(body : String) -> String {
+  let separator = " FAILED: "
+  match body.find(separator) {
+    Some(position) => body[position + separator.length():].to_owned()
+    None => body
+  }
+}
+
+///|
 struct CliOptions {
   input : String
   output : String?
@@ -247,9 +311,8 @@ fn parse_positive_int(value : String, option_name : String) -> Int raise {
 }
 
 ///|
-async fn main {
+async fn run_cli() -> Unit {
   let args = @env.args()
-
   if args.length() < 2 || args.contains("--help") {
     print_usage()
     return
@@ -259,14 +322,16 @@ async fn main {
     err => {
       print_usage()
       println("")
-      fail("CLI argument error: " + err.to_string())
+      fail("CLI argument error: " + strip_failure_wrappers(err.to_string()))
     }
   }
   let engine = @engine.MarkItDown::new()
 
   validate_cli_options(options)
   if options.detect_only {
-    let detection = engine.detect(options.input)
+    let detection = engine.detect(options.input) catch {
+      err => raise CliError(strip_failure_wrappers(err.to_string()))
+    }
     let output = if options.diag_json {
       render_detection_json(detection)
     } else {
@@ -276,7 +341,9 @@ async fn main {
     return
   }
 
-  let result = engine.convert(options.input, ctx=options.ctx)
+  let result = engine.convert(options.input, ctx=options.ctx) catch {
+    err => raise CliError(strip_failure_wrappers(err.to_string()))
+  }
   let output = if options.dump_raw_ast {
     render_document_json(result.raw_document)
   } else if options.dump_normalized_ast || options.dump_ast {
@@ -306,6 +373,13 @@ async fn main {
 }
 
 ///|
+async fn main {
+  run_cli() catch {
+    err => raise CliError(strip_failure_wrappers(err.to_string()))
+  }
+}
+
+///|
 fn validate_cli_options(options : CliOptions) -> Unit raise {
   match options.output {
     Some(output_path) => validate_output_path(options.input, output_path)
@@ -327,7 +401,7 @@ fn validate_output_path(
 
 ///|
 fn normalize_cli_path(path : String) -> String {
-  path.replace(old="\\", new="/").trim().to_lower().to_string()
+  path.replace(old="\\", new="/").trim().to_lower().to_owned()
 }
 
 ///|
@@ -337,8 +411,7 @@ async fn emit_output(output : String, path : String?) -> Unit {
       let file = @fs.open(
         file_path,
         mode=WriteOnly,
-        create=0o644,
-        truncate=true,
+        create_mode=@fs.CreateOrTruncate,
       )
       let bytes = @utf8.encode(output)
       file.write(bytes)

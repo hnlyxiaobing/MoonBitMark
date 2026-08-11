@@ -15,7 +15,7 @@ pub(all) struct ToolRegistry {
 
 ///|
 pub fn ToolRegistry::new() -> ToolRegistry {
-  ToolRegistry::{ tools: Map::new() }
+  ToolRegistry::{ tools: Map([]) }
 }
 
 ///|
@@ -71,22 +71,22 @@ pub async fn ToolRegistry::call(
 pub fn ToolRegistry::register_convert_tools(
   self : ToolRegistry,
 ) -> ToolRegistry raise {
-  let inspect_uri_schema : Map[String, @types.JsonValue] = Map::new()
+  let inspect_uri_schema : Map[String, @types.JsonValue] = Map([])
   inspect_uri_schema["type"] = @types.String("string")
   inspect_uri_schema["description"] = @types.String(
     "Path or URL to inspect before conversion",
   )
 
-  let inspect_properties : Map[String, @types.JsonValue] = Map::new()
+  let inspect_properties : Map[String, @types.JsonValue] = Map([])
   inspect_properties["uri"] = @types.Object(inspect_uri_schema)
-  let resource_uri_schema : Map[String, @types.JsonValue] = Map::new()
+  let resource_uri_schema : Map[String, @types.JsonValue] = Map([])
   resource_uri_schema["type"] = @types.String("string")
   resource_uri_schema["description"] = @types.String(
     "Previously uploaded document resource URI such as moonbitmark://document/<id>",
   )
   inspect_properties["resource_uri"] = @types.Object(resource_uri_schema)
 
-  let response_mode_schema : Map[String, @types.JsonValue] = Map::new()
+  let response_mode_schema : Map[String, @types.JsonValue] = Map([])
   response_mode_schema["type"] = @types.String("string")
   response_mode_schema["description"] = @types.String(
     "Response format: text by default, json for structuredContent payloads",
@@ -97,7 +97,7 @@ pub fn ToolRegistry::register_convert_tools(
   ])
   inspect_properties["response_mode"] = @types.Object(response_mode_schema)
 
-  let baseline_schema : Map[String, @types.JsonValue] = Map::new()
+  let baseline_schema : Map[String, @types.JsonValue] = Map([])
   baseline_schema["type"] = @types.String("string")
   baseline_schema["description"] = @types.String(
     "Baseline tool to compare against: markitdown by default, or docling when supported.",
@@ -108,15 +108,15 @@ pub fn ToolRegistry::register_convert_tools(
   ])
   inspect_properties["baseline"] = @types.Object(baseline_schema)
 
-  let inspect_schema : Map[String, @types.JsonValue] = Map::new()
+  let inspect_schema : Map[String, @types.JsonValue] = Map([])
   inspect_schema["type"] = @types.String("object")
   inspect_schema["properties"] = @types.Object(inspect_properties)
 
-  let uri_schema : Map[String, @types.JsonValue] = Map::new()
+  let uri_schema : Map[String, @types.JsonValue] = Map([])
   uri_schema["type"] = @types.String("string")
   uri_schema["description"] = @types.String("Path or URL to convert")
 
-  let mode_schema : Map[String, @types.JsonValue] = Map::new()
+  let mode_schema : Map[String, @types.JsonValue] = Map([])
   mode_schema["type"] = @types.String("string")
   mode_schema["description"] = @types.String(
     "preview by default; use full only when you need the whole Markdown",
@@ -126,20 +126,20 @@ pub fn ToolRegistry::register_convert_tools(
     @types.String("full"),
   ])
 
-  let max_chars_schema : Map[String, @types.JsonValue] = Map::new()
+  let max_chars_schema : Map[String, @types.JsonValue] = Map([])
   max_chars_schema["type"] = @types.String("integer")
   max_chars_schema["description"] = @types.String(
     "Optional output cap in characters",
   )
 
-  let format_hint_schema : Map[String, @types.JsonValue] = Map::new()
+  let format_hint_schema : Map[String, @types.JsonValue] = Map([])
   format_hint_schema["type"] = @types.String("string")
   format_hint_schema["description"] = @types.String(
     "Advisory format hint such as pdf, docx, html, or text",
   )
   inspect_properties["format_hint"] = @types.Object(format_hint_schema)
 
-  let properties : Map[String, @types.JsonValue] = Map::new()
+  let properties : Map[String, @types.JsonValue] = Map([])
   properties["uri"] = @types.Object(uri_schema)
   properties["resource_uri"] = @types.Object(resource_uri_schema)
   properties["mode"] = @types.Object(mode_schema)
@@ -147,41 +147,41 @@ pub fn ToolRegistry::register_convert_tools(
   properties["format_hint"] = @types.Object(format_hint_schema)
   properties["response_mode"] = @types.Object(response_mode_schema)
 
-  let schema : Map[String, @types.JsonValue] = Map::new()
+  let schema : Map[String, @types.JsonValue] = Map([])
   schema["type"] = @types.String("object")
   schema["properties"] = @types.Object(properties)
 
-  let filename_schema : Map[String, @types.JsonValue] = Map::new()
+  let filename_schema : Map[String, @types.JsonValue] = Map([])
   filename_schema["type"] = @types.String("string")
   filename_schema["description"] = @types.String(
     "Original filename for format detection and source metadata",
   )
 
-  let data_base64_schema : Map[String, @types.JsonValue] = Map::new()
+  let data_base64_schema : Map[String, @types.JsonValue] = Map([])
   data_base64_schema["type"] = @types.String("string")
   data_base64_schema["description"] = @types.String(
     "Uploaded document encoded as base64; provide exactly one of data_base64 or data_bytes",
   )
 
-  let byte_item_schema : Map[String, @types.JsonValue] = Map::new()
+  let byte_item_schema : Map[String, @types.JsonValue] = Map([])
   byte_item_schema["type"] = @types.String("integer")
   byte_item_schema["minimum"] = @types.Number(0)
   byte_item_schema["maximum"] = @types.Number(255)
 
-  let data_bytes_schema : Map[String, @types.JsonValue] = Map::new()
+  let data_bytes_schema : Map[String, @types.JsonValue] = Map([])
   data_bytes_schema["type"] = @types.String("array")
   data_bytes_schema["description"] = @types.String(
     "Uploaded document as raw byte values; provide exactly one of data_base64 or data_bytes",
   )
   data_bytes_schema["items"] = @types.Object(byte_item_schema)
 
-  let mime_type_schema : Map[String, @types.JsonValue] = Map::new()
+  let mime_type_schema : Map[String, @types.JsonValue] = Map([])
   mime_type_schema["type"] = @types.String("string")
   mime_type_schema["description"] = @types.String(
     "Optional MIME type for uploaded bytes, such as text/plain or application/pdf",
   )
 
-  let upload_properties : Map[String, @types.JsonValue] = Map::new()
+  let upload_properties : Map[String, @types.JsonValue] = Map([])
   upload_properties["filename"] = @types.Object(filename_schema)
   upload_properties["data_base64"] = @types.Object(data_base64_schema)
   upload_properties["data_bytes"] = @types.Object(data_bytes_schema)
@@ -193,12 +193,12 @@ pub fn ToolRegistry::register_convert_tools(
 
   let upload_required : Array[@types.JsonValue] = [@types.String("filename")]
 
-  let upload_schema : Map[String, @types.JsonValue] = Map::new()
+  let upload_schema : Map[String, @types.JsonValue] = Map([])
   upload_schema["type"] = @types.String("object")
   upload_schema["properties"] = @types.Object(upload_properties)
   upload_schema["required"] = @types.Array(upload_required)
 
-  let store_properties : Map[String, @types.JsonValue] = Map::new()
+  let store_properties : Map[String, @types.JsonValue] = Map([])
   store_properties["filename"] = @types.Object(filename_schema)
   store_properties["data_base64"] = @types.Object(data_base64_schema)
   store_properties["data_bytes"] = @types.Object(data_bytes_schema)
@@ -207,27 +207,27 @@ pub fn ToolRegistry::register_convert_tools(
 
   let store_required : Array[@types.JsonValue] = [@types.String("filename")]
 
-  let store_schema : Map[String, @types.JsonValue] = Map::new()
+  let store_schema : Map[String, @types.JsonValue] = Map([])
   store_schema["type"] = @types.String("object")
   store_schema["properties"] = @types.Object(store_properties)
   store_schema["required"] = @types.Array(store_required)
 
-  let list_documents_properties : Map[String, @types.JsonValue] = Map::new()
+  let list_documents_properties : Map[String, @types.JsonValue] = Map([])
   list_documents_properties["response_mode"] = @types.Object(
     response_mode_schema,
   )
 
-  let list_documents_schema : Map[String, @types.JsonValue] = Map::new()
+  let list_documents_schema : Map[String, @types.JsonValue] = Map([])
   list_documents_schema["type"] = @types.String("object")
   list_documents_schema["properties"] = @types.Object(list_documents_properties)
 
-  let delete_resource_uri_schema : Map[String, @types.JsonValue] = Map::new()
+  let delete_resource_uri_schema : Map[String, @types.JsonValue] = Map([])
   delete_resource_uri_schema["type"] = @types.String("string")
   delete_resource_uri_schema["description"] = @types.String(
     "Resource URI of the stored document to delete, e.g. moonbitmark://document/<id>",
   )
 
-  let delete_properties : Map[String, @types.JsonValue] = Map::new()
+  let delete_properties : Map[String, @types.JsonValue] = Map([])
   delete_properties["resource_uri"] = @types.Object(delete_resource_uri_schema)
   delete_properties["response_mode"] = @types.Object(response_mode_schema)
 
@@ -235,7 +235,7 @@ pub fn ToolRegistry::register_convert_tools(
     @types.String("resource_uri"),
   ]
 
-  let delete_document_schema : Map[String, @types.JsonValue] = Map::new()
+  let delete_document_schema : Map[String, @types.JsonValue] = Map([])
   delete_document_schema["type"] = @types.String("object")
   delete_document_schema["properties"] = @types.Object(delete_properties)
   delete_document_schema["required"] = @types.Array(delete_required)
@@ -368,7 +368,9 @@ async fn inspect_document_handler(
     Err(message) => return error_tool_result(message)
   }
   let engine = @engine.MarkItDown::new()
-  let detection = try? engine.detect_source(document.input_source)
+  let detection = Ok(engine.detect_source(document.input_source)) catch {
+    e => Err(e)
+  }
   match detection {
     Ok(result) => {
       let effective_format = result.converter_name
@@ -453,7 +455,9 @@ async fn convert_to_markdown_handler(
     Err(message) => return error_tool_result(message)
   }
   let engine = @engine.MarkItDown::new()
-  let detection = try? engine.detect_source(document.input_source)
+  let detection = Ok(engine.detect_source(document.input_source)) catch {
+    e => Err(e)
+  }
   let detected_format = match detection {
     Ok(value) => value.converter_name
     Err(_) => "unknown"
@@ -552,7 +556,9 @@ async fn dump_normalized_ast_handler(
     Err(message) => return error_tool_result(message)
   }
   let engine = @engine.MarkItDown::new()
-  let detection = try? engine.detect_source(document.input_source)
+  let detection = Ok(engine.detect_source(document.input_source)) catch {
+    e => Err(e)
+  }
   let detected_format = match detection {
     Ok(value) => value.converter_name
     Err(_) => "unknown"
@@ -621,7 +627,9 @@ async fn extract_structure_handler(
     Err(message) => return error_tool_result(message)
   }
   let engine = @engine.MarkItDown::new()
-  let detection = try? engine.detect_source(document.input_source)
+  let detection = Ok(engine.detect_source(document.input_source)) catch {
+    e => Err(e)
+  }
   let detected_format = match detection {
     Ok(value) => value.converter_name
     Err(_) => "unknown"
@@ -709,7 +717,9 @@ async fn compare_with_baseline_handler(
     )
   }
   let engine = @engine.MarkItDown::new()
-  let detection = try? engine.detect_source(document.input_source)
+  let detection = Ok(engine.detect_source(document.input_source)) catch {
+    e => Err(e)
+  }
   let detected_format = match detection {
     Ok(value) => value.converter_name
     Err(_) => "unknown"
@@ -795,12 +805,7 @@ async fn compare_with_baseline_handler(
           result,
           fallback,
         )
-        tool_result_for_response_mode(
-          response_mode,
-          summary,
-          None,
-          payload,
-        )
+        tool_result_for_response_mode(response_mode, summary, None, payload)
       }
     }
   } catch {
@@ -896,7 +901,7 @@ fn required_string_arg(
 fn optional_string_arg(args : @types.JsonValue, key : String) -> String? {
   match args.get(key) {
     Some(@types.String(value)) if value.trim() != "" =>
-      Some(value.trim().to_lower().to_string())
+      Some(value.trim().to_lower().to_owned())
     _ => None
   }
 }
@@ -923,7 +928,7 @@ fn optional_positive_int_arg(
 fn baseline_arg(args : @types.JsonValue) -> Result[String, String] {
   match args.get("baseline") {
     Some(@types.String(value)) => {
-      let normalized = value.trim().to_lower().to_string()
+      let normalized = value.trim().to_lower().to_owned()
       match normalized {
         "markitdown" => Ok("markitdown")
         "docling" => Ok("docling")
@@ -939,7 +944,7 @@ fn baseline_arg(args : @types.JsonValue) -> Result[String, String] {
 fn response_mode_arg(args : @types.JsonValue) -> Result[String, String] {
   match args.get("response_mode") {
     Some(@types.String(value)) => {
-      let normalized = value.trim().to_lower().to_string()
+      let normalized = value.trim().to_lower().to_owned()
       match normalized {
         "text" => Ok("text")
         "json" => Ok("json")
@@ -955,7 +960,7 @@ fn response_mode_arg(args : @types.JsonValue) -> Result[String, String] {
 fn convert_mode_arg(args : @types.JsonValue) -> Result[String, String] {
   match args.get("mode") {
     Some(@types.String(value)) => {
-      let normalized = value.trim().to_lower().to_string()
+      let normalized = value.trim().to_lower().to_owned()
       match normalized {
         "preview" => Ok("preview")
         "full" => Ok("full")
@@ -1014,7 +1019,7 @@ fn limit_markdown(markdown : String, max_chars : Int?) -> String {
   match max_chars {
     Some(limit) =>
       if markdown.length() > limit {
-        markdown[:limit].to_string()
+        markdown[:limit].to_owned()
       } else {
         markdown
       }
@@ -2680,7 +2685,7 @@ fn metadata_csv_numbers(
   match metadata.get(key) {
     Some(value) =>
       for part in value.split(",").to_array() {
-        match try_parse_int(part.to_string().trim().to_string()) {
+        match try_parse_int(part.to_owned().trim().to_owned()) {
           Some(number) => items.push(@types.Number(number))
           None => ()
         }
@@ -2692,7 +2697,7 @@ fn metadata_csv_numbers(
 
 ///|
 fn try_parse_int(text : String) -> Int? {
-  let trimmed = text.trim().to_string()
+  let trimmed = text.trim().to_owned()
   if trimmed == "" {
     return None
   }
@@ -2723,16 +2728,16 @@ fn first_ocr_warning(result : @core.ConvertResult) -> String? {
 
 ///|
 fn looks_like_slide_heading_text(text : String) -> Bool {
-  let trimmed = text.trim().to_string()
+  let trimmed = text.trim().to_owned()
   trimmed.has_prefix("Slide ") &&
-  try_parse_int(trimmed[6:].trim().to_string()) is Some(_)
+  try_parse_int(trimmed[6:].trim().to_owned()) is Some(_)
 }
 
 ///|
 fn matches_optional_title(text : String, title : String?) -> Bool {
   match title {
     Some(value) =>
-      text.trim().to_lower().to_string() == value.trim().to_lower().to_string()
+      text.trim().to_lower().to_owned() == value.trim().to_lower().to_owned()
     None => false
   }
 }
@@ -3133,7 +3138,7 @@ fn string_array_to_json(values : Array[String]) -> @types.JsonValue {
 
 ///|
 fn string_map_to_json_object(values : Map[String, String]) -> @types.JsonValue {
-  let map : Map[String, @types.JsonValue] = Map::new()
+  let map : Map[String, @types.JsonValue] = Map([])
   for key, value in values {
     map[key] = @types.String(value)
   }
@@ -3342,9 +3347,9 @@ async fn run_compare_with_baseline_script(
   let stderr_text = stderr.text() catch { _ => "" }
   if exit_code != 0 {
     let detail = if stderr_text.trim() != "" {
-      stderr_text.trim().to_string()
+      stderr_text.trim().to_owned()
     } else if stdout_text.trim() != "" {
-      stdout_text.trim().to_string()
+      stdout_text.trim().to_owned()
     } else {
       "baseline helper exited with code " + exit_code.to_string()
     }
@@ -3402,7 +3407,7 @@ fn canonicalize_process_path(path : String) -> String {
   let remainder = normalized[start:]
   let segments : Array[String] = []
   for raw_segment in remainder.split("/").to_array() {
-    let segment = raw_segment.to_string()
+    let segment = raw_segment.to_owned()
     if segment == "" || segment == "." {
       continue
     }
@@ -3428,8 +3433,8 @@ fn canonicalize_process_path(path : String) -> String {
 fn process_path_prefix(path : String) -> String {
   if path.length() >= 2 &&
     is_ascii_letter(path[0]) &&
-    path[1:2].to_string() == ":" {
-    path[0:2].to_string()
+    path[1:2].to_owned() == ":" {
+    path[0:2].to_owned()
   } else if path.has_prefix("/") {
     "/"
   } else {
@@ -3443,7 +3448,7 @@ fn is_absolute_process_path(path : String) -> Bool {
   (
     path.length() >= 2 &&
     is_ascii_letter(path[0]) &&
-    path[1:2].to_string() == ":"
+    path[1:2].to_owned() == ":"
   )
 }
 
@@ -3479,7 +3484,7 @@ async fn write_temp_markdown_file(stem : String, markdown : String) -> String {
     "-" +
     @async.now().to_string() +
     ".md"
-  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
   file.write(@utf8.encode(markdown))
   file.close()
   path
@@ -3535,7 +3540,7 @@ fn temp_baseline_filename(name : String?, effective_format : String) -> String {
 
 ///|
 async fn write_bytes_to_file(path : String, bytes : Bytes) -> Unit {
-  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
   file.write(bytes)
   file.close()
 }
@@ -3555,7 +3560,7 @@ fn sanitize_temp_stem(name : String) -> String {
       result = result + "-"
     }
   }
-  let trimmed = result.trim().to_string()
+  let trimmed = result.trim().to_owned()
   if trimmed == "" {
     "baseline-input"
   } else {
@@ -3567,7 +3572,7 @@ fn sanitize_temp_stem(name : String) -> String {
 fn filename_extension(name : String) -> String {
   match find_last_char(name, '.') {
     Some(index) if index >= 0 && index < name.length() =>
-      name[index:].to_string()
+      name[index:].to_owned()
     _ => ""
   }
 }

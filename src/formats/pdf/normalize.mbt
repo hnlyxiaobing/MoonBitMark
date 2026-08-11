@@ -550,8 +550,8 @@ fn split_scientific_caption_boundary(line : String) -> Array[String] {
     }
     let parts = line.split(marker).to_array()
     if parts.length() == 2 {
-      let head = collapse_inline_whitespace(parts[0].to_string())
-      let tail = collapse_inline_whitespace(marker + parts[1].to_string())
+      let head = collapse_inline_whitespace(parts[0].to_owned())
+      let tail = collapse_inline_whitespace(marker + parts[1].to_owned())
       if head != "" && tail != "" && should_split_scientific_caption(head, tail) {
         return [head, tail]
       }
@@ -749,11 +749,11 @@ fn split_boundary_marker(chunk : String, marker : String) -> Array[String] {
     return [normalized]
   }
 
-  let head = parts[0].to_string()
+  let head = parts[0].to_owned()
   let tail_parts : Array[String] = []
   let mut index = 1
   while index < parts.length() {
-    tail_parts.push(parts[index].to_string())
+    tail_parts.push(parts[index].to_owned())
     index = index + 1
   }
   let tail = collapse_inline_whitespace(tail_parts.join(marker))
@@ -910,7 +910,7 @@ fn detect_repeated_edge_chunk(
   pages : Array[PdfPageText],
   header : Bool,
 ) -> String? {
-  let counts : Map[String, Int] = {}
+  let counts : Map[String, Int] = Map([])
   for page in pages {
     match edge_chunk(page.chunks, header) {
       Some(chunk) if is_repeated_edge_candidate(chunk) => {
@@ -1022,7 +1022,7 @@ fn collapse_inline_whitespace(text : String) -> String {
     }
     result = result + ch.to_string()
   }
-  result.trim().to_string()
+  result.trim().to_owned()
 }
 
 ///|
@@ -1109,9 +1109,9 @@ fn restore_keyword_spacing(word : String, code_like : Bool) -> String {
   ]
   for prefix in prefixes {
     if word.has_prefix(prefix) && word.length() > prefix.length() {
-      match first_alpha_char(word[prefix.length():].to_string()) {
+      match first_alpha_char(word[prefix.length():].to_owned()) {
         Some(ch) if is_lower_ascii(ch) || is_upper_ascii(ch) =>
-          return prefix + " " + word[prefix.length():].to_string()
+          return prefix + " " + word[prefix.length():].to_owned()
         _ => ()
       }
     }
@@ -1176,7 +1176,7 @@ fn tokenize_words(text : String) -> Array[String] {
   let words : Array[String] = []
   for word in collapse_inline_whitespace(text).split(" ").to_array() {
     if word != "" {
-      words.push(word.to_string())
+      words.push(word.to_owned())
     }
   }
   words

@@ -1,0 +1,8 @@
+{
+  "id": "text_empty_file",
+  "format": "text",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/corrupt/empty.txt",
+  "description": "Empty text input should convert successfully (exit 0) without crashing.",
+  "checks": {}
+}

@@ -25,6 +25,9 @@
     "description": {"type": "string"},
     "must_include": {"type": "array", "items": {"type": "string"}},
     "must_not_include": {"type": "array", "items": {"type": "string"}},
+    "expect_exit_code": {"type": "integer"},
+    "error_must_include": {"type": "array", "items": {"type": "string"}},
+    "error_must_not_include": {"type": "array", "items": {"type": "string"}},
     "min_chars": {"type": "integer", "minimum": 0},
     "min_lines": {"type": "integer", "minimum": 0},
     "golden_markdown": {"type": "string"},
@@ -54,6 +57,20 @@
         "ast_similarity": {"type": "number", "minimum": 0},
         "table_similarity": {"type": "number", "minimum": 0},
         "text_order": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "thresholds": {
+      "type": "object",
+      "description": "Per-case pass/fail threshold overrides in [0, 1]; used to pin currently accepted quality floors (ratchet) with a note explaining why.",
+      "properties": {
+        "anchors": {"type": "number", "minimum": 0, "maximum": 1},
+        "noise_control": {"type": "number", "minimum": 0, "maximum": 1},
+        "length": {"type": "number", "minimum": 0, "maximum": 1},
+        "golden_markdown": {"type": "number", "minimum": 0, "maximum": 1},
+        "ast_compare": {"type": "number", "minimum": 0, "maximum": 1},
+        "table_compare": {"type": "number", "minimum": 0, "maximum": 1},
+        "text_order": {"type": "number", "minimum": 0, "maximum": 1}
       },
       "additionalProperties": false
     },

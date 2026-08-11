@@ -48,7 +48,7 @@ pub async fn TextConverter::convert_source(
     None => "text.txt"
   }
   let title = @core.file_stem(source_name)
-  let metadata = Map::new()
+  let metadata = Map([])
   metadata["format"] = "plain_text"
   metadata["line_count"] = count_lines(content).to_string()
   let doc = text_to_document(content, title, metadata)
@@ -94,7 +94,7 @@ fn text_to_document(
   let blocks : Array[@ast.Block] = []
   if should_preserve_structured_text_lines(content) {
     for line in normalize_text_content(content).split("\n").to_array() {
-      let trimmed = line.to_string().trim().to_string()
+      let trimmed = line.to_owned().trim().to_owned()
       if trimmed != "" {
         blocks.push(@ast.text_paragraph(trimmed))
       }
@@ -118,7 +118,7 @@ fn should_preserve_structured_text_lines(content : String) -> Bool {
   }
   let lines : Array[String] = []
   for raw_line in normalized.split("\n").to_array() {
-    let trimmed = raw_line.to_string().trim().to_string()
+    let trimmed = raw_line.to_owned().trim().to_owned()
     if trimmed != "" {
       lines.push(trimmed)
     }
@@ -140,7 +140,7 @@ fn split_text_chunks(content : String) -> Array[String] {
   let chunks : Array[String] = []
   let mut current = ""
   for line in normalize_text_content(content).split("\n").to_array() {
-    let text = line.to_string()
+    let text = line.to_owned()
     if text.trim() == "" {
       if current != "" {
         chunks.push(current)
@@ -184,7 +184,7 @@ fn text_chunk_to_list(chunk : String) -> @ast.Block? {
   let mut base_indent : Int? = None
 
   for raw_line in chunk.split("\n").to_array() {
-    let line = raw_line.to_string()
+    let line = raw_line.to_owned()
     if line.trim() == "" {
       continue
     }
@@ -209,7 +209,7 @@ fn text_chunk_to_list(chunk : String) -> @ast.Block? {
             } else {
               current_item = append_text_list_line(
                 current_item,
-                line.trim_end().to_string(),
+                line.trim_end().to_owned(),
               )
             }
         }
@@ -276,7 +276,7 @@ fn append_text_list_line(current : String, next_line : String) -> String {
 ///|
 fn parse_text_list_marker(line : String) -> (Bool, Int, String)? {
   let indent = line.length() - line.trim_start().length()
-  let trimmed = line.trim_start().to_string()
+  let trimmed = line.trim_start().to_owned()
   if trimmed.has_prefix("- ") ||
     trimmed.has_prefix("* ") ||
     trimmed.has_prefix("+ ") {
@@ -284,7 +284,7 @@ fn parse_text_list_marker(line : String) -> (Bool, Int, String)? {
       (
         false,
         indent,
-        normalize_text_paragraph(trimmed[2:].to_string(), preserve_lines=false),
+        normalize_text_paragraph(trimmed[2:].to_owned(), preserve_lines=false),
       ),
     )
   }
@@ -301,7 +301,7 @@ fn parse_text_list_marker(line : String) -> (Bool, Int, String)? {
         true,
         indent,
         normalize_text_paragraph(
-          trimmed[idx + 2:].to_string(),
+          trimmed[idx + 2:].to_owned(),
           preserve_lines=false,
         ),
       ),
@@ -324,7 +324,7 @@ fn normalize_text_paragraph(
   if preserve_lines {
     let lines : Array[String] = []
     for line in chunk.split("\n").to_array() {
-      let trimmed = line.trim().to_string()
+      let trimmed = line.trim().to_owned()
       if trimmed != "" {
         lines.push(trimmed)
       }

@@ -67,10 +67,10 @@ test "file helpers normalize basename and stem" {
     @core.file_name_only("docs\\nested/report.final.txt"),
     content="report.final.txt",
   )
-  inspect(
+  debug_inspect(
     @core.file_stem("docs\\nested/report.final.txt"),
     content=(
-      #|Some(report.final)
+      #|Some("report.final")
     ),
   )
   inspect(@core.path_extension("docs/nested/archive.DOCX"), content="docx")
@@ -78,6 +78,9 @@ test "file helpers normalize basename and stem" {
 
 ///|
 test "find_last_char returns final index" {
-  inspect(@core.find_last_char("alpha/beta/gamma", '/'), content="Some(10)")
-  inspect(@core.find_last_char("no-delimiter", '/'), content="None")
+  debug_inspect(
+    @core.find_last_char("alpha/beta/gamma", '/'),
+    content="Some(10)",
+  )
+  debug_inspect(@core.find_last_char("no-delimiter", '/'), content="None")
 }

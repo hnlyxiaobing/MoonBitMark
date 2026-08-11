@@ -41,7 +41,7 @@ pub fn JsonId::to_string(self : JsonId) -> String {
 
 ///|
 pub fn JsonError::to_json(self : JsonError) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["code"] = Number(self.code)
   map["message"] = String(self.message)
   match self.data {
@@ -53,7 +53,7 @@ pub fn JsonError::to_json(self : JsonError) -> JsonValue {
 
 ///|
 pub fn JsonResponse::to_json(self : JsonResponse) -> JsonValue {
-  let map : Map[String, JsonValue] = Map::new()
+  let map : Map[String, JsonValue] = Map([])
   map["jsonrpc"] = String(self.jsonrpc)
   match self.result {
     Some(value) => map["result"] = value

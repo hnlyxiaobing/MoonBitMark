@@ -29,7 +29,7 @@ fn extract_base_href(html : String) -> String? {
       match find_from(html, ">", start) {
         Some(end_idx) => {
           let value = extract_attribute(
-            html[start:end_idx + 1].to_string(),
+            html[start:end_idx + 1].to_owned(),
             "href",
           )
           if value == "" {
@@ -46,7 +46,7 @@ fn extract_base_href(html : String) -> String? {
 
 ///|
 fn resolve_html_link_url(href : String, base_url : String?) -> String {
-  let normalized = href.trim().to_string()
+  let normalized = href.trim().to_owned()
   if normalized == "" || is_unsafe_reference(normalized) {
     return ""
   }
@@ -70,7 +70,7 @@ fn resolve_html_link_url(href : String, base_url : String?) -> String {
 
 ///|
 fn resolve_html_image_url(src : String, base_url : String?) -> String {
-  let normalized = src.trim().to_string()
+  let normalized = src.trim().to_owned()
   if normalized == "" || is_unsafe_reference(normalized) {
     return ""
   }
@@ -110,12 +110,12 @@ fn extract_image_source(tag : String) -> String {
 
 ///|
 fn first_srcset_candidate(srcset : String) -> String? {
-  let trimmed = srcset.trim().to_string()
+  let trimmed = srcset.trim().to_owned()
   if trimmed == "" {
     return None
   }
   let first = match trimmed.split(",").next() {
-    Some(value) => value.trim().to_string()
+    Some(value) => value.trim().to_owned()
     None => return None
   }
   if first == "" {
@@ -123,7 +123,7 @@ fn first_srcset_candidate(srcset : String) -> String? {
   }
   match first.split(" ").next() {
     Some(value) => {
-      let candidate = value.trim().to_string()
+      let candidate = value.trim().to_owned()
       if candidate == "" {
         None
       } else {
@@ -181,8 +181,7 @@ fn split_reference_suffix(reference : String) -> (String, String) {
     None => ()
   }
   match split_index {
-    Some(index) =>
-      (reference[:index].to_string(), reference[index:].to_string())
+    Some(index) => (reference[:index].to_owned(), reference[index:].to_owned())
     None => (reference, "")
   }
 }
@@ -190,7 +189,7 @@ fn split_reference_suffix(reference : String) -> (String, String) {
 ///|
 fn strip_url_fragment(url : String) -> String {
   match url.find("#") {
-    Some(index) => url[:index].to_string()
+    Some(index) => url[:index].to_owned()
     None => url
   }
 }
@@ -199,7 +198,7 @@ fn strip_url_fragment(url : String) -> String {
 fn strip_url_query(url : String) -> String {
   let without_fragment = strip_url_fragment(url)
   match without_fragment.find("?") {
-    Some(index) => without_fragment[:index].to_string()
+    Some(index) => without_fragment[:index].to_owned()
     None => without_fragment
   }
 }
@@ -207,7 +206,7 @@ fn strip_url_query(url : String) -> String {
 ///|
 fn url_scheme(url : String) -> String {
   match url.find("://") {
-    Some(index) => url[:index].to_string()
+    Some(index) => url[:index].to_owned()
     None => ""
   }
 }
@@ -218,7 +217,7 @@ fn url_origin(url : String) -> String {
     Some(index) => {
       let prefix_end = index + 3
       match find_first_of(url, ["/", "?", "#"], prefix_end) {
-        Some(end) => url[:end].to_string()
+        Some(end) => url[:end].to_owned()
         None => url
       }
     }
@@ -230,12 +229,12 @@ fn url_origin(url : String) -> String {
 fn url_directory(url : String) -> String {
   let without_suffix = strip_url_query(url)
   let origin = url_origin(without_suffix)
-  let path = without_suffix[origin.length():].to_string()
+  let path = without_suffix[origin.length():].to_owned()
   if path == "" || path.has_suffix("/") {
     path
   } else {
     match find_last_char(path, '/') {
-      Some(index) => path[:index + 1].to_string()
+      Some(index) => path[:index + 1].to_owned()
       None => "/"
     }
   }
@@ -246,7 +245,7 @@ fn normalize_url_path(path : String) -> String {
   let leading_slash = path.has_prefix("/")
   let segments : Array[String] = []
   for segment in path.split("/") {
-    let part = segment.to_string()
+    let part = segment.to_owned()
     if part == "" || part == "." {
       continue
     }

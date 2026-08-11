@@ -48,7 +48,7 @@ pub async fn CsvConverter::convert_source(
     None => "document.csv"
   }
   let title = @core.file_stem(source_name)
-  let metadata = Map::new()
+  let metadata = Map([])
   metadata["format"] = "csv"
   metadata["delimiter"] = delimiter_label(parsed.delimiter)
   metadata["row_count"] = csv_row_count(rows).to_string()
@@ -221,7 +221,7 @@ fn sample_csv_lines(csv : String) -> Array[String] {
   let lines : Array[String] = []
   let normalized = csv.replace(old="\r\n", new="\n").replace(old="\r", new="\n")
   for line in normalized.split("\n").to_array() {
-    let trimmed = line.trim().to_string()
+    let trimmed = line.trim().to_owned()
     if trimmed != "" {
       lines.push(trimmed)
     }

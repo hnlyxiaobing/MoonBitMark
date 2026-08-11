@@ -220,7 +220,7 @@ fn file_name(path : String) -> String? {
   match find_last_char(normalized, '/') {
     Some(index) =>
       if index + 1 < normalized.length() {
-        Some(normalized[index + 1:].to_string())
+        Some(normalized[index + 1:].to_owned())
       } else {
         None
       }
@@ -232,11 +232,11 @@ fn file_name(path : String) -> String? {
 fn file_extension(path : String) -> String? {
   let normalized = path.replace(old="\\", new="/")
   let basename = match find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
+    Some(index) => normalized[index + 1:].to_owned()
     None => normalized
   }
   match find_last_char(basename, '.') {
-    Some(index) => Some(basename[index:].to_lower().to_string())
+    Some(index) => Some(basename[index:].to_lower().to_owned())
     None => None
   }
 }
@@ -278,7 +278,7 @@ async fn finalize_result(
   let metadata = if ctx.keep_metadata {
     enrich_metadata(raw_result.metadata, converter, input, info)
   } else {
-    Map::new()
+    Map([])
   }
   let normalized_markdown = match normalized_document {
     Some(document) => @ast.render_markdown(document)
@@ -384,7 +384,7 @@ fn enrich_metadata(
   input : @core.InputSource,
   info : @core.StreamInfo,
 ) -> Map[String, String] {
-  let metadata = Map::new()
+  let metadata = Map([])
   for key, value in original {
     metadata[key] = value
   }
@@ -550,7 +550,7 @@ async fn materialize_data_uri_assets(
           Some(value) => value
           None => break
         }
-        let uri = rewritten[start:end].to_string()
+        let uri = rewritten[start:end].to_owned()
         match decode_data_uri_asset(uri, asset_index) {
           Some((filename, bytes)) => {
             let relative_path = normalized_dir + "/" + filename
@@ -572,9 +572,9 @@ async fn materialize_data_uri_assets(
               }
             }
             if write_result {
-              rewritten = rewritten[:start].to_string() +
+              rewritten = rewritten[:start].to_owned() +
                 relative_path +
-                rewritten[end:].to_string()
+                rewritten[end:].to_owned()
               asset_count = asset_count + 1
               asset_index = asset_index + 1
               cursor = start + relative_path.length()
@@ -610,7 +610,7 @@ async fn materialize_data_uri_assets(
 
 ///|
 async fn write_asset_file(path : String, bytes : Bytes) -> Bool {
-  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
   file.write(bytes)
   file.close()
   true
@@ -639,15 +639,15 @@ fn decode_data_uri_asset(uri : String, index : Int) -> (String, Bytes)? {
     Some(value) => value
     None => return None
   }
-  let header = uri[5:comma].to_string()
+  let header = uri[5:comma].to_owned()
   if !header.contains(";base64") {
     return None
   }
   let media_type = match header.split(";").next() {
-    Some(value) => value.to_string()
+    Some(value) => value.to_owned()
     None => return None
   }
-  let payload = uri[comma + 1:].to_string()
+  let payload = uri[comma + 1:].to_owned()
   let bytes = @base64.decode(payload, ignore_whitespace=true) catch {
     _ => return None
   }
@@ -695,7 +695,7 @@ fn find_substring(text : String, needle : String, start : Int) -> Int? {
   if start >= text.length() {
     None
   } else {
-    let tail = text[start:].to_string()
+    let tail = text[start:].to_owned()
     match tail.find(needle[:]) {
       Some(pos) => Some(start + pos)
       None => None
@@ -723,7 +723,7 @@ fn join_asset_path(dir : String, name : String) -> String {
 ///|
 fn directory_prefix(path : String) -> String {
   if path.length() >= 2 && path[1] == ':' {
-    path[0:2].to_string()
+    path[0:2].to_owned()
   } else if path.has_prefix("/") {
     "/"
   } else {
@@ -751,7 +751,7 @@ fn split_path_segments(path : String) -> Array[String] {
         current = ""
       }
     } else {
-      current = current + normalized[i:i + 1].to_string()
+      current = current + normalized[i:i + 1].to_owned()
     }
     i = i + 1
   }

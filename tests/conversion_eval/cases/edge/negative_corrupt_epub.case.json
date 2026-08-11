@@ -1,0 +1,11 @@
+{
+  "id": "negative_corrupt_epub",
+  "format": "epub",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/corrupt/corrupt.epub",
+  "description": "Corrupt EPUB should fail with a clean diagnostic (exit 1, no internal Failure trace).",
+  "expect_exit_code": 1,
+  "error_must_include": ["Failed to open EPUB file as ZIP archive"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {}
+}

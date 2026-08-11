@@ -807,7 +807,7 @@ fn normalize_code_spacing(text : String) -> String {
 
     if ch == '.' || ch == ',' || ch == ';' {
       if result.has_suffix(" ") {
-        result = result[0:result.length() - 1].to_string()
+        result = result[0:result.length() - 1].to_owned()
       }
       result = result + ch.to_string()
       if ch == ',' {
@@ -1613,7 +1613,7 @@ fn tokenize_table_values(text : String) -> Array[String] {
 
   let values : Array[String] = []
   for token in normalized.split(" ").to_array() {
-    let clean = normalize_table_value_token(token.to_string())
+    let clean = normalize_table_value_token(token.to_owned())
     if clean != "" {
       values.push(clean)
     }
@@ -2084,7 +2084,7 @@ fn looks_like_missing_list_item_paragraph(text : String) -> Bool {
     Some(index) =>
       index >= 4 &&
       index <= 40 &&
-      is_heading_candidate_text(normalized[:index].to_string())
+      is_heading_candidate_text(normalized[:index].to_owned())
     None => false
   }
 }

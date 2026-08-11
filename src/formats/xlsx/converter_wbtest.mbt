@@ -1,8 +1,11 @@
 ///|
 test "xlsx file stem helper" {
-  inspect(@core.file_stem("sheets/demo.xlsx"), content=(
-    #|Some(demo)
-  ))
+  debug_inspect(
+    @core.file_stem("sheets/demo.xlsx"),
+    content=(
+      #|Some("demo")
+    ),
+  )
 }
 
 ///|

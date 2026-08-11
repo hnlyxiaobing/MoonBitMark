@@ -5,19 +5,22 @@ import csv
 import datetime as dt
 import difflib
 import functools
+import hashlib
 import html
 from html.parser import HTMLParser
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import posixpath
 import re
-import shutil
 import subprocess
 import sys
 import textwrap
 import unicodedata
+import urllib.parse
+import urllib.request
 import zipfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -32,10 +35,22 @@ LATEST_REPORT_DIR = EVAL_ROOT / "reports" / "latest"
 HISTORY_REPORT_DIR = EVAL_ROOT / "reports" / "history"
 
 BASELINE_VENV_PYTHON = Path.home() / ".venvs" / "moonbitmark-baselines" / "Scripts" / "python.exe"
+REMOTE_CACHE_DIR = REPO_ROOT / "_build" / "conversion-eval-cache" / "blobs"
 
 SUPPORTED_FORMATS = {"csv", "docx", "epub", "html", "image", "json", "pdf", "pptx", "text", "xlsx"}
 SUPPORTED_TIERS = {"smoke", "quality", "edge", "regression", "regressions"}
 SUPPORTED_REFERENCE_BUILDERS = {"copy", "csv", "docx", "epub", "html", "json", "pptx", "text", "xlsx"}
+# Default pass/fail thresholds per check; cases may pin a lower floor via
+# "thresholds" to ratchet known quality gaps without disabling the check.
+DEFAULT_CHECK_THRESHOLDS = {
+    "anchors": 1.0,
+    "noise_control": 1.0,
+    "length": 0.9,
+    "golden_markdown": 0.7,
+    "ast_compare": 0.65,
+    "table_compare": 0.6,
+    "text_order": 0.8,
+}
 BASELINE_SUPPORTED_FORMATS = {
     "markitdown": {"csv", "docx", "epub", "html", "json", "pdf", "pptx", "text", "xlsx"},
     "docling": {"csv", "docx", "html", "pdf", "pptx", "xlsx"},
@@ -71,7 +86,14 @@ class CaseSpec:
     reference_source: str | None = None
     checks: dict[str, bool] = field(default_factory=dict)
     weights: dict[str, float] = field(default_factory=dict)
+    thresholds: dict[str, float] = field(default_factory=dict)
     notes: str | None = None
+    expect_exit_code: int = 0
+    error_must_include: list[str] = field(default_factory=list)
+    error_must_not_include: list[str] = field(default_factory=list)
+
+    def is_negative(self) -> bool:
+        return self.expect_exit_code != 0
 
     def canonical_tier(self) -> str:
         return "regression" if self.tier == "regressions" else self.tier
@@ -148,6 +170,13 @@ def validate_case(path: Path, data: dict[str, Any]) -> None:
     builder = data.get("reference_builder")
     if builder and builder not in SUPPORTED_REFERENCE_BUILDERS:
         raise ValueError(f"{path}: unsupported reference_builder {builder}")
+    thresholds = data.get("thresholds", {})
+    unknown_thresholds = sorted(set(thresholds) - set(DEFAULT_CHECK_THRESHOLDS))
+    if unknown_thresholds:
+        raise ValueError(f"{path}: unsupported thresholds keys: {', '.join(unknown_thresholds)}")
+    for key, value in thresholds.items():
+        if not isinstance(value, (int, float)) or not 0.0 <= float(value) <= 1.0:
+            raise ValueError(f"{path}: threshold {key} must be a number in [0, 1]")
 
 
 def load_cases() -> list[CaseSpec]:
@@ -174,27 +203,104 @@ def load_cases() -> list[CaseSpec]:
                 reference_source=raw.get("reference_source"),
                 checks=dict(raw.get("checks", {})),
                 weights={k: float(v) for k, v in raw.get("weights", {}).items()},
+                thresholds={k: float(v) for k, v in raw.get("thresholds", {}).items()},
                 notes=raw.get("notes"),
+                expect_exit_code=int(raw.get("expect_exit_code", 0)),
+                error_must_include=list(raw.get("error_must_include", [])),
+                error_must_not_include=list(raw.get("error_must_not_include", [])),
             )
         )
     return cases
 
 
-def load_source_manifest() -> list[dict[str, str]]:
-    raw = load_json(MANIFEST_PATH)
-    return list(raw.get("sources", []))
+def load_source_manifest() -> dict[str, Any]:
+    return load_json(MANIFEST_PATH)
 
 
-def sync_sources(benchmark_root: Path) -> list[dict[str, str]]:
+def git_blob_sha(data: bytes) -> str:
+    """Content hash exactly as git computes blob ids: sha1("blob <len>\\0" + data)."""
+    return hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
+
+
+def read_bytes_if_match(path: Path, expected_sha: str | None) -> bytes | None:
+    if not path.exists() or not path.is_file():
+        return None
+    data = path.read_bytes()
+    if expected_sha and git_blob_sha(data) != expected_sha:
+        return None
+    return data
+
+
+def download_remote_source(raw_base_url: str, source: str) -> bytes:
+    url = f"{raw_base_url.rstrip('/')}/{urllib.parse.quote(source, safe='/')}"
+    try:
+        with urllib.request.urlopen(url, timeout=300) as response:
+            return response.read()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to download benchmark fixture from {url}: {exc}. "
+            "Check network access, or pass --benchmark-root pointing at a local "
+            "checkout of the benchmark repository."
+        ) from exc
+
+
+def sync_sources(benchmark_root: Path | None = None) -> list[dict[str, str]]:
+    """Make every manifest source available under fixtures/inputs.
+
+    Reproducibility contract: sources come from the pinned upstream benchmark
+    commit recorded in source_manifest.json, and every payload is verified
+    against its git blob sha. A local checkout (--benchmark-root) is honored
+    when provided; otherwise files are reused from fixtures, then from the
+    local blob cache, then downloaded from the pinned remote.
+    """
+    manifest = load_source_manifest()
+    remote = manifest.get("remote") or {}
+    raw_base_url = str(remote.get("raw_base_url") or "")
     synced: list[dict[str, str]] = []
-    for entry in load_source_manifest():
-        source = benchmark_root / entry["source"]
+    for entry in manifest.get("sources", []):
         dest = REPO_ROOT / entry["dest"]
-        if not source.exists():
-            raise FileNotFoundError(f"Missing benchmark source: {source}")
+        expected_sha = entry.get("blob_sha") or None
+        origin = ""
+        data: bytes | None = None
+        if benchmark_root is not None:
+            source = benchmark_root / entry["source"]
+            if not source.exists():
+                raise FileNotFoundError(f"Missing benchmark source: {source}")
+            data = source.read_bytes()
+            if expected_sha and git_blob_sha(data) != expected_sha:
+                raise ValueError(
+                    f"Benchmark source {source} does not match pinned blob sha {expected_sha}; "
+                    "the local checkout differs from the pinned benchmark commit"
+                )
+            origin = str(source)
+        else:
+            data = read_bytes_if_match(dest, expected_sha)
+            if data is not None:
+                origin = "fixtures"
+            elif expected_sha:
+                data = read_bytes_if_match(REMOTE_CACHE_DIR / expected_sha, expected_sha)
+                if data is not None:
+                    origin = "cache"
+            if data is None:
+                if not raw_base_url:
+                    raise RuntimeError(
+                        f"No remote configured in {MANIFEST_PATH} and no local fixture for {entry['id']}"
+                    )
+                data = download_remote_source(raw_base_url, entry["source"])
+                if expected_sha and git_blob_sha(data) != expected_sha:
+                    raise RuntimeError(
+                        f"Downloaded fixture {entry['source']} failed blob sha verification "
+                        f"(expected {expected_sha})"
+                    )
+                if expected_sha:
+                    cache_path = REMOTE_CACHE_DIR / expected_sha
+                    cache_path.parent.mkdir(parents=True, exist_ok=True)
+                    cache_path.write_bytes(data)
+                origin = "remote"
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, dest)
-        synced.append({"id": entry["id"], "source": str(source), "dest": str(dest)})
+        if read_bytes_if_match(dest, expected_sha) != data:
+            dest.write_bytes(data)
+        synced.append({"id": entry["id"], "origin": origin, "dest": str(dest)})
     return synced
 
 
@@ -415,6 +521,9 @@ def build_reference(case: CaseSpec, refresh: bool) -> Path | None:
     builder = case.reference_builder
     input_path = case.input_path()
     if not input_path.exists():
+        if case.is_negative():
+            # Negative cases intentionally run against missing/corrupt inputs.
+            return golden_path if golden_path.exists() else None
         raise FileNotFoundError(f"Missing fixture input for {case.id}: {input_path}")
 
     if builder == "copy":
@@ -469,6 +578,11 @@ def build_json_reference(path: Path) -> str:
 def build_text_reference(path: Path) -> str:
     text = path.read_text(encoding="utf-8")
     chunks = [chunk.strip() for chunk in re.split(r"\n\s*\n", text) if chunk.strip()]
+    if len(chunks) <= 1:
+        # Hard-wrapped files without blank lines (e.g. wiki dumps): the
+        # converter keeps one block per line, so the reference must too —
+        # a single mega-paragraph makes every block-level metric degenerate.
+        chunks = [line.strip() for line in text.splitlines() if line.strip()]
     return "\n\n".join(chunks)
 
 
@@ -1053,37 +1167,148 @@ def sequence_similarity(left: str, right: str) -> float:
     return difflib.SequenceMatcher(None, left, right).ratio()
 
 
-def token_f1(left: str, right: str) -> float:
-    left_tokens = re.findall(r"\w+", left.lower())
-    right_tokens = re.findall(r"\w+", right.lower())
-    if not left_tokens and not right_tokens:
-        return 1.0
-    left_counts: dict[str, int] = {}
-    right_counts: dict[str, int] = {}
-    for token in left_tokens:
-        left_counts[token] = left_counts.get(token, 0) + 1
-    for token in right_tokens:
-        right_counts[token] = right_counts.get(token, 0) + 1
-    overlap = sum(min(left_counts.get(token, 0), right_counts.get(token, 0)) for token in set(left_counts) | set(right_counts))
-    precision = overlap / max(len(left_tokens), 1)
-    recall = overlap / max(len(right_tokens), 1)
+def token_counts(text: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for token in re.findall(r"\w+", text.lower()):
+        counts[token] = counts.get(token, 0) + 1
+    return counts
+
+
+def ngram_counts(text: str, n: int) -> dict[tuple[str, ...], int]:
+    tokens = re.findall(r"\w+", text.lower())
+    counts: dict[tuple[str, ...], int] = {}
+    for index in range(len(tokens) - n + 1):
+        gram = tuple(tokens[index : index + n])
+        counts[gram] = counts.get(gram, 0) + 1
+    return counts
+
+
+def count_overlap(left: dict[Any, int], right: dict[Any, int]) -> int:
+    if len(left) > len(right):
+        left, right = right, left
+    return sum(min(count, right.get(key, 0)) for key, count in left.items())
+
+
+def precision_recall_from_counts(
+    left: dict[Any, int], right: dict[Any, int]
+) -> tuple[float, float]:
+    left_total = sum(left.values())
+    right_total = sum(right.values())
+    if left_total == 0 and right_total == 0:
+        return 1.0, 1.0
+    overlap = count_overlap(left, right)
+    return overlap / max(left_total, 1), overlap / max(right_total, 1)
+
+
+def f1_score(precision: float, recall: float) -> float:
     if precision + recall == 0:
         return 0.0
     return 2 * precision * recall / (precision + recall)
 
 
+def token_f1(left: str, right: str) -> float:
+    precision, recall = precision_recall_from_counts(token_counts(left), token_counts(right))
+    return f1_score(precision, recall)
+
+
+def content_precision_recall(output: str, reference: str) -> tuple[float, float]:
+    """Multiset token precision/recall of output against reference.
+
+    Splitting the old single F1 into two axes is what makes truncation
+    (low recall, high precision) distinguishable from noise injection
+    (high recall, low precision).
+    """
+    return precision_recall_from_counts(token_counts(output), token_counts(reference))
+
+
+def ngram_f1(left: str, right: str, n: int) -> float:
+    left_counts = ngram_counts(left, n)
+    right_counts = ngram_counts(right, n)
+    if not left_counts and not right_counts:
+        # Documents shorter than n tokens fall back to unigram agreement.
+        return token_f1(left, right)
+    precision, recall = precision_recall_from_counts(left_counts, right_counts)
+    return f1_score(precision, recall)
+
+
+def markdown_blocks(markdown: str) -> list[str]:
+    text = normalize_markdown(markdown)
+    # Whitespace-normalize inside blocks: a paragraph rendered as one line and
+    # the same paragraph hard-wrapped across lines are the same block. Without
+    # this, faithful text reflows score 0 on block order (false positive).
+    return [
+        re.sub(r"\s+", " ", block).strip()
+        for block in text.split("\n\n")
+        if block.strip()
+    ]
+
+
+def block_sequence_score(output: str, reference: str) -> float:
+    """Order-sensitive similarity over blank-line-separated markdown blocks.
+
+    N-gram metrics only see local word order; block-level reordering (a classic
+    two-column PDF failure) only breaks a handful of boundary bigrams and slips
+    through. Element-level sequence matching over whole blocks makes global
+    order visible at the granularity where conversion errors actually happen.
+    """
+    left = markdown_blocks(output)
+    right = markdown_blocks(reference)
+    if not left and not right:
+        return 1.0
+    return difflib.SequenceMatcher(None, left, right).ratio()
+
+
+def markdown_content_similarity(output: str, reference: str) -> float:
+    """ROUGE-style content similarity: unigram F1 + bigram F1 + block order.
+
+    - unigram F1: bag-of-content agreement (truncation vs noise, see also
+      content_precision / content_recall)
+    - bigram F1: local phrasing and word order
+    - block sequence ratio: global block order and block integrity
+
+    This replaces the old character-level difflib ratio, which saturated near
+    1.0 for any output sharing long common substrings with the reference and
+    was O(n^2) on large documents.
+    """
+    return (
+        0.4 * token_f1(output, reference)
+        + 0.3 * ngram_f1(output, reference, 2)
+        + 0.3 * block_sequence_score(output, reference)
+    )
+
+
 def heading_similarity(left: list[tuple[int, str]], right: list[tuple[int, str]]) -> float:
     if not left and not right:
         return 1.0
-    left_text = "\n".join(f"{level}:{text}" for level, text in left)
-    right_text = "\n".join(f"{level}:{text}" for level, text in right)
-    return sequence_similarity(left_text, right_text)
+    # Element-level sequence match on "level:text" pairs: a heading with the
+    # right text but the wrong depth no longer earns partial char-level credit,
+    # which is what makes heading-depth regressions visible.
+    left_elements = [f"{level}:{text}" for level, text in left]
+    right_elements = [f"{level}:{text}" for level, text in right]
+    sequence_score = difflib.SequenceMatcher(None, left_elements, right_elements).ratio()
+    text_score = token_f1(
+        " ".join(text for _, text in left),
+        " ".join(text for _, text in right),
+    )
+    return 0.6 * sequence_score + 0.4 * text_score
 
 
 def heading_structure_score(left_markdown: str, right_markdown: str) -> float:
     left = markdown_structure(left_markdown)
     right = markdown_structure(right_markdown)
     return heading_similarity(left["headings"], right["headings"])
+
+
+def table_pair_score(left_table: dict[str, Any], right_table: dict[str, Any]) -> float:
+    header_score = token_f1(" ".join(left_table["header"]), " ".join(right_table["header"]))
+    shape_score = (
+        ratio_by_distance(len(left_table["header"]), len(right_table["header"]))
+        + ratio_by_distance(len(left_table["rows"]), len(right_table["rows"]))
+    ) / 2
+    left_cells = " ".join(" ".join(row) for row in left_table["rows"])
+    right_cells = " ".join(" ".join(row) for row in right_table["rows"])
+    cell_score = token_f1(left_cells, right_cells)
+    return 0.35 * header_score + 0.25 * shape_score + 0.4 * cell_score
 
 
 def table_similarity(left_markdown: str, right_markdown: str) -> float:
@@ -1093,19 +1318,26 @@ def table_similarity(left_markdown: str, right_markdown: str) -> float:
         return 1.0
     if not left_tables or not right_tables:
         return 0.0
-    scores: list[float] = []
-    for index, left_table in enumerate(left_tables):
-        right_table = right_tables[min(index, len(right_tables) - 1)]
-        header_score = token_f1(" ".join(left_table["header"]), " ".join(right_table["header"]))
-        shape_score = (
-            ratio_by_distance(len(left_table["header"]), len(right_table["header"]))
-            + ratio_by_distance(len(left_table["rows"]), len(right_table["rows"]))
-        ) / 2
-        left_cells = " ".join(" ".join(row) for row in left_table["rows"])
-        right_cells = " ".join(" ".join(row) for row in right_table["rows"])
-        cell_score = token_f1(left_cells, right_cells)
-        scores.append(0.35 * header_score + 0.25 * shape_score + 0.4 * cell_score)
-    return sum(scores) / len(scores)
+    # Greedy best-match pairing, normalized by the larger table count. The old
+    # positional pairing divided only by the number of output tables, so an
+    # output that silently dropped a whole table was not penalized.
+    remaining = list(right_tables)
+    total = 0.0
+    for left_table in left_tables:
+        if not remaining:
+            # More output tables than reference tables: unmatched tables
+            # contribute 0 via the max-count normalization below.
+            break
+        best_index = 0
+        best_score = -1.0
+        for index, right_table in enumerate(remaining):
+            score = table_pair_score(left_table, right_table)
+            if score > best_score:
+                best_score = score
+                best_index = index
+        total += best_score
+        remaining.pop(best_index)
+    return total / max(len(left_tables), len(right_tables))
 
 
 def table_shape_score(left_markdown: str, right_markdown: str) -> float:
@@ -1231,36 +1463,48 @@ def metric_key_alias(key: str) -> str:
 
 
 def weighted_score(metrics: dict[str, float], weights: dict[str, float]) -> float:
-    if not weights:
-        return sum(metrics.values()) / max(len(metrics), 1)
-    total = 0.0
-    denominator = 0.0
-    for key, weight in weights.items():
-        metric_name = metric_key_alias(key)
-        if metric_name in metrics:
-            total += metrics[metric_name] * weight
-            denominator += weight
-    if denominator == 0:
-        return sum(metrics.values()) / max(len(metrics), 1)
-    return total / denominator
+    """Weighted geometric mean of metric scores.
+
+    The old arithmetic mean let saturated metrics (all ≈ 1.0) mask a single
+    broken dimension, which is why case scores bunched together and lost
+    discriminative power. A geometric mean makes the weakest dimension
+    dominate, so real quality differences spread the scores out.
+    """
+    epsilon = 1e-3
+    items: list[tuple[float, float]] = []
+    if weights:
+        for key, weight in weights.items():
+            metric_name = metric_key_alias(key)
+            if metric_name in metrics:
+                items.append((metrics[metric_name], weight))
+    if not items:
+        items = [(value, 1.0) for value in metrics.values()]
+    if not items:
+        return 0.0
+    total_weight = sum(weight for _, weight in items)
+    log_sum = sum(weight * math.log(max(value, epsilon)) for value, weight in items)
+    return math.exp(log_sum / total_weight)
 
 
 def pass_fail_summary(case: CaseSpec, metrics: dict[str, float]) -> dict[str, bool]:
+    def threshold(name: str) -> float:
+        return case.thresholds.get(name, DEFAULT_CHECK_THRESHOLDS[name])
+
     summary: dict[str, bool] = {}
     if case.checks.get("anchors"):
         summary["anchors"] = (
-            metrics.get("anchors", 0.0) >= 1.0
-            and metrics.get("noise_control", 0.0) >= 1.0
-            and metrics.get("length", 0.0) >= 0.9
+            metrics.get("anchors", 0.0) >= threshold("anchors")
+            and metrics.get("noise_control", 0.0) >= threshold("noise_control")
+            and metrics.get("length", 0.0) >= threshold("length")
         )
     if case.checks.get("golden_markdown"):
-        summary["golden_markdown"] = metrics.get("markdown_similarity", 0.0) >= 0.7
+        summary["golden_markdown"] = metrics.get("markdown_similarity", 0.0) >= threshold("golden_markdown")
     if case.checks.get("ast_compare"):
-        summary["ast_compare"] = metrics.get("ast_similarity", 0.0) >= 0.65
+        summary["ast_compare"] = metrics.get("ast_similarity", 0.0) >= threshold("ast_compare")
     if case.checks.get("table_compare"):
-        summary["table_compare"] = metrics.get("table_similarity", 0.0) >= 0.6
+        summary["table_compare"] = metrics.get("table_similarity", 0.0) >= threshold("table_compare")
     if case.checks.get("text_order"):
-        summary["text_order"] = metrics.get("text_order", 0.0) >= 0.8
+        summary["text_order"] = metrics.get("text_order", 0.0) >= threshold("text_order")
     return summary
 
 
@@ -1328,7 +1572,7 @@ def compare_baseline(
     if error:
         return None, error, duration_ms
     if reference_markdown:
-        score = 0.6 * sequence_similarity(output_markdown or "", reference_markdown) + 0.4 * structure_similarity(output_markdown or "", reference_markdown)
+        score = 0.6 * markdown_content_similarity(output_markdown or "", reference_markdown) + 0.4 * structure_similarity(output_markdown or "", reference_markdown)
     else:
         score = None
     return score, None, duration_ms
@@ -1424,13 +1668,16 @@ def compare_candidate_against_baseline(
     candidate_markdown: str,
     baseline_markdown: str,
 ) -> dict[str, float]:
+    precision, recall = content_precision_recall(candidate_markdown, baseline_markdown)
     return {
         "overall_score": round(
-            0.6 * sequence_similarity(candidate_markdown, baseline_markdown)
+            0.6 * markdown_content_similarity(candidate_markdown, baseline_markdown)
             + 0.4 * structure_similarity(candidate_markdown, baseline_markdown),
             4,
         ),
-        "sequence_similarity": round(sequence_similarity(candidate_markdown, baseline_markdown), 4),
+        "content_similarity": round(markdown_content_similarity(candidate_markdown, baseline_markdown), 4),
+        "content_precision": round(precision, 4),
+        "content_recall": round(recall, 4),
         "token_f1": round(token_f1(candidate_markdown, baseline_markdown), 4),
         "structure_similarity": round(structure_similarity(candidate_markdown, baseline_markdown), 4),
         "table_similarity": round(table_similarity(candidate_markdown, baseline_markdown), 4),
@@ -1439,6 +1686,39 @@ def compare_candidate_against_baseline(
         "table_shape_score": round(table_shape_score(candidate_markdown, baseline_markdown), 4),
         "paragraph_segmentation_score": round(paragraph_segmentation_score(candidate_markdown, baseline_markdown), 4),
         "asset_link_score": round(asset_link_score(candidate_markdown, baseline_markdown), 4),
+    }
+
+
+def evaluate_negative_case(runner: RunnerInfo, case: CaseSpec) -> dict[str, Any]:
+    conversion = run_conversion(runner, case.input_path(), case.cli_args)
+    combined_output = conversion.stdout + "\n" + conversion.stderr
+    checks: dict[str, bool] = {
+        "exit_code": conversion.returncode == case.expect_exit_code,
+    }
+    for fragment in case.error_must_include:
+        checks[f"error_must_include:{fragment}"] = normalize_text_fragment(fragment) in normalize_text_fragment(combined_output)
+    for fragment in case.error_must_not_include:
+        checks[f"error_must_not_include:{fragment}"] = normalize_text_fragment(fragment) not in normalize_text_fragment(combined_output)
+    passed = all(checks.values())
+    return {
+        "id": case.id,
+        "tier": case.canonical_tier(),
+        "format": case.format,
+        "description": case.description,
+        "input": case.input,
+        "cli_args": case.cli_args,
+        "clusters": case_clusters(case),
+        "reference": None,
+        "runner_returncode": conversion.returncode,
+        "runner_duration_ms": conversion.duration_ms,
+        "stderr": conversion.stderr.strip(),
+        "passed": passed,
+        "skipped": False,
+        "score": 1.0 if passed else 0.0,
+        "metrics": {},
+        "checks": checks,
+        "evidence": {},
+        "baseline": {},
     }
 
 
@@ -1455,6 +1735,34 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
     baseline_successes: dict[str, int] = {tool: 0 for tool in ("markitdown", "docling")}
 
     for case in cases:
+        if not case.input_path().exists() and not case.is_negative():
+            results.append(
+                {
+                    "id": case.id,
+                    "tier": case.canonical_tier(),
+                    "format": case.format,
+                    "description": case.description,
+                    "input": case.input,
+                    "cli_args": case.cli_args,
+                    "clusters": case_clusters(case),
+                    "reference": None,
+                    "runner_returncode": None,
+                    "runner_duration_ms": None,
+                    "stderr": "",
+                    "passed": False,
+                    "skipped": True,
+                    "skip_reason": f"missing fixture input: {case.input}",
+                    "score": None,
+                    "metrics": {},
+                    "checks": {},
+                    "evidence": {},
+                    "baseline": {},
+                }
+            )
+            continue
+        if case.is_negative():
+            results.append(evaluate_negative_case(runner, case))
+            continue
         reference_path = build_reference(case, refresh=refresh_references)
         reference_markdown = normalize_markdown(reference_path.read_text(encoding="utf-8")) if reference_path and reference_path.exists() else None
         conversion = run_conversion(runner, case.input_path(), case.cli_args)
@@ -1466,7 +1774,11 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
             "length": length_score(output_markdown, case.min_chars, case.min_lines),
         }
         if reference_markdown:
-            metrics["markdown_similarity"] = 0.6 * sequence_similarity(output_markdown, reference_markdown) + 0.4 * token_f1(output_markdown, reference_markdown)
+            precision, recall = content_precision_recall(output_markdown, reference_markdown)
+            metrics["content_precision"] = precision
+            metrics["content_recall"] = recall
+            metrics["markdown_similarity"] = markdown_content_similarity(output_markdown, reference_markdown)
+            metrics["block_order_score"] = block_sequence_score(output_markdown, reference_markdown)
             metrics["ast_similarity"] = structure_similarity(output_markdown, reference_markdown)
             metrics["table_similarity"] = table_similarity(output_markdown, reference_markdown)
             metrics["heading_structure_score"] = heading_structure_score(output_markdown, reference_markdown)
@@ -1536,6 +1848,7 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
                 "runner_duration_ms": conversion.duration_ms,
                 "stderr": conversion.stderr.strip(),
                 "passed": passed,
+                "skipped": False,
                 "score": round(score, 4),
                 "metrics": {key: round(value, 4) for key, value in metrics.items()},
                 "checks": checks,
@@ -1562,6 +1875,8 @@ def evaluate_cases(cases: list[CaseSpec], runner: RunnerInfo, refresh_references
 
 
 def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
+    skipped_results = [result for result in results if result.get("skipped")]
+    results = [result for result in results if not result.get("skipped")]
     total = len(results)
     passed = sum(1 for result in results if result["passed"])
     failed = total - passed
@@ -1749,12 +2064,53 @@ def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
             "largest_wins": sorted(comparable_cases, key=lambda item: (-item["gap"], item["id"]))[:5],
         }
 
+    scored = sorted(result["score"] for result in results if result.get("score") is not None)
+
+    def percentile(values: list[float], fraction: float) -> float | None:
+        if not values:
+            return None
+        index = min(len(values) - 1, max(0, int(round(fraction * (len(values) - 1)))))
+        return round(values[index], 4)
+
+    score_distribution = {
+        "min": round(scored[0], 4) if scored else None,
+        "p25": percentile(scored, 0.25),
+        "median": percentile(scored, 0.5),
+        "p75": percentile(scored, 0.75),
+        "max": round(scored[-1], 4) if scored else None,
+    }
+
+    # Per-metric dispersion across cases: a metric whose stddev collapses to
+    # ~0 cannot discriminate quality differences, so surface it directly.
+    metric_spread: dict[str, dict[str, Any]] = {}
+    metric_names = sorted({name for result in results for name in result["metrics"]})
+    for metric_name in metric_names:
+        values = [result["metrics"][metric_name] for result in results if metric_name in result["metrics"]]
+        if not values:
+            continue
+        mean = sum(values) / len(values)
+        variance = sum((value - mean) ** 2 for value in values) / len(values)
+        metric_spread[metric_name] = {
+            "count": len(values),
+            "mean": round(mean, 4),
+            "stddev": round(math.sqrt(variance), 4),
+            "min": round(min(values), 4),
+            "max": round(max(values), 4),
+        }
+
     return {
         "total_cases": total,
         "passed_cases": passed,
         "failed_cases": failed,
+        "skipped_cases": len(skipped_results),
+        "skipped": [
+            {"id": result["id"], "format": result["format"], "reason": result.get("skip_reason", "")}
+            for result in skipped_results
+        ],
         "pass_rate": round(passed / max(total, 1), 4),
         "average_score": round(average_score, 4),
+        "score_distribution": score_distribution,
+        "metric_spread": metric_spread,
         "by_format": by_format,
         "by_cluster": by_cluster,
         "by_tier": by_tier,
@@ -1788,6 +2144,38 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
         [
             f"- Pass rate: `{summary['passed_cases']}/{summary['total_cases']}` ({summary['pass_rate']:.2%})",
             f"- Average score: `{summary['average_score']:.4f}`",
+        ]
+    )
+    if summary.get("skipped_cases"):
+        lines.append(f"- Skipped cases: `{summary['skipped_cases']}` (missing fixture inputs, excluded from pass rate)")
+    distribution = summary.get("score_distribution") or {}
+    if distribution.get("min") is not None:
+        lines.append(
+            "- Score distribution: "
+            f"min `{distribution['min']:.4f}`, p25 `{distribution['p25']:.4f}`, "
+            f"median `{distribution['median']:.4f}`, p75 `{distribution['p75']:.4f}`, "
+            f"max `{distribution['max']:.4f}`"
+        )
+    metric_spread = summary.get("metric_spread") or {}
+    if metric_spread:
+        lines.extend(
+            [
+                "",
+                "## Metric Spread (discriminability)",
+                "",
+                "A metric with near-zero stddev cannot separate good outputs from bad ones.",
+                "",
+                "| Metric | Mean | Stddev | Min | Max |",
+                "| --- | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for metric_name, stats in sorted(metric_spread.items()):
+            lines.append(
+                f"| {metric_name} | {stats['mean']:.4f} | {stats['stddev']:.4f} | "
+                f"{stats['min']:.4f} | {stats['max']:.4f} |"
+            )
+    lines.extend(
+        [
             "",
             "## By Format",
             "",
@@ -1888,7 +2276,7 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
                 f"failing `{failing}`"
             )
 
-    failures = [result for result in report["results"] if not result["passed"]]
+    failures = [result for result in report["results"] if not result["passed"] and not result.get("skipped")]
     lines.extend(["", "## Failures", ""])
     if not failures:
         lines.append("- None")
@@ -1896,6 +2284,12 @@ def render_summary_markdown(report: dict[str, Any]) -> str:
         for result in failures:
             failing_checks = ", ".join(name for name, ok in result["checks"].items() if not ok) or "runner"
             lines.append(f"- `{result['id']}`: score `{result['score']:.4f}`, failing `{failing_checks}`")
+
+    skipped_results = [result for result in report["results"] if result.get("skipped")]
+    if skipped_results:
+        lines.extend(["", "## Skipped", ""])
+        for result in skipped_results:
+            lines.append(f"- `{result['id']}` ({result['format']}): {result.get('skip_reason', 'skipped')}")
 
     lines.extend(["", "## Baselines", ""])
     for tool, data in report["baseline_summary"].items():
@@ -1960,17 +2354,49 @@ def build_report(cases: list[CaseSpec], runner: RunnerInfo, refresh_references: 
     }
 
 
+def enforce_gate(report: dict[str, Any], allow_skipped: bool, allow_stale: bool) -> None:
+    """Fail the process (exit 1) when the report is not a trustworthy green.
+
+    The gate previously only looked at failed cases, so a run where most
+    fixtures were missing (all skipped) or where the runner binary was stale
+    still exited 0 — a gate that cannot go red is not a gate.
+    """
+    summary = report["summary"]
+    problems: list[str] = []
+    if summary["failed_cases"] > 0:
+        problems.append(f"{summary['failed_cases']} case(s) failed")
+    if summary["skipped_cases"] > 0 and not allow_skipped:
+        skipped_ids = ", ".join(item["id"] for item in summary["skipped"][:5])
+        problems.append(
+            f"{summary['skipped_cases']} case(s) skipped (missing fixtures: {skipped_ids}); "
+            "a partial run cannot prove the converter is healthy"
+        )
+    if summary["total_cases"] == 0:
+        problems.append("no cases were evaluated at all")
+    if report.get("provisional") and not allow_stale:
+        problems.append(
+            f"runner is stale ({report['runner'].get('stale_reason') or 'out of date'}); "
+            "rebuild the binary or pass --allow-stale"
+        )
+    if problems:
+        for problem in problems:
+            print(f"GATE FAILURE: {problem}", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def command_sync(args: argparse.Namespace) -> None:
-    synced = sync_sources(Path(args.benchmark_root))
+    benchmark_root = Path(args.benchmark_root) if args.benchmark_root else None
+    synced = sync_sources(benchmark_root)
     print(json.dumps({"synced": synced, "count": len(synced)}, ensure_ascii=False, indent=2))
 
 
 def command_prepare(args: argparse.Namespace) -> None:
-    if args.benchmark_root:
-        sync_sources(Path(args.benchmark_root))
+    sync_sources(Path(args.benchmark_root) if args.benchmark_root else None)
     cases = load_cases()
     generated = []
     for case in cases:
+        if not case.input_path().exists() and not case.is_negative():
+            continue
         path = build_reference(case, refresh=args.refresh_references)
         if path:
             generated.append(str(path.relative_to(REPO_ROOT)))
@@ -1978,13 +2404,13 @@ def command_prepare(args: argparse.Namespace) -> None:
 
 
 def command_run(args: argparse.Namespace) -> None:
-    if args.benchmark_root:
-        sync_sources(Path(args.benchmark_root))
+    sync_sources(Path(args.benchmark_root) if args.benchmark_root else None)
     cases = load_cases()
     runner = detect_runner(args.runner)
     report = build_report(cases, runner, args.refresh_references, args.compare_baselines)
     write_reports(report)
     print(render_summary_markdown(report))
+    enforce_gate(report, args.allow_skipped, args.allow_stale)
 
 
 def command_compare_baseline(args: argparse.Namespace) -> None:
@@ -2025,14 +2451,16 @@ def command_compare_baseline(args: argparse.Namespace) -> None:
 
 
 def command_all(args: argparse.Namespace) -> None:
-    sync_sources(Path(args.benchmark_root))
+    sync_sources(Path(args.benchmark_root) if args.benchmark_root else None)
     cases = load_cases()
     for case in cases:
-        build_reference(case, refresh=args.refresh_references)
+        if case.input_path().exists() or case.is_negative():
+            build_reference(case, refresh=args.refresh_references)
     runner = detect_runner(args.runner)
     report = build_report(cases, runner, args.refresh_references, args.compare_baselines)
     write_reports(report)
     print(render_summary_markdown(report))
+    enforce_gate(report, args.allow_skipped, args.allow_stale)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -2040,7 +2468,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     sync_parser = subparsers.add_parser("sync", help="sync benchmark samples into fixtures")
-    sync_parser.add_argument("--benchmark-root", required=True)
+    sync_parser.add_argument(
+        "--benchmark-root",
+        help="optional local checkout of the pinned benchmark repository; "
+        "defaults to fetching from the pinned remote with cache fallback",
+    )
     sync_parser.set_defaults(func=command_sync)
 
     prepare_parser = subparsers.add_parser("prepare", help="generate or refresh reference markdown")
@@ -2053,6 +2485,16 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--runner")
     run_parser.add_argument("--compare-baselines", action="store_true")
     run_parser.add_argument("--refresh-references", action="store_true")
+    run_parser.add_argument(
+        "--allow-skipped",
+        action="store_true",
+        help="do not fail the gate when cases are skipped for missing fixtures",
+    )
+    run_parser.add_argument(
+        "--allow-stale",
+        action="store_true",
+        help="do not fail the gate when the runner binary is older than the sources",
+    )
     run_parser.set_defaults(func=command_run)
 
     compare_baseline_parser = subparsers.add_parser(
@@ -2066,10 +2508,20 @@ def build_parser() -> argparse.ArgumentParser:
     compare_baseline_parser.set_defaults(func=command_compare_baseline)
 
     all_parser = subparsers.add_parser("all", help="sync, prepare references, and run the evaluation")
-    all_parser.add_argument("--benchmark-root", required=True)
+    all_parser.add_argument("--benchmark-root")
     all_parser.add_argument("--runner")
     all_parser.add_argument("--compare-baselines", action="store_true")
     all_parser.add_argument("--refresh-references", action="store_true")
+    all_parser.add_argument(
+        "--allow-skipped",
+        action="store_true",
+        help="do not fail the gate when cases are skipped for missing fixtures",
+    )
+    all_parser.add_argument(
+        "--allow-stale",
+        action="store_true",
+        help="do not fail the gate when the runner binary is older than the sources",
+    )
     all_parser.set_defaults(func=command_all)
 
     return parser

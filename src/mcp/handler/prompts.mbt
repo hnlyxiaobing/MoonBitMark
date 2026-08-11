@@ -373,7 +373,7 @@ fn batch_convert_prompt(
 fn split_and_trim_uris(text : String) -> Array[String] {
   let result : Array[String] = []
   for part in text.split(",") {
-    let trimmed = part.trim().to_string()
+    let trimmed = part.trim().to_owned()
     if trimmed != "" {
       result.push(trimmed)
     }

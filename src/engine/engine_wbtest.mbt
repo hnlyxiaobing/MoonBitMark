@@ -51,9 +51,12 @@ test "detect container signature upgrades bytes input to docx" {
     stream_info_of_input(@core.BytesInput(Some("sample.bin"), docx_bytes, None)),
     docx_bytes,
   )
-  inspect(info.extension, content=(
-    #|Some(.docx)
-  ))
+  debug_inspect(
+    info.extension,
+    content=(
+      #|Some(".docx")
+    ),
+  )
   inspect(MarkItDown::new().select_converter(info).name, content="docx")
 }
 

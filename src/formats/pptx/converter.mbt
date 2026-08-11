@@ -69,7 +69,7 @@ pub async fn PptxConverter::convert(
           let (slide_blocks, slide_annotations, slide_warnings) = process_slides_with_assets_and_annotations(
             archive, slide_ids, asset_placeholders,
           )
-          let metadata = Map::new()
+          let metadata = Map([])
           metadata["format"] = "pptx"
           metadata["slide_count"] = slide_ids.length().to_string()
           let warnings = collect_pptx_warnings(
@@ -148,7 +148,7 @@ fn extract_pptx_assets(
 ) -> (Array[@core.OutputAsset], Array[String], Map[String, String]) {
   let assets : Array[@core.OutputAsset] = []
   let warnings : Array[String] = []
-  let placeholders : Map[String, String] = Map::new()
+  let placeholders : Map[String, String] = Map([])
   let mut index = 1
   for entry in archive.list_entries() {
     if entry.has_prefix("ppt/media/") || entry.has_prefix("ppt/embeddings/") {
@@ -329,7 +329,7 @@ fn pptx_warning_diagnostics(
           if warning.has_prefix(
               "PPTX slide asset relationship did not resolve to extracted asset: ",
             ) {
-            let path = warning[61:].to_string()
+            let path = warning[61:].to_owned()
             diagnostics.push(
               @core.warning_diagnostic(
                 warning,
@@ -404,7 +404,7 @@ async fn ocr_pptx_assets(
       }
     }
   }
-  let appendix = lines.join("\n").trim().to_string()
+  let appendix = lines.join("\n").trim().to_owned()
   (appendix, warnings, count, provider)
 }
 
@@ -415,7 +415,7 @@ fn extract_pptx_warning_path(message : String) -> String {
       match @core.find_last_char(message, ')') {
         Some(end) =>
           if end > start {
-            message[start + 1:end].to_string()
+            message[start + 1:end].to_owned()
           } else {
             message
           }

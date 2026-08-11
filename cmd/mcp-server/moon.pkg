@@ -5,6 +5,4 @@ import {
   "moonbitlang/moonbitmark/src/mcp/transport",
 }
 
-options(
-  "is-main": true,
-)
+pkgtype(kind: "executable")

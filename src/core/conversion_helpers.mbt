@@ -25,13 +25,13 @@ pub fn push_unique_warning(warnings : Array[String], warning : String) -> Unit {
 pub fn split_ocr_paragraphs(text : String) -> Array[String] {
   let paragraphs : Array[String] = []
   for chunk in text.replace(old="\r\n", new="\n").split("\n\n").to_array() {
-    let trimmed = chunk.trim().to_string()
+    let trimmed = chunk.trim().to_owned()
     if trimmed != "" {
       paragraphs.push(trimmed)
     }
   }
   if paragraphs.length() == 0 && text.trim() != "" {
-    [text.trim().to_string()]
+    [text.trim().to_owned()]
   } else {
     paragraphs
   }
@@ -79,7 +79,7 @@ pub fn archive_asset_warning_diagnostic(
   prefix : String,
 ) -> ConversionDiagnostic? {
   if warning.has_prefix(prefix) {
-    let path = warning[prefix.length():].to_string()
+    let path = warning[prefix.length():].to_owned()
     Some(
       warning_diagnostic(
         warning,
@@ -118,7 +118,7 @@ pub fn embedded_ocr_warning_diagnostic(
       warning_diagnostic(
         warning,
         Some(Convert(format_name)),
-        Some(Generated(warning[50:].to_string())),
+        Some(Generated(warning[50:].to_owned())),
         Some(InspectSourceDocument),
       ),
     )

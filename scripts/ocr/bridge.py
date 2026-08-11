@@ -363,14 +363,35 @@ def run_tesseract(input_path: str, lang: str, timeout_ms: int | None, page_no: i
     )
 
 
-def run_pdf_mock(input_path: Path, source_name: str, page_numbers: list[int]) -> dict:
-    import pypdfium2 as pdfium
+def count_pdf_pages_fallback(input_path: Path) -> int:
+    """Count PDF pages by scanning raw bytes for page objects.
 
-    pdf = pdfium.PdfDocument(str(input_path))
+    Used only by the mock backend when pypdfium2 is not installed, so the
+    dependency-free mock path keeps working on minimal environments.
+    """
+    import re
+
+    data = input_path.read_bytes()
+    return len(re.findall(rb"/Type\s*/Page(?![s])", data))
+
+
+def run_pdf_mock(input_path: Path, source_name: str, page_numbers: list[int]) -> dict:
     try:
-        selected_pages, warnings = normalize_pdf_page_numbers(len(pdf), page_numbers)
-    finally:
-        close_if_possible(pdf)
+        import pypdfium2 as pdfium
+    except ModuleNotFoundError:
+        pdfium = None
+
+    if pdfium is not None:
+        pdf = pdfium.PdfDocument(str(input_path))
+        try:
+            selected_pages, warnings = normalize_pdf_page_numbers(len(pdf), page_numbers)
+        finally:
+            close_if_possible(pdf)
+    else:
+        selected_pages, warnings = normalize_pdf_page_numbers(
+            count_pdf_pages_fallback(input_path), page_numbers
+        )
+        warnings.append("pypdfium2 unavailable; used fallback PDF page counter for mock backend.")
 
     page_texts: list[str] = []
     layout_pages: list[dict] = []

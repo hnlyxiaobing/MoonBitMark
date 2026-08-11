@@ -55,4 +55,3 @@ pub(all) struct XMLParserConfig {
 // Type aliases
 
 // Traits
-

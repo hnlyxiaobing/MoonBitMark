@@ -3,9 +3,9 @@
 ///|
 pub fn detect_document_type(input : String) -> String {
   let engine = @engine.MarkItDown::new()
-  let detected : Result[String, Error] = try? engine.detect_converter_name(
-    input,
-  )
+  let detected : Result[String, Error] = Ok(engine.detect_converter_name(input)) catch {
+    e => Err(e)
+  }
   match detected {
     Ok(name) => name
     Err(_) => "unknown"

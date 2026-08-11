@@ -54,4 +54,3 @@ pub fn MarkItDown::select_converter(Self, @core.StreamInfo) -> ConverterRegistra
 // Type aliases
 
 // Traits
-

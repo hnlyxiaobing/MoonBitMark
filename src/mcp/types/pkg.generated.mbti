@@ -242,4 +242,3 @@ pub fn TextContent::to_json(Self) -> JsonValue
 // Type aliases
 
 // Traits
-

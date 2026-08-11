@@ -88,7 +88,7 @@ pub async fn HtmlConverter::convert(
   let base_url = html_document_base(input, html)
   let doc = html_to_document_with_base(html, title, base_url)
   let rendered_markdown = @ast.render_markdown(doc)
-  let metadata = Map::new()
+  let metadata = Map([])
   metadata["format"] = "html"
   metadata["html_source"] = source_label
   match base_url {
@@ -142,7 +142,7 @@ fn largest_tag_inner_html(html : String, tag : String) -> String? {
   while remaining.trim() != "" {
     match find_from(remaining.to_lower(), "<" + tag, 0) {
       Some(start) => {
-        remaining = remaining[start:].to_string()
+        remaining = remaining[start:].to_owned()
         match take_tag_parts(remaining, tag) {
           Some((_, inner, rest)) => {
             match best {
@@ -208,7 +208,7 @@ fn html_to_annotated_blocks_with_base(
   let body = preprocess_html(html)
   let mut remaining = body
   while remaining.trim() != "" {
-    let trimmed = remaining.trim_start().to_string()
+    let trimmed = remaining.trim_start().to_owned()
     remaining = trimmed
     match unwrap_container_html(remaining) {
       Some(unwrapped) => {
@@ -244,7 +244,7 @@ fn extract_body_html(html : String) -> String {
       match find_from(html, ">", start) {
         Some(open_end) =>
           match find_from(lower, "</body>", open_end + 1) {
-            Some(close_start) => html[open_end + 1:close_start].to_string()
+            Some(close_start) => html[open_end + 1:close_start].to_owned()
             None => html
           }
         None => html
@@ -344,7 +344,7 @@ fn parse_next_html_block(
   }
   if html.has_prefix("<hr") {
     let rest = match find_from(html, ">", 0) {
-      Some(end) => html[end + 1:].to_string()
+      Some(end) => html[end + 1:].to_owned()
       None => ""
     }
     return Some(((@ast.HorizontalRule, html_block_annotation("hr")), rest))
@@ -386,16 +386,15 @@ fn leading_html_block_matches_title(
 fn html_block_text(block : @ast.Block) -> String {
   match block {
     @ast.Heading(_, inlines) =>
-      render_inline_markdown(inlines).trim().to_string()
-    @ast.Paragraph(inlines) =>
-      render_inline_markdown(inlines).trim().to_string()
+      render_inline_markdown(inlines).trim().to_owned()
+    @ast.Paragraph(inlines) => render_inline_markdown(inlines).trim().to_owned()
     _ => ""
   }
 }
 
 ///|
 fn normalize_html_block_text(text : String) -> String {
-  text.trim().to_lower().to_string()
+  text.trim().to_lower().to_owned()
 }
 
 ///|
@@ -485,11 +484,11 @@ fn parse_blockquote_html_block(
       let nested_blocks = html_to_blocks_with_base(inner, base_url)
       let content = @ast.render_markdown(@ast.document(None, {}, nested_blocks))
         .trim()
-        .to_string()
+        .to_owned()
       Some(
         (
           @ast.Quote(
-            content.split("\n").to_array().map(line => line.to_string()),
+            content.split("\n").to_array().map(line => line.to_owned()),
           ),
           rest,
         ),
@@ -506,8 +505,8 @@ fn parse_image_html_block(
 ) -> (@ast.Block, String)? {
   match find_from(html, ">", 0) {
     Some(end) => {
-      let open_tag = html[:end + 1].to_string()
-      let rest = html[end + 1:].to_string()
+      let open_tag = html[:end + 1].to_owned()
+      let rest = html[end + 1:].to_owned()
       let src = resolve_html_image_url(extract_image_source(open_tag), base_url)
       let alt = extract_attribute(open_tag, "alt")
       let inlines = if src == "" {
@@ -529,19 +528,19 @@ fn parse_image_html_block(
 fn parse_pre_html_block(html : String) -> (@ast.Block, String)? {
   match take_tag_inner_html(html, "pre") {
     Some((inner, rest)) => {
-      let trimmed = inner.trim().to_string()
+      let trimmed = inner.trim().to_owned()
       match take_tag_parts(trimmed, "code") {
         Some((open_tag, code_inner, _)) => {
           let lang = code_language_from_tag(open_tag)
           let content = decode_html_entities(strip_remaining_tags(code_inner))
             .trim()
-            .to_string()
+            .to_owned()
           Some((@ast.CodeBlock(lang, content), rest))
         }
         None => {
           let content = decode_html_entities(strip_remaining_tags(inner))
             .trim()
-            .to_string()
+            .to_owned()
           Some((@ast.CodeBlock(None, content), rest))
         }
       }
@@ -597,9 +596,9 @@ fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
     Some(start) if start == 0 =>
       match find_from(html, ">", start) {
         Some(open_end) => {
-          let open_tag = html[start:open_end + 1].to_string()
-          if open_tag.trim().to_string().has_suffix("/>") {
-            let rest = html[open_end + 1:].to_string()
+          let open_tag = html[start:open_end + 1].to_owned()
+          if open_tag.trim().to_owned().has_suffix("/>") {
+            let rest = html[open_end + 1:].to_owned()
             return Some((open_tag, "", rest))
           }
           let mut depth = 0
@@ -618,8 +617,8 @@ fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
                     None => return None
                   }
                   if depth == 0 {
-                    let inner = html[open_end + 1:tag_start].to_string()
-                    let rest = html[close_end + 1:].to_string()
+                    let inner = html[open_end + 1:tag_start].to_owned()
+                    let rest = html[close_end + 1:].to_owned()
                     return Some((open_tag, inner, rest))
                   }
                   depth = depth - 1
@@ -629,8 +628,8 @@ fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
                     Some(value) => value
                     None => return None
                   }
-                  let nested_open = html[tag_start:nested_end + 1].to_string()
-                  if !nested_open.trim().to_string().has_suffix("/>") {
+                  let nested_open = html[tag_start:nested_end + 1].to_owned()
+                  if !nested_open.trim().to_owned().has_suffix("/>") {
                     depth = depth + 1
                   }
                   cursor = nested_end + 1
@@ -679,7 +678,7 @@ fn extract_list_items(
     let lower = remaining.to_lower()
     match lower.find("<li") {
       Some(start) =>
-        match take_tag_parts(remaining[start:].to_string(), "li") {
+        match take_tag_parts(remaining[start:].to_owned(), "li") {
           Some((_, item, rest)) => {
             items.push(inline_html_to_inlines(item, base_url))
             remaining = rest
@@ -703,7 +702,7 @@ fn extract_table_rows(
     let lower = remaining.to_lower()
     match lower.find("<tr") {
       Some(start) =>
-        match take_tag_parts(remaining[start:].to_string(), "tr") {
+        match take_tag_parts(remaining[start:].to_owned(), "tr") {
           Some((_, row_html, rest)) => {
             let cells = extract_html_table_cells(row_html, base_url)
             rows.push(HtmlTableRow::{
@@ -740,7 +739,7 @@ fn inline_html_to_inlines(
           match find_from(fragment, ">", cursor) {
             Some(end) => cursor = end + 1
             None => {
-              push_text_inline(inlines, fragment[cursor:].to_string())
+              push_text_inline(inlines, fragment[cursor:].to_owned())
               break
             }
           }
@@ -750,7 +749,7 @@ fn inline_html_to_inlines(
         Some(pos) => pos
         None => fragment.length()
       }
-      push_text_inline(inlines, fragment[cursor:next_tag].to_string())
+      push_text_inline(inlines, fragment[cursor:next_tag].to_owned())
       cursor = next_tag
     }
   }
@@ -763,7 +762,7 @@ fn parse_known_inline(
   cursor : Int,
   base_url : String?,
 ) -> (Array[@ast.Inline], Int)? {
-  let remaining = fragment[cursor:].to_string()
+  let remaining = fragment[cursor:].to_owned()
   let lower = remaining.to_lower()
   if lower.has_prefix("<br") {
     return match find_from(remaining, ">", 0) {
@@ -774,7 +773,7 @@ fn parse_known_inline(
   if lower.has_prefix("<img") {
     return match find_from(remaining, ">", 0) {
       Some(end) => {
-        let open_tag = remaining[0:end + 1].to_string()
+        let open_tag = remaining[0:end + 1].to_owned()
         let src = resolve_html_image_url(
           extract_image_source(open_tag),
           base_url,
@@ -904,7 +903,7 @@ fn render_inline_plain_text(inlines : Array[@ast.Inline]) -> String {
   for inline in inlines {
     parts.push(plain_html_inline_text(inline))
   }
-  parts.join("").trim().to_string()
+  parts.join("").trim().to_owned()
 }
 
 ///|
@@ -951,7 +950,7 @@ fn unwrap_html_tag(html : String, tag : String) -> String? {
   }
   match take_tag_parts(html, tag) {
     Some((_, inner, rest)) => {
-      let trimmed_inner = inner.trim().to_string()
+      let trimmed_inner = inner.trim().to_owned()
       if trimmed_inner == "" {
         Some(rest)
       } else if rest.trim() == "" {
@@ -968,7 +967,7 @@ fn unwrap_html_tag(html : String, tag : String) -> String? {
 fn plain_text_fragment(fragment : String, base_url : String?) -> String {
   render_inline_markdown(inline_html_to_inlines(fragment, base_url))
   .trim()
-  .to_string()
+  .to_owned()
 }
 
 ///|
@@ -997,7 +996,7 @@ fn extract_title(html : String) -> String? {
           match find_from(lower, "</title>", tag_end + 1) {
             Some(close_start) => {
               let title = decode_html_entities(
-                html[tag_end + 1:close_start].to_string().trim().to_string(),
+                html[tag_end + 1:close_start].to_owned().trim().to_owned(),
               )
               if title == "" {
                 None
@@ -1121,7 +1120,7 @@ fn find_from(haystack : String, needle : String, start : Int) -> Int? {
   if start >= haystack.length() {
     None
   } else {
-    let substring = haystack[start:].to_string()
+    let substring = haystack[start:].to_owned()
     match substring.find(needle[:]) {
       Some(pos) => Some(start + pos)
       None => None
@@ -1137,8 +1136,8 @@ fn remove_tag_block(html : String, tag_name : String) -> String {
     let lower_result = result.to_lower()
     match find_from(lower_result, "<" + tag_name, 0) {
       Some(start) => {
-        let before = result[:start].to_string()
-        match take_tag_parts(result[start:].to_string(), tag_name) {
+        let before = result[:start].to_owned()
+        match take_tag_parts(result[start:].to_owned(), tag_name) {
           Some((_, _, rest)) => result = before + rest
           None => found = false
         }
@@ -1161,8 +1160,8 @@ fn remove_comments(html : String) -> String {
         match find_from(result, "-->", idx) {
           Some(end_idx) => {
             let close_end = end_idx + 3
-            let before = result[:idx].to_string()
-            let after = result[close_end:].to_string()
+            let before = result[:idx].to_owned()
+            let after = result[close_end:].to_owned()
             result = before + after
           }
           None => found = false
@@ -1189,7 +1188,7 @@ fn extract_html_table_cells(
     match start {
       Some(index) =>
         if th_pos == Some(index) {
-          match take_tag_parts(remaining[index:].to_string(), "th") {
+          match take_tag_parts(remaining[index:].to_owned(), "th") {
             Some((open_tag, inner, rest)) => {
               cells.push(HtmlTableCell::{
                 content: inline_html_to_inlines(inner, base_url),
@@ -1206,7 +1205,7 @@ fn extract_html_table_cells(
             None => break
           }
         } else {
-          match take_tag_parts(remaining[index:].to_string(), "td") {
+          match take_tag_parts(remaining[index:].to_owned(), "td") {
             Some((open_tag, inner, rest)) => {
               cells.push(HtmlTableCell::{
                 content: inline_html_to_inlines(inner, base_url),
@@ -1317,7 +1316,7 @@ fn normalize_table_rows(
     for row in 0..<header_count {
       let text = render_inline_plain_text(normalized[row][col])
         .trim()
-        .to_string()
+        .to_owned()
       if text != "" && !parts.contains(text) {
         parts.push(text)
       }
@@ -1357,8 +1356,8 @@ fn strip_remaining_tags(html : String) -> String {
       Some(idx) =>
         match find_from(result, ">", idx) {
           Some(end_idx) => {
-            let before = result[:idx].to_string()
-            let after = result[end_idx + 1:].to_string()
+            let before = result[:idx].to_owned()
+            let after = result[end_idx + 1:].to_owned()
             result = before + after
           }
           None => found = false
@@ -1404,10 +1403,10 @@ fn decode_html_entities(text : String) -> String {
 fn code_language_from_tag(tag : String) -> String? {
   for class_name in split_whitespace(extract_attribute(tag, "class")) {
     if class_name.has_prefix("language-") {
-      return Some(class_name[9:].to_string())
+      return Some(class_name[9:].to_owned())
     }
     if class_name.has_prefix("lang-") {
-      return Some(class_name[5:].to_string())
+      return Some(class_name[5:].to_owned())
     }
   }
   None
@@ -1450,7 +1449,7 @@ fn detect_inline_wrapper_tag(lower_remaining : String) -> String? {
 
 ///|
 fn parse_tag_attributes(tag : String) -> Map[String, String] {
-  let attrs = Map::new()
+  let attrs = Map([])
   let mut cursor = 1
   if cursor < tag.length() && tag[cursor] == '/' {
     cursor = cursor + 1
@@ -1478,7 +1477,7 @@ fn parse_tag_attributes(tag : String) -> Map[String, String] {
           tag[cursor] != '>' {
       cursor = cursor + 1
     }
-    let name = tag[name_start:cursor].to_lower().to_string()
+    let name = tag[name_start:cursor].to_lower().to_owned()
     while cursor < tag.length() && is_html_space(tag[cursor]) {
       cursor = cursor + 1
     }
@@ -1497,7 +1496,7 @@ fn parse_tag_attributes(tag : String) -> Map[String, String] {
         while cursor < tag.length() && tag[cursor] != quote {
           cursor = cursor + 1
         }
-        let parsed = tag[start:cursor].to_string()
+        let parsed = tag[start:cursor].to_owned()
         if cursor < tag.length() {
           cursor = cursor + 1
         }
@@ -1509,7 +1508,7 @@ fn parse_tag_attributes(tag : String) -> Map[String, String] {
               tag[cursor] != '>' {
           cursor = cursor + 1
         }
-        tag[start:cursor].to_string()
+        tag[start:cursor].to_owned()
       }
     } else {
       "true"

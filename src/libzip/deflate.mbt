@@ -206,7 +206,7 @@ fn decompress_stored_block(reader : BitReader, state : InflateState) -> Bool {
 ///|
 /// 将 Array[Byte] 转换为 Bytes
 fn bytes_from_array(arr : Array[Byte]) -> Bytes {
-  let buf = @buffer.new()
+  let buf = Buffer()
   for b in arr {
     buf.write_byte(b)
   }
@@ -782,7 +782,7 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
   let tables : FixedArray[Map[Int, Int]] = FixedArray::makei(max_len + 1, fn(
     _,
   ) {
-    Map::new()
+    Map([])
   })
 
   for i in 0..<lengths.length() {

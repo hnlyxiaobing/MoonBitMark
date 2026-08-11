@@ -8,13 +8,13 @@ fn extract_text(content : @types.McpContent) -> String {
 ///|
 fn parse_summary_text(content : @types.McpContent) -> Map[String, String] raise {
   let text = extract_text(content)
-  let entries : Map[String, String] = Map::new()
+  let entries : Map[String, String] = Map([])
   for line in text.split("\n") {
-    let rendered = line.to_string()
+    let rendered = line.to_owned()
     match rendered.find(": ") {
       Some(index) => {
-        let key = rendered[:index].to_string()
-        let value = rendered[index + 2:].to_string()
+        let key = rendered[:index].to_owned()
+        let value = rendered[index + 2:].to_owned()
         entries[key] = value
       }
       None => fail("expected key/value summary line, got: " + rendered)
@@ -30,7 +30,7 @@ async fn write_test_text(path : String, text : String) -> Unit {
       _ => ()
     },
   )
-  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
   file.write(@utf8.encode(text))
   file.close()
 }

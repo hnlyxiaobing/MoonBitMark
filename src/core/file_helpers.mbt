@@ -1,6 +1,6 @@
 ///|
 pub fn bytes_from_array(arr : Array[Byte]) -> Bytes {
-  let buffer = @buffer.new()
+  let buffer = Buffer()
   for byte in arr {
     buffer.write_byte(byte)
   }
@@ -10,7 +10,7 @@ pub fn bytes_from_array(arr : Array[Byte]) -> Bytes {
 ///|
 pub async fn read_file_bytes(path : String) -> Bytes {
   let file = @fs.open(path, mode=ReadOnly)
-  let buffer = @buffer.new()
+  let buffer = Buffer()
   while true {
     let chunk : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
     let read = file.read(chunk)
@@ -70,7 +70,7 @@ pub fn normalize_path(path : String) -> String {
 pub fn file_name_only(path : String) -> String {
   let normalized = normalize_path(path)
   match find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
+    Some(index) => normalized[index + 1:].to_owned()
     None => normalized
   }
 }
@@ -79,7 +79,7 @@ pub fn file_name_only(path : String) -> String {
 pub fn path_dirname(path : String) -> String {
   let normalized = normalize_path(path)
   match find_last_char(normalized, '/') {
-    Some(index) => if index > 0 { normalized[0:index].to_string() } else { "" }
+    Some(index) => if index > 0 { normalized[0:index].to_owned() } else { "" }
     None => ""
   }
 }
@@ -90,7 +90,7 @@ pub fn file_stem(path : String) -> String? {
   match find_last_char(basename, '.') {
     Some(index) =>
       if index > 0 {
-        Some(basename[0:index].to_string())
+        Some(basename[0:index].to_owned())
       } else {
         None
       }
@@ -103,7 +103,7 @@ pub fn split_path_segments(path : String) -> Array[String] {
   let segments : Array[String] = []
   for part in normalize_path(path).split("/").to_array() {
     if part != "" {
-      segments.push(part.to_string())
+      segments.push(part.to_owned())
     }
   }
   segments
@@ -138,7 +138,7 @@ pub fn path_extension(path : String) -> String {
   match find_last_char(normalized, '.') {
     Some(index) =>
       if index + 1 < normalized.length() {
-        normalized[index + 1:].to_lower().to_string()
+        normalized[index + 1:].to_lower().to_owned()
       } else {
         "bin"
       }

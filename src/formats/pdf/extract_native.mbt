@@ -46,7 +46,7 @@ async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
         normalize_extracted_page_text(raw_text)
         .split("\n")
         .to_array()
-        .map(line => collapse_inline_whitespace(line.to_string()))
+        .map(line => collapse_inline_whitespace(line.to_owned()))
     }
     for line in raw_lines {
       lines.push(PdfRawLine::{ text: line })

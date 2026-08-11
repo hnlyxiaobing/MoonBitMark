@@ -39,7 +39,7 @@ pub async fn ImageConverter::convert(
     ctx.ocr,
     source_name=asset_name,
   )
-  let metadata = Map::new()
+  let metadata = Map([])
   metadata["format"] = "image"
   @core.apply_ocr_metadata(
     metadata,

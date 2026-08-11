@@ -1,0 +1,12 @@
+{
+  "id": "negative_empty_archive_docx",
+  "format": "docx",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/corrupt/empty_archive.docx",
+  "description": "Valid ZIP without word/document.xml should fail cleanly at detect/select (exit 1, no internal Failure trace).",
+  "expect_exit_code": 1,
+  "error_must_include": ["Unsupported input", "empty_archive.docx"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {},
+  "notes": "Covers the 'archive opens but required entries are missing' path, distinct from non-zip garbage (corrupt.docx) and truncated archives (truncated.docx)."
+}

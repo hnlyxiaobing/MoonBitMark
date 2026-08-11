@@ -180,11 +180,11 @@ fn split_pdf_ocr_page_texts(ocr_text : String) -> Array[String] {
   if normalized.contains(pdf_ocr_page_break_marker()) {
     let pages : Array[String] = []
     for chunk in normalized.split(pdf_ocr_page_break_marker()).to_array() {
-      pages.push(chunk.trim().to_string())
+      pages.push(chunk.trim().to_owned())
     }
     trim_trailing_empty_ocr_pages(pages)
   } else {
-    let trimmed = normalized.trim().to_string()
+    let trimmed = normalized.trim().to_owned()
     if trimmed == "" {
       []
     } else {
@@ -268,7 +268,7 @@ fn extraction_with_pages(
         normalize_extracted_page_text(raw_text)
         .split("\n")
         .to_array()
-        .map(line => trim_preserve_inline_whitespace(line.to_string()))
+        .map(line => trim_preserve_inline_whitespace(line.to_owned()))
     }
     for line in raw_lines {
       lines.push(PdfRawLine::{ text: line })

@@ -107,7 +107,7 @@ fn parse_allowed_roots_env() -> Result[Array[String], String] {
       let roots : Array[String] = []
       for segment in split_root_segments(raw) {
         if segment.trim() != "" {
-          roots.push(resolve_file_path(segment.trim().to_string()))
+          roots.push(resolve_file_path(segment.trim().to_owned()))
         }
       }
       if roots.length() == 0 {
@@ -126,7 +126,7 @@ fn split_root_segments(raw : String) -> Array[String] {
   let items : Array[String] = []
   for line in raw.replace(old="\r", new="").split("\n").to_array() {
     for segment in line.split(";").to_array() {
-      let value = segment.to_string()
+      let value = segment.to_owned()
       if value.trim() != "" {
         items.push(value)
       }
@@ -139,7 +139,7 @@ fn split_root_segments(raw : String) -> Array[String] {
 fn parse_bool_env(name : String, fallback : Bool) -> Result[Bool, String] {
   match @env.get_env_var(name) {
     Some(raw) if raw.trim() != "" => {
-      let normalized = raw.trim().to_lower().to_string()
+      let normalized = raw.trim().to_lower().to_owned()
       match normalized {
         "1" => Ok(true)
         "true" => Ok(true)
@@ -196,7 +196,7 @@ fn current_dir_or_dot() -> String {
 ///|
 fn normalize_file_uri(uri : String) -> String {
   if uri.has_prefix("file://") {
-    uri[7:].to_string()
+    uri[7:].to_owned()
   } else {
     uri
   }
@@ -239,7 +239,7 @@ fn canonicalize_path(path : String) -> String {
   let remainder = normalized[start:]
   let segments : Array[String] = []
   for raw_segment in remainder.split("/").to_array() {
-    let segment = raw_segment.to_string()
+    let segment = raw_segment.to_owned()
     if segment == "" || segment == "." {
       continue
     }
@@ -266,8 +266,8 @@ fn canonicalize_path(path : String) -> String {
 fn path_prefix(path : String) -> String {
   if path.length() >= 2 &&
     is_ascii_letter(path[0]) &&
-    path[1:2].to_string() == ":" {
-    path[0:2].to_string()
+    path[1:2].to_owned() == ":" {
+    path[0:2].to_owned()
   } else if path.has_prefix("/") {
     "/"
   } else {
@@ -281,7 +281,7 @@ fn is_absolute_path(path : String) -> Bool {
   (
     path.length() >= 2 &&
     is_ascii_letter(path[0]) &&
-    path[1:2].to_string() == ":"
+    path[1:2].to_owned() == ":"
   )
 }
 

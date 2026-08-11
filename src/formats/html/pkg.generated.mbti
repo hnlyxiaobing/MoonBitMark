@@ -28,4 +28,3 @@ pub fn HtmlConverter::new() -> Self
 // Type aliases
 
 // Traits
-

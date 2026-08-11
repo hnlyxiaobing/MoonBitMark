@@ -461,22 +461,20 @@ OCR 的第一优先不是 everywhere OCR，而是：
 
 下面这些事项仍然没有完成，或者只完成了第一轮实现：
 
-1. 修复 `src/libzip/deflate.mbt` 中的 dynamic Huffman 缺陷。
-2. 继续细化 `SemanticRole / Provenance` 的格式特异性规则，重点仍是 DOCX / PPTX / HTML 的稳定性，以及向 XLSX / EPUB / PDF 扩展更细粒度来源信息。
-3. 继续增强 PDF OCR fallback 的质量判定与融合策略，目前仍是页级文本恢复，不是成熟的版面理解、bbox 或表格重建系统。
-4. 继续增强 MCP 解释性输出的覆盖深度，目前 normalizer 决策轨迹和 compare debug 已经落地，但仍可继续细化格式特异性 reason 和更多 compare case。
-5. 把 OCR / MCP smoke 回归当成后续相关改动的固定门禁，而不是只在大改动时手动补跑。
-6. 如果要做 baseline compare 的长期优化，仍需要准备稳定可用的 MarkItDown / Docling 环境。
+1. 继续细化 `SemanticRole / Provenance` 的格式特异性规则，重点仍是 DOCX / PPTX / HTML 的稳定性，以及向 XLSX / EPUB / PDF 扩展更细粒度来源信息。
+2. 继续增强 PDF OCR fallback 的质量判定与融合策略，目前仍是页级文本恢复，不是成熟的版面理解、bbox 或表格重建系统。
+3. 继续增强 MCP 解释性输出的覆盖深度，目前 normalizer 决策轨迹和 compare debug 已经落地，但仍可继续细化格式特异性 reason 和更多 compare case。
+4. 把 OCR / MCP smoke 回归当成后续相关改动的固定门禁，而不是只在大改动时手动补跑。
+5. 如果要做 baseline compare 的长期优化，仍需要准备稳定可用的 MarkItDown / Docling 环境。
 
 ## Codex 的建议执行顺序
 
 如果没有用户另行指定优先级，默认按下面顺序推进：
 
-1. 优先处理 dynamic Huffman 缺陷，避免 ZIP 格式族继续受已知底层 bug 影响
-2. 继续细化 `SemanticRole / Provenance` 的规则覆盖和测试稳定性
-3. 增强 PDF OCR fallback 的质量判定、融合策略与解释信息
-4. 继续扩展 MCP explanations / compare debug 的可读性
-5. 保持 conversion eval 与 OCR/MCP smoke 作为相关改动的固定回归门禁
+1. 继续细化 `SemanticRole / Provenance` 的规则覆盖和测试稳定性
+2. 增强 PDF OCR fallback 的质量判定、融合策略与解释信息
+3. 继续扩展 MCP explanations / compare debug 的可读性
+4. 保持 conversion eval 与 OCR/MCP smoke 作为相关改动的固定回归门禁
 
 ## 每次开发回合的验证要求
 

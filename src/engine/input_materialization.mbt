@@ -152,7 +152,7 @@ fn sanitize_materialized_stem(source_name : String) -> String {
       result = result + "-"
     }
   }
-  let trimmed = result.trim().to_string()
+  let trimmed = result.trim().to_owned()
   if trimmed == "" {
     "document"
   } else {
@@ -162,7 +162,7 @@ fn sanitize_materialized_stem(source_name : String) -> String {
 
 ///|
 async fn write_engine_materialized_bytes(path : String, bytes : Bytes) -> Unit {
-  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
   file.write(bytes)
   file.close()
 }

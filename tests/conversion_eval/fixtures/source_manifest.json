@@ -1,125 +1,154 @@
 {
-  "benchmark_root_hint": "D:/MySoftware/MoonBit/python-text-extraction-libs-benchmarks",
+  "benchmark_root_hint": "local checkout of the remote benchmark (optional; remote fetch is the default)",
+  "remote": {
+    "repository": "https://github.com/Goldziher/python-text-extraction-libs-benchmarks",
+    "ref": "d48769e99bc1ec467dad9c91a5ffe2127b97c40e",
+    "raw_base_url": "https://raw.githubusercontent.com/Goldziher/python-text-extraction-libs-benchmarks/d48769e99bc1ec467dad9c91a5ffe2127b97c40e"
+  },
   "sources": [
     {
       "id": "csv_stanley_cups",
       "source": "test_documents/csv_json_yaml/stanley-cups.csv",
-      "dest": "tests/conversion_eval/fixtures/inputs/csv/stanley_cups.csv"
+      "dest": "tests/conversion_eval/fixtures/inputs/csv/stanley_cups.csv",
+      "blob_sha": "ab6de889333da4755eb25dcf427827cb920478f4"
     },
     {
       "id": "json_simple",
       "source": "test_documents/csv_json_yaml/simple.json",
-      "dest": "tests/conversion_eval/fixtures/inputs/json/simple.json"
+      "dest": "tests/conversion_eval/fixtures/inputs/json/simple.json",
+      "blob_sha": "cd47b9e73b4a2770ecf9dd5cafc61e4350ff019e"
     },
     {
       "id": "text_fake_text",
       "source": "test_documents/text/fake-text.txt",
-      "dest": "tests/conversion_eval/fixtures/inputs/text/fake_text.txt"
+      "dest": "tests/conversion_eval/fixtures/inputs/text/fake_text.txt",
+      "blob_sha": "9c43da02aa8026d1b888b5c416f7164525d59776"
     },
     {
       "id": "text_norwich_city",
       "source": "test_documents/text/norwich-city.txt",
-      "dest": "tests/conversion_eval/fixtures/inputs/text/norwich_city.txt"
+      "dest": "tests/conversion_eval/fixtures/inputs/text/norwich_city.txt",
+      "blob_sha": "048f19a9ef9f3aa0e45f16d6ae799823e28387c5"
     },
     {
       "id": "html_simple_table",
       "source": "test_documents/html/simple-table.html",
-      "dest": "tests/conversion_eval/fixtures/inputs/html/simple_table.html"
+      "dest": "tests/conversion_eval/fixtures/inputs/html/simple_table.html",
+      "blob_sha": "cbb16ad151a835be5a398969342d510800dcec2f"
     },
     {
       "id": "html_complex_table",
       "source": "test_documents/html/complex-table.html",
-      "dest": "tests/conversion_eval/fixtures/inputs/html/complex_table.html"
+      "dest": "tests/conversion_eval/fixtures/inputs/html/complex_table.html",
+      "blob_sha": "085ae6bd0631297465b07e913feb0fe737135db1"
     },
     {
       "id": "docx_unit_test_headers",
       "source": "test_documents/office/unit_test_headers.docx",
-      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers.docx"
+      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers.docx",
+      "blob_sha": "6fce0d3b6711a77cfea89878b89657d2d2e89eb9"
     },
     {
       "id": "docx_unit_test_headers_numbered",
       "source": "test_documents/office/unit_test_headers_numbered.docx",
-      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers_numbered.docx"
+      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_headers_numbered.docx",
+      "blob_sha": "259125c35f4c3eff60cace0aa21bfceb6eac63f2"
     },
     {
       "id": "docx_unit_test_lists",
       "source": "test_documents/office/unit_test_lists.docx",
-      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_lists.docx"
+      "dest": "tests/conversion_eval/fixtures/inputs/docx/unit_test_lists.docx",
+      "blob_sha": "8032f93c249bffb4e4ad59440e5903e0e52ca59b"
     },
     {
       "id": "epub_simple_shared_culture",
       "source": "test_documents/office/simple.epub",
-      "dest": "tests/conversion_eval/fixtures/inputs/epub/simple_shared_culture.epub"
+      "dest": "tests/conversion_eval/fixtures/inputs/epub/simple_shared_culture.epub",
+      "blob_sha": "039ae4f9216f70954efdc4db920b310a7d9069e5"
     },
     {
       "id": "epub_winter_sports",
       "source": "test_documents/office/winter-sports.epub",
-      "dest": "tests/conversion_eval/fixtures/inputs/epub/winter_sports.epub"
+      "dest": "tests/conversion_eval/fixtures/inputs/epub/winter_sports.epub",
+      "blob_sha": "a434863a8c91fdc722a88c6b2dcb54fe8e40760d"
     },
     {
       "id": "pdf_multi_page",
       "source": "test_documents/pdfs/multi_page.pdf",
-      "dest": "tests/conversion_eval/fixtures/inputs/pdf/multi_page.pdf"
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/multi_page.pdf",
+      "blob_sha": "7d9eb1818d61fa4d3e80d1c8a41e705c6fa7bc9d"
     },
     {
       "id": "pdf_right_to_left",
       "source": "test_documents/pdfs/right_to_left_01.pdf",
-      "dest": "tests/conversion_eval/fixtures/inputs/pdf/right_to_left_01.pdf"
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/right_to_left_01.pdf",
+      "blob_sha": "2d9bc2f6edc9a0670fb51628eede378658a6f3a2"
     },
     {
       "id": "pdf_fake_memo",
       "source": "test_documents/pdfs/fake-memo.pdf",
-      "dest": "tests/conversion_eval/fixtures/inputs/pdf/fake_memo.pdf"
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/fake_memo.pdf",
+      "blob_sha": "98db73b2390b26581f3249bb6c8abc9767cdd6a8"
     },
     {
       "id": "pdf_embedded_images_tables",
       "source": "test_documents/pdfs/embedded-images-tables.pdf",
-      "dest": "tests/conversion_eval/fixtures/inputs/pdf/embedded_images_tables.pdf"
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/embedded_images_tables.pdf",
+      "blob_sha": "fcf1c483d1179b74745cc46b876d3f8ce6ae3226"
     },
     {
       "id": "pdf_code_and_formula",
       "source": "test_documents/pdfs/code_and_formula.pdf",
-      "dest": "tests/conversion_eval/fixtures/inputs/pdf/code_and_formula.pdf"
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/code_and_formula.pdf",
+      "blob_sha": "ecb5f7586d8c34241c572043d54a61dc8df8cbb9"
     },
     {
       "id": "pdf_slides_100g",
       "source": "test_documents/pdfs/100G Networking Technology Overview - Slides - Toronto (August 2016).pdf",
-      "dest": "tests/conversion_eval/fixtures/inputs/pdf/slides_100g.pdf"
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/slides_100g.pdf",
+      "blob_sha": "4ed3d6b50270e81fc9d4f23fa84cecbeafd1b98e"
     },
     {
       "id": "pdf_neural_networks_two_column",
       "source": "test_documents/pdfs/A Brief Introduction to Neural Networks (neuronalenetze-en-zeta2-2col-dkrieselcom).pdf",
-      "dest": "tests/conversion_eval/fixtures/inputs/pdf/neural_networks_two_column.pdf"
+      "dest": "tests/conversion_eval/fixtures/inputs/pdf/neural_networks_two_column.pdf",
+      "blob_sha": "8667db29f6325755ff6436ef2c7cdef81f0625c8"
     },
     {
       "id": "pptx_simple",
       "source": "test_documents/office/simple.pptx",
-      "dest": "tests/conversion_eval/fixtures/inputs/pptx/simple.pptx"
+      "dest": "tests/conversion_eval/fixtures/inputs/pptx/simple.pptx",
+      "blob_sha": "ab165bb5bccb0f5b81d23454791e7ed642483350"
     },
     {
       "id": "pptx_powerpoint_with_image",
       "source": "test_documents/office/powerpoint_with_image.pptx",
-      "dest": "tests/conversion_eval/fixtures/inputs/pptx/powerpoint_with_image.pptx"
+      "dest": "tests/conversion_eval/fixtures/inputs/pptx/powerpoint_with_image.pptx",
+      "blob_sha": "9f3c0a6b865433e7b84daf28ab6c8578dd39829d"
     },
     {
       "id": "xlsx_test_01",
       "source": "test_documents/office/test-01.xlsx",
-      "dest": "tests/conversion_eval/fixtures/inputs/xlsx/test_01.xlsx"
+      "dest": "tests/conversion_eval/fixtures/inputs/xlsx/test_01.xlsx",
+      "blob_sha": "ea35b723b826961205656baa7e124aec0ef7ad20"
     },
     {
       "id": "xlsx_stanley_cups",
       "source": "test_documents/csv_json_yaml/stanley-cups.xlsx",
-      "dest": "tests/conversion_eval/fixtures/inputs/xlsx/stanley_cups.xlsx"
+      "dest": "tests/conversion_eval/fixtures/inputs/xlsx/stanley_cups.xlsx",
+      "blob_sha": "ebc66599b2ace3435646bc31f5ae7ca4d7313e69"
     },
     {
       "id": "image_example_mock_ocr",
       "source": "test_documents/images/example.jpg",
-      "dest": "tests/conversion_eval/fixtures/inputs/image/example.jpg"
+      "dest": "tests/conversion_eval/fixtures/inputs/image/example.jpg",
+      "blob_sha": "933719d1cf71cfe3e1794e258eb56a2c15c6fa40"
     },
     {
       "id": "image_bmp_mock_ocr",
       "source": "test_documents/images/bmp_24.bmp",
-      "dest": "tests/conversion_eval/fixtures/inputs/image/bmp_24.bmp"
+      "dest": "tests/conversion_eval/fixtures/inputs/image/bmp_24.bmp",
+      "blob_sha": "a4a6f68d2b96f3048b8f6880e94a098d974f2c2b"
     }
   ]
 }

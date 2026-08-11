@@ -1,0 +1,12 @@
+{
+  "id": "negative_truncated_docx",
+  "format": "docx",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/corrupt/truncated.docx",
+  "description": "Truncated DOCX (valid ZIP local header, missing central directory) should fail cleanly at detect/select instead of crashing.",
+  "expect_exit_code": 1,
+  "error_must_include": ["Unsupported input", "truncated.docx"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {},
+  "notes": "Broken-but-PK zips are rejected during detect/select, so the message is the generic 'Unsupported input' rather than the converter-level 'Failed to open DOCX file as ZIP archive'. The case pins the clean-exit contract; improving the wording is a separate diagnostics task."
+}

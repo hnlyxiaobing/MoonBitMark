@@ -111,4 +111,3 @@ pub fn ToolRegistry::register_convert_tools(Self) -> Self raise
 // Type aliases
 
 // Traits
-

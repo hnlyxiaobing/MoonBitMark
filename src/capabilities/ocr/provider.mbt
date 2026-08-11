@@ -83,8 +83,7 @@ async fn run_bridge(
   let exit_code_result : Result[Int, Error] = try {
     let stderr = @process.redirect_to_file(
       stderr_path,
-      create=0o644,
-      truncate=true,
+      create_mode=@fs.CreateOrTruncate,
     )
     Ok(@process.run("python", args, stderr~))
   } catch {
@@ -126,7 +125,7 @@ async fn parse_bridge_response(
         err => Err(err)
       }
       let stderr_text = match stderr_text_result {
-        Ok(text) => text.trim().to_string()
+        Ok(text) => text.trim().to_owned()
         Err(_) => ""
       }
       let warning = if stderr_text != "" {
@@ -182,7 +181,7 @@ async fn parse_bridge_response(
     attempted: true,
     available: response.available,
     provider: response.provider,
-    text: response.text.trim().to_string(),
+    text: response.text.trim().to_owned(),
     layout_json: response.layout_json,
     warnings,
   }
@@ -205,7 +204,7 @@ async fn cleanup_file(path : String) -> Unit {
 
 ///|
 async fn write_bytes_file(path : String, bytes : Bytes) -> Unit {
-  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
   file.write(bytes)
   file.close()
 }
@@ -213,7 +212,7 @@ async fn write_bytes_file(path : String, bytes : Bytes) -> Unit {
 ///|
 async fn read_utf8_file(path : String) -> String {
   let file = @fs.open(path, mode=ReadOnly)
-  let buffer = @buffer.new()
+  let buffer = Buffer()
   while true {
     let chunk : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
     let read = file.read(chunk)
@@ -234,7 +233,7 @@ fn input_extension(source_name : String) -> String {
   match find_last_char(normalized, '.') {
     Some(index) =>
       if index < normalized.length() {
-        normalized[index:].to_lower().to_string()
+        normalized[index:].to_lower().to_owned()
       } else {
         ".bin"
       }
@@ -254,7 +253,7 @@ fn sanitize_file_stem(name : String) -> String {
       result = result + "-"
     }
   }
-  let trimmed = result.trim().to_string()
+  let trimmed = result.trim().to_owned()
   if trimmed == "" {
     "ocr-input"
   } else {

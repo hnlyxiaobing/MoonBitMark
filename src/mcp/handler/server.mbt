@@ -164,7 +164,7 @@ fn McpDispatcher::handle_ping(
   ignore(self)
   @types.JsonResponse::{
     jsonrpc: "2.0",
-    result: Some(@types.Object(Map::new())),
+    result: Some(@types.Object(Map([]))),
     error: None,
     id,
   }
@@ -422,7 +422,7 @@ fn parse_tool_call_params(
       }
       let arguments = match map.get("arguments") {
         Some(value) => value
-        None => @types.Object(Map::new())
+        None => @types.Object(Map([]))
       }
       Ok(@types.McpToolCallParams::{ name, arguments })
     }
@@ -462,7 +462,7 @@ fn parse_get_prompt_params(
             @types.Object(_) => value
             _ => return Err("Prompt arguments must be an object")
           }
-        None => @types.Object(Map::new())
+        None => @types.Object(Map([]))
       }
       Ok(@types.McpGetPromptParams::{ name, arguments })
     }

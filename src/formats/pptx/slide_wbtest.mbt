@@ -10,7 +10,7 @@ test "pptx content placeholder paragraphs become list items" {
     "</p:txBody></p:sp>" +
     "</p:spTree></p:cSld></p:sld>"
   let (blocks, warning) = process_slide_xml(xml, 2, "ppt/slides/slide2.xml")
-  inspect(warning, content="None")
+  debug_inspect(warning, content="None")
   inspect(
     @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## Slide 2\n\n### Agenda\n\n- Alpha\n- Beta",
@@ -31,7 +31,7 @@ test "pptx table graphic frame becomes markdown table" {
     "</a:graphicData></a:graphic></p:graphicFrame>" +
     "</p:spTree></p:cSld></p:sld>"
   let (blocks, warning) = process_slide_xml(xml, 1, "ppt/slides/slide1.xml")
-  inspect(warning, content="None")
+  debug_inspect(warning, content="None")
   inspect(
     @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## Slide 1\n\n### Revenue\n\n| Quarter | Value |\n| --- | --- |\n| Q1 | 10 |",
@@ -48,7 +48,7 @@ test "pptx notes xml becomes speaker notes blocks" {
   let (blocks, warning) = notes_blocks_from_xml(
     xml, "ppt/notesSlides/notesSlide1.xml",
   )
-  inspect(warning, content="None")
+  debug_inspect(warning, content="None")
   inspect(
     @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="#### Speaker Notes\n\nSpeaker note one\n\nSpeaker note two",
@@ -64,7 +64,7 @@ test "pptx chart xml becomes heading and table" {
     "<c:ser><c:tx><c:v>FY24</c:v></c:tx><c:cat><c:strLit><c:pt idx=\"0\"><c:v>Q1</c:v></c:pt><c:pt idx=\"1\"><c:v>Q2</c:v></c:pt></c:strLit></c:cat><c:val><c:numLit><c:pt idx=\"0\"><c:v>8</c:v></c:pt><c:pt idx=\"1\"><c:v>11</c:v></c:pt></c:numLit></c:val></c:ser>" +
     "</c:barChart></c:plotArea></c:chart></c:chartSpace>"
   let (chart, warning) = parse_chart_xml(xml, "ppt/charts/chart1.xml")
-  inspect(warning, content="None")
+  debug_inspect(warning, content="None")
   guard chart is Some(value) else { fail("expected chart data") }
   let blocks = render_chart_blocks(value, 1)
   inspect(
@@ -84,7 +84,7 @@ test "pptx explicit auto numbering becomes ordered list" {
     "</p:txBody></p:sp>" +
     "</p:spTree></p:cSld></p:sld>"
   let (blocks, warning) = process_slide_xml(xml, 3, "ppt/slides/slide3.xml")
-  inspect(warning, content="None")
+  debug_inspect(warning, content="None")
   inspect(
     @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## Slide 3\n\n1. First item\n2. Second item",
@@ -104,7 +104,7 @@ test "pptx grouped shapes keep nested text order" {
     "</p:grpSp>" +
     "</p:spTree></p:cSld></p:sld>"
   let (blocks, warning) = process_slide_xml(xml, 4, "ppt/slides/slide4.xml")
-  inspect(warning, content="None")
+  debug_inspect(warning, content="None")
   inspect(
     @ast.render_markdown(@ast.document(None, {}, blocks)),
     content="## Slide 4\n\n### Nested Title\n\nNested detail",
@@ -130,13 +130,16 @@ test "pptx related image assets are attached to the slide" {
     content="#### Slide Assets\n\n![image1.png](moonbitmark-raw://pptx/1)",
   )
   inspect(annotations.length(), content="2")
-  inspect(annotations[0].source_hint, content=(
-    #|Some(slide: 1)
-  ))
-  inspect(
+  debug_inspect(
+    annotations[0].source_hint,
+    content=(
+      #|Some("slide: 1")
+    ),
+  )
+  debug_inspect(
     annotations[1].origin_hint,
     content=(
-      #|Some(resource: ppt/media/image1.png; kind: asset)
+      #|Some("resource: ppt/media/image1.png; kind: asset")
     ),
   )
 }

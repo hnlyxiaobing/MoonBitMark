@@ -47,7 +47,7 @@ pub async fn JsonConverter::convert_source(
     None => "document.json"
   }
   let title = @core.file_stem(source_name)
-  let metadata = Map::new()
+  let metadata = Map([])
   metadata["format"] = "json"
   metadata["render_mode"] = "code_fence"
   metadata["json_valid"] = if valid_json { "true" } else { "false" }
@@ -75,7 +75,7 @@ fn normalize_json_content(content : String) -> (String, Array[String], Bool) {
       warnings.push(
         "JSON input could not be parsed; emitted raw text in code fence.",
       )
-      (content.trim_end().to_string(), warnings, false)
+      (content.trim_end().to_owned(), warnings, false)
     }
   }
 }
@@ -87,7 +87,7 @@ fn json_to_document(
   metadata : Map[String, String],
 ) -> @ast.Document {
   let blocks : Array[@ast.Block] = [
-    @ast.CodeBlock(Some("json"), content.trim_end().to_string()),
+    @ast.CodeBlock(Some("json"), content.trim_end().to_owned()),
   ]
   @ast.document(title, metadata, blocks)
 }

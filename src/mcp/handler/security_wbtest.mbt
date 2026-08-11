@@ -62,7 +62,7 @@ test "security config parses env overrides and enables ocr auto context" {
     Ok(value) => {
       inspect(value.allow_http, content="true")
       inspect(value.enable_ocr, content="true")
-      inspect(value.max_output_chars, content="Some(120)")
+      debug_inspect(value.max_output_chars, content="Some(120)")
       inspect(value.max_upload_bytes, content="512")
       inspect(value.allowed_roots.length(), content="2")
       let ctx = build_mcp_convert_context(value)
@@ -101,5 +101,5 @@ test "security boundary clamps output chars to env limit" {
     max_output_chars: Some(80),
     max_upload_bytes: 10485760,
   }
-  inspect(clamp_mcp_output_chars(Some(4000), config), content="Some(80)")
+  debug_inspect(clamp_mcp_output_chars(Some(4000), config), content="Some(80)")
 }

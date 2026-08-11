@@ -35,9 +35,9 @@ pub fn McpHttpServerConfig::new(
 }
 
 ///|
-pub fn McpHttpServer::new(config : McpHttpServerConfig) -> McpHttpServer raise {
+pub async fn McpHttpServer::new(config : McpHttpServerConfig) -> McpHttpServer {
   let bind_addr = bind_addr_from_config(config)
-  let server = @async_http.Server::new(bind_addr)
+  let server = @async_http.Server(bind_addr)
   McpHttpServer::{ config, dispatcher: @handler.McpDispatcher::new(), server }
 }
 
@@ -194,7 +194,7 @@ fn json_headers() -> Map[String, String] {
 ///|
 fn load_http_allow_nonlocal_env() -> Bool raise {
   match @env.get_env_var("MOONBITMARK_MCP_HTTP_ALLOW_NONLOCAL") {
-    Some(raw) if raw.trim() != "" => parse_bool(raw.trim().to_string())
+    Some(raw) if raw.trim() != "" => parse_bool(raw.trim().to_owned())
     _ => false
   }
 }
@@ -204,7 +204,7 @@ fn normalize_bind_host(
   bind_host : String,
   allow_nonlocal : Bool,
 ) -> String raise {
-  let normalized = bind_host.trim().to_lower().to_string()
+  let normalized = bind_host.trim().to_lower().to_owned()
   match normalized {
     "" => default_mcp_http_bind_host()
     "127.0.0.1" => "127.0.0.1"

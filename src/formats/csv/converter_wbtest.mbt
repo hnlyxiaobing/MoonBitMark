@@ -17,7 +17,7 @@ test "csv parser supports quoted commas and multiline cells" {
 
 ///|
 test "csv markdown rendering normalizes multiline table cells" {
-  let metadata = Map::new()
+  let metadata = Map([])
   let doc = csv_rows_to_document(
     [["name", "notes"], ["Alice", "line 1\nline 2"]],
     Some("demo"),
@@ -56,8 +56,11 @@ async test "csv converter supports bytes input source" {
       Some("text/csv"),
     ),
   )
-  inspect(result.title, content=(
-    #|Some(bytes-sheet)
-  ))
+  debug_inspect(
+    result.title,
+    content=(
+      #|Some("bytes-sheet")
+    ),
+  )
   assert_true(result.markdown.contains("| name | team |"))
 }

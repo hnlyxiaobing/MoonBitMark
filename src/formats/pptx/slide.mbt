@@ -1229,7 +1229,7 @@ fn copy_string_array(values : Array[String]) -> Array[String] {
 fn path_directory(path : String) -> String {
   let normalized = normalize_pptx_entry(path)
   match @core.find_last_char(normalized, '/') {
-    Some(index) => normalized[:index].to_string()
+    Some(index) => normalized[:index].to_owned()
     None => ""
   }
 }
@@ -1238,7 +1238,7 @@ fn path_directory(path : String) -> String {
 fn path_basename(path : String) -> String {
   let normalized = normalize_pptx_entry(path)
   match @core.find_last_char(normalized, '/') {
-    Some(index) => normalized[index + 1:].to_string()
+    Some(index) => normalized[index + 1:].to_owned()
     None => normalized
   }
 }
@@ -1248,7 +1248,7 @@ fn resolve_pptx_target(base_entry : String, target : String) -> String {
   let segments : Array[String] = []
   for segment in path_directory(base_entry).split("/").to_array() {
     if segment != "" {
-      segments.push(segment.to_string())
+      segments.push(segment.to_owned())
     }
   }
   for
@@ -1261,7 +1261,7 @@ fn resolve_pptx_target(base_entry : String, target : String) -> String {
     if segment == ".." {
       ignore(segments.pop())
     } else {
-      segments.push(segment.to_string())
+      segments.push(segment.to_owned())
     }
   }
   segments.join("/")

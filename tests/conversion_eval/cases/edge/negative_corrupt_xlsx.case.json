@@ -1,0 +1,11 @@
+{
+  "id": "negative_corrupt_xlsx",
+  "format": "xlsx",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/corrupt/corrupt.xlsx",
+  "description": "Corrupt XLSX should fail with a clean diagnostic (exit 1, no internal Failure trace).",
+  "expect_exit_code": 1,
+  "error_must_include": ["Failed to open XLSX file as ZIP archive"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {}
+}

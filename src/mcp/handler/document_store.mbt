@@ -128,7 +128,7 @@ async fn list_stored_documents() -> Array[StoredDocument] {
     if !entry.has_suffix(".meta.txt") {
       continue
     }
-    let id = entry[:entry.length() - 9].to_string()
+    let id = entry[:entry.length() - 9].to_owned()
     let meta_path = document_meta_path(id)
     let blob_path = document_blob_path(id)
     if !@fs.exists(meta_path) || !@fs.exists(blob_path) {
@@ -227,7 +227,7 @@ async fn sweep_stale_document_resources() -> Unit {
     if !entry.has_suffix(".meta.txt") {
       continue
     }
-    let id = entry[:entry.length() - 9].to_string()
+    let id = entry[:entry.length() - 9].to_owned()
     if document_timestamp_prefix(id) < cutoff {
       ignore(@fs.remove(document_meta_path(id)) catch { _ => () })
       ignore(@fs.remove(document_blob_path(id)) catch { _ => () })
@@ -290,7 +290,7 @@ fn parse_document_resource_id(resource_uri : String) -> Result[String, String] {
   if !resource_uri.has_prefix(prefix) {
     return Err("Resource not found")
   }
-  let id = resource_uri[prefix.length():].to_string()
+  let id = resource_uri[prefix.length():].to_owned()
   if id.trim() == "" {
     Err("Resource not found")
   } else {
@@ -315,7 +315,7 @@ fn sanitize_document_stem(name : String) -> String {
       result = result + "-"
     }
   }
-  let trimmed = result.trim().to_string()
+  let trimmed = result.trim().to_owned()
   if trimmed == "" {
     "document"
   } else {
@@ -326,14 +326,14 @@ fn sanitize_document_stem(name : String) -> String {
 ///|
 fn document_timestamp_prefix(id : String) -> String {
   match @core.find_last_char(id, '-') {
-    Some(index) if index > 0 => id[:index].to_string()
+    Some(index) if index > 0 => id[:index].to_owned()
     _ => id
   }
 }
 
 ///|
 async fn write_document_blob(path : String, bytes : Bytes) -> Unit {
-  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
   file.write(bytes)
   file.close()
 }
@@ -352,7 +352,7 @@ async fn write_document_meta(
     "mime_type: " + sanitize_meta_value(optional_string(mime_type)),
     "byte_size: " + byte_size.to_string(),
   ]
-  let file = @fs.open(path, mode=WriteOnly, create=0o644, truncate=true)
+  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
   file.write(@utf8.encode(lines.join("\n") + "\n"))
   file.close()
 }
@@ -365,16 +365,16 @@ async fn read_document_meta(
     err =>
       return Err("Failed to read stored document metadata: " + err.to_string())
   }
-  let values : Map[String, String] = Map::new()
+  let values : Map[String, String] = Map([])
   for line in text.split("\n") {
-    let rendered = line.trim().to_string()
+    let rendered = line.trim().to_owned()
     if rendered == "" {
       continue
     }
     match rendered.find(": ") {
       Some(index) => {
-        let key = rendered[:index].to_string()
-        let value = rendered[index + 2:].to_string()
+        let key = rendered[:index].to_owned()
+        let value = rendered[index + 2:].to_owned()
         values[key] = if value == "null" { "" } else { value }
       }
       None => return Err("Stored document metadata is malformed")
@@ -385,5 +385,5 @@ async fn read_document_meta(
 
 ///|
 fn sanitize_meta_value(value : String) -> String {
-  value.replace(old="\r", new=" ").replace(old="\n", new=" ").trim().to_string()
+  value.replace(old="\r", new=" ").replace(old="\n", new=" ").trim().to_owned()
 }

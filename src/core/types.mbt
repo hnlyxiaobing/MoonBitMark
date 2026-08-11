@@ -107,7 +107,7 @@ pub fn ConvertResult::markdown_only(
   ConvertResult::{
     markdown,
     title: None,
-    metadata: Map::new(),
+    metadata: Map([]),
     warnings: [],
     diagnostics: [],
     assets: [],
@@ -242,7 +242,7 @@ pub(all) enum OutputMode {
 
 ///|
 pub impl Show for OutputMode with fn output(self, logger) {
-  self.to_repr().output(logger)
+  Show::output(self.to_repr(), logger)
 }
 
 ///|

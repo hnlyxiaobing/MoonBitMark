@@ -20,4 +20,3 @@ pub fn DocxConverter::new() -> Self
 // Type aliases
 
 // Traits
-

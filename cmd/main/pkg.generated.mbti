@@ -4,6 +4,8 @@ package "moonbitlang/moonbitmark/cmd/main"
 // Values
 
 // Errors
+type CliError
+pub impl Show for CliError
 
 // Types and methods
 type CliOptions
@@ -11,4 +13,3 @@ type CliOptions
 // Type aliases
 
 // Traits
-

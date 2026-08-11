@@ -21,4 +21,3 @@ pub fn CsvConverter::new() -> Self
 // Type aliases
 
 // Traits
-

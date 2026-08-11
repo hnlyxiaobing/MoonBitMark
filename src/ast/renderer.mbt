@@ -4,7 +4,7 @@ pub fn render_markdown(doc : Document) -> String {
   for block in doc.blocks {
     rendered.push(render_block(block))
   }
-  rendered.filter(part => part != "").join("\n\n").trim().to_string()
+  rendered.filter(part => part != "").join("\n\n").trim().to_owned()
 }
 
 ///|

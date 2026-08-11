@@ -16,7 +16,7 @@ pub(all) enum SemanticRole {
 
 ///|
 pub impl Show for SemanticRole with fn output(self, logger) {
-  self.to_repr().output(logger)
+  Show::output(self.to_repr(), logger)
 }
 
 ///|
@@ -181,7 +181,7 @@ fn semantic_role_of(
   previous_block : @ast.Block?,
 ) -> SemanticRole {
   let format_name = metadata.get("format")
-  let normalized = text.trim().to_lower().to_string()
+  let normalized = text.trim().to_lower().to_owned()
   let style_hint = lowercase_hint_value(annotation, "style:")
   let tag_hint = lowercase_hint_value(annotation, "tag:")
   let kind_hint = lowercase_hint_value(annotation, "kind:")
@@ -284,7 +284,7 @@ fn previous_block_is_slide_heading(previous_block : @ast.Block?) -> Bool {
 
 ///|
 fn paragraph_looks_like_caption(text : String) -> Bool {
-  let trimmed = text.trim().to_string()
+  let trimmed = text.trim().to_owned()
   if trimmed == "" || trimmed.length() > 120 {
     return false
   }
@@ -505,12 +505,12 @@ fn default_resource_for_format(
 fn path_like_hint(text : String?) -> String? {
   match text {
     Some(value) => {
-      let trimmed = value.trim().to_string()
+      let trimmed = value.trim().to_owned()
       if trimmed.contains("/") ||
         trimmed.contains("\\") ||
         (
           trimmed.length() >= 2 &&
-          trimmed[1:2].to_string() == ":" &&
+          trimmed[1:2].to_owned() == ":" &&
           is_ascii_letter(trimmed[0])
         ) {
         Some(trimmed)
@@ -526,7 +526,7 @@ fn path_like_hint(text : String?) -> String? {
 fn url_like_hint(text : String?) -> String? {
   match text {
     Some(value) => {
-      let trimmed = value.trim().to_string()
+      let trimmed = value.trim().to_owned()
       if trimmed.has_prefix("http://") || trimmed.has_prefix("https://") {
         Some(trimmed)
       } else {
@@ -576,7 +576,7 @@ fn slide_heading_number(block : @ast.Block, text : String) -> Int? {
   match block {
     @ast.Heading(_, _) =>
       if looks_like_slide_heading(text) {
-        parse_decimal_digits(text.trim().to_string()[6:].trim().to_string())
+        parse_decimal_digits(text.trim().to_owned()[6:].trim().to_owned())
       } else {
         None
       }
@@ -586,9 +586,9 @@ fn slide_heading_number(block : @ast.Block, text : String) -> Int? {
 
 ///|
 fn looks_like_slide_heading(text : String) -> Bool {
-  let trimmed = text.trim().to_string()
+  let trimmed = text.trim().to_owned()
   trimmed.has_prefix("Slide ") &&
-  parse_decimal_digits(trimmed[6:].trim().to_string()) is Some(_)
+  parse_decimal_digits(trimmed[6:].trim().to_owned()) is Some(_)
 }
 
 ///|
@@ -602,7 +602,7 @@ fn matches_document_title(text : String, document_title : String?) -> Bool {
 
 ///|
 fn normalize_title_like_text(text : String) -> String {
-  text.trim().to_lower().to_string()
+  text.trim().to_lower().to_owned()
 }
 
 ///|
@@ -681,7 +681,7 @@ fn first_present(primary : String?, fallback : String?) -> String? {
 ///|
 fn parse_optional_int(value : String?) -> Int? {
   match value {
-    Some(text) if text != "" => parse_decimal_digits(text.trim().to_string())
+    Some(text) if text != "" => parse_decimal_digits(text.trim().to_owned())
     _ => None
   }
 }
@@ -714,10 +714,10 @@ fn extract_text_after_prefix(text : String?, prefix : String) -> String? {
   match text {
     Some(value) => {
       for segment in split_hint_segments(value) {
-        let trimmed = segment.trim().to_string()
+        let trimmed = segment.trim().to_owned()
         let lowered = trimmed.to_lower().to_string()
         if lowered.has_prefix(prefix) {
-          return Some(trimmed[prefix.length():].trim().to_string())
+          return Some(trimmed[prefix.length():].trim().to_owned())
         }
       }
       None

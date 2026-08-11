@@ -73,4 +73,3 @@ pub(all) enum Inline {
 // Type aliases
 
 // Traits
-

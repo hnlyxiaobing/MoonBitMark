@@ -1,9 +1,12 @@
 ///|
 test "text converter helpers" {
   inspect(count_lines("a\nb\n"), content="3")
-  inspect(@core.file_stem("docs/readme.txt"), content=(
-    #|Some(readme)
-  ))
+  debug_inspect(
+    @core.file_stem("docs/readme.txt"),
+    content=(
+      #|Some("readme")
+    ),
+  )
 }
 
 ///|
@@ -29,9 +32,12 @@ async test "text converter supports bytes input source" {
       None,
     ),
   )
-  inspect(result.title, content=(
-    #|Some(bytes-demo)
-  ))
+  debug_inspect(
+    result.title,
+    content=(
+      #|Some("bytes-demo")
+    ),
+  )
   assert_true(result.markdown.contains("line 1"))
 }
 

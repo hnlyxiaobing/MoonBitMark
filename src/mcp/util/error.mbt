@@ -117,7 +117,7 @@ pub fn ErrorContext::new(location : ErrorLocation) -> ErrorContext {
     location,
     timestamp: "[TIMESTAMP]",
     request_id: None,
-    additional_info: Map::new(),
+    additional_info: Map([]),
   }
 }
 

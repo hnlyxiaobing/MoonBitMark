@@ -32,68 +32,71 @@ test "pdf assembly metadata records route summary" {
   )
   let assembled = assemble_pdf_document(Some("report"), extraction, route)
 
-  inspect(
+  debug_inspect(
     assembled.metadata.get("pdf_text_provider"),
     content=(
-      #|Some(mbtpdf)
+      #|Some("mbtpdf")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("pdf_text_fallback_used"),
     content=(
-      #|Some(false)
+      #|Some("false")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("route_document_mode"),
     content=(
-      #|Some(mixed)
+      #|Some("mixed")
     ),
   )
-  inspect(assembled.metadata.get("route_recovery_pages"), content=(
-    #|Some(1)
-  ))
-  inspect(
+  debug_inspect(
+    assembled.metadata.get("route_recovery_pages"),
+    content=(
+      #|Some("1")
+    ),
+  )
+  debug_inspect(
     assembled.metadata.get("route_recovery_page_numbers"),
     content=(
-      #|Some(2)
+      #|Some("2")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("route_recovery_reasons"),
     content=(
-      #|Some(page 2: scanned)
+      #|Some("page 2: scanned")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("route_native_fast_pages"),
     content=(
-      #|Some(1)
+      #|Some("1")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("route_text_quality"),
     content=(
-      #|Some(empty:1,weak:1)
+      #|Some("empty:1,weak:1")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("route_layout_complexity"),
     content=(
-      #|Some(simple:2)
+      #|Some("simple:2")
     ),
   )
   inspect(assembled.document.annotations.length(), content="3")
-  inspect(
+  debug_inspect(
     assembled.document.annotations[0].source_hint,
     content=(
-      #|Some(page: 1)
+      #|Some("page: 1")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.document.annotations[0].origin_hint,
     content=(
-      #|Some(resource: pdf/native_text_fast/page/1; kind: page)
+      #|Some("resource: pdf/native_text_fast/page/1; kind: page")
     ),
   )
 }
@@ -125,41 +128,41 @@ test "pdf assembly metadata records fallback extraction details" {
   )
   let assembled = assemble_pdf_document(Some("formula"), extraction, route)
 
-  inspect(
+  debug_inspect(
     assembled.metadata.get("pdf_text_provider"),
     content=(
-      #|Some(pdfminer)
+      #|Some("pdfminer")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("pdf_text_fallback_used"),
     content=(
-      #|Some(true)
+      #|Some("true")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("pdf_text_warning_count"),
     content=(
-      #|Some(1)
+      #|Some("1")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("route_text_quality"),
     content=(
-      #|Some(very_poor:1)
+      #|Some("very_poor:1")
     ),
   )
-  inspect(
+  debug_inspect(
     assembled.metadata.get("route_layout_complexity"),
     content=(
-      #|Some(simple:1)
+      #|Some("simple:1")
     ),
   )
   inspect(assembled.document.annotations.length(), content="2")
-  inspect(
+  debug_inspect(
     assembled.document.annotations[0].source_hint,
     content=(
-      #|Some(page: 1)
+      #|Some("page: 1")
     ),
   )
 }

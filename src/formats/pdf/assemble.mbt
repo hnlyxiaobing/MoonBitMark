@@ -25,7 +25,7 @@ fn build_pdf_metadata(
   normalization : PdfNormalizationResult,
   structure : PdfStructureResult,
 ) -> Map[String, String] {
-  let metadata = Map::new()
+  let metadata = Map([])
   metadata["format"] = "pdf"
   metadata["page_count"] = normalization.pages.length().to_string()
   metadata["pdf_text_provider"] = match extraction.provider {

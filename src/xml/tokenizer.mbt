@@ -136,7 +136,7 @@ fn parse_comment(xml : String, start : Int, line : Int) -> ParseResult raise {
   while pos + 2 < xml.length() {
     if xml[pos] == '-' && xml[pos + 1] == '-' && xml[pos + 2] == '>' {
       // 找到注释结束，提取内容
-      let content = xml[start:pos].to_string()
+      let content = xml[start:pos].to_owned()
       return { token: Comment(content), pos: pos + 3, line: current_line }
     }
     if xml[pos] == '\n' {
@@ -157,7 +157,7 @@ fn parse_cdata(xml : String, start : Int, line : Int) -> ParseResult raise {
   while pos + 2 < xml.length() {
     if xml[pos] == ']' && xml[pos + 1] == ']' && xml[pos + 2] == '>' {
       // 找到 CDATA 结束
-      let content = xml[start:pos].to_string()
+      let content = xml[start:pos].to_owned()
       return { token: CData(content), pos: pos + 3, line: current_line }
     }
     if xml[pos] == '\n' {
@@ -182,7 +182,7 @@ fn parse_declaration(
   while pos + 1 < xml.length() {
     if xml[pos] == '?' && xml[pos + 1] == '>' {
       // 找到声明结束
-      let content = xml[start:pos].trim().to_string()
+      let content = xml[start:pos].trim().to_owned()
       return { token: Declaration(content), pos: pos + 2, line: current_line }
     }
     if xml[pos] == '\n' {
@@ -225,7 +225,7 @@ fn parse_end_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
     pos = pos + 1
   }
 
-  let tag_name = xml[name_start:pos].to_string()
+  let tag_name = xml[name_start:pos].to_owned()
 
   // 跳过空白
   while pos < xml.length() &&
@@ -251,7 +251,7 @@ fn parse_end_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
 fn parse_start_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
   let mut pos = start
   let mut current_line = line
-  let attrs : Map[String, String] = Map::new()
+  let attrs : Map[String, String] = Map([])
 
   // 跳过空白
   while pos < xml.length() &&
@@ -279,7 +279,7 @@ fn parse_start_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
     pos = pos + 1
   }
 
-  let tag_name = xml[name_start:pos].to_string()
+  let tag_name = xml[name_start:pos].to_owned()
 
   if tag_name.length() == 0 {
     raise SyntaxError(current_line, "Empty tag name")
@@ -361,7 +361,7 @@ fn parse_attribute(
     pos = pos + 1
   }
 
-  let attr_name = xml[name_start:pos].to_string()
+  let attr_name = xml[name_start:pos].to_owned()
 
   if attr_name.length() == 0 {
     raise SyntaxError(current_line, "Empty attribute name")
@@ -425,7 +425,7 @@ fn parse_attribute(
   }
 
   // 提取属性值并处理实体引用
-  let raw_value = xml[value_start:pos].to_string()
+  let raw_value = xml[value_start:pos].to_owned()
   let attr_value = decode_entities(raw_value)
   pos = pos + 1 // 跳过结束引号
 
@@ -447,7 +447,7 @@ fn decode_entities(s : String) -> String {
         j = j + 1
       }
       if j < len {
-        let entity = s[i + 1:j].to_string()
+        let entity = s[i + 1:j].to_owned()
         let decoded = match entity {
           "lt" => "<"
           "gt" => ">"
@@ -463,7 +463,7 @@ fn decode_entities(s : String) -> String {
         i = i + 1
       }
     } else {
-      result = result + s[i:i + 1].to_string()
+      result = result + s[i:i + 1].to_owned()
       i = i + 1
     }
   }
@@ -485,7 +485,7 @@ fn parse_text(xml : String, start : Int, line : Int) -> TextParseResult {
   }
 
   // 提取文本内容并解码实体引用
-  let raw_text = xml[start:pos].to_string()
+  let raw_text = xml[start:pos].to_owned()
   let text = decode_entities(raw_text)
 
   { text: Text(text), pos, line: current_line }

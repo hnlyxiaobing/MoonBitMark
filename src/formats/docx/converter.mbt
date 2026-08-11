@@ -63,7 +63,7 @@ pub async fn DocxConverter::convert(
           let (content_blocks, content_annotations, docx_warnings) = extract_blocks_from_docx_xml_with_annotations(
             xml_string, relationships, numbering, asset_placeholders,
           )
-          let metadata = Map::new()
+          let metadata = Map([])
           metadata["format"] = "docx"
           metadata["container"] = "zip"
           let warnings : Array[String] = []
@@ -666,7 +666,7 @@ fn is_docx_ascii_letter(ch : Char) -> Bool {
 
 ///|
 fn docx_is_promotable_title(inlines : Array[@ast.Inline]) -> Bool {
-  let text = @ast.render_inlines(inlines).trim().to_string()
+  let text = @ast.render_inlines(inlines).trim().to_owned()
   if text == "" || text.length() > 80 || text.contains("\n") {
     return false
   }
@@ -792,13 +792,13 @@ fn parse_docx_relationships(
       archive, "word/_rels/document.xml.rels",
     ) {
     Some(bytes) => {
-      let xml_string = @utf8.decode(bytes) catch { _ => return Map::new() }
+      let xml_string = @utf8.decode(bytes) catch { _ => return Map([]) }
       match @xml.parse_xml(xml_string) {
         Ok(events) => extract_docx_relationships(events)
-        Err(_) => Map::new()
+        Err(_) => Map([])
       }
     }
-    None => Map::new()
+    None => Map([])
   }
 }
 
@@ -806,7 +806,7 @@ fn parse_docx_relationships(
 fn extract_docx_relationships(
   events : Array[@xml.ParseEvent],
 ) -> Map[String, String] {
-  let relationships : Map[String, String] = Map::new()
+  let relationships : Map[String, String] = Map([])
   for event in events {
     match event {
       @xml.ElementStart(evt) => {
@@ -838,8 +838,8 @@ fn extract_docx_relationships(
 ///|
 fn parse_docx_numbering(archive : @libzip.ZipArchive) -> DocxNumbering {
   let numbering = DocxNumbering::{
-    num_to_abstract: Map::new(),
-    level_formats: Map::new(),
+    num_to_abstract: Map([]),
+    level_formats: Map([]),
   }
   match @libzip.read_file_entry_decompressed(archive, "word/numbering.xml") {
     Some(bytes) => {
@@ -987,7 +987,7 @@ fn append_docx_table_cell_paragraph(
   ctx : DocxContext,
   inlines : Array[@ast.Inline],
 ) -> Unit {
-  let mut text = @ast.plain_text_of_inlines(inlines).trim().to_string()
+  let mut text = @ast.plain_text_of_inlines(inlines).trim().to_owned()
   if text == "" {
     return
   }
@@ -1095,7 +1095,7 @@ fn docx_compact_table_rows(rows : Array[Array[String]]) -> Array[Array[String]] 
     let normalized : Array[String] = []
     let mut has_content = false
     for cell in row {
-      let value = cell.trim().to_string()
+      let value = cell.trim().to_owned()
       if value != "" {
         has_content = true
       }
@@ -1151,7 +1151,7 @@ fn is_unsupported_docx_run_style(local_name : String) -> Bool {
 ///|
 fn strip_namespace(name : String) -> String {
   match name.find(":") {
-    Some(pos) => name[pos + 1:].to_string()
+    Some(pos) => name[pos + 1:].to_owned()
     None => name
   }
 }
@@ -1170,7 +1170,7 @@ fn extract_docx_media_assets(
 ) -> (Array[@core.OutputAsset], Array[String], Map[String, String]) {
   let assets : Array[@core.OutputAsset] = []
   let warnings : Array[String] = []
-  let placeholders : Map[String, String] = Map::new()
+  let placeholders : Map[String, String] = Map([])
   let mut index = 1
   for entry in archive.list_entries() {
     if entry.has_prefix("word/media/") {
@@ -1266,7 +1266,7 @@ fn docx_warning_diagnostics(
               ),
             )
           } else if warning.has_prefix("Missing DOCX hyperlink target: ") {
-            let rid = warning[31:].to_string()
+            let rid = warning[31:].to_owned()
             diagnostics.push(
               @core.warning_diagnostic(
                 warning,
@@ -1276,7 +1276,7 @@ fn docx_warning_diagnostics(
               ),
             )
           } else if warning.has_prefix("Missing DOCX relationship target: ") {
-            let rid = warning[34:].to_string()
+            let rid = warning[34:].to_owned()
             diagnostics.push(
               @core.warning_diagnostic(
                 warning,
@@ -1288,7 +1288,7 @@ fn docx_warning_diagnostics(
           } else if warning.has_prefix(
               "DOCX image reference did not resolve to extracted asset: ",
             ) {
-            let path = warning[56:].to_string()
+            let path = warning[56:].to_owned()
             diagnostics.push(
               @core.warning_diagnostic(
                 warning,

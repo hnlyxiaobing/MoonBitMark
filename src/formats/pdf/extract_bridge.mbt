@@ -21,8 +21,7 @@ async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
   let exit_code_result : Result[Int, Error] = try {
     let stderr = @process.redirect_to_file(
       stderr_path,
-      create=0o644,
-      truncate=true,
+      create_mode=@fs.CreateOrTruncate,
     )
     Ok(@process.run("python", args, stderr~))
   } catch {
@@ -67,7 +66,7 @@ async fn parse_pdf_bridge_response(
       }
       let warning = match stderr_text_result {
         Ok(text) if text.trim() != "" =>
-          "PDF bridge execution failed: " + text.trim().to_string()
+          "PDF bridge execution failed: " + text.trim().to_owned()
         _ =>
           "PDF bridge execution failed with exit code " +
           exit_code.to_string() +

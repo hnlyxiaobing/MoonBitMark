@@ -1,9 +1,9 @@
 ///|
 test "html title and warnings" {
-  inspect(
+  debug_inspect(
     extract_title("<html><head><title> Demo </title></head></html>"),
     content=(
-      #|Some(Demo)
+      #|Some("Demo")
     ),
   )
   inspect(
@@ -90,12 +90,12 @@ test "html blockquote keeps nested paragraph and list structure" {
 
 ///|
 test "html resolves base urls and filters unsafe link/image sources" {
-  inspect(
+  debug_inspect(
     html_document_base(
       "https://example.com/posts/page.html", "<html><head><base href=\"../articles/\"></head></html>",
     ),
     content=(
-      #|Some(https://example.com/articles)
+      #|Some("https://example.com/articles")
     ),
   )
   let doc = html_to_document_with_base(

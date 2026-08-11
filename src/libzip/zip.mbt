@@ -130,7 +130,7 @@ fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
 ///|
 /// 将字节转换为字符串
 fn bytes_to_string(buffer : Bytes, offset : Int, len : Int) -> String {
-  let bytes = buffer[offset:offset + len].to_bytes()
+  let bytes = buffer[offset:offset + len].to_owned()
   // 使用 UTF-8 解码，如果失败则尝试直接转换
   @utf8.decode(bytes) catch {
     _ => {
@@ -167,7 +167,7 @@ pub fn read_file_entry(archive : ZipArchive, name : String) -> Bytes? {
         read_uint16_le(archive.data, entry.data_offset + 26).reinterpret_as_int() +
         read_uint16_le(archive.data, entry.data_offset + 28).reinterpret_as_int()
       Some(
-        archive.data[data_start:data_start + entry.compressed_size].to_bytes(),
+        archive.data[data_start:data_start + entry.compressed_size].to_owned(),
       )
     }
     None => None
@@ -223,7 +223,7 @@ pub fn read_file_entry_decompressed(
         read_uint16_le(archive.data, entry.data_offset + 26).reinterpret_as_int() +
         read_uint16_le(archive.data, entry.data_offset + 28).reinterpret_as_int()
       let compressed_data = archive.data[data_start:data_start +
-      entry.compressed_size].to_bytes()
+      entry.compressed_size].to_owned()
       ignore(entry.uncompressed_size)
       ignore(entry.crc32)
 

@@ -50,7 +50,7 @@ pub fn parse_presentation(archive : @libzip.ZipArchive) -> ParseResult {
 fn parse_relations(
   archive : @libzip.ZipArchive,
 ) -> (Map[String, String], Array[String]) {
-  let relations : Map[String, String] = Map::new()
+  let relations : Map[String, String] = Map([])
   let warnings : Array[String] = []
 
   match

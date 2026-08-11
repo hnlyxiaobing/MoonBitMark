@@ -1,8 +1,11 @@
 ///|
 test "pdf helper file stem" {
-  inspect(@core.file_stem("reports/spec.pdf"), content=(
-    #|Some(spec)
-  ))
+  debug_inspect(
+    @core.file_stem("reports/spec.pdf"),
+    content=(
+      #|Some("spec")
+    ),
+  )
 }
 
 ///|
@@ -10,16 +13,16 @@ test "pdf normalization splits headings and removes repeated edges" {
   let normalized = normalize_pdf_pages([
     "Monthly Report  Overview of Sales  • Q1  • Q2  Page 1", "Monthly Report  Overview of Costs  • Q3  • Q4  Page 1",
   ])
-  inspect(
+  debug_inspect(
     normalized.pages[0].chunks,
     content=(
-      #|[Overview of Sales, • Q1, • Q2]
+      #|["Overview of Sales", "• Q1", "• Q2"]
     ),
   )
-  inspect(
+  debug_inspect(
     normalized.pages[1].chunks,
     content=(
-      #|[Overview of Costs, • Q3, • Q4]
+      #|["Overview of Costs", "• Q3", "• Q4"]
     ),
   )
   inspect(normalized.removed_header_count, content="2")
@@ -31,34 +34,49 @@ test "pdf normalization keeps single-line memo boundaries" {
   let chunks = split_page_chunks(
     "May 5, 2023\nTo Whom it May Concern:\n\nThere were 20,000 bottles of water.\nBest Regards,\nMallori",
   )
-  inspect(
+  debug_inspect(
     chunks,
     content=(
-      #|[May 5, 2023, To Whom it May Concern:, There were 20,000 bottles of water., Best Regards,, Mallori]
+      #|[
+      #|  "May 5, 2023",
+      #|  "To Whom it May Concern:",
+      #|  "There were 20,000 bottles of water.",
+      #|  "Best Regards,",
+      #|  "Mallori",
+      #|]
     ),
   )
 }
 
 ///|
 test "pdf normalization recovers inline memo boundaries" {
-  inspect(
+  debug_inspect(
     split_page_chunks(
       "May 5, 2023 To Whom it May Concern: There were 20,000 bottles of water. Best Regards, Mallori",
     ),
     content=(
-      #|[May 5, 2023, To Whom it May Concern:, There were 20,000 bottles of water., Best Regards,, Mallori]
+      #|[
+      #|  "May 5, 2023",
+      #|  "To Whom it May Concern:",
+      #|  "There were 20,000 bottles of water.",
+      #|  "Best Regards,",
+      #|  "Mallori",
+      #|]
     ),
   )
 }
 
 ///|
 test "pdf normalization restores obvious code spacing" {
-  inspect(
+  debug_inspect(
     split_page_chunks(
       "JavaScriptCodeExample\nListing1:SimpleJavaScriptProgram functionadd(a,b){ returna+b; }",
     ),
     content=(
-      #|[JavaScript Code Example, Listing 1: Simple JavaScript Program function add(a,b) { return a+b; }]
+      #|[
+      #|  "JavaScript Code Example",
+      #|  "Listing 1: Simple JavaScript Program function add(a,b) { return a+b; }",
+      #|]
     ),
   )
 }
@@ -174,7 +192,7 @@ test "pdf ocr warning when auto mode sees empty native text" {
       flagged_pages: 1,
     },
   }
-  inspect(
+  debug_inspect(
     pdf_ocr_warning(
       @ocr.OcrConfig::{ ..@ocr.OcrConfig::default(), mode: @ocr.Auto },
       route_plan,
@@ -183,7 +201,7 @@ test "pdf ocr warning when auto mode sees empty native text" {
       false,
     ),
     content=(
-      #|Some(PDF OCR recovery was enabled but no usable PDF OCR backend was available.)
+      #|Some("PDF OCR recovery was enabled but no usable PDF OCR backend was available.")
     ),
   )
 }
@@ -218,10 +236,10 @@ test "pdf warning message reports recovery page counts" {
     },
     None,
   )
-  inspect(
+  debug_inspect(
     warnings,
     content=(
-      #|[PDF route marked 1/3 page(s) for OCR recovery, but OCR recovery did not supply usable page text; native extraction remains for those pages.]
+      #|["PDF route marked 1/3 page(s) for OCR recovery, but OCR recovery did not supply usable page text; native extraction remains for those pages."]
     ),
   )
 }
@@ -298,7 +316,7 @@ test "pdf ocr page injection replaces only recovery pages" {
       flagged_pages: 2,
     },
   }
-  inspect(
+  debug_inspect(
     inject_pdf_ocr_pages(
       ["native page one", "", ""],
       route_plan,
@@ -307,7 +325,7 @@ test "pdf ocr page injection replaces only recovery pages" {
       "\nRecovered page three",
     ),
     content=(
-      #|[native page one, Recovered page two, Recovered page three]
+      #|["native page one", "Recovered page two", "Recovered page three"]
     ),
   )
 }
@@ -347,7 +365,7 @@ test "pdf ocr page injection respects page-aligned OCR output" {
       flagged_pages: 1,
     },
   }
-  inspect(
+  debug_inspect(
     inject_pdf_ocr_pages(
       ["native page one", "", "native page three"],
       route_plan,
@@ -358,7 +376,7 @@ test "pdf ocr page injection respects page-aligned OCR output" {
       "\npage three text",
     ),
     content=(
-      #|[native page one, Recovered page two, native page three]
+      #|["native page one", "Recovered page two", "native page three"]
     ),
   )
 }
