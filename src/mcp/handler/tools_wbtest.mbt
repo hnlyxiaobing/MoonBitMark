@@ -643,6 +643,10 @@ async test "compare_with_baseline supports json response mode with stable keys" 
       "response_mode": @types.String("json"),
     }),
   )
+  if result.is_error {
+    let debug_text = extract_text(result.content[0])
+    fail("compare_with_baseline json mode returned is_error=true: " + debug_text)
+  }
   inspect(result.is_error, content="false")
   inspect(result.content.length(), content="1")
   let payload = extract_structured_content(result)
