@@ -223,7 +223,7 @@ async fn read_utf8_file(path : String) -> String {
 
 ///|
 fn input_extension(source_name : String) -> String {
-  let normalized = source_name.replace(old="\\", new="/")
+  let normalized = source_name.replace_all(old="\\", new="/")
   match find_last_char(normalized, '.') {
     Some(index) =>
       if index < normalized.length() {
@@ -238,7 +238,7 @@ fn input_extension(source_name : String) -> String {
 ///|
 fn sanitize_file_stem(name : String) -> String {
   let mut result = ""
-  for ch in name.replace(old="\\", new="/") {
+  for ch in name.replace_all(old="\\", new="/") {
     if (ch >= 'a' && ch <= 'z') ||
       (ch >= 'A' && ch <= 'Z') ||
       (ch >= '0' && ch <= '9') {

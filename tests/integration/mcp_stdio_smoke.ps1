@@ -1,5 +1,16 @@
 $ErrorActionPreference = 'Stop'
 
+# Surface the real failure message as a GitHub Actions annotation so CI
+# summaries (and the check-run annotations API) carry the actual error text
+# instead of only 'Process completed with exit code 1'.
+trap {
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+        $ciMessage = ($_.Exception.Message -replace "`r?`n", ' | ')
+        Write-Host "::error::$ciMessage"
+    }
+    throw $_
+}
+
 . "$PSScriptRoot\..\TestHelpers.ps1"
 
 function Get-McpErrorText {

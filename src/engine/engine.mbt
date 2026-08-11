@@ -216,7 +216,7 @@ fn option_extension(name : String?) -> String? {
 
 ///|
 fn file_name(path : String) -> String? {
-  let normalized = path.replace(old="\\", new="/")
+  let normalized = path.replace_all(old="\\", new="/")
   match find_last_char(normalized, '/') {
     Some(index) =>
       if index + 1 < normalized.length() {
@@ -230,7 +230,7 @@ fn file_name(path : String) -> String? {
 
 ///|
 fn file_extension(path : String) -> String? {
-  let normalized = path.replace(old="\\", new="/")
+  let normalized = path.replace_all(old="\\", new="/")
   let basename = match find_last_char(normalized, '/') {
     Some(index) => normalized[index + 1:].to_owned()
     None => normalized
@@ -683,7 +683,7 @@ fn find_substring(text : String, needle : String, start : Int) -> Int? {
 
 ///|
 fn normalize_asset_path(path : String) -> String {
-  path.replace(old="\\", new="/")
+  path.replace_all(old="\\", new="/")
 }
 
 ///|

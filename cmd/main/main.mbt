@@ -401,7 +401,7 @@ fn validate_output_path(
 
 ///|
 fn normalize_cli_path(path : String) -> String {
-  path.replace(old="\\", new="/").trim().to_lower().to_owned()
+  path.replace_all(old="\\", new="/").trim().to_lower().to_owned()
 }
 
 ///|

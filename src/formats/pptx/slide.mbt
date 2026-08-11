@@ -1283,5 +1283,5 @@ fn strip_leading_slashes(path : String) -> String {
 
 ///|
 fn normalize_pptx_entry(path : String) -> String {
-  path.replace(old="\\", new="/")
+  path.replace_all(old="\\", new="/")
 }

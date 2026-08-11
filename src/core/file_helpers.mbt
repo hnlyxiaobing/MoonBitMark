@@ -40,7 +40,10 @@ pub fn strip_utf8_bom(text : String) -> String {
 
 ///|
 pub fn normalize_path(path : String) -> String {
-  path.replace(old="\\", new="/")
+  // NOTE: `String::replace` only replaces the first occurrence, which left
+  // Windows paths with two or more backslashes half-normalized (mixed
+  // separators) and broke prefix-based boundary checks. Use `replace_all`.
+  path.replace_all(old="\\", new="/")
 }
 
 ///|

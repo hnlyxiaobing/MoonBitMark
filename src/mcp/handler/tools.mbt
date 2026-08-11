@@ -3395,7 +3395,15 @@ fn resolve_process_path(path : String) -> String {
   if is_absolute_process_path(normalized) {
     normalized
   } else {
-    canonicalize_process_path(current_working_dir_or_dot() + "/" + normalized)
+    let base = current_working_dir_or_dot()
+    let resolved = canonicalize_process_path(base + "/" + normalized)
+    // Guard against degenerate resolution collapsing to an empty string,
+    // mirroring resolve_file_path in security.mbt.
+    if resolved == "" {
+      base
+    } else {
+      resolved
+    }
   }
 }
 
@@ -3548,7 +3556,7 @@ async fn write_bytes_to_file(path : String, bytes : Bytes) -> Unit {
 ///|
 fn sanitize_temp_stem(name : String) -> String {
   let mut result = ""
-  for ch in name.replace(old="\\", new="/") {
+  for ch in name.replace_all(old="\\", new="/") {
     if (ch >= 'a' && ch <= 'z') ||
       (ch >= 'A' && ch <= 'Z') ||
       (ch >= '0' && ch <= '9') ||

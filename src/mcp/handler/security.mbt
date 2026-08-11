@@ -64,7 +64,16 @@ pub fn enforce_mcp_input_boundary(
     if path_within_allowed_roots(resolved, config.allowed_roots) {
       Ok(resolved)
     } else {
-      Err("File input is outside MOONBITMARK_MCP_ALLOWED_ROOTS: " + resolved)
+      Err(
+        "File input is outside MOONBITMARK_MCP_ALLOWED_ROOTS: input=" +
+        input +
+        " resolved=" +
+        resolved +
+        " allowed_roots=[" +
+        config.allowed_roots.join(";") +
+        "] cwd=" +
+        current_dir_or_dot(),
+      )
     }
   }
 }
@@ -107,7 +116,10 @@ fn parse_allowed_roots_env() -> Result[Array[String], String] {
       let roots : Array[String] = []
       for segment in split_root_segments(raw) {
         if segment.trim() != "" {
-          roots.push(resolve_file_path(segment.trim().to_owned()))
+          let resolved = resolve_file_path(segment.trim().to_owned())
+          if resolved != "" {
+            roots.push(resolved)
+          }
         }
       }
       if roots.length() == 0 {
@@ -117,7 +129,16 @@ fn parse_allowed_roots_env() -> Result[Array[String], String] {
       }
       Ok(roots)
     }
-    _ => Ok([resolve_file_path(current_dir_or_dot())])
+    _ => {
+      let root = resolve_file_path(current_dir_or_dot())
+      if root == "" {
+        Err(
+          "Unable to determine the current directory for the default MOONBITMARK_MCP_ALLOWED_ROOTS.",
+        )
+      } else {
+        Ok([root])
+      }
+    }
   }
 }
 
@@ -213,9 +234,18 @@ fn resolve_file_path(path : String) -> String {
   if is_absolute_path(normalized) {
     normalized
   } else {
-    canonicalize_path(
-      @core.normalize_path(current_dir_or_dot()) + "/" + normalized,
-    )
+    let base = @core.normalize_path(current_dir_or_dot())
+    let resolved = canonicalize_path(base + "/" + normalized)
+    // Guard against degenerate resolution: when the current directory is
+    // unavailable, both base and path can collapse to empty segments and
+    // produce an empty string, which would make every boundary check fail
+    // with an unhelpful blank message. Fall back to the base so downstream
+    // checks always have a meaningful path to compare and report.
+    if resolved == "" {
+      base
+    } else {
+      resolved
+    }
   }
 }
 
