@@ -60,21 +60,35 @@ moon info && moon fmt
 
 ```
 src/
-├── core/           # Core types (ConvertResult, StreamInfo, DocumentConverter trait)
-│   ├── types.mbt   # Type definitions
-│   └── engine.mbt  # MarkItDown engine
-├── libzip/         # Pure MoonBit ZIP library (Store + Deflate)
-├── xml/            # Pure MoonBit XML parser (SAX-style)
-└── formats/        # Format converters (one subdirectory per format)
-    ├── text/       # Plain text (.txt)
-    ├── csv/        # CSV → Markdown tables
-    ├── json/       # JSON → code blocks
-    ├── pdf/        # PDF via mbtpdf library
-    ├── html/       # HTML + URL fetching
-    ├── docx/       # DOCX via Pure MoonBit (libzip + xml)
-    └── pptx/       # PPTX via Pure MoonBit (libzip + xml) - IN DEVELOPMENT
-```
+├── ast/              # Unified AST and Markdown rendering
+├── capabilities/     # Cross-cutting capabilities (currently includes OCR)
+├── core/             # Result types, diagnostics, shared helpers
+│   └── types.mbt     # Type definitions
+├── engine/           # Format detection and unified dispatch
+│   └── engine.mbt    # MarkItDown engine
+├── formats/          # Format converters (one subdirectory per format)
+│   ├── text/         # Plain text (.txt)
+│   ├── csv/          # CSV → Markdown tables
+│   ├── json/         # JSON → code blocks
+│   ├── pdf/          # PDF via mbtpdf library
+│   ├── html/         # HTML + URL fetching
+│   ├── image/        # Image OCR support
+│   ├── docx/         # DOCX via Pure MoonBit (libzip + xml)
+│   ├── pptx/         # PPTX via Pure MoonBit (libzip + xml)
+│   ├── xlsx/         # XLSX via Pure MoonBit (libzip + xml)
+│   └── epub/         # EPUB via Pure MoonBit (libzip + xml)
+├── libzip/           # Pure MoonBit ZIP library (Store + Deflate)
+├── mcp/              # MCP protocol, handler and transport
+├── normalize/        # Shared structural normalization passes
+├── semantic/         # Section tree, role, provenance derivation
+└── xml/              # Pure MoonBit XML parser (SAX-style)
 
+cmd/
+├── main/             # CLI entry point
+├── demo/             # Minimal example
+├── mcp-server/       # MCP STDIO entry point
+└── mcp-http-server/  # MCP HTTP entry point
+```
 **Conversion flow:** CLI → detect format by extension → select converter → read/convert → output Markdown
 
 ### Adding a New Converter
