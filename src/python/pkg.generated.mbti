@@ -1,0 +1,56 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitlang/moonbitmark/src/python"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn bridge_script_diagnostic(BridgeScriptResolution) -> String
+
+pub fn compare_version(PyVersion, PyVersion) -> Int
+
+pub fn exe_probe_candidates(String, String, Int) -> Array[String]
+
+pub fn is_pyenv_shim_dir(Array[String]) -> Bool
+
+pub fn is_supported_version(PyVersion) -> Bool
+
+pub fn parent_dir(String) -> String?
+
+pub fn parse_version(String) -> PyVersion?
+
+pub fn python_not_found_diagnostic() -> String
+
+pub async fn resolve_bridge_script(String, String) -> BridgeScriptResolution
+
+pub async fn resolve_python() -> (String, Array[String])?
+
+pub fn sort_by_version_desc(Array[(String, PyVersion)]) -> Array[String]
+
+pub fn split_search_path(String) -> Array[String]
+
+// Errors
+
+// Types and methods
+pub(all) enum BridgeScriptResolution {
+  Found(path~ : String, source~ : BridgeScriptSource)
+  EnvOverrideMissing(path~ : String, env_var~ : String)
+  NotFound(relative_path~ : String, env_var~ : String)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum BridgeScriptSource {
+  EnvOverride
+  ExeLocation
+  WorkingDirectory
+} derive(Eq, @debug.Debug)
+
+pub struct PyVersion {
+  major : Int
+  minor : Int
+  patch : Int
+}
+
+// Type aliases
+
+// Traits

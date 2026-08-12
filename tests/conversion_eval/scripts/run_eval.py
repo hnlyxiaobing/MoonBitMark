@@ -1097,6 +1097,65 @@ def parse_markdown_tables(markdown: str) -> list[dict[str, Any]]:
     return tables
 
 
+def normalize_table(table: dict[str, Any]) -> dict[str, Any] | None:
+    """Drop fully-empty rows and fully-empty columns until a fixed point.
+
+    Layout-only padding (leading/trailing blank rows or columns) is an
+    artifact of how a producer wrote the sheet, not content; removing it lets
+    region-split tables and sheet-wide tables compare on semantics. Tables
+    without any empty row/column pass through unchanged (identity transform).
+    Returns None when the table collapses to nothing (caller removes it).
+    """
+    header = list(table["header"])
+    rows = [list(row) for row in table["rows"]]
+
+    def is_blank(cell: str) -> bool:
+        return cell.strip() == ""
+
+    while True:
+        height = 1 + len(rows)
+        width = len(header)
+        if height == 0 or width == 0:
+            return None
+
+        def row_is_empty(row: list[str]) -> bool:
+            padded = row + [""] * (width - len(row))
+            return all(is_blank(cell) for cell in padded[:width])
+
+        keep_rows = [not row_is_empty(header)] + [not row_is_empty(row) for row in rows]
+        keep_cols = []
+        for col in range(width):
+            cells = [header[col]] + [row[col] if col < len(row) else "" for row in rows]
+            keep_cols.append(not all(is_blank(cell) for cell in cells))
+        if all(keep_rows) and all(keep_cols):
+            break
+
+        def drop_cols(row: list[str]) -> list[str]:
+            padded = row + [""] * (width - len(row))
+            return [cell for col, cell in enumerate(padded[:width]) if keep_cols[col]]
+
+        new_header = drop_cols(header)
+        new_rows = [drop_cols(row) for row, keep in zip(rows, keep_rows[1:]) if keep]
+        if not keep_rows[0]:
+            # Header row was empty: promote the first surviving body row so the
+            # table keeps a header, mirroring how parsers treat table shape.
+            if new_rows:
+                new_header = new_rows.pop(0)
+            else:
+                return None
+        header, rows = new_header, new_rows
+    return {"header": header, "rows": rows}
+
+
+def normalize_tables(tables: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for table in tables:
+        result = normalize_table(table)
+        if result is not None:
+            normalized.append(result)
+    return normalized
+
+
 def markdown_structure(markdown: str) -> dict[str, Any]:
     text = normalize_markdown(markdown)
     lines = text.split("\n") if text else []
@@ -1319,13 +1378,125 @@ def table_pair_score(left_table: dict[str, Any], right_table: dict[str, Any]) ->
     return 0.35 * header_score + 0.25 * shape_score + 0.4 * cell_score
 
 
+def table_content_counts(table: dict[str, Any]) -> dict[str, int]:
+    """Token multiset over header + body cells, used for group attachment."""
+    text = " ".join(table["header"]) + " " + " ".join(
+        " ".join(row) for row in table["rows"]
+    )
+    return token_counts(text)
+
+
+# Minimum containment (share of a small table's tokens present in the big
+# table) for attaching a table to an existing pair group. Below this the
+# table is treated as genuinely unmatched (scores 0). Calibrated on
+# xlsx_test_01: true sub-tables reach containment 1.0 against their sheet
+# table, unrelated tables fall under 0.5.
+GROUP_CONTAINMENT_THRESHOLD = 0.5
+
+
+def grouped_table_score(members: list[dict[str, Any]], big_table: dict[str, Any]) -> float:
+    """Score a group of small tables jointly matching one bigger table.
+
+    Aggregates header tokens, shape (summed columns/rows), and cell tokens
+    across members, then applies the same 0.35/0.25/0.4 weights as
+    table_pair_score. A single-member group reduces exactly to
+    table_pair_score(member, big_table).
+    """
+    header_score = token_f1(
+        " ".join(" ".join(member["header"]) for member in members),
+        " ".join(big_table["header"]),
+    )
+    shape_score = (
+        ratio_by_distance(
+            sum(len(member["header"]) for member in members), len(big_table["header"])
+        )
+        + ratio_by_distance(
+            sum(len(member["rows"]) for member in members), len(big_table["rows"])
+        )
+    ) / 2
+    member_cells = " ".join(
+        " ".join(" ".join(row) for row in member["rows"]) for member in members
+    )
+    big_cells = " ".join(" ".join(row) for row in big_table["rows"])
+    cell_score = token_f1(member_cells, big_cells)
+    return 0.35 * header_score + 0.25 * shape_score + 0.4 * cell_score
+
+
+def many_to_one_table_similarity(
+    left_tables: list[dict[str, Any]], right_tables: list[dict[str, Any]]
+) -> float:
+    """Pair tables when one side has more tables than the other.
+
+    A converter may split one sheet-wide table into several compact
+    sub-tables (or vice versa), so strict 1:1 pairing would score correct
+    sub-tables as 0. Strategy: anchor each table on the smaller side to its
+    best-scoring distinct table on the larger side (greedy, highest
+    table_pair_score first), then attach each leftover larger-side table to
+    the group whose big table contains the highest share of its tokens
+    (containment >= GROUP_CONTAINMENT_THRESHOLD). Leftovers under the
+    threshold count as unmatched zeros. The divisor is the number of pair
+    groups plus unmatched tables, so a correctly split table is not
+    penalized for the split itself. The grouping is direction-symmetric:
+    whichever side has more tables is the one that gets grouped.
+    """
+    if len(left_tables) >= len(right_tables):
+        many, one = left_tables, right_tables
+    else:
+        many, one = right_tables, left_tables
+    # Anchor phase: greedy global best-match, one anchor per smaller-side
+    # table, each larger-side table anchoring at most one group.
+    candidates: list[tuple[float, int, int]] = []
+    for one_index, one_table in enumerate(one):
+        for many_index, many_table in enumerate(many):
+            candidates.append(
+                (table_pair_score(many_table, one_table), one_index, many_index)
+            )
+    candidates.sort(reverse=True)
+    groups: list[list[dict[str, Any]]] = [[] for _ in one]
+    anchored_many: set[int] = set()
+    anchored_one: set[int] = set()
+    for score, one_index, many_index in candidates:
+        if one_index in anchored_one or many_index in anchored_many:
+            continue
+        anchored_one.add(one_index)
+        anchored_many.add(many_index)
+        groups[one_index].append(many[many_index])
+    # Attachment phase: route each leftover to the group that contains the
+    # largest share of its tokens.
+    one_counts = [table_content_counts(one_table) for one_table in one]
+    unmatched = 0
+    for many_index, many_table in enumerate(many):
+        if many_index in anchored_many:
+            continue
+        many_counts = table_content_counts(many_table)
+        best_index = -1
+        best_containment = 0.0
+        for one_index, counts in enumerate(one_counts):
+            overlap = count_overlap(many_counts, counts)
+            containment = overlap / max(sum(many_counts.values()), 1)
+            if containment > best_containment:
+                best_containment = containment
+                best_index = one_index
+        if best_containment >= GROUP_CONTAINMENT_THRESHOLD:
+            groups[best_index].append(many_table)
+        else:
+            unmatched += 1
+    total = 0.0
+    for one_index, one_table in enumerate(one):
+        if groups[one_index]:
+            total += grouped_table_score(groups[one_index], one_table)
+    return total / (len(one) + unmatched)
+
+
 def table_similarity(left_markdown: str, right_markdown: str) -> float:
-    left_tables = parse_markdown_tables(left_markdown)
-    right_tables = parse_markdown_tables(right_markdown)
+    left_tables = normalize_tables(parse_markdown_tables(left_markdown))
+    right_tables = normalize_tables(parse_markdown_tables(right_markdown))
     if not left_tables and not right_tables:
         return 1.0
     if not left_tables or not right_tables:
         return 0.0
+    if len(left_tables) != len(right_tables):
+        return many_to_one_table_similarity(left_tables, right_tables)
     # Greedy best-match pairing, normalized by the larger table count. The old
     # positional pairing divided only by the number of output tables, so an
     # output that silently dropped a whole table was not penalized.
@@ -1349,8 +1520,8 @@ def table_similarity(left_markdown: str, right_markdown: str) -> float:
 
 
 def table_shape_score(left_markdown: str, right_markdown: str) -> float:
-    left_tables = parse_markdown_tables(left_markdown)
-    right_tables = parse_markdown_tables(right_markdown)
+    left_tables = normalize_tables(parse_markdown_tables(left_markdown))
+    right_tables = normalize_tables(parse_markdown_tables(right_markdown))
     if not left_tables and not right_tables:
         return 1.0
     if not left_tables or not right_tables:

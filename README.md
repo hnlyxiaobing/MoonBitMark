@@ -101,6 +101,7 @@ src/
 ├── libzip/           纯 MoonBit ZIP / Deflate
 ├── mcp/              MCP 协议、handler 与传输
 ├── normalize/        共享结构归一化 passes
+├── python/           Python 解释器解析与 bridge 脚本定位
 ├── semantic/         Section tree / role / provenance 派生层
 └── xml/              纯 MoonBit XML parser
 
@@ -161,10 +162,10 @@ powershell -ExecutionPolicy Bypass -File tests/ocr/pdf_ocr_force_smoke.ps1
 
 - CLI 是当前主公共入口。
 - DOCX、PPTX、XLSX、EPUB 的容器解析依赖仓库内的 `libzip + xml`。
-- OCR 是可选能力，依赖 `python scripts/ocr/bridge.py` 和可用 backend。
-- PDF 主路径使用 MoonBit 包 `bobzhang/mbtpdf`，必要时可按页触发 OCR fallback，并把恢复页信息写回 metadata / diagnostics / eval；当前已补到页级恢复、linewise normalization 和一类常见 OCR 空格分列表格重建。
+- OCR 是可选能力，依赖 `scripts/ocr/bridge.py` 和可用 backend；Python 解释器经 `src/python/` 的 resolver 显式解析（可用 `MOONBITMARK_PYTHON` 覆盖）。
+- PDF 主路径使用 MoonBit 包 `bobzhang/mbtpdf`（词距感知抽取），必要时可按页触发 OCR fallback，并把恢复页信息写回 metadata / diagnostics / eval；当前已补到页级恢复、linewise normalization 和一类常见 OCR 空格分列表格重建。
 - MCP 仍是实验性接口，默认以本地 STDIO 或 loopback HTTP 使用为前提。
-- Windows native release 构建依赖 MSVC。
+- Windows native release 构建依赖 MSVC；`scripts/build.bat` 自动探测 vcvars64（可用 `MOONBITMARK_VCVARS64` 覆盖）。
 
 ## 文档
 

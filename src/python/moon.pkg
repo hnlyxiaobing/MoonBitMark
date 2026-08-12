@@ -1,0 +1,17 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/process",
+  "moonbitlang/core/env",
+}
+
+warnings = "-29"
+
+options(
+  targets: {
+    "bridge_script_native.mbt": [ "native" ],
+    "bridge_script_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+    "resolver_native.mbt": [ "native" ],
+    "resolver_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+  },
+)

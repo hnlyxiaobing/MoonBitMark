@@ -26,7 +26,7 @@
     "text_order": false
   },
   "thresholds": {
-    "golden_markdown": 0.25
+    "golden_markdown": 0.79
   },
   "weights": {
     "anchors": 0.25,
@@ -34,5 +34,5 @@
     "length": 0.15,
     "markdown_similarity": 0.5
   },
-  "notes": "Known issue (docs/KNOWN_ISSUES.md): on this 31MB media-rich EPUB the converter output stops early relative to the OPF spine (content recall 0.16 vs the auto-built reference), while all curated anchors pass. Threshold pins the current floor (markdown_similarity 0.288 observed); raise it when full-spine traversal lands."
+  "notes": "Fixed 2026-08-12: XML tokenizer now skips DOCTYPE and parses CDATA, so spine XHTML parses via the XML path instead of falling back to whole-document HTML text. Observed after fix: markdown_similarity 0.8861, content_recall 0.8973 (was 0.2881 / 0.1574). Threshold set to ~90% of the observed value."
 }

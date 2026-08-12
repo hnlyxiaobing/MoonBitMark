@@ -220,3 +220,80 @@ test "parse actual presentation.xml excerpt" {
       }
   }
 }
+
+///|
+test "skip DOCTYPE declaration" {
+  let xml = "<!DOCTYPE html><html><body>text</body></html>"
+  match parse_xml(xml) {
+    Ok(events) =>
+      // <html> + <body> + text + </body> + </html> = 5 events
+      assert_eq(events.length(), 5)
+    Err(e) =>
+      match e {
+        SyntaxError(line, msg) => fail("SyntaxError at line \{line}: \{msg}")
+        UnclosedTag(tag) => fail("UnclosedTag: \{tag}")
+        MismatchedTag(expected, actual) =>
+          fail("MismatchedTag: expected \{expected}, got \{actual}")
+        InvalidAttributeFormat(msg) => fail("InvalidAttributeFormat: \{msg}")
+        InvalidEntity(entity) => fail("InvalidEntity: \{entity}")
+        IOError(msg) => fail("IOError: \{msg}")
+      }
+  }
+}
+
+///|
+test "skip DOCTYPE with internal subset containing '>'" {
+  // 内部子集中的 `>` 不得截断 DOCTYPE
+  let xml = "<!DOCTYPE r [ <!ENTITY x \"a>b\"> ]><r>ok</r>"
+  match parse_xml(xml) {
+    Ok(events) =>
+      // <r> + text + </r> = 3 events
+      assert_eq(events.length(), 3)
+    Err(e) =>
+      match e {
+        SyntaxError(line, msg) => fail("SyntaxError at line \{line}: \{msg}")
+        UnclosedTag(tag) => fail("UnclosedTag: \{tag}")
+        MismatchedTag(expected, actual) =>
+          fail("MismatchedTag: expected \{expected}, got \{actual}")
+        InvalidAttributeFormat(msg) => fail("InvalidAttributeFormat: \{msg}")
+        InvalidEntity(entity) => fail("InvalidEntity: \{entity}")
+        IOError(msg) => fail("IOError: \{msg}")
+      }
+  }
+}
+
+///|
+test "parse CDATA section as text" {
+  let xml = "<root><![CDATA[a < b]]></root>"
+  match parse_xml(xml) {
+    Ok(events) => {
+      // <root> + text + </root> = 3 events
+      assert_eq(events.length(), 3)
+      match events[1] {
+        TextContent(event) => assert_eq(event.content, "a < b")
+        _ => fail("expected TextContent event")
+      }
+    }
+    Err(e) =>
+      match e {
+        SyntaxError(line, msg) => fail("SyntaxError at line \{line}: \{msg}")
+        UnclosedTag(tag) => fail("UnclosedTag: \{tag}")
+        MismatchedTag(expected, actual) =>
+          fail("MismatchedTag: expected \{expected}, got \{actual}")
+        InvalidAttributeFormat(msg) => fail("InvalidAttributeFormat: \{msg}")
+        InvalidEntity(entity) => fail("InvalidEntity: \{entity}")
+        IOError(msg) => fail("IOError: \{msg}")
+      }
+  }
+}
+
+///|
+test "error on invalid markup declaration" {
+  let xml = "<root><!foo bar></root>"
+  match parse_xml(xml) {
+    Ok(_) => fail("should have failed")
+    Err(_) =>
+      // 预期错误
+      assert_true(true)
+  }
+}

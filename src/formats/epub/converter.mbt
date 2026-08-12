@@ -54,7 +54,7 @@ pub async fn EpubConverter::convert(
                     match @libzip.read_file_entry_decompressed(zip, full_path) {
                       Some(content) => {
                         let spine_blocks = parse_xhtml_blocks(
-                          content, full_path,
+                          content, full_path, warnings,
                         )
                         let chapter = epub_chapter_hint(spine_blocks)
                         for block in spine_blocks {
@@ -406,7 +406,11 @@ fn epub_block_annotation(
 }
 
 ///|
-fn parse_xhtml_blocks(data : Bytes, archive_path : String) -> Array[@ast.Block] {
+fn parse_xhtml_blocks(
+  data : Bytes,
+  archive_path : String,
+  warnings : Array[String],
+) -> Array[@ast.Block] {
   let xml_string = @utf8.decode(data) catch {
     _ => {
       let mut result = ""
@@ -427,9 +431,13 @@ fn parse_xhtml_blocks(data : Bytes, archive_path : String) -> Array[@ast.Block] 
   if xml_blocks.length() > 0 {
     return finalize_epub_blocks(xml_blocks)
   }
-  finalize_epub_blocks(
+  let html_blocks = finalize_epub_blocks(
     normalize_epub_html_blocks(@html.html_to_blocks(xml_string)),
   )
+  if html_blocks.length() == 0 {
+    warnings.push("No content blocks parsed from spine item: " + archive_path)
+  }
+  html_blocks
 }
 
 ///|

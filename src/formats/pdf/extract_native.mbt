@@ -1,21 +1,12 @@
 ///|
-/// Sentinel used to split mbtpdf's joined per-page text back into pages.
-/// Uses an ASCII record-separator control character that cannot appear in
-/// extracted PDF text.
-let pdf_page_break_sentinel : String = "\u{1e}"
-
-///|
 async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
   let pdf = @pdfreadfs.PdfReadFs::new().pdf_of_file(None, None, file_path)
   if @pdfcrypt.PdfCrypt::new().is_encrypted(pdf) {
     fail("PDF file is encrypted and cannot be processed.")
   }
 
-  let native_pages = @pdftextlib.PdfText::new(pdf)
-    .extract_text(page_break=pdf_page_break_sentinel)
-    .split(pdf_page_break_sentinel)
-    .to_array()
-    .map(page => page.to_owned())
+  let extraction_warnings : Array[String] = []
+  let native_pages = extract_spacing_pages(pdf, extraction_warnings)
   let actual_page_count = @pdfpage.PdfPageDoc::new(pdf).pages_of_pagetree_quick()
   let native_route = plan_pdf_route(native_pages)
   let bridge = if should_attempt_pdf_bridge(
@@ -79,7 +70,7 @@ async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
     } else {
       Some("mbtpdf")
     },
-    warnings: bridge.warnings,
+    warnings: [..bridge.warnings, ..extraction_warnings],
     used_text_fallback: use_bridge,
   }
 }

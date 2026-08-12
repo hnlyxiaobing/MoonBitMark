@@ -18,7 +18,7 @@
     "text_order": false
   },
   "thresholds": {
-    "table_compare": 0.4
+    "table_compare": 0.77
   },
   "weights": {
     "anchors": 0.2,
@@ -27,5 +27,5 @@
     "ast_similarity": 0.15,
     "table_similarity": 0.25
   },
-  "notes": "The converter compacts offset sub-tables inside a sheet while the reference builder pads them to absolute column positions, so table shapes diverge even though cell content matches exactly (content precision/recall = 1.0). Threshold pins the current floor (table_similarity 0.44 observed); raise it when builder and converter agree on sub-table layout semantics."
+  "notes": "The converter splits offset sub-tables into compact region tables while the reference builder emits one sheet-wide table with absolute column padding. The eval harness normalizes fully-empty rows/columns on both sides (normalize_table) and uses containment-based many-to-one pairing (run_eval.py many_to_one_table_similarity), so the metric compares cell semantics rather than layout representation. table_similarity measured 0.8531 after the <row r=\"N\"> fix; threshold set to ~90% of that."
 }

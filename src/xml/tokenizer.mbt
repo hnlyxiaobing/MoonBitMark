@@ -28,6 +28,13 @@ priv struct TextParseResult {
 }
 
 ///|
+/// DOCTYPE 跳过结果（新位置、新行号）
+priv struct DoctypeSkipResult {
+  pos : Int
+  line : Int
+}
+
+///|
 /// XML 分词器实现
 fn tokenize(xml : String) -> Result[Array[Token], XMLParseError] {
   try {
@@ -59,31 +66,39 @@ fn tokenize(xml : String) -> Result[Array[Token], XMLParseError] {
           let next = xml[pos + 1]
           match next {
             '!' =>
-              // 可能是注释或 CDATA
+              // 可能是注释、CDATA 或 DOCTYPE
               if pos + 3 < len && xml[pos + 2] == '-' && xml[pos + 3] == '-' {
                 // 注释 <!--
                 let result = parse_comment(xml, pos + 4, line)
                 tokens.push(result.token)
                 pos = result.pos
                 line = result.line
-              } else if pos + 9 < len {
+              } else if pos + 8 < len &&
                 // 检查 CDATA: 逐个字符比较 ![CDATA[
-                let is_cdata = xml[pos + 2] == '!' &&
-                  xml[pos + 3] == '[' &&
-                  xml[pos + 4] == 'C' &&
-                  xml[pos + 5] == 'D' &&
-                  xml[pos + 6] == 'A' &&
-                  xml[pos + 7] == 'T' &&
-                  xml[pos + 8] == 'A' &&
-                  xml[pos + 9] == '['
-                if is_cdata {
-                  let result = parse_cdata(xml, pos + 10, line)
-                  tokens.push(result.token)
-                  pos = result.pos
-                  line = result.line
-                } else {
-                  raise SyntaxError(line, "Invalid markup declaration")
-                }
+                xml[pos + 2] == '[' &&
+                xml[pos + 3] == 'C' &&
+                xml[pos + 4] == 'D' &&
+                xml[pos + 5] == 'A' &&
+                xml[pos + 6] == 'T' &&
+                xml[pos + 7] == 'A' &&
+                xml[pos + 8] == '[' {
+                let result = parse_cdata(xml, pos + 9, line)
+                tokens.push(result.token)
+                pos = result.pos
+                line = result.line
+              } else if pos + 8 < len &&
+                // 检查 DOCTYPE: 逐个字符比较 !DOCTYPE
+                xml[pos + 2] == 'D' &&
+                xml[pos + 3] == 'O' &&
+                xml[pos + 4] == 'C' &&
+                xml[pos + 5] == 'T' &&
+                xml[pos + 6] == 'Y' &&
+                xml[pos + 7] == 'P' &&
+                xml[pos + 8] == 'E' {
+                // 跳过 DOCTYPE 声明，不产生 token
+                let result = skip_doctype(xml, pos + 9, line)
+                pos = result.pos
+                line = result.line
               } else {
                 raise SyntaxError(line, "Invalid markup declaration")
               }
@@ -167,6 +182,39 @@ fn parse_cdata(xml : String, start : Int, line : Int) -> ParseResult raise {
   }
 
   raise SyntaxError(line, "Unclosed CDATA section")
+}
+
+///|
+/// 跳过 DOCTYPE 声明
+/// 扫描到 `>` 为止；若先遇到 `[`（内部子集），先跳过到匹配的 `]` 之后再找 `>`，
+/// 避免子集内含 `>` 时截断
+fn skip_doctype(
+  xml : String,
+  start : Int,
+  line : Int,
+) -> DoctypeSkipResult raise {
+  let mut pos = start
+  let mut current_line = line
+  let mut in_subset = false
+
+  while pos < xml.length() {
+    let ch = xml[pos]
+    if ch == '\n' {
+      current_line = current_line + 1
+    }
+    if in_subset {
+      if ch == ']' {
+        in_subset = false
+      }
+    } else if ch == '[' {
+      in_subset = true
+    } else if ch == '>' {
+      return { pos: pos + 1, line: current_line }
+    }
+    pos = pos + 1
+  }
+
+  raise SyntaxError(line, "Unclosed DOCTYPE declaration")
 }
 
 ///|

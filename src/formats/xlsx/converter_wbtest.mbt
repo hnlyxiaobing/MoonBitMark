@@ -102,3 +102,67 @@ test "xlsx sheet regions split sparse tables and promote a title row" {
 test "xlsx formula falls back when cached value is missing" {
   inspect(get_cell_value("", "", "SUM(A1:A3)", []), content="=SUM(A1:A3)")
 }
+
+///|
+fn sheet_events(xml : String) -> Array[@xml.ParseEvent] {
+  match @xml.parse_xml(xml) {
+    Ok(events) => events
+    Err(_) => abort("failed to parse fixture worksheet XML")
+  }
+}
+
+///|
+test "xlsx row numbers pad skipped rows with empty rows" {
+  let data = extract_sheet_data(
+    sheet_events(
+      "<sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>top</t></is></c></row><row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>bottom</t></is></c></row></sheetData>",
+    ),
+    [],
+  )
+  inspect(data.rows.length(), content="4")
+  debug_inspect(
+    data.rows,
+    content=(
+      #|[["top"], [], [], ["bottom"]]
+    ),
+  )
+}
+
+///|
+test "xlsx rows without r attribute fall back to sequential placement" {
+  let data = extract_sheet_data(
+    sheet_events(
+      "<sheetData><row><c r=\"A1\" t=\"inlineStr\"><is><t>a</t></is></c></row><row><c r=\"B2\" t=\"inlineStr\"><is><t>b</t></is></c></row></sheetData>",
+    ),
+    [],
+  )
+  inspect(data.rows.length(), content="2")
+  debug_inspect(
+    data.rows,
+    content=(
+      #|[["a"], ["", "b"]]
+    ),
+  )
+}
+
+///|
+test "xlsx region splitting is insensitive to omitted empty row elements" {
+  let with_empty_rows = extract_sheet_data(
+    sheet_events(
+      "<sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>one</t></is></c></row><row r=\"2\"/><row r=\"3\"/><row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>two</t></is></c></row></sheetData>",
+    ),
+    [],
+  )
+  let without_empty_rows = extract_sheet_data(
+    sheet_events(
+      "<sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>one</t></is></c></row><row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>two</t></is></c></row></sheetData>",
+    ),
+    [],
+  )
+  let regions_with = detect_sheet_regions(normalize_sheet_rows(with_empty_rows))
+  let regions_without = detect_sheet_regions(
+    normalize_sheet_rows(without_empty_rows),
+  )
+  inspect(regions_with.length(), content="2")
+  inspect(regions_without.length(), content="2")
+}

@@ -25,5 +25,5 @@
     "length": 0.25,
     "text_order": 0.2
   },
-  "notes": "Known issue (docs/KNOWN_ISSUES.md): native mbtpdf extraction loses inter-word spacing on this producer ('broken_spacing' route flag), so spaced anchors like 'function add' are partially missing and anchor ordering is unmeasurable. Thresholds pin the current floor (anchors 0.75, length 0.81 observed); text_order re-enables when spacing is fixed."
+  "notes": "2026-08-12: word spacing is now materialized from TJ displacements and Td horizontal moves in the native extractor (src/formats/pdf/extract_spacing_native.mbt, SPACE_RATIO 0.21), so spaced anchors like 'function add' are present and the 'broken_spacing' route flag no longer fires (route now flags code:1 only). Measured after the fix: anchors 0.75, length 0.82. text_order stays disabled for a different reason: the second page (the 'Formula' section) is dropped by mbtpdf's page-tree traversal — this file carries duplicate '7 0 obj' definitions and pages_of_pagetree returns 1 of 2 pages — which is a pre-existing upstream issue independent of spacing. With 'Formula' unreachable, text_order_score is 0.0; re-enable once page 2 is recovered."
 }

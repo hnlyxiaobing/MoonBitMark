@@ -474,6 +474,10 @@ fn extract_sheet_data(
   let mut in_inline_str = false
   let mut in_inline_t = false
   let mut current_row : Array[String] = []
+  // Absolute row index (0-based) of the row currently being accumulated.
+  // Taken from `<row r="N">` when present, otherwise the next sequential slot.
+  let mut current_row_index = 0
+  let mut next_row_index = 0
   let mut current_cell_ref = ""
   let mut current_cell_type = ""
   let mut current_content = ""
@@ -484,7 +488,17 @@ fn extract_sheet_data(
       @xml.ElementStart(evt) => {
         let name = strip_namespace(evt.name)
         match name {
-          "row" => current_row = []
+          "row" => {
+            current_row = []
+            current_row_index = match evt.attributes.get("r") {
+              Some(r) =>
+                match parse_int(r) {
+                  Some(n) if n > 0 => n - 1
+                  _ => next_row_index
+                }
+              None => next_row_index
+            }
+          }
           "c" => {
             in_cell = true
             current_cell_ref = match evt.attributes.get("r") {
@@ -509,9 +523,14 @@ fn extract_sheet_data(
         let name = strip_namespace(evt.name)
         match name {
           "row" => {
-            // Add row to data
-            data.rows.push(current_row)
+            // Place the row at its absolute index, padding skipped row
+            // numbers with empty rows so region detection sees the gaps.
+            while data.rows.length() <= current_row_index {
+              data.rows.push([])
+            }
+            data.rows[current_row_index] = current_row
             current_row = []
+            next_row_index = current_row_index + 1
           }
           "c" => {
             in_cell = false

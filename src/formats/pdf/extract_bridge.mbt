@@ -14,16 +14,58 @@ async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
   let temp_stem = "pdf-bridge-" + @async.now().to_string()
   let output_path = temp_dir + "/" + temp_stem + ".json"
   let stderr_path = temp_dir + "/" + temp_stem + ".stderr.txt"
+
+  // Resolve the bridge script: explicit env override -> probe upward from
+  // the executable -> CWD relative path. A missing script is reported as a
+  // warning, never raised.
+  let script_path = match
+    @python.resolve_bridge_script(
+      "scripts/pdf/bridge.py", "MOONBITMARK_PDF_BRIDGE",
+    ) {
+    Found(path~, ..) => path
+    resolution =>
+      return PdfBridgeResponse::{
+        available: false,
+        provider: None,
+        pages: [],
+        layout_json: None,
+        warnings: [
+          "PDF bridge unavailable: " +
+          @python.bridge_script_diagnostic(resolution),
+        ],
+      }
+  }
   let args : Array[String] = [
-    "scripts/pdf/bridge.py", "--input", file_path, "--output-json", output_path,
+    script_path, "--input", file_path, "--output-json", output_path,
   ]
+
+  // Resolve a real interpreter path: spawning bare "python" fails on Windows
+  // pyenv-win setups (async appends ".exe" and calls CreateProcessW directly,
+  // with no PATHEXT matching for shims).
+  let (program, prefix_args) = match @python.resolve_python() {
+    Some(resolved) => resolved
+    None =>
+      return PdfBridgeResponse::{
+        available: false,
+        provider: None,
+        pages: [],
+        layout_json: None,
+        warnings: [
+          "PDF bridge unavailable: " + @python.python_not_found_diagnostic(),
+        ],
+      }
+  }
+  let run_args = prefix_args.copy()
+  for arg in args {
+    run_args.push(arg)
+  }
 
   let exit_code_result : Result[Int, Error] = try {
     let stderr = @process.redirect_to_file(
       stderr_path,
       create_mode=@fs.CreateOrTruncate,
     )
-    Ok(@process.run("python", args, stderr~))
+    Ok(@process.run(program, run_args, stderr~))
   } catch {
     err => Err(err)
   }
@@ -90,7 +132,12 @@ async fn parse_pdf_bridge_response(
     err => Err(err)
   }
   match parsed_result {
-    Ok(response) => response
+    Ok(response) =>
+      PdfBridgeResponse::{
+        ..response,
+        provider: normalize_bridge_optional(response.provider),
+        layout_json: normalize_bridge_optional(response.layout_json),
+      }
     Err(err) =>
       PdfBridgeResponse::{
         available: false,
@@ -99,6 +146,16 @@ async fn parse_pdf_bridge_response(
         layout_json: None,
         warnings: ["PDF bridge returned invalid JSON: " + err.to_string()],
       }
+  }
+}
+
+///|
+/// Bridge 侧对可选字段以 "" 代替 null（见 e625524）；解码后统一归一为 None，
+/// 消除 Some("")/None 的语义漂移。
+fn normalize_bridge_optional(value : String?) -> String? {
+  match value {
+    Some("") => None
+    other => other
   }
 }
 

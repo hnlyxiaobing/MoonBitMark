@@ -114,6 +114,8 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 
 - PDF 管线拆分为 route、extract、normalize、structure、assemble 和 diagnostics。
 - 默认路径使用 `bobzhang/mbtpdf`。
+- 原生抽取使用项目内的词距感知抽取器（`src/formats/pdf/extract_spacing_native.mbt`），
+  将 TJ 位移与 Td 水平移动物化为词间空格。
 - 必要时可以走 Python bridge fallback。
 - OCR 只作为恢复路径介入，不是完整版面理解系统。
 - 当前已经支持页级 OCR fallback 决策链，并把恢复页号、原因和页决策摘要写回 metadata。
@@ -129,6 +131,14 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 | OCR | 可选 bridge | `python scripts/ocr/bridge.py`，backend 为 `mock`、`tesseract` 或 `auto` |
 | MCP STDIO / HTTP | 本地服务 | 无额外运行时，但受环境变量限制 |
 | Windows native release build | 原生构建 | MSVC |
+
+Bridge 相关的环境变量：
+
+- `MOONBITMARK_PYTHON`：显式指定 Python 解释器路径（最高优先级，跳过自动解析）。
+- `MOONBITMARK_OCR_BRIDGE` / `MOONBITMARK_PDF_BRIDGE`：显式指定 OCR / PDF bridge
+  脚本路径（默认按可执行文件位置向上探测，再退化到 CWD 相对路径）。
+- `MOONBITMARK_VCVARS64`：显式指定 vcvars64.bat 路径（`scripts/build.bat` 探测
+  MSVC 环境时最高优先级）。
 
 ## MCP 运行时边界
 

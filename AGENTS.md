@@ -80,6 +80,7 @@ src/
 ├── libzip/           # Pure MoonBit ZIP library (Store + Deflate)
 ├── mcp/              # MCP protocol, handler and transport
 ├── normalize/        # Shared structural normalization passes
+├── python/           # Python interpreter resolution + bridge script location
 ├── semantic/         # Section tree, role, provenance derivation
 └── xml/              # Pure MoonBit XML parser (SAX-style)
 
@@ -277,7 +278,7 @@ Bridge-backed capabilities are not pure MoonBit-only:
 - **PDF fallback extraction** may use `scripts/pdf/bridge.py`
 - **Windows native release builds** assume MSVC `cl.exe` as configured by `moonpkg.json`
 
-For the authoritative boundary list, see `docs/architecture/external_dependencies.md`.
+For the authoritative boundary list, see `docs/architecture.md`（外部依赖边界一节）.
 
 ### Features
 - ✅ ZIP structure parsing

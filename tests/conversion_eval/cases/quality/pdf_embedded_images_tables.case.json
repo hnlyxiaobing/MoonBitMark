@@ -14,11 +14,14 @@
     "golden_markdown": true,
     "ast_compare": true,
     "table_compare": false,
-    "text_order": false
+    "text_order": true
   },
   "thresholds": {
-    "anchors": 0.45,
-    "golden_markdown": 0.12
+    "anchors": 0.9,
+    "length": 0.7,
+    "golden_markdown": 0.62,
+    "ast_compare": 0.54,
+    "text_order": 0.6
   },
   "weights": {
     "anchors": 0.1,
@@ -29,5 +32,5 @@
     "table_similarity": 0.2,
     "text_order": 0.05
   },
-  "notes": "Known issue (docs/KNOWN_ISSUES.md): native mbtpdf extraction loses inter-word spacing on this producer ('broken_spacing' route flag) and the dense table is not recovered, so table_compare and text_order are unmeasurable today. Thresholds pin the current floor (anchors 0.5, markdown_similarity 0.146 observed); disabled checks re-enable when extraction improves."
+  "notes": "2026-08-12: word spacing is now materialized from TJ displacements and Td horizontal moves in the native extractor (src/formats/pdf/extract_spacing_native.mbt, SPACE_RATIO 0.21), fixing the 'broken_spacing' loss for this producer. Measured after the fix: anchors 1.0, markdown_similarity 0.6956, ast_similarity 0.6, text_order 0.667, length 0.8; thresholds pin ~90% of the measured values and text_order is re-enabled. table_compare stays disabled: table_similarity is 0.0 because the dense table is not recovered without layout coordinates. Remaining glue such as 'H2SO4follow' comes from OpTm-positioned text, which the extractor does not track yet."
 }

@@ -49,8 +49,29 @@ async fn run_bridge(
   let temp_stem = sanitize_file_stem(temp_name) + "-" + @async.now().to_string()
   let output_path = temp_dir + "/" + temp_stem + ".json"
   let stderr_path = temp_dir + "/" + temp_stem + ".stderr.txt"
+  // Resolve the bridge script: explicit env override -> probe upward from
+  // the executable -> CWD relative path. A missing script is reported as a
+  // warning, never raised.
+  let script_path = match
+    @python.resolve_bridge_script(
+      "scripts/ocr/bridge.py", "MOONBITMARK_OCR_BRIDGE",
+    ) {
+    Found(path~, ..) => path
+    resolution =>
+      return OcrResult::{
+        attempted: true,
+        available: false,
+        provider: None,
+        text: "",
+        layout_json: None,
+        warnings: [
+          "OCR bridge unavailable: " +
+          @python.bridge_script_diagnostic(resolution),
+        ],
+      }
+  }
   let args : Array[String] = [
-    "scripts/ocr/bridge.py",
+    script_path,
     "--input",
     input_path,
     "--output-json",
@@ -74,12 +95,34 @@ async fn run_bridge(
     args.push(page_numbers.map(n => n.to_string()).join(","))
   }
 
+  // Resolve a real interpreter path: spawning bare "python" fails on Windows
+  // pyenv-win setups (async appends ".exe" and calls CreateProcessW directly,
+  // with no PATHEXT matching for shims).
+  let (program, prefix_args) = match @python.resolve_python() {
+    Some(resolved) => resolved
+    None =>
+      return OcrResult::{
+        attempted: true,
+        available: false,
+        provider: None,
+        text: "",
+        layout_json: None,
+        warnings: [
+          "OCR backend unavailable: " + @python.python_not_found_diagnostic(),
+        ],
+      }
+  }
+  let run_args = prefix_args.copy()
+  for arg in args {
+    run_args.push(arg)
+  }
+
   let exit_code_result : Result[Int, Error] = try {
     let stderr = @process.redirect_to_file(
       stderr_path,
       create_mode=@fs.CreateOrTruncate,
     )
-    Ok(@process.run("python", args, stderr~))
+    Ok(@process.run(program, run_args, stderr~))
   } catch {
     err => Err(err)
   }
@@ -93,7 +136,11 @@ async fn run_bridge(
         provider: None,
         text: "",
         layout_json: None,
-        warnings: ["OCR backend execution failed: " + err.to_string()],
+        warnings: [
+          "OCR bridge process failed to start (" +
+          err.to_string() +
+          "). The resolved Python interpreter may be unavailable; set MOONBITMARK_PYTHON to a valid interpreter path.",
+        ],
       }
   }
   cleanup_file(output_path)
@@ -123,11 +170,11 @@ async fn parse_bridge_response(
         Err(_) => ""
       }
       let warning = if stderr_text != "" {
-        "OCR backend execution failed: " + stderr_text
+        classify_bridge_stderr(stderr_text)
       } else {
-        "OCR backend execution failed with exit code " +
+        "OCR bridge exited with code " +
         exit_code.to_string() +
-        "."
+        " without producing output. Re-run from a terminal to see the bridge's error, or report this as a bridge bug."
       }
       return OcrResult::{
         attempted: true,
@@ -156,19 +203,23 @@ async fn parse_bridge_response(
         provider: None,
         text: "",
         layout_json: None,
-        warnings: ["OCR backend returned invalid JSON: " + err.to_string()],
+        warnings: [
+          "OCR bridge returned invalid JSON: " +
+          err.to_string() +
+          ". The bridge script may be out of sync with this build.",
+        ],
       }
   }
 
   let warnings : Array[String] = []
   for warning in response.warnings {
-    warnings.push(warning)
+    warnings.push(enrich_backend_warning(warning))
   }
   if exit_code != 0 && warnings.length() == 0 {
     warnings.push(
-      "OCR backend execution failed with exit code " +
+      "OCR bridge exited with code " +
       exit_code.to_string() +
-      ".",
+      " but produced no diagnostic. Re-run from a terminal to see the bridge's error.",
     )
   }
   OcrResult::{
@@ -270,4 +321,70 @@ fn find_last_char(s : String, target : Char) -> Int? {
   } else {
     None
   }
+}
+
+///|
+/// First non-empty line of a multi-line bridge stderr dump, used to keep
+/// warnings single-line.
+fn first_stderr_line(stderr_text : String) -> String {
+  for line in stderr_text.split("\n") {
+    let trimmed = line.trim().to_owned()
+    if trimmed != "" {
+      return trimmed
+    }
+  }
+  stderr_text.trim().to_owned()
+}
+
+///|
+/// First stderr line containing `needle` (compared case-insensitively on the
+/// already-lowercased haystack), falling back to the first non-empty line.
+fn stderr_excerpt(stderr_text : String, needle : String) -> String {
+  for line in stderr_text.split("\n") {
+    if line.to_owned().to_lower().contains(needle) {
+      return line.trim().to_owned()
+    }
+  }
+  first_stderr_line(stderr_text)
+}
+
+///|
+/// Classify stderr from a bridge that died before writing its JSON output,
+/// returning an actionable warning that names the failure layer.
+fn classify_bridge_stderr(stderr_text : String) -> String {
+  let lower = stderr_text.to_lower()
+  if lower.contains("modulenotfounderror") ||
+    lower.contains("importerror") ||
+    lower.contains("no module named") {
+    return "OCR bridge failed: a Python dependency is missing (" +
+      stderr_excerpt(stderr_text, "error") +
+      "). Install the missing package into the resolved interpreter, or use --ocr-backend mock which needs no extra dependencies."
+  }
+  if lower.contains("syntaxerror") {
+    return "OCR bridge failed: the bridge script could not be parsed by the resolved Python interpreter (" +
+      stderr_excerpt(stderr_text, "syntaxerror") +
+      "). Set MOONBITMARK_PYTHON to a newer Python (>= 3.8)."
+  }
+  "OCR bridge failed before producing output: " + stderr_text
+}
+
+///|
+/// Attach an actionable remedy to well-known bridge-reported failures
+/// (missing backend, timeout, unsupported backend). Unknown warnings pass
+/// through unchanged.
+fn enrich_backend_warning(warning : String) -> String {
+  let lower = warning.to_lower()
+  if lower.contains("tesseract executable was not found") ||
+    lower.contains("no ocr backend is available") {
+    return warning +
+      " Install tesseract (https://github.com/tesseract-ocr/tesseract) or re-run with --ocr-backend mock."
+  }
+  if lower.contains("timed out") {
+    return warning + " Increase the limit via --ocr-timeout <ms>."
+  }
+  if lower.contains("unsupported ocr backend") {
+    return warning +
+      " Supported backends: auto, mock, tesseract (select via --ocr-backend)."
+  }
+  warning
 }
