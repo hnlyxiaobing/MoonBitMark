@@ -5,7 +5,7 @@ import {
   "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
-  "moonbitlang/moonbitmark/src/python",
+  "hnlyxiaobing/moonbitmark/src/python",
 }
 
 warnings = "-29"

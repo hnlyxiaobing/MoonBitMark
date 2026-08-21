@@ -1,8 +1,8 @@
 import {
-  "moonbitlang/moonbitmark/src/ast",
-  "moonbitlang/moonbitmark/src/core",
-  "moonbitlang/moonbitmark/src/libzip",
-  "moonbitlang/moonbitmark/src/xml",
+  "hnlyxiaobing/moonbitmark/src/ast",
+  "hnlyxiaobing/moonbitmark/src/core",
+  "hnlyxiaobing/moonbitmark/src/libzip",
+  "hnlyxiaobing/moonbitmark/src/xml",
   "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",
 }

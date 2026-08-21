@@ -28,7 +28,7 @@ pub async fn resolve_bridge_script(
   // binary is invoked via a path but may be a bare name when it is resolved
   // through PATH (in that case this tier yields no candidates). The cap of
   // 10 levels covers this repo's own build layout: the CLI exe lives at
-  // `_build/native/release/build/moonbitlang/moonbitmark/cmd/main/main.exe`,
+  // `_build/native/release/build/hnlyxiaobing/moonbitmark/cmd/main/main.exe`,
   // 9 directories below the repository root.
   let argv = @env.args()
   if argv.length() > 0 {

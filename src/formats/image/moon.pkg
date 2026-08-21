@@ -1,5 +1,5 @@
 import {
-  "moonbitlang/moonbitmark/src/ast",
-  "moonbitlang/moonbitmark/src/core",
-  "moonbitlang/moonbitmark/src/capabilities/ocr",
+  "hnlyxiaobing/moonbitmark/src/ast",
+  "hnlyxiaobing/moonbitmark/src/core",
+  "hnlyxiaobing/moonbitmark/src/capabilities/ocr",
 }

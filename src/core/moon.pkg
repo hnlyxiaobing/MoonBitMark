@@ -1,7 +1,7 @@
 import {
-  "moonbitlang/moonbitmark/src/ast",
-  "moonbitlang/moonbitmark/src/capabilities/ocr",
-  "moonbitlang/moonbitmark/src/semantic",
+  "hnlyxiaobing/moonbitmark/src/ast",
+  "hnlyxiaobing/moonbitmark/src/capabilities/ocr",
+  "hnlyxiaobing/moonbitmark/src/semantic",
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "moonbitlang/core/buffer",

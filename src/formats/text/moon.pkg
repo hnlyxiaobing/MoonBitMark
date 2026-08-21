@@ -1,6 +1,6 @@
 import {
-  "moonbitlang/moonbitmark/src/ast",
-  "moonbitlang/moonbitmark/src/core",
+  "hnlyxiaobing/moonbitmark/src/ast",
+  "hnlyxiaobing/moonbitmark/src/core",
   "moonbitlang/core/encoding/utf8",
 }
 

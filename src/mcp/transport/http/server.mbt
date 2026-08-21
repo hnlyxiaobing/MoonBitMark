@@ -155,9 +155,13 @@ async fn send_plain_response(
   body : String,
 ) -> Unit {
   conn
-  ..send_response(status_code, reason, extra_headers={
-    "Content-Type": "text/plain; charset=utf-8",
-  })
+  ..send_response(
+    status_code,
+    reason,
+    extra_headers=Map::from_array([
+      ("Content-Type", "text/plain; charset=utf-8"),
+    ]),
+  )
   ..write(body)
   .end_response()
 }
@@ -187,8 +191,8 @@ async fn send_empty_response(
 }
 
 ///|
-fn json_headers() -> Map[String, String] {
-  { "Content-Type": "application/json; charset=utf-8" }
+fn json_headers() -> Map[@async_http.CaseInsensitiveString, String] {
+  Map::from_array([("Content-Type", "application/json; charset=utf-8")])
 }
 
 ///|

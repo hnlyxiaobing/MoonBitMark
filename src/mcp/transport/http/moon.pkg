@@ -3,8 +3,8 @@ import {
   "moonbitlang/async/io",
   "moonbitlang/async/socket",
   "moonbitlang/core/env",
-  "moonbitlang/moonbitmark/src/mcp/handler",
-  "moonbitlang/moonbitmark/src/mcp/types",
+  "hnlyxiaobing/moonbitmark/src/mcp/handler",
+  "hnlyxiaobing/moonbitmark/src/mcp/types",
 }
 
 supported_targets = "native"
