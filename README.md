@@ -24,7 +24,8 @@ MoonBitMark 是一个用 MoonBit 实现的文档转 Markdown 工具。当前主�
 - PPTX
 - XLSX
 - EPUB
-
+- DOC（Word 97-2003 二进制）
+- WPS（WPS Writer 二进制）
 ## 快速开始
 
 基础校验：

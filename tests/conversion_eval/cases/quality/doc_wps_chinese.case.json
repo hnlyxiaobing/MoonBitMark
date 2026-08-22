@@ -1,0 +1,12 @@
+{
+  "id": "doc_wps_chinese",
+  "format": "doc",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/doc/wps_chinese.wps",
+  "description": "WPS Writer binary file with Chinese content and 0Table flavour should keep CJK text intact.",
+  "must_include": ["WPS 中文样本", "季度工程报告", "项目进展", "重点事项", "指标数据", "报告结束。"],
+  "must_not_include": ["\\u0000", "w:document"],
+  "min_chars": 60,
+  "min_lines": 8,
+  "checks": {}
+}

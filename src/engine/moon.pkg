@@ -11,6 +11,8 @@ import {
   "hnlyxiaobing/moonbitmark/src/formats/docx",
   "hnlyxiaobing/moonbitmark/src/formats/pptx",
   "hnlyxiaobing/moonbitmark/src/formats/xlsx",
+  "hnlyxiaobing/moonbitmark/src/formats/doc",
+  "hnlyxiaobing/moonbitmark/src/ole2",
   "hnlyxiaobing/moonbitmark/src/formats/epub",
   "hnlyxiaobing/moonbitmark/src/normalize",
   "hnlyxiaobing/moonbitmark/src/semantic",

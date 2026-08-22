@@ -1,0 +1,12 @@
+{
+  "id": "doc_word95",
+  "format": "doc",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/doc/word95.doc",
+  "description": "Legacy Word 95 binary document (0xA5DC magic, fcMin/fcMac fallback) should still convert.",
+  "must_include": ["Legacy Document", "Old format text."],
+  "must_not_include": ["\\u0000"],
+  "min_chars": 20,
+  "min_lines": 2,
+  "checks": {}
+}

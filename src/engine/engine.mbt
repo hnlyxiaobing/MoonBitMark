@@ -6,6 +6,7 @@ pub(all) enum ConverterKind {
   Epub
   Pptx
   Xlsx
+  Doc
   Pdf
   Image
   Html
@@ -746,6 +747,7 @@ fn register_default_converters(engine : MarkItDown) -> MarkItDown {
   .register_named(Epub, 95)
   .register_named(Pptx, 90)
   .register_named(Xlsx, 85)
+  .register_named(Doc, 88)
   .register_named(Pdf, 80)
   .register_named(Image, 75)
   .register_named(Html, 70)
@@ -791,6 +793,14 @@ fn default_registration(
         hint: @core.CheckArchiveIntegrity,
         accepts: accepts_xlsx,
         convert: convert_xlsx,
+      }
+    Doc =>
+      ConverterRegistration::{
+        name: "doc",
+        priority,
+        hint: @core.InspectSourceDocument,
+        accepts: accepts_doc,
+        convert: convert_doc,
       }
     Pdf =>
       ConverterRegistration::{
@@ -864,6 +874,11 @@ fn accepts_xlsx(info : @core.StreamInfo) -> Bool {
 }
 
 ///|
+fn accepts_doc(info : @core.StreamInfo) -> Bool {
+  @doc.DocConverter::accepts(info)
+}
+
+///|
 fn accepts_pdf(info : @core.StreamInfo) -> Bool {
   @pdf.PdfConverter::accepts(info)
 }
@@ -930,6 +945,16 @@ async fn convert_xlsx(
 ) -> @core.ConvertResult {
   convert_with_materialized_path(input, "xlsx", @core.CheckArchiveIntegrity, path => {
     @xlsx.XlsxConverter::convert(path, ctx~)
+  })
+}
+
+///|
+async fn convert_doc(
+  input : @core.InputSource,
+  ctx : @core.ConvertContext,
+) -> @core.ConvertResult {
+  convert_with_materialized_path(input, "doc", @core.InspectSourceDocument, path => {
+    @doc.DocConverter::convert(path, ctx~)
   })
 }
 

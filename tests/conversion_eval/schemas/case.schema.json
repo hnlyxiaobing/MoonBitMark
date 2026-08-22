@@ -7,7 +7,7 @@
     "id": {"type": "string"},
     "format": {
       "type": "string",
-      "enum": ["csv", "docx", "epub", "html", "image", "json", "pdf", "pptx", "text", "xlsx"]
+      "enum": ["csv", "doc", "docx", "epub", "html", "image", "json", "pdf", "pptx", "text", "xlsx"]
     },
     "tier": {
       "type": "string",

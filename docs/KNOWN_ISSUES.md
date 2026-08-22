@@ -50,3 +50,23 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
   XHTML 不再触发该问题；但 HTML 兜底路径遇到 `<video>/<audio>/<hgroup>` 等未知
   标签时仍会把剩余内容压成一个段落。二期方案：EPUB 侧在调用兜底前预处理剥离
   媒体元素、展开 `hgroup`，不改动 `@html` 公共行为。
+## Word 二进制（.doc/.wps）转换的已知残留
+
+- 位置：`src/formats/doc/converter.mbt`、`src/ole2/cfb.mbt`（0.4.0 新增）
+- 影响：Word 97-2003 二进制（.doc）与 WPS Writer 二进制（.wps）已可转换为
+  Markdown（标题 / 段落 / 简单 pipe 表格 / SummaryInformation 元数据），但受
+  FIB/FKP/PAPX 子集解析限制，仍有以下残留：
+
+  - **字符级格式不恢复**：仅恢复段落样式 `istd` 到内置 Heading 1-9 的映射，
+    run 级 bold/italic/underline/字号/颜色均丢弃。
+  - **字段代码不展开**：`Plcffld` 未解析，页码、TOC、超链接、交叉引用等字段
+    显示为原始结果文本（Word 已缓存的结果），不解析域代码本身。
+  - **图片 / OLE 嵌入对象不提取**：内嵌图片（PIC 字段 / Escher 记录）与嵌入
+    对象被忽略，转换结果只含文本。
+  - **批注与修订标记不解析**：注解字符（0x05）与 track changes 标记不还原。
+  - **页眉页脚 / 脚注尾注**：hdrftr / footnotes 分区未提取。
+  - **合并单元格与嵌套表格**：pipe 表格按单元格段落顺序渲染，`gridSpan` /
+    `vMerge` 合并信息不处理。
+  - **非 cp1252 的 8-bit piece 会乱码**：8-bit piece 固定按 cp1252 解码；
+    中文等使用 UTF-16LE piece 的文档正常，但以 GBK 存储的 8-bit piece 会乱码
+    （诚实降级，不静默丢弃）。

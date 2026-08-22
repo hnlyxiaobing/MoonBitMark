@@ -1,0 +1,11 @@
+{
+  "id": "negative_corrupt_doc",
+  "format": "doc",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/doc/corrupt_magic.doc",
+  "description": "Corrupt OLE2 header signature should fail with a clean OLE2 container diagnostic (exit 1, no internal Failure trace).",
+  "expect_exit_code": 1,
+  "error_must_include": ["OLE2", "signature"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {}
+}

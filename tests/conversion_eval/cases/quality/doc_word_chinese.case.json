@@ -1,0 +1,12 @@
+{
+  "id": "doc_word_chinese",
+  "format": "doc",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/doc/word_chinese.doc",
+  "description": "Word binary .doc with Chinese (UTF-16LE piece) content should keep CJK text intact.",
+  "must_include": ["季度工程报告", "本文档用于解析器测试，包含中文内容。", "项目进展", "重点事项", "指标数据", "解析引擎", "已完成", "网页上传", "进行中", "报告结束。"],
+  "must_not_include": ["\\u0000", "w:document"],
+  "min_chars": 60,
+  "min_lines": 8,
+  "checks": {}
+}

@@ -1,0 +1,12 @@
+{
+  "id": "doc_word_english",
+  "format": "doc",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/doc/word_english.doc",
+  "description": "Word binary .doc (OLE2/CFB) with headings, paragraphs and a table should convert to Markdown with headings and a pipe table.",
+  "must_include": ["Quarterly Engineering Report", "Overview", "Highlights", "Metrics", "Feature", "Status", "Owner", "Parser engine", "Done", "Alice", "Web upload", "In progress", "Bob", "End of report."],
+  "must_not_include": ["\\u0000", "w:document", "xmlns"],
+  "min_chars": 100,
+  "min_lines": 8,
+  "checks": {}
+}

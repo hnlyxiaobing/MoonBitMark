@@ -74,32 +74,41 @@ fn detect_magic_mimetype(bytes : Bytes) -> String? {
 
 ///|
 fn detect_container_signature(bytes : Bytes) -> (String, String)? {
-  if !has_prefix(bytes, b"PK") {
-    return None
-  }
-  if contains_ascii(bytes, "word/document.xml") {
-    Some(
-      (
-        ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ),
-    )
-  } else if contains_ascii(bytes, "ppt/presentation.xml") ||
-    contains_ascii(bytes, "ppt/slides/slide1.xml") {
-    Some(
-      (
-        ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      ),
-    )
-  } else if contains_ascii(bytes, "xl/workbook.xml") {
-    Some(
-      (
-        ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      ),
-    )
-  } else if contains_ascii(bytes, "META-INF/container.xml") {
-    Some((".epub", "application/epub+zip"))
+  if has_prefix(bytes, b"PK\x03\x04") {
+    if contains_ascii(bytes, "word/document.xml") {
+      Some(
+        (
+          ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+      )
+    } else if contains_ascii(bytes, "ppt/presentation.xml") ||
+      contains_ascii(bytes, "ppt/slides/slide1.xml") {
+      Some(
+        (
+          ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ),
+      )
+    } else if contains_ascii(bytes, "xl/workbook.xml") {
+      Some(
+        (
+          ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+      )
+    } else if contains_ascii(bytes, "META-INF/container.xml") {
+      Some((".epub", "application/epub+zip"))
+    } else {
+      Some((".zip", "application/zip"))
+    }
+  } else if @ole2.cfb_is_ole2_signature(bytes) {
+    // OLE2 containers: only claim .doc/.wps when a WordDocument stream exists;
+    // otherwise fall through so the original extension/mimetype is kept.
+    match @ole2.CfbArchive::open(bytes) {
+      Some(archive) if archive.has_stream("WordDocument") =>
+        Some((".doc", "application/msword"))
+      _ => None
+    }
   } else {
-    Some((".zip", "application/zip"))
+    None
   }
 }
 

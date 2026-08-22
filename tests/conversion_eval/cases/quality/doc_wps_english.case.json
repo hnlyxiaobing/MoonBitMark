@@ -1,0 +1,12 @@
+{
+  "id": "doc_wps_english",
+  "format": "doc",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/doc/wps_english.wps",
+  "description": "WPS Writer binary file (.wps, 0Table flavour) should convert like .doc with headings and a table.",
+  "must_include": ["WPS English Sample", "Overview", "Metrics", "Feature", "Status", "Owner", "Parser engine", "Done", "Alice", "Web upload", "In progress", "Bob", "End of report."],
+  "must_not_include": ["\\u0000", "w:document"],
+  "min_chars": 100,
+  "min_lines": 8,
+  "checks": {}
+}

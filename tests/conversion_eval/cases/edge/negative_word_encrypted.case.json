@@ -1,0 +1,11 @@
+{
+  "id": "negative_word_encrypted",
+  "format": "doc",
+  "tier": "edge",
+  "input": "tests/conversion_eval/fixtures/inputs/doc/word_encrypted.doc",
+  "description": "Encrypted Word binary document (fEncrypted set) must be rejected with a clean diagnostic, not silently converted.",
+  "expect_exit_code": 1,
+  "error_must_include": ["encrypted", "decryption is not supported"],
+  "error_must_not_include": ["Failure(", ".mbt:"],
+  "checks": {}
+}

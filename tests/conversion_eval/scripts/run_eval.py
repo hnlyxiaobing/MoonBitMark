@@ -37,7 +37,7 @@ HISTORY_REPORT_DIR = EVAL_ROOT / "reports" / "history"
 BASELINE_VENV_PYTHON = Path.home() / ".venvs" / "moonbitmark-baselines" / "Scripts" / "python.exe"
 REMOTE_CACHE_DIR = REPO_ROOT / "_build" / "conversion-eval-cache" / "blobs"
 
-SUPPORTED_FORMATS = {"csv", "docx", "epub", "html", "image", "json", "pdf", "pptx", "text", "xlsx"}
+SUPPORTED_FORMATS = {"csv", "doc", "docx", "epub", "html", "image", "json", "pdf", "pptx", "text", "xlsx"}
 SUPPORTED_TIERS = {"smoke", "quality", "edge", "regression", "regressions"}
 SUPPORTED_REFERENCE_BUILDERS = {"copy", "csv", "docx", "epub", "html", "json", "pptx", "text", "xlsx"}
 # Default pass/fail thresholds per check; cases may pin a lower floor via

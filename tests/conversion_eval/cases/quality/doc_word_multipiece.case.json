@@ -1,0 +1,12 @@
+{
+  "id": "doc_word_multipiece",
+  "format": "doc",
+  "tier": "quality",
+  "input": "tests/conversion_eval/fixtures/inputs/doc/word_multipiece.doc",
+  "description": "Word binary document split across UTF-16 and 8-bit cp1252 pieces should reassemble both pieces in order.",
+  "must_include": ["Multi Piece Doc", "The first piece is stored as UTF-16 text.", "The second piece is stored as 8-bit compressed text."],
+  "must_not_include": ["\\u0000"],
+  "min_chars": 60,
+  "min_lines": 3,
+  "checks": {}
+}
