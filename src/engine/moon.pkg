@@ -22,7 +22,7 @@ import {
   "moonbitlang/core/encoding/base64",
 }
 
-warnings = "-29"
+warnings = "-29-67" // -67: detect_native 非 Windows 分支为纯同步 FFI，为保持跨平台 async 签名一致保留 async 标记
 
 options(
   targets: {

@@ -8,10 +8,12 @@ import {
   "moonbitlang/core/encoding/utf8",
 }
 
-warnings = "-29"
+warnings = "-29-67" // -67: file_io_native 非 Windows 分支为纯同步实现，为保持跨平台 async 签名一致保留 async 标记
 
 options(
+  "native-stub": [ "file_ffi_native.c" ],
   targets: {
+    "file_ffi_native.mbt": [ "native" ],
     "file_io_native.mbt": [ "native" ],
     "file_io_stub.mbt": [ "wasm", "wasm-gc", "js" ],
   },

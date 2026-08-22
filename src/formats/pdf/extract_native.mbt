@@ -1,6 +1,10 @@
 ///|
 async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
-  let pdf = @pdfreadfs.PdfReadFs::new().pdf_of_file(None, None, file_path)
+  // 用内存 API 读取 PDF（绕开 PdfReadFs::pdf_of_file → async @fs → statx ENOSYS
+  // 问题）。read_file_bytes 在非 Windows 走自研 C FFI，Windows 走 @fs。
+  let file_bytes = @core.read_file_bytes(file_path).to_array()
+  let input = @pdfio.Input::of_bytes(file_bytes, source=file_path)
+  let pdf = @pdfread.PdfRead::new().pdf_of_input(None, None, input)
   if @pdfcrypt.PdfCrypt::new().is_encrypted(pdf) {
     fail("PDF file is encrypted and cannot be processed.")
   }

@@ -1,31 +1,20 @@
 ///|
+/// 读取输入文件字节用于格式检测。
+///
+/// 非 Windows：自研 C FFI（绕开 async `@fs` 的 statx ENOSYS）；
+/// 失败返回 None（格式检测失败不阻断转换，保持原有容错语义）。
+#cfg(not(platform="windows"))
 async fn read_input_bytes(path : String) -> Bytes? {
-  let file = @fs.open(path, mode=ReadOnly) catch { _ => return None }
-  let all_bytes : Array[Byte] = []
-  while true {
-    let buffer : FixedArray[Byte] = FixedArray::make(4096, b'\x00')
-    let bytes_read = file.read(buffer) catch {
-      _ => {
-        ignore(file.close())
-        return None
-      }
-    }
-    if bytes_read == 0 {
-      break
-    }
-    for i in 0..<bytes_read {
-      all_bytes.push(buffer[i])
-    }
+  Some(@core.read_file_bytes_ffi(path)) catch {
+    _ => None
   }
-  ignore(file.close())
-  Some(bytes_from_array(all_bytes))
 }
 
 ///|
-fn bytes_from_array(arr : Array[Byte]) -> Bytes {
-  let buf = Buffer()
-  for b in arr {
-    buf.write_byte(b)
+/// Windows：async `@fs` 路径。
+#cfg(platform="windows")
+async fn read_input_bytes(path : String) -> Bytes? {
+  Some(@core.read_file_bytes(path)) catch {
+    _ => None
   }
-  buf.to_bytes()
 }

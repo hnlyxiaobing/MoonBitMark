@@ -1,4 +1,14 @@
 ///|
+/// 非 Windows：自研 C FFI 读取，绕开 async `@fs` 的 statx(2) 依赖
+/// （WSL1 / Linux < 4.11 返回 ENOSYS）。
+#cfg(not(platform="windows"))
+pub async fn read_file_bytes(path : String) -> Bytes {
+  read_file_bytes_ffi(path)
+}
+
+///|
+/// Windows：async `@fs` 路径（CreateFileW，无 statx 依赖，正确处理 UTF-8 路径）。
+#cfg(platform="windows")
 pub async fn read_file_bytes(path : String) -> Bytes {
   let file = @fs.open(path, mode=ReadOnly)
   let buffer = Buffer()
