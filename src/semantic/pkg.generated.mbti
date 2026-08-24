@@ -21,6 +21,10 @@ pub(all) struct Provenance {
   chapter : String?
   resource : String?
 } derive(Eq, ToJson, @debug.Debug)
+pub fn Provenance::equal(Self, Self) -> Bool
+pub fn Provenance::not_equal(Self, Self) -> Bool
+pub fn Provenance::to_json(Self) -> Json
+pub fn Provenance::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Section {
   id : String
@@ -32,6 +36,10 @@ pub(all) struct Section {
   provenance : Provenance
   children : Array[Section]
 } derive(Eq, ToJson, @debug.Debug)
+pub fn Section::equal(Self, Self) -> Bool
+pub fn Section::not_equal(Self, Self) -> Bool
+pub fn Section::to_json(Self) -> Json
+pub fn Section::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SemanticBlock {
   block_id : String
@@ -44,6 +52,10 @@ pub(all) struct SemanticBlock {
   confidence : Int
   provenance : Provenance
 } derive(Eq, ToJson, @debug.Debug)
+pub fn SemanticBlock::equal(Self, Self) -> Bool
+pub fn SemanticBlock::not_equal(Self, Self) -> Bool
+pub fn SemanticBlock::to_json(Self) -> Json
+pub fn SemanticBlock::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SemanticDocument {
   title : String?
@@ -51,6 +63,10 @@ pub(all) struct SemanticDocument {
   blocks : Array[SemanticBlock]
   provenance : Provenance
 } derive(Eq, ToJson, @debug.Debug)
+pub fn SemanticDocument::equal(Self, Self) -> Bool
+pub fn SemanticDocument::not_equal(Self, Self) -> Bool
+pub fn SemanticDocument::to_json(Self) -> Json
+pub fn SemanticDocument::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SemanticRole {
   Title
@@ -66,6 +82,12 @@ pub(all) enum SemanticRole {
   Image
   Separator
 } derive(Eq, ToJson, @debug.Debug)
+pub fn SemanticRole::equal(Self, Self) -> Bool
+pub fn SemanticRole::not_equal(Self, Self) -> Bool
+pub fn SemanticRole::output(Self, &Logger) -> Unit
+pub fn SemanticRole::to_json(Self) -> Json
+pub fn SemanticRole::to_repr(Self) -> @debug.Repr
+pub fn SemanticRole::to_string(Self) -> String
 pub impl Show for SemanticRole
 
 // Type aliases

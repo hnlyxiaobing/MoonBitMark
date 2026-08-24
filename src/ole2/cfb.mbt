@@ -257,7 +257,7 @@ fn parse_cfb_directory_entry(bytes : Bytes, off : Int) -> CfbDirectoryEntry {
 
 ///|
 fn cfb_decode_utf16le(bytes : Bytes, offset : Int, char_count : Int) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   let mut i = 0
   while i < char_count {
     let u = cfb_u16le(bytes, offset + i * 2)

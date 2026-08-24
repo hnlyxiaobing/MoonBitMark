@@ -6,6 +6,18 @@ pub(all) enum OcrMode {
 } derive(Debug, Eq, ToJson)
 
 ///|
+pub extend OcrMode with @debug.Debug::{to_repr}
+
+///|
+pub extend OcrMode with Eq::{not_equal, equal}
+
+///|
+pub extend OcrMode with ToJson::{to_json}
+
+///|
+pub extend OcrMode with Show::{to_string, output}
+
+///|
 pub impl Show for OcrMode with fn output(self, logger) {
   Show::output(self.to_repr(), logger)
 }
@@ -27,6 +39,15 @@ pub(all) struct OcrConfig {
   backend : String?
   timeout_ms : Int?
 } derive(Debug, Eq, ToJson)
+
+///|
+pub extend OcrConfig with @debug.Debug::{to_repr}
+
+///|
+pub extend OcrConfig with Eq::{not_equal, equal}
+
+///|
+pub extend OcrConfig with ToJson::{to_json}
 
 ///|
 pub fn OcrConfig::default() -> OcrConfig {
@@ -78,6 +99,15 @@ pub(all) struct OcrResult {
   layout_json : String?
   warnings : Array[String]
 } derive(Debug, Eq, ToJson)
+
+///|
+pub extend OcrResult with @debug.Debug::{to_repr}
+
+///|
+pub extend OcrResult with Eq::{not_equal, equal}
+
+///|
+pub extend OcrResult with ToJson::{to_json}
 
 ///|
 pub fn OcrResult::not_attempted() -> OcrResult {

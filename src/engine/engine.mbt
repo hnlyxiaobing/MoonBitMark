@@ -31,6 +31,15 @@ pub(all) struct DetectionResult {
 } derive(Debug, Eq, ToJson)
 
 ///|
+pub extend DetectionResult with @debug.Debug::{to_repr}
+
+///|
+pub extend DetectionResult with Eq::{not_equal, equal}
+
+///|
+pub extend DetectionResult with ToJson::{to_json}
+
+///|
 pub fn DetectionResult::render(self : DetectionResult) -> String {
   let lines : Array[String] = ["converter: " + self.converter_name]
   match self.stream_info.extension {

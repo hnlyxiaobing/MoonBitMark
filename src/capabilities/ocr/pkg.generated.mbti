@@ -24,15 +24,25 @@ pub(all) struct OcrConfig {
 } derive(Eq, ToJson, @debug.Debug)
 pub fn OcrConfig::backend_or_auto(Self) -> String
 pub fn OcrConfig::default() -> Self
+pub fn OcrConfig::equal(Self, Self) -> Bool
 pub fn OcrConfig::is_enabled(Self) -> Bool
+pub fn OcrConfig::not_equal(Self, Self) -> Bool
 pub fn OcrConfig::should_process_embedded_images(Self) -> Bool
+pub fn OcrConfig::to_json(Self) -> Json
+pub fn OcrConfig::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OcrMode {
   Off
   Auto
   Force
 } derive(Eq, ToJson, @debug.Debug)
+pub fn OcrMode::equal(Self, Self) -> Bool
 pub fn OcrMode::label(Self) -> String
+pub fn OcrMode::not_equal(Self, Self) -> Bool
+pub fn OcrMode::output(Self, &Logger) -> Unit
+pub fn OcrMode::to_json(Self) -> Json
+pub fn OcrMode::to_repr(Self) -> @debug.Repr
+pub fn OcrMode::to_string(Self) -> String
 pub impl Show for OcrMode
 
 pub(all) struct OcrResult {
@@ -43,9 +53,13 @@ pub(all) struct OcrResult {
   layout_json : String?
   warnings : Array[String]
 } derive(Eq, ToJson, @debug.Debug)
+pub fn OcrResult::equal(Self, Self) -> Bool
 pub fn OcrResult::is_useful(Self) -> Bool
 pub fn OcrResult::not_attempted() -> Self
+pub fn OcrResult::not_equal(Self, Self) -> Bool
 pub fn OcrResult::provider_label(Self) -> String
+pub fn OcrResult::to_json(Self) -> Json
+pub fn OcrResult::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

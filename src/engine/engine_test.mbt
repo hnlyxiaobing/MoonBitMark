@@ -1,7 +1,7 @@
 ///|
 test "MarkItDown new" {
   let engine = @engine.MarkItDown::new()
-  inspect(engine.converters.length(), content="10")
+  inspect(engine.converters.length(), content="11")
 }
 
 ///|

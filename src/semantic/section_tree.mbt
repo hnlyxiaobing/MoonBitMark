@@ -15,6 +15,18 @@ pub(all) enum SemanticRole {
 } derive(Debug, Eq, ToJson)
 
 ///|
+pub extend SemanticRole with @debug.Debug::{to_repr}
+
+///|
+pub extend SemanticRole with Eq::{not_equal, equal}
+
+///|
+pub extend SemanticRole with ToJson::{to_json}
+
+///|
+pub extend SemanticRole with Show::{to_string, output}
+
+///|
 pub impl Show for SemanticRole with fn output(self, logger) {
   Show::output(self.to_repr(), logger)
 }
@@ -31,6 +43,15 @@ pub(all) struct Provenance {
 } derive(Debug, Eq, ToJson)
 
 ///|
+pub extend Provenance with @debug.Debug::{to_repr}
+
+///|
+pub extend Provenance with Eq::{not_equal, equal}
+
+///|
+pub extend Provenance with ToJson::{to_json}
+
+///|
 pub(all) struct SemanticBlock {
   block_id : String
   index : Int
@@ -42,6 +63,15 @@ pub(all) struct SemanticBlock {
   confidence : Int
   provenance : Provenance
 } derive(Debug, Eq, ToJson)
+
+///|
+pub extend SemanticBlock with @debug.Debug::{to_repr}
+
+///|
+pub extend SemanticBlock with Eq::{not_equal, equal}
+
+///|
+pub extend SemanticBlock with ToJson::{to_json}
 
 ///|
 pub(all) struct Section {
@@ -56,12 +86,30 @@ pub(all) struct Section {
 } derive(Debug, Eq, ToJson)
 
 ///|
+pub extend Section with @debug.Debug::{to_repr}
+
+///|
+pub extend Section with Eq::{not_equal, equal}
+
+///|
+pub extend Section with ToJson::{to_json}
+
+///|
 pub(all) struct SemanticDocument {
   title : String?
   sections : Array[Section]
   blocks : Array[SemanticBlock]
   provenance : Provenance
 } derive(Debug, Eq, ToJson)
+
+///|
+pub extend SemanticDocument with @debug.Debug::{to_repr}
+
+///|
+pub extend SemanticDocument with Eq::{not_equal, equal}
+
+///|
+pub extend SemanticDocument with ToJson::{to_json}
 
 ///|
 pub fn semantic_document_of(document : @ast.Document) -> SemanticDocument {

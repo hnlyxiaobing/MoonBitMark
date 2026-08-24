@@ -19,6 +19,12 @@ pub(all) suberror ZipError {
 } derive(Debug, Eq)
 
 ///|
+pub extend ZipError with @debug.Debug::{to_repr}
+
+///|
+pub extend ZipError with Eq::{not_equal, equal}
+
+///|
 /// ZIP 归档句柄 (对应原 FFI 的 ZipHandle)
 declare pub type ZipArchive
 

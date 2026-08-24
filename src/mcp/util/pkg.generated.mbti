@@ -80,6 +80,8 @@ pub enum LogLevel {
   Warn
   Error
 } derive(Eq)
+pub fn LogLevel::equal(Self, Self) -> Bool
+pub fn LogLevel::not_equal(Self, Self) -> Bool
 pub fn LogLevel::to_string(Self) -> String
 
 pub(all) struct Logger {

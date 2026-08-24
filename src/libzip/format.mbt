@@ -19,6 +19,12 @@ pub enum CompressionMethod {
 } derive(Debug, Eq)
 
 ///|
+pub extend CompressionMethod with @debug.Debug::{to_repr}
+
+///|
+pub extend CompressionMethod with Eq::{not_equal, equal}
+
+///|
 pub fn compression_method_from_int(code : Int) -> CompressionMethod {
   if code == 0 {
     Store(code)

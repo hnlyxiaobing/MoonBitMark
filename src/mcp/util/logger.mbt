@@ -9,6 +9,9 @@ pub enum LogLevel {
 } derive(Eq)
 
 ///|
+pub extend LogLevel with Eq::{not_equal, equal}
+
+///|
 pub fn LogLevel::to_string(self : LogLevel) -> String {
   match self {
     Debug => "DEBUG"

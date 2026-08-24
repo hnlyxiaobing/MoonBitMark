@@ -3,7 +3,7 @@
 ///|
 /// Decode `chars` UTF-16LE code units at byte offset `off` (surrogate aware).
 fn decode_utf16le(bytes : Bytes, off : Int, chars : Int) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   let mut i = 0
   while i < chars {
     let u = doc_u16le(bytes, off + i * 2)
@@ -27,7 +27,7 @@ fn decode_utf16le(bytes : Bytes, off : Int, chars : Int) -> String {
 ///|
 /// Decode `chars` bytes as cp1252 (ASCII + Windows-1252 high region).
 fn decode_cp1252(bytes : Bytes, off : Int, chars : Int) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   for i in 0..<chars {
     let byte = bytes[off + i].to_int()
     if byte < 0x80 {

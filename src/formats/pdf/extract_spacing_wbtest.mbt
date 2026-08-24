@@ -16,7 +16,7 @@ fn build_test_pdf(content : String) -> String {
     "<< /Length \{content.length()} >>\nstream\n\{content}\nendstream",
   ]
   let header = "%PDF-1.4\n"
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   buf.write_string(header)
   let offsets : Array[Int] = []
   let mut offset = header.length()
@@ -46,7 +46,7 @@ fn pad_xref_offset(value : Int) -> String {
   if padding <= 0 {
     return digits
   }
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   for _ in 0..<padding {
     buf.write_char('0')
   }

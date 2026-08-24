@@ -96,7 +96,7 @@ fn PdfSpacingExtractor::extract_text_from_page(
   self : PdfSpacingExtractor,
   page : @pdfpage.Page,
 ) -> String raise {
-  let builder = StringBuilder::new()
+  let builder = StringBuilder()
   let visited : Map[Int, Bool] = Map([], capacity=8)
   self.append_text_from_streams(builder, page.resources, page.content, visited)
   builder.to_string()

@@ -6,5 +6,6 @@ import {
   "hnlyxiaobing/moonbitmark/src/libzip",
   "hnlyxiaobing/moonbitmark/src/xml",
   "moonbitlang/core/buffer",
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
 }

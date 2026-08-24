@@ -18,6 +18,7 @@ import {
   "hnlyxiaobing/moonbitmark/src/semantic",
   "moonbitlang/async/fs",
   "moonbitlang/core/buffer",
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/encoding/base64",
 }

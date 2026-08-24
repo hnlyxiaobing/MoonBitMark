@@ -85,7 +85,11 @@ pub(all) struct ConversionDiagnostic {
   hint : DiagnosticHint?
 } derive(Eq, ToJson, @debug.Debug)
 pub fn ConversionDiagnostic::category(Self) -> String
+pub fn ConversionDiagnostic::equal(Self, Self) -> Bool
+pub fn ConversionDiagnostic::not_equal(Self, Self) -> Bool
 pub fn ConversionDiagnostic::render(Self) -> String
+pub fn ConversionDiagnostic::to_json(Self) -> Json
+pub fn ConversionDiagnostic::to_repr(Self) -> @debug.Repr
 pub fn ConversionDiagnostic::with_defaults(Self, ConversionPhase?, DiagnosticSource?, DiagnosticHint?) -> Self
 
 pub(all) enum ConversionError {
@@ -97,7 +101,11 @@ pub(all) enum ConversionError {
   ConversionFailed(String, String)
 } derive(Eq, ToJson, @debug.Debug)
 pub fn ConversionError::category(Self) -> String
+pub fn ConversionError::equal(Self, Self) -> Bool
 pub fn ConversionError::message(Self) -> String
+pub fn ConversionError::not_equal(Self, Self) -> Bool
+pub fn ConversionError::to_json(Self) -> Json
+pub fn ConversionError::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ConversionPhase {
   Detect(String?)
@@ -108,7 +116,11 @@ pub(all) enum ConversionPhase {
   Postprocess(String?)
   Convert(String)
 } derive(Eq, ToJson, @debug.Debug)
+pub fn ConversionPhase::equal(Self, Self) -> Bool
 pub fn ConversionPhase::label(Self) -> String
+pub fn ConversionPhase::not_equal(Self, Self) -> Bool
+pub fn ConversionPhase::to_json(Self) -> Json
+pub fn ConversionPhase::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ConvertContext {
   keep_metadata : Bool
@@ -120,6 +132,10 @@ pub(all) struct ConvertContext {
   ocr : @ocr.OcrConfig
 } derive(Eq, ToJson, @debug.Debug)
 pub fn ConvertContext::default() -> Self
+pub fn ConvertContext::equal(Self, Self) -> Bool
+pub fn ConvertContext::not_equal(Self, Self) -> Bool
+pub fn ConvertContext::to_json(Self) -> Json
+pub fn ConvertContext::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ConvertResult {
   markdown : String
@@ -136,7 +152,11 @@ pub(all) struct ConvertResult {
   semantic_document : @semantic.SemanticDocument?
 } derive(Eq, ToJson, @debug.Debug)
 pub fn ConvertResult::debug_report(Self) -> String
+pub fn ConvertResult::equal(Self, Self) -> Bool
 pub fn ConvertResult::markdown_only(String, String) -> Self
+pub fn ConvertResult::not_equal(Self, Self) -> Bool
+pub fn ConvertResult::to_json(Self) -> Json
+pub fn ConvertResult::to_repr(Self) -> @debug.Repr
 pub fn ConvertResult::with_assets(Self, Array[OutputAsset]) -> Self
 pub fn ConvertResult::with_ast_views(Self, @ast.Document?, @ast.Document?, @semantic.SemanticDocument?) -> Self
 pub fn ConvertResult::with_diagnostics(Self, Array[ConversionDiagnostic]) -> Self
@@ -152,7 +172,11 @@ pub(all) struct ConvertStats {
   duration_ms : Int?
   used_fallback : Bool
 } derive(Eq, ToJson, @debug.Debug)
+pub fn ConvertStats::equal(Self, Self) -> Bool
+pub fn ConvertStats::not_equal(Self, Self) -> Bool
 pub fn ConvertStats::render(Self) -> String
+pub fn ConvertStats::to_json(Self) -> Json
+pub fn ConvertStats::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DiagnosticHint {
   CheckInputDetection
@@ -161,14 +185,22 @@ pub(all) enum DiagnosticHint {
   CheckArchiveIntegrity
   Custom(String)
 } derive(Eq, ToJson, @debug.Debug)
+pub fn DiagnosticHint::equal(Self, Self) -> Bool
 pub fn DiagnosticHint::message(Self) -> String
+pub fn DiagnosticHint::not_equal(Self, Self) -> Bool
+pub fn DiagnosticHint::to_json(Self) -> Json
+pub fn DiagnosticHint::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DiagnosticLevel {
   Info
   Warning
   Error
 } derive(Eq, ToJson, @debug.Debug)
+pub fn DiagnosticLevel::equal(Self, Self) -> Bool
 pub fn DiagnosticLevel::label(Self) -> String
+pub fn DiagnosticLevel::not_equal(Self, Self) -> Bool
+pub fn DiagnosticLevel::to_json(Self) -> Json
+pub fn DiagnosticLevel::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DiagnosticSource {
   Input(String)
@@ -178,16 +210,24 @@ pub(all) enum DiagnosticSource {
   Bytes(String?)
   Generated(String)
 } derive(Eq, ToJson, @debug.Debug)
+pub fn DiagnosticSource::equal(Self, Self) -> Bool
 pub fn DiagnosticSource::label(Self) -> String
+pub fn DiagnosticSource::not_equal(Self, Self) -> Bool
+pub fn DiagnosticSource::to_json(Self) -> Json
+pub fn DiagnosticSource::to_repr(Self) -> @debug.Repr
 
 pub(all) enum InputSource {
   FileInput(String, Bytes?)
   UrlInput(String, String?)
   BytesInput(String?, Bytes, String?)
 } derive(Eq, ToJson, @debug.Debug)
+pub fn InputSource::equal(Self, Self) -> Bool
 pub fn InputSource::from_string(String) -> Self
 pub fn InputSource::kind(Self) -> String
 pub fn InputSource::name(Self) -> String?
+pub fn InputSource::not_equal(Self, Self) -> Bool
+pub fn InputSource::to_json(Self) -> Json
+pub fn InputSource::to_repr(Self) -> @debug.Repr
 
 pub(all) struct OutputAsset {
   placeholder : String
@@ -196,12 +236,22 @@ pub(all) struct OutputAsset {
   source : DiagnosticSource?
   hint : DiagnosticHint?
 } derive(Eq, ToJson, @debug.Debug)
+pub fn OutputAsset::equal(Self, Self) -> Bool
+pub fn OutputAsset::not_equal(Self, Self) -> Bool
+pub fn OutputAsset::to_json(Self) -> Json
+pub fn OutputAsset::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OutputMode {
   PlainText
   StandardMarkdown
   FrontMatterMarkdown
 } derive(Eq, ToJson, @debug.Debug)
+pub fn OutputMode::equal(Self, Self) -> Bool
+pub fn OutputMode::not_equal(Self, Self) -> Bool
+pub fn OutputMode::output(Self, &Logger) -> Unit
+pub fn OutputMode::to_json(Self) -> Json
+pub fn OutputMode::to_repr(Self) -> @debug.Repr
+pub fn OutputMode::to_string(Self) -> String
 pub impl Show for OutputMode
 
 pub(all) struct StreamInfo {
@@ -211,6 +261,10 @@ pub(all) struct StreamInfo {
   url : String?
   charset : String?
 } derive(Eq, ToJson, @debug.Debug)
+pub fn StreamInfo::equal(Self, Self) -> Bool
+pub fn StreamInfo::not_equal(Self, Self) -> Bool
+pub fn StreamInfo::to_json(Self) -> Json
+pub fn StreamInfo::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

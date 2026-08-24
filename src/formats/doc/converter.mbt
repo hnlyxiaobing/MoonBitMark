@@ -293,7 +293,7 @@ fn join_piece_text(
   pieces : Array[DocPiece],
   _ccp_text : Int,
 ) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   for piece in pieces {
     let chars = piece.cp1 - piece.cp0
     if chars > 0 {
@@ -342,7 +342,7 @@ fn extract_fc_range(
   start_fc : Int,
   end_fc : Int,
 ) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   let mut pos = start_fc
   while pos < end_fc {
     let found = find_piece_at(pieces, pos)
@@ -690,7 +690,7 @@ fn flush_doc_table(
 /// 0x0C page break -> double newline, 0x0D paragraph mark -> newline,
 /// field codes (0x13/0x14/0x15), NUL and 0x7F removed, other C0 stripped.
 fn clean_doc_text(input : String) -> String {
-  let sb = StringBuilder::new()
+  let sb = StringBuilder()
   for ch in input {
     let code = ch.to_int()
     if code == 0x07 {

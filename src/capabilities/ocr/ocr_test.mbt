@@ -1,6 +1,12 @@
 ///|
 async test "recognize image bytes with mock backend" {
   ignore(@async.now())
+  // The OCR bridge (including the mock backend) runs through
+  // `python scripts/ocr/bridge.py`; without a Python interpreter the
+  // bridge cannot start, so skip the backend assertions here.
+  if @python.resolve_python() is None {
+    return
+  }
   let config = OcrConfig::{
     ..OcrConfig::default(),
     mode: Force,

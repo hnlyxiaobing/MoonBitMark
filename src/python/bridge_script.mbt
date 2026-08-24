@@ -28,6 +28,12 @@ pub(all) enum BridgeScriptSource {
 } derive(Debug, Eq)
 
 ///|
+pub extend BridgeScriptSource with @debug.Debug::{to_repr}
+
+///|
+pub extend BridgeScriptSource with Eq::{not_equal, equal}
+
+///|
 /// Outcome of resolving a bridge script path.
 pub(all) enum BridgeScriptResolution {
   /// The script exists at `path`, discovered via `source`.
@@ -39,6 +45,12 @@ pub(all) enum BridgeScriptResolution {
   /// executable or the current working directory, and no override is set.
   NotFound(relative_path~ : String, env_var~ : String)
 } derive(Debug, Eq)
+
+///|
+pub extend BridgeScriptResolution with @debug.Debug::{to_repr}
+
+///|
+pub extend BridgeScriptResolution with Eq::{not_equal, equal}
 
 ///|
 /// Strip the last path component. Both `/` and `\` are treated as separators;

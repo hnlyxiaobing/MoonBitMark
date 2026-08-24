@@ -38,12 +38,18 @@ pub(all) enum BridgeScriptResolution {
   EnvOverrideMissing(path~ : String, env_var~ : String)
   NotFound(relative_path~ : String, env_var~ : String)
 } derive(Eq, @debug.Debug)
+pub fn BridgeScriptResolution::equal(Self, Self) -> Bool
+pub fn BridgeScriptResolution::not_equal(Self, Self) -> Bool
+pub fn BridgeScriptResolution::to_repr(Self) -> @debug.Repr
 
 pub(all) enum BridgeScriptSource {
   EnvOverride
   ExeLocation
   WorkingDirectory
 } derive(Eq, @debug.Debug)
+pub fn BridgeScriptSource::equal(Self, Self) -> Bool
+pub fn BridgeScriptSource::not_equal(Self, Self) -> Bool
+pub fn BridgeScriptSource::to_repr(Self) -> @debug.Repr
 
 pub struct PyVersion {
   major : Int

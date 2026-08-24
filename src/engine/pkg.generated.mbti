@@ -36,7 +36,11 @@ pub(all) struct DetectionResult {
   converter_name : String
   stream_info : @core.StreamInfo
 } derive(Eq, ToJson, @debug.Debug)
+pub fn DetectionResult::equal(Self, Self) -> Bool
+pub fn DetectionResult::not_equal(Self, Self) -> Bool
 pub fn DetectionResult::render(Self) -> String
+pub fn DetectionResult::to_json(Self) -> Json
+pub fn DetectionResult::to_repr(Self) -> @debug.Repr
 
 pub(all) struct MarkItDown {
   converters : Array[ConverterRegistration]

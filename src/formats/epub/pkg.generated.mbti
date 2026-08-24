@@ -28,6 +28,10 @@ pub(all) struct EpubMetadata {
   mut identifier : String?
 } derive(Eq, ToJson, @debug.Debug)
 pub fn EpubMetadata::default() -> Self
+pub fn EpubMetadata::equal(Self, Self) -> Bool
+pub fn EpubMetadata::not_equal(Self, Self) -> Bool
+pub fn EpubMetadata::to_json(Self) -> Json
+pub fn EpubMetadata::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EpubPackage {
   metadata : EpubMetadata
@@ -35,6 +39,7 @@ pub(all) struct EpubPackage {
   spine : Array[SpineItem]
   opf_dir : String
 } derive(@debug.Debug)
+pub fn EpubPackage::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ManifestItem {
   id : String
@@ -42,11 +47,19 @@ pub(all) struct ManifestItem {
   media_type : String
   properties : String?
 } derive(Eq, ToJson, @debug.Debug)
+pub fn ManifestItem::equal(Self, Self) -> Bool
+pub fn ManifestItem::not_equal(Self, Self) -> Bool
+pub fn ManifestItem::to_json(Self) -> Json
+pub fn ManifestItem::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SpineItem {
   idref : String
   linear : Bool
 } derive(Eq, ToJson, @debug.Debug)
+pub fn SpineItem::equal(Self, Self) -> Bool
+pub fn SpineItem::not_equal(Self, Self) -> Bool
+pub fn SpineItem::to_json(Self) -> Json
+pub fn SpineItem::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 
