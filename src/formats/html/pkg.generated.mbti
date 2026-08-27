@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/formats/html"
+package "hnlyxiaobing/moonbitmark/src/formats/html"
 
 import {
-  "moonbitlang/moonbitmark/src/ast",
-  "moonbitlang/moonbitmark/src/core",
+  "hnlyxiaobing/moonbitmark/src/ast",
+  "hnlyxiaobing/moonbitmark/src/core",
 }
 
 // Values

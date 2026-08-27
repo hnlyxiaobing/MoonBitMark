@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/ast"
+package "hnlyxiaobing/moonbitmark/src/ast"
 
 import {
   "moonbitlang/core/debug",

@@ -411,10 +411,7 @@ fn doc_bytes(b64 : String) -> Bytes {
 
 ///|
 test "doc word_english e2e headings lists table" {
-  let result = convert_bytes(
-    doc_bytes(word_english_b64()),
-    "report.doc",
-  ) catch {
+  let result = convert_bytes(doc_bytes(word_english_b64()), "report.doc") catch {
     err => fail("convert failed: \{err}")
   }
   let md = result.markdown
@@ -432,10 +429,7 @@ test "doc word_english e2e headings lists table" {
 
 ///|
 test "doc word_english summary information metadata" {
-  let result = convert_bytes(
-    doc_bytes(word_english_b64()),
-    "report.doc",
-  ) catch {
+  let result = convert_bytes(doc_bytes(word_english_b64()), "report.doc") catch {
     err => fail("convert failed: \{err}")
   }
   assert_eq(result.title, Some("Quarterly Engineering Report"))
@@ -447,10 +441,7 @@ test "doc word_english summary information metadata" {
 
 ///|
 test "doc word95 0xA5DC legacy magic and 0Table" {
-  let result = convert_bytes(
-    doc_bytes(word95_b64()),
-    "legacy.doc",
-  ) catch {
+  let result = convert_bytes(doc_bytes(word95_b64()), "legacy.doc") catch {
     err => fail("convert failed: \{err}")
   }
   assert_true(result.markdown.contains("# Legacy Document"))
@@ -459,9 +450,9 @@ test "doc word95 0xA5DC legacy magic and 0Table" {
 
 ///|
 test "doc encrypted document rejected" {
-  let outcome : Option[@core.ConvertResult] = try {
-    Some(convert_bytes(doc_bytes(word_encrypted_b64()), "secret.doc"))
-  } catch {
+  let outcome : @core.ConvertResult? = Some(
+    convert_bytes(doc_bytes(word_encrypted_b64()), "secret.doc"),
+  ) catch {
     _ => None
   }
   match outcome {
@@ -472,9 +463,9 @@ test "doc encrypted document rejected" {
 
 ///|
 test "doc corrupt cfb magic rejected" {
-  let outcome : Option[@core.ConvertResult] = try {
-    Some(convert_bytes(doc_bytes(corrupt_magic_b64()), "bad.doc"))
-  } catch {
+  let outcome : @core.ConvertResult? = Some(
+    convert_bytes(doc_bytes(corrupt_magic_b64()), "bad.doc"),
+  ) catch {
     _ => None
   }
   match outcome {
@@ -485,16 +476,15 @@ test "doc corrupt cfb magic rejected" {
 
 ///|
 test "doc multipiece utf16 and cp1252 pieces" {
-  let result = convert_bytes(
-    doc_bytes(word_multipiece_b64()),
-    "multi.doc",
-  ) catch {
+  let result = convert_bytes(doc_bytes(word_multipiece_b64()), "multi.doc") catch {
     err => fail("convert failed: \{err}")
   }
   let md = result.markdown
   assert_true(md.contains("# Multi Piece Doc"))
   assert_true(md.contains("The first piece is stored as UTF-16 text."))
-  assert_true(md.contains("The second piece is stored as 8-bit compressed text."))
+  assert_true(
+    md.contains("The second piece is stored as 8-bit compressed text."),
+  )
 }
 
 ///|

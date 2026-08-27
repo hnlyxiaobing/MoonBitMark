@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/capabilities/ocr"
+package "hnlyxiaobing/moonbitmark/src/capabilities/ocr"
 
 import {
   "moonbitlang/core/debug",

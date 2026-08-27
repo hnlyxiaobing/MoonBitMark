@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/semantic"
+package "hnlyxiaobing/moonbitmark/src/semantic"
 
 import {
+  "hnlyxiaobing/moonbitmark/src/ast",
   "moonbitlang/core/debug",
-  "moonbitlang/moonbitmark/src/ast",
 }
 
 // Values

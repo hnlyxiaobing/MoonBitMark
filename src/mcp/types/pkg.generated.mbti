@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/mcp/types"
+package "hnlyxiaobing/moonbitmark/src/mcp/types"
 
 // Values
 pub fn parse_json(String) -> Result[JsonValue, JsonParseError]

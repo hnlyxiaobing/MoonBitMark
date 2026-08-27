@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "hnlyxiaobing/moonbitmark/src/formats/doc"
+
+import {
+  "hnlyxiaobing/moonbitmark/src/core",
+}
+
+// Values
+pub fn convert_bytes(Bytes, String, ctx? : @core.ConvertContext) -> @core.ConvertResult raise
+
+// Errors
+
+// Types and methods
+pub(all) struct DocConverter {
+  dummy : Int
+}
+pub fn DocConverter::accepts(@core.StreamInfo) -> Bool
+pub async fn DocConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult
+pub fn DocConverter::new() -> Self
+
+// Type aliases
+
+// Traits

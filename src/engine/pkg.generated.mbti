@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/engine"
+package "hnlyxiaobing/moonbitmark/src/engine"
 
 import {
+  "hnlyxiaobing/moonbitmark/src/core",
   "moonbitlang/core/debug",
-  "moonbitlang/moonbitmark/src/core",
 }
 
 // Values
@@ -16,6 +16,7 @@ pub(all) enum ConverterKind {
   Epub
   Pptx
   Xlsx
+  Doc
   Pdf
   Image
   Html

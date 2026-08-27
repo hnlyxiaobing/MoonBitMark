@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/mcp/transport/http"
+package "hnlyxiaobing/moonbitmark/src/mcp/transport/http"
 
 import {
-  "moonbitlang/moonbitmark/src/mcp/handler",
+  "hnlyxiaobing/moonbitmark/src/mcp/handler",
 }
 
 // Values

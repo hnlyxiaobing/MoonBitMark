@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/formats/epub"
+package "hnlyxiaobing/moonbitmark/src/formats/epub"
 
 import {
+  "hnlyxiaobing/moonbitmark/src/core",
   "moonbitlang/core/debug",
-  "moonbitlang/moonbitmark/src/core",
 }
 
 // Values

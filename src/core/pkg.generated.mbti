@@ -1,11 +1,11 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/core"
+package "hnlyxiaobing/moonbitmark/src/core"
 
 import {
+  "hnlyxiaobing/moonbitmark/src/ast",
+  "hnlyxiaobing/moonbitmark/src/capabilities/ocr",
+  "hnlyxiaobing/moonbitmark/src/semantic",
   "moonbitlang/core/debug",
-  "moonbitlang/moonbitmark/src/ast",
-  "moonbitlang/moonbitmark/src/capabilities/ocr",
-  "moonbitlang/moonbitmark/src/semantic",
 }
 
 // Values
@@ -54,6 +54,8 @@ pub fn path_extension(String) -> String
 pub fn push_unique_warning(Array[String], String) -> Unit
 
 pub async fn read_file_bytes(String) -> Bytes
+
+pub fn read_file_bytes_ffi(String) -> Bytes raise
 
 pub async fn read_input_bytes(InputSource) -> Bytes
 

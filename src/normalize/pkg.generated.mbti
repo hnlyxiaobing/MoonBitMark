@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/normalize"
+package "hnlyxiaobing/moonbitmark/src/normalize"
 
 import {
-  "moonbitlang/moonbitmark/src/ast",
+  "hnlyxiaobing/moonbitmark/src/ast",
 }
 
 // Values

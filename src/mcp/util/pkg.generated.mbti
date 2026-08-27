@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/mcp/util"
+package "hnlyxiaobing/moonbitmark/src/mcp/util"
 
 // Values
 pub fn[T] block_on(Future[T]) -> Result[T, String]

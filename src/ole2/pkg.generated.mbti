@@ -1,0 +1,35 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "hnlyxiaobing/moonbitmark/src/ole2"
+
+// Values
+pub fn cfb_is_ole2_signature(Bytes) -> Bool
+
+// Errors
+
+// Types and methods
+pub(all) struct CfbArchive {
+  data : Bytes
+  sector_size : Int
+  mini_sector_size : Int
+  mini_cutoff : UInt
+  fat : Array[UInt]
+  minifat : Array[UInt]
+  entries : Array[CfbDirectoryEntry]
+  ministream : Bytes
+}
+pub fn CfbArchive::has_stream(Self, String) -> Bool
+pub fn CfbArchive::open(Bytes) -> Self?
+pub fn CfbArchive::open_explained(Bytes) -> Result[Self, String]
+pub fn CfbArchive::read_stream(Self, String) -> Bytes?
+pub fn CfbArchive::stream_names(Self) -> Array[String]
+
+pub(all) struct CfbDirectoryEntry {
+  name : String
+  entry_type : Int
+  start_sector : UInt
+  stream_size : UInt
+}
+
+// Type aliases
+
+// Traits

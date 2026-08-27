@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/python"
+package "hnlyxiaobing/moonbitmark/src/python"
 
 import {
   "moonbitlang/core/debug",

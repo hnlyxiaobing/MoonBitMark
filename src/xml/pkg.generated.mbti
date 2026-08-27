@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/xml"
+package "hnlyxiaobing/moonbitmark/src/xml"
 
 // Values
 pub fn parse_xml(String) -> Result[Array[ParseEvent], XMLParseError]

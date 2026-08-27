@@ -37,7 +37,7 @@ pub async fn DocConverter::convert(
   ctx? : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let bytes = @core.read_file_bytes(file_path)
-  convert_bytes(bytes, file_path, ctx=ctx) catch {
+  convert_bytes(bytes, file_path, ctx~) catch {
     err => fail(err.to_string())
   }
 }
@@ -71,8 +71,7 @@ pub fn convert_bytes(
       fail(
         render_doc_failure(
           @core.UnsupportedFeatureError(
-            "Word binary document requires a WordDocument stream",
-            ".doc/.wps",
+            "Word binary document requires a WordDocument stream", ".doc/.wps",
           ),
           Some(@core.Parse(Some("WordDocument"))),
           Some(@core.ArchiveEntry("WordDocument")),
@@ -265,15 +264,13 @@ fn parse_piece_table(
             let compressed = (fc_raw & 0x40000000) != 0
             let fc_value = (fc_raw & 0x3FFFFFFF).reinterpret_as_int()
             let byte_offset = if compressed { fc_value / 2 } else { fc_value }
-            pieces.push(
-              DocPiece::{
-                cp0: c0,
-                cp1: c1,
-                compressed,
-                byte_offset,
-                fc_space_start: fc_value,
-              },
-            )
+            pieces.push(DocPiece::{
+              cp0: c0,
+              cp1: c1,
+              compressed,
+              byte_offset,
+              fc_space_start: fc_value,
+            })
             j = j + 1
           }
           return Some(pieces)
@@ -297,9 +294,7 @@ fn join_piece_text(
   for piece in pieces {
     let chars = piece.cp1 - piece.cp0
     if chars > 0 {
-      sb.write_string(
-        decode_piece_range(word_document, piece, 0, chars),
-      )
+      sb.write_string(decode_piece_range(word_document, piece, 0, chars))
     }
   }
   sb.to_string()
@@ -347,7 +342,7 @@ fn extract_fc_range(
   while pos < end_fc {
     let found = find_piece_at(pieces, pos)
     match found {
-      None => {
+      None =>
         // fc space is not contiguous across pieces: a piece boundary can
         // jump forward (e.g. 16-bit piece ends at fc=60, next 8-bit piece
         // starts at fc=2168). Skip to the next piece start instead of
@@ -356,7 +351,6 @@ fn extract_fc_range(
           None => break
           Some(ns) => pos = ns
         }
-      }
       Some(piece) => {
         let piece_end_space = piece.fc_space_start + 2 * (piece.cp1 - piece.cp0)
         let seg_end = doc_min(end_fc, piece_end_space)
@@ -408,9 +402,10 @@ fn next_piece_start(pieces : Array[DocPiece], after_fc : Int) -> Int? {
     if piece.fc_space_start > after_fc {
       match best {
         None => best = Some(piece.fc_space_start)
-        Some(b) => if piece.fc_space_start < b {
-          best = Some(piece.fc_space_start)
-        }
+        Some(b) =>
+          if piece.fc_space_start < b {
+            best = Some(piece.fc_space_start)
+          }
       }
     }
   }
@@ -498,12 +493,10 @@ fn parse_paragraph_table(
               }
               let grp_len = if cb != 0 {
                 cb * 2 - 2
+              } else if po + 1 < 512 {
+                fkp[po + 1].to_int() * 2 - 2
               } else {
-                if po + 1 < 512 {
-                  fkp[po + 1].to_int() * 2 - 2
-                } else {
-                  0
-                }
+                0
               }
               let grp_start = if cb != 0 { po + 3 } else { po + 4 }
               if grp_len > 0 && grp_start + grp_len <= 512 {
@@ -519,15 +512,13 @@ fn parse_paragraph_table(
               extract_fc_range(word_document, piece_list, start_fc, end_fc)
             None => ""
           }
-          result.push(
-            DocParagraph::{
-              istd,
-              ilfo,
-              in_table,
-              row_end,
-              text: clean_doc_text(raw_text),
-            },
-          )
+          result.push(DocParagraph::{
+            istd,
+            ilfo,
+            in_table,
+            row_end,
+            text: clean_doc_text(raw_text),
+          })
         }
       }
       result
@@ -559,13 +550,7 @@ fn parse_sprms(fkp : Bytes, start : Int, length : Int) -> DocSprms {
       2 | 4 | 5 => 2
       3 => 4
       7 => 3
-      6 => {
-        if j + 3 <= start + length {
-          fkp[j + 2].to_int() + 1
-        } else {
-          0
-        }
-      }
+      6 => if j + 3 <= start + length { fkp[j + 2].to_int() + 1 } else { 0 }
       _ => 0
     }
     if op_len <= 0 || j + 2 + op_len > start + length {
@@ -621,10 +606,8 @@ fn build_doc_blocks(
           table_rows.push(current_row)
           current_row = []
         }
-      } else {
-        if para.text.length() > 0 {
-          current_row.push(@ast.text_inlines(para.text))
-        }
+      } else if para.text.length() > 0 {
+        current_row.push(@ast.text_inlines(para.text))
       }
       continue
     }

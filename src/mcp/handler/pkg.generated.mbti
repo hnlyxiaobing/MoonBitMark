@@ -1,11 +1,11 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbitlang/moonbitmark/src/mcp/handler"
+package "hnlyxiaobing/moonbitmark/src/mcp/handler"
 
 import {
-  "moonbitlang/moonbitmark/src/core",
-  "moonbitlang/moonbitmark/src/mcp/transport",
-  "moonbitlang/moonbitmark/src/mcp/types",
-  "moonbitlang/moonbitmark/src/mcp/util",
+  "hnlyxiaobing/moonbitmark/src/core",
+  "hnlyxiaobing/moonbitmark/src/mcp/transport",
+  "hnlyxiaobing/moonbitmark/src/mcp/types",
+  "hnlyxiaobing/moonbitmark/src/mcp/util",
 }
 
 // Values
