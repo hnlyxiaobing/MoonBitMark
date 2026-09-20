@@ -1,5 +1,7 @@
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdftransform",
-  "bobzhang/mbtpdf/font/pdfglyphlist",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdftransform",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/font/pdfglyphlist",
 }
+
+warnings = "-all"

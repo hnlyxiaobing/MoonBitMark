@@ -1,6 +1,8 @@
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdfe",
-  "bobzhang/mbtpdf/document/pdftree",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdftree",
   "moonbitlang/core/string",
 }
+
+warnings = "-all"

@@ -1,11 +1,13 @@
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdfio",
-  "bobzhang/mbtpdf/io/pdfiofs",
-  "bobzhang/mbtpdf/io/pdfread",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfiofs",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfread",
   "moonbitlang/async",
   "moonbitlang/async/fs",
 }
+
+warnings = "-all"
 
 options(
   targets: { "pdfreadfs.mbt": [ "native", "wasm" ] },

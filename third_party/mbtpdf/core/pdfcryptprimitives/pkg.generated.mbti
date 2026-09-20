@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/core/pdfcryptprimitives"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfcryptprimitives"
 
 import {
-  "bobzhang/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
   "moonbitlang/core/debug",
 }
 

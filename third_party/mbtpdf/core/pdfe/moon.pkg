@@ -1,3 +1,5 @@
 import {
-  "bobzhang/mbtpdf/core/pdfutil",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfutil",
 }
+
+warnings = "-all"

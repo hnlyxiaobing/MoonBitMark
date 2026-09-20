@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/crypto/pdfcrypt"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/crypto/pdfcrypt"
 
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdfcryptprimitives",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfcryptprimitives",
   "moonbitlang/core/debug",
 }
 

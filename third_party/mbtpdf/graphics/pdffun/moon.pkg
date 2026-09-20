@@ -1,8 +1,10 @@
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/codec/pdfcodec",
-  "bobzhang/mbtpdf/syntax/pdfgenlex",
-  "bobzhang/mbtpdf/core/pdfio",
-  "bobzhang/mbtpdf/core/pdfe",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/codec/pdfcodec",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/syntax/pdfgenlex",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
   "moonbitlang/core/math",
 }
+
+warnings = "-all"

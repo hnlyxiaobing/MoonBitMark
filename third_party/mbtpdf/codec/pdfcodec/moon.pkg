@@ -1,6 +1,8 @@
 import {
-  "bobzhang/mbtpdf/codec/pdfflate",
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/codec/pdfflate",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
   "moonbitlang/async",
 }
+
+warnings = "-all"

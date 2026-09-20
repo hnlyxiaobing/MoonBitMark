@@ -113,7 +113,7 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 ### PDF
 
 - PDF 管线拆分为 route、extract、normalize、structure、assemble 和 diagnostics。
-- 默认路径使用 `bobzhang/mbtpdf`。
+- 默认路径使用模块内联的 `third_party/mbtpdf`（上游 `bobzhang/mbtpdf` 的固化副本）。
 - 原生抽取使用项目内的词距感知抽取器（`src/formats/pdf/extract_spacing_native.mbt`），
   将 TJ 位移与 Td 水平移动物化为词间空格。
 - 必要时可以走 Python bridge fallback。
@@ -126,7 +126,7 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 | 能力 | 默认路径 | 外部依赖 |
 | --- | --- | --- |
 | TXT / CSV / JSON / HTML / DOCX / PPTX / XLSX / EPUB 容器解析 | 纯 MoonBit | 无 |
-| PDF 提取 | MoonBit 包 | `bobzhang/mbtpdf` |
+| PDF 提取 | MoonBit 包 | 模块内联的 `third_party/mbtpdf`（上游 `bobzhang/mbtpdf` 的固化副本，不再走 registry 依赖） |
 | PDF fallback | 可选 bridge | `python scripts/pdf/bridge.py` |
 | OCR | 可选 bridge | `python scripts/ocr/bridge.py`，backend 为 `mock`、`tesseract` 或 `auto` |
 | MCP STDIO / HTTP | 本地服务 | 无额外运行时，但受环境变量限制 |

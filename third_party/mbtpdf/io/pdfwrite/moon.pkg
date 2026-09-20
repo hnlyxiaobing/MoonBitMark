@@ -1,13 +1,15 @@
 import {
-  "bobzhang/mbtpdf/codec/pdfcodec",
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdfe",
-  "bobzhang/mbtpdf/core/pdfio",
-  "bobzhang/mbtpdf/core/pdfcryptprimitives",
-  "bobzhang/mbtpdf/crypto/pdfcrypt",
-  "bobzhang/mbtpdf/io/pdfread",
-  "bobzhang/mbtpdf/document/pdfpage",
-  "bobzhang/mbtpdf/io/pdfiofs",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/codec/pdfcodec",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfcryptprimitives",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/crypto/pdfcrypt",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfread",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfpage",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfiofs",
   "moonbitlang/async",
   "moonbitlang/async/fs",
 }
+
+warnings = "-all"

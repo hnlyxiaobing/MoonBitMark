@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/font/pdfafm"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/font/pdfafm"
 
 import {
-  "bobzhang/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
 }
 
 // Values

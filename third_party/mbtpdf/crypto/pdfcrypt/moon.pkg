@@ -1,9 +1,11 @@
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdfcryptprimitives",
-  "bobzhang/mbtpdf/core/pdfe",
-  "bobzhang/mbtpdf/core/pdfio",
-  "bobzhang/mbtpdf/document/pdfpage",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfcryptprimitives",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfpage",
   "moonbitlang/core/env",
   "moonbitlang/core/random",
 }
+
+warnings = "-all"

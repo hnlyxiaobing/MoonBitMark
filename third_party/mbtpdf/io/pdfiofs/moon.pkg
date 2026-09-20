@@ -1,9 +1,11 @@
 import {
-  "bobzhang/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "moonbitlang/async/io",
 }
+
+warnings = "-all"
 
 options(
   targets: { "pdfiofs.mbt": [ "native", "wasm" ] },

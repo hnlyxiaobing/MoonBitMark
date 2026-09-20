@@ -1,10 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/io/pdfwrite"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfwrite"
 
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdfio",
-  "bobzhang/mbtpdf/crypto/pdfcrypt",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/crypto/pdfcrypt",
 }
 
 // Values

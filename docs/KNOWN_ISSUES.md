@@ -39,10 +39,10 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
   - 无坐标/bbox 输出，密集表格结构不可恢复，`pdf_embedded_images_tables` case 的
     `table_compare` 保持关闭。
 
-- 上游 mbtpdf 问题：含重复 object 定义的 PDF（如 `code_and_formula.pdf`）页树
+- 固化副本继承的上游 mbtpdf 问题：含重复 object 定义的 PDF（如 `code_and_formula.pdf`）页树
   遍历会丢页（第 2 页"Formula"一节缺失），导致该 case 的 `text_order` 暂未启用；
-  修复需上游处理，见 `docs/solution_plan_2026-08-12.md` 第 1 节 M4。
-
+  修复需上游处理，见 `docs/solution_plan_2026-08-12.md` 第 1 节 M4。仓库内联的
+  `third_party/mbtpdf` 只跟随 target/portability 修复，不做行为改动。
 ## EPUB HTML 兜底路径的媒体元素处理（二期项）
 
 - 位置：`src/formats/html/converter.mbt`、`src/formats/epub/converter.mbt`

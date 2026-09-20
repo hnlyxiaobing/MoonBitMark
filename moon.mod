@@ -1,10 +1,9 @@
 name = "hnlyxiaobing/moonbitmark"
 
-version = "0.4.3"
+version = "0.4.4"
 
 import {
   "moonbitlang/async@0.22.1",
-  "bobzhang/mbtpdf@0.1.2",
 }
 
 readme = "README.md"

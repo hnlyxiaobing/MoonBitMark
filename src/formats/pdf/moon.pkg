@@ -9,14 +9,14 @@ import {
   "hnlyxiaobing/moonbitmark/src/core",
   "hnlyxiaobing/moonbitmark/src/capabilities/ocr",
   "hnlyxiaobing/moonbitmark/src/python",
-  "bobzhang/mbtpdf/crypto/pdfcrypt",
-  "bobzhang/mbtpdf/core/pdf" @mbtpdf,
-  "bobzhang/mbtpdf/document/pdfpage",
-  "bobzhang/mbtpdf/graphics/pdfops",
-  "bobzhang/mbtpdf/core/pdfio",
-  "bobzhang/mbtpdf/io/pdfread",
-  "bobzhang/mbtpdf/io/pdfreadfs",
-  "bobzhang/mbtpdf/text/pdftext" @pdftextlib,
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/crypto/pdfcrypt",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf" @mbtpdf,
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfpage",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/graphics/pdfops",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfread",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfreadfs",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/text/pdftext" @pdftextlib,
 }
 
 warnings = "-29"

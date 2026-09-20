@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/core/pdfe"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe"
 
 import {
   "moonbitlang/core/ref",

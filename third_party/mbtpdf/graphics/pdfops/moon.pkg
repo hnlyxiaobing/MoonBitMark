@@ -1,9 +1,11 @@
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/codec/pdfcodec",
-  "bobzhang/mbtpdf/core/pdfe",
-  "bobzhang/mbtpdf/syntax/pdfgenlex",
-  "bobzhang/mbtpdf/core/pdfio",
-  "bobzhang/mbtpdf/syntax/pdfsyntax",
-  "bobzhang/mbtpdf/core/pdftransform",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/codec/pdfcodec",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/syntax/pdfgenlex",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/syntax/pdfsyntax",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdftransform",
 }
+
+warnings = "-all"

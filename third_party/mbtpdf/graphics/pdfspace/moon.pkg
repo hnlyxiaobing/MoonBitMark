@@ -1,7 +1,9 @@
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/codec/pdfcodec",
-  "bobzhang/mbtpdf/core/pdfe",
-  "bobzhang/mbtpdf/graphics/pdffun",
-  "bobzhang/mbtpdf/core/pdfio",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/codec/pdfcodec",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/graphics/pdffun",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
 }
+
+warnings = "-all"

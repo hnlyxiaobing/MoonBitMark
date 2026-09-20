@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/graphics/pdfspace"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/graphics/pdfspace"
 
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/graphics/pdffun",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/graphics/pdffun",
 }
 
 // Values

@@ -1,4 +1,6 @@
 import {
-  "bobzhang/mbtpdf/core/pdfe",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
   "moonbitlang/async",
 }
+
+warnings = "-all"

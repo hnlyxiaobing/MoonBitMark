@@ -1,12 +1,12 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/document/pdfpage"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfpage"
 
 import {
-  "bobzhang/mbtpdf/core/pdf",
-  "bobzhang/mbtpdf/core/pdftransform",
-  "bobzhang/mbtpdf/document/pdfdest",
-  "bobzhang/mbtpdf/document/pdfpaper",
-  "bobzhang/mbtpdf/graphics/pdfops",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdftransform",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfdest",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfpaper",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/graphics/pdfops",
   "moonbitlang/core/debug",
 }
 

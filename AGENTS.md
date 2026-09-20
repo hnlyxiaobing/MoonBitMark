@@ -243,12 +243,13 @@ suberror MyError { NotFound, InvalidInput(String) }
 ## Dependencies
 
 - `moonbitlang/async` - File system, HTTP client
-- `bobzhang/mbtpdf` - PDF text extraction. Vendored at `third_party/mbtpdf`
-  (via `moon.work`) so its native-only I/O packages (`io/pdfiofs`,
-  `io/pdfreadfs`, `io/pdfwritefs`) can carry per-file `targets` restrictions;
-  keep the vendored copy's `warn-list = "-all"` and do not edit it beyond
+- `bobzhang/mbtpdf` - PDF text extraction. Inlined into this module at
+  `third_party/mbtpdf` (no `moon.work`, no registry dependency) so its
+  native-only I/O packages (`io/pdfiofs`, `io/pdfreadfs`, `io/pdfwritefs`) can
+  carry per-file `targets` restrictions and so consumers do not depend on the
+  registry build of the upstream module. Each vendored package keeps
+  `warnings = "-all"` in its `moon.pkg`; do not edit the copy beyond
   target/portability fixes.
-
 ## Multi-Target Layout
 
 The project's supported runtime is `native` (`preferred_target`). Files that

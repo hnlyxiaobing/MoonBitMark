@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/font/pdfcmap"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/font/pdfcmap"
 
 import {
-  "bobzhang/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
   "moonbitlang/core/debug",
 }
 

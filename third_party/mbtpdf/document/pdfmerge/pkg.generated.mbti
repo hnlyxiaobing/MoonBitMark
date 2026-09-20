@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/document/pdfmerge"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfmerge"
 
 import {
-  "bobzhang/mbtpdf/core/pdf",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
 }
 
 // Values

@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "bobzhang/mbtpdf/core/pdfutil"
+package "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfutil"
 
 import {
   "moonbitlang/core/ref",
