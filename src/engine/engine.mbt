@@ -68,7 +68,7 @@ pub(all) struct MarkItDown {
 
 ///|
 pub fn MarkItDown::new() -> MarkItDown {
-  register_default_converters(MarkItDown::{ converters: [] })
+  register_default_converters(MarkItDown::{ converters: [], })
 }
 
 ///|
@@ -114,7 +114,7 @@ pub async fn MarkItDown::detect_source(
 ) -> DetectionResult {
   let info = detect_stream_info(input)
   let converter = self.select_converter(info)
-  DetectionResult::{ converter_name: converter.name, stream_info: info }
+  DetectionResult::{ converter_name: converter.name, stream_info: info, }
 }
 
 ///|

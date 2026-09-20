@@ -5,5 +5,5 @@ pub struct PdfSyntax {
 
 ///|
 pub fn PdfSyntax::new() -> PdfSyntax {
-  { unit: () }
+  { unit: (), }
 }

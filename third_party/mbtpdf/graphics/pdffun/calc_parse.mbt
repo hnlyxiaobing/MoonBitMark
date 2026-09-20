@@ -227,7 +227,7 @@ pub fn PdfFunction::parse(pdf : @pdf.Pdf, obj : PdfObject) -> PdfFunction raise 
         _ => [1.0]
       }
       let n = getnum_direct(pdf.lookup_fail("No /N in Type 2 fun", "/N", f))
-      PdfFunctionKind::Interpolation({ c0, c1, n })
+      PdfFunctionKind::Interpolation({ c0, c1, n, })
     }
     Integer(3) => {
       let functions = match pdf.lookup_fail("no /Functions", "/Functions", f) {
@@ -264,5 +264,5 @@ pub fn PdfFunction::parse(pdf : @pdf.Pdf, obj : PdfObject) -> PdfFunction raise 
     }
     _ => raise @pdf.PdfError::Msg("Unknown function type")
   }
-  { domain, range, func }
+  { domain, range, func, }
 }

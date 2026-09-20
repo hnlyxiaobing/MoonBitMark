@@ -10,7 +10,7 @@ pub(all) struct PptxConverter {
 ///|
 /// Create a new PPTX converter
 pub fn PptxConverter::new() -> PptxConverter {
-  PptxConverter::{ dummy: 0 }
+  PptxConverter::{ dummy: 0, }
 }
 
 ///|

@@ -173,7 +173,7 @@ fn find_pages(
             Dictionary(d) => PdfObject::Dictionary(remove_dict_entries(d))
             _ => raise @pdf.PdfError::Msg("Bad /Pages")
           }
-          [{ resources, content, mediabox, rotate, rest }]
+          [{ resources, content, mediabox, rotate, rest, }]
         }
       }
     }

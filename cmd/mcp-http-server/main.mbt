@@ -59,7 +59,7 @@ fn parse_server_args(
         if index + 1 >= args.length() {
           fail("Missing value after --port")
         }
-        port = @strconv.from_str(args[index + 1]) catch {
+        port = @string.from_str(args[index + 1]) catch {
           _ => fail("Invalid --port value: " + args[index + 1])
         }
         index = index + 2

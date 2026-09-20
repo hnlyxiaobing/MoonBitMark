@@ -38,7 +38,7 @@ pub fn ZipArchive::open(buffer : Bytes) -> ZipArchive? {
     match eocd_offset {
       Some(offset) => {
         let entries = parse_central_directory(buffer, offset)
-        Some(ZipArchive::{ data: buffer, entries })
+        Some(ZipArchive::{ data: buffer, entries, })
       }
       None => None
     }
@@ -81,7 +81,7 @@ fn parse_central_directory(
   let cd_offset = read_uint32_le(buffer, eocd_offset + 16).reinterpret_as_int()
   let num_entries = read_uint16_le(buffer, eocd_offset + 10).reinterpret_as_int()
 
-  let entries : Array[ZipEntry] = Array::new()
+  let entries : Array[ZipEntry] = Array(capacity=0)
   let mut pos = cd_offset
 
   for i = 0; i < num_entries; i = i + 1 {
@@ -183,7 +183,7 @@ pub fn close_archive(archive : ZipArchive) -> Unit {
 ///|
 /// 获取 ZIP 归档中的文件列表
 pub fn ZipArchive::list_entries(self : ZipArchive) -> Array[String] {
-  let names : Array[String] = Array::new()
+  let names : Array[String] = Array(capacity=0)
   for entry in self.entries {
     names.push(entry.name)
   }

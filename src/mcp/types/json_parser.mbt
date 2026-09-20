@@ -31,7 +31,7 @@ priv struct ParserState {
 
 ///|
 pub fn parse_json(input : String) -> Result[JsonValue, JsonParseError] {
-  let state = ParserState::{ index: 0 }
+  let state = ParserState::{ index: 0, }
   match parse_value(input, state) {
     Ok(value) => {
       skip_whitespace(input, state)

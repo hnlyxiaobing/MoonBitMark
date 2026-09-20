@@ -10,8 +10,8 @@ pub fn PdfSyntax::lex_object_at(
   read_stream_data : Bool,
   lexobj : (Int) -> Array[Token] raise,
 ) -> Array[Token] raise {
-  let dict_level : Ref[Int] = { val: 0 }
-  let array_level : Ref[Int] = { val: 0 }
+  let dict_level : Ref[Int] = { val: 0, }
+  let array_level : Ref[Int] = { val: 0, }
   let tokens = Array::new()
   let mut done = false
   while !done {

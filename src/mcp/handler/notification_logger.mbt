@@ -12,7 +12,7 @@ pub(all) struct NotificationLogger {
 
 ///|
 pub fn NotificationLogger::new(name : String) -> NotificationLogger {
-  NotificationLogger::{ name, min_level: @types.McpLoggingLevel::Info }
+  NotificationLogger::{ name, min_level: @types.McpLoggingLevel::Info, }
 }
 
 ///|
@@ -20,7 +20,7 @@ pub fn NotificationLogger::set_min_level(
   self : NotificationLogger,
   level : @types.McpLoggingLevel,
 ) -> NotificationLogger {
-  NotificationLogger::{ name: self.name, min_level: level }
+  NotificationLogger::{ name: self.name, min_level: level, }
 }
 
 ///|

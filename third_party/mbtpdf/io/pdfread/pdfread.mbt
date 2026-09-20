@@ -14,7 +14,7 @@ pub fn PdfRead::new(
   debug_always_treat_malformed? : Bool = false,
   logger? : (String) -> Unit = @pdfe.logger.val,
 ) -> PdfRead {
-  { read_debug, error_on_malformed, debug_always_treat_malformed, logger }
+  { read_debug, error_on_malformed, debug_always_treat_malformed, logger, }
 }
 
 ///|

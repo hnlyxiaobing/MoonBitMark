@@ -240,7 +240,7 @@ fn reconstruct_pdf_blocks_with_heading_state(
           } else if try_merge_paragraph_candidate(candidates, chunk) {
             merged_paragraph_count = merged_paragraph_count + 1
           } else {
-            candidates.push(PdfBlockCandidate::{ kind: Paragraph, text: chunk })
+            candidates.push(PdfBlockCandidate::{ kind: Paragraph, text: chunk, })
           }
       }
       chunk_index = chunk_index + 1
@@ -2252,10 +2252,13 @@ fn parse_list_item(text : String) -> PdfListItem? {
   }
   let marker = words[0]
   if marker == "•" || marker == "-" || marker == "*" {
-    return Some(PdfListItem::{ text: join_words_from(words, 1), ordered: false })
+    return Some(PdfListItem::{
+      text: join_words_from(words, 1),
+      ordered: false,
+    })
   }
   if is_ordered_list_marker(marker) {
-    return Some(PdfListItem::{ text: join_words_from(words, 1), ordered: true })
+    return Some(PdfListItem::{ text: join_words_from(words, 1), ordered: true, })
   }
   None
 }

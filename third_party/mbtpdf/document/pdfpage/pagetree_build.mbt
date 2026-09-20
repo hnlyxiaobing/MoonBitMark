@@ -193,7 +193,7 @@ pub fn PdfPageDoc::add_pagetree(
   pages : Array[Page],
 ) -> (@pdf.Pdf, Int) raise {
   let pdf = self.pdf
-  let extras : Ref[Array[(Int, PdfObject)]] = { val: [] }
+  let extras : Ref[Array[(Int, PdfObject)]] = { val: [], }
   let getobjnum = source(pdf.objects.max_obj_num)
   let ptree = pagetree(getobjnum, pages, 0)
   let objects = objects_of_ptree(getobjnum, extras, ptree)

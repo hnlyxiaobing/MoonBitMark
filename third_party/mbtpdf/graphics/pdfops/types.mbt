@@ -104,16 +104,16 @@ priv suberror LexingEnd
 priv suberror CouldntHandleContent
 
 ///|
-let debug : Ref[Bool] = { val: false }
+let debug : Ref[Bool] = { val: false, }
 
 ///|
-let write_comments : Ref[Bool] = { val: false }
+let write_comments : Ref[Bool] = { val: false, }
 
 ///|
-let whitespace : Ref[String] = { val: " " }
+let whitespace : Ref[String] = { val: " ", }
 
 ///|
-let always_add_whitespace : Ref[Bool] = { val: false }
+let always_add_whitespace : Ref[Bool] = { val: false, }
 
 ///|
 pub let begin_artifact : Op = Op::OpBMC("/Artifact")

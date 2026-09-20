@@ -10,7 +10,7 @@ pub(all) struct XlsxConverter {
 ///|
 /// Create a new XLSX converter
 pub fn XlsxConverter::new() -> XlsxConverter {
-  XlsxConverter::{ dummy: 0 }
+  XlsxConverter::{ dummy: 0, }
 }
 
 ///|
@@ -466,7 +466,7 @@ fn extract_sheet_data(
   events : Array[@xml.ParseEvent],
   shared_strings : Array[String],
 ) -> SheetData {
-  let data = SheetData::{ rows: [], max_cols: 0 }
+  let data = SheetData::{ rows: [], max_cols: 0, }
 
   let mut in_cell = false
   let mut in_value = false
@@ -698,7 +698,7 @@ fn detect_sheet_regions(rows : Array[Array[String]]) -> Array[SheetRegion] {
     for col_index, cell in row {
       if cell != "" {
         cell_map[sheet_cell_key(row_index, col_index)] = cell
-        positions.push(SheetCellPos::{ row: row_index, col: col_index })
+        positions.push(SheetCellPos::{ row: row_index, col: col_index, })
       }
     }
   }
@@ -740,7 +740,7 @@ fn detect_sheet_regions(rows : Array[Array[String]]) -> Array[SheetRegion] {
         }
       }
     }
-    regions.push(SheetRegion::{ min_row, max_row, min_col, max_col })
+    regions.push(SheetRegion::{ min_row, max_row, min_col, max_col, })
   }
   regions
 }
@@ -749,13 +749,13 @@ fn detect_sheet_regions(rows : Array[Array[String]]) -> Array[SheetRegion] {
 fn sheet_neighbors(position : SheetCellPos) -> Array[SheetCellPos] {
   let neighbors : Array[SheetCellPos] = []
   if position.row > 0 {
-    neighbors.push(SheetCellPos::{ row: position.row - 1, col: position.col })
+    neighbors.push(SheetCellPos::{ row: position.row - 1, col: position.col, })
   }
-  neighbors.push(SheetCellPos::{ row: position.row + 1, col: position.col })
+  neighbors.push(SheetCellPos::{ row: position.row + 1, col: position.col, })
   if position.col > 0 {
-    neighbors.push(SheetCellPos::{ row: position.row, col: position.col - 1 })
+    neighbors.push(SheetCellPos::{ row: position.row, col: position.col - 1, })
   }
-  neighbors.push(SheetCellPos::{ row: position.row, col: position.col + 1 })
+  neighbors.push(SheetCellPos::{ row: position.row, col: position.col + 1, })
   neighbors
 }
 

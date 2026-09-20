@@ -112,8 +112,8 @@ pub fn PdfStructTree::trim_structure_tree(
     return
   }
   let remove_set = set_of_ints(page_objnums_to_remove)
-  let del : Ref[Array[Int]] = { val: [] }
-  let replaceobjs : Ref[Array[(Int, @pdf.PdfObject)]] = { val: [] }
+  let del : Ref[Array[Int]] = { val: [], }
+  let replaceobjs : Ref[Array[(Int, @pdf.PdfObject)]] = { val: [], }
   pdf.objiter((n, o) => {
     match pdf.direct(o) {
       @pdf.PdfObject::Dictionary(d) =>
@@ -239,7 +239,7 @@ pub fn PdfStructTrees::renumber_parent_trees(
   for i, tree in parent_trees {
     let pdfn = i + 1
     for pair in tree {
-      let key = @strconv.parse_int(pair.0)
+      let key = @string.parse_int(pair.0)
       mapping.set((pdfn, key), next)
       next = next + 1
     }
@@ -292,7 +292,7 @@ pub fn PdfStructTrees::renumber_parent_trees(
     let pdfn = i + 1
     let out = Array::new(capacity=tree.length())
     for pair in tree {
-      let key = @strconv.parse_int(pair.0)
+      let key = @string.parse_int(pair.0)
       match mapping.get((pdfn, key)) {
         Some(new_key) => out.push((new_key.to_string(), pair.1))
         None =>

@@ -10,7 +10,7 @@ pub(all) struct DocxConverter {
 ///|
 /// Create a new DOCX converter
 pub fn DocxConverter::new() -> DocxConverter {
-  DocxConverter::{ dummy: 0 }
+  DocxConverter::{ dummy: 0, }
 }
 
 ///|

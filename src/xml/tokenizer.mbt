@@ -38,7 +38,7 @@ priv struct DoctypeSkipResult {
 /// XML 分词器实现
 fn tokenize(xml : String) -> Result[Array[Token], XMLParseError] {
   try {
-    let tokens : Array[Token] = Array::new()
+    let tokens : Array[Token] = Array(capacity=0)
     let mut pos = 0
     let mut line = 1
     let len = xml.length()
@@ -152,7 +152,7 @@ fn parse_comment(xml : String, start : Int, line : Int) -> ParseResult raise {
     if xml[pos] == '-' && xml[pos + 1] == '-' && xml[pos + 2] == '>' {
       // 找到注释结束，提取内容
       let content = xml[start:pos].to_owned()
-      return { token: Comment(content), pos: pos + 3, line: current_line }
+      return { token: Comment(content), pos: pos + 3, line: current_line, }
     }
     if xml[pos] == '\n' {
       current_line = current_line + 1
@@ -173,7 +173,7 @@ fn parse_cdata(xml : String, start : Int, line : Int) -> ParseResult raise {
     if xml[pos] == ']' && xml[pos + 1] == ']' && xml[pos + 2] == '>' {
       // 找到 CDATA 结束
       let content = xml[start:pos].to_owned()
-      return { token: CData(content), pos: pos + 3, line: current_line }
+      return { token: CData(content), pos: pos + 3, line: current_line, }
     }
     if xml[pos] == '\n' {
       current_line = current_line + 1
@@ -209,7 +209,7 @@ fn skip_doctype(
     } else if ch == '[' {
       in_subset = true
     } else if ch == '>' {
-      return { pos: pos + 1, line: current_line }
+      return { pos: pos + 1, line: current_line, }
     }
     pos = pos + 1
   }
@@ -231,7 +231,7 @@ fn parse_declaration(
     if xml[pos] == '?' && xml[pos + 1] == '>' {
       // 找到声明结束
       let content = xml[start:pos].trim().to_owned()
-      return { token: Declaration(content), pos: pos + 2, line: current_line }
+      return { token: Declaration(content), pos: pos + 2, line: current_line, }
     }
     if xml[pos] == '\n' {
       current_line = current_line + 1
@@ -291,7 +291,7 @@ fn parse_end_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
     raise SyntaxError(line, "Unclosed end tag")
   }
 
-  { token: EndTag(tag_name), pos: pos + 1, line: current_line }
+  { token: EndTag(tag_name), pos: pos + 1, line: current_line, }
 }
 
 ///|
@@ -477,7 +477,7 @@ fn parse_attribute(
   let attr_value = decode_entities(raw_value)
   pos = pos + 1 // 跳过结束引号
 
-  { name: attr_name, value: attr_value, pos, line: current_line }
+  { name: attr_name, value: attr_value, pos, line: current_line, }
 }
 
 ///|
@@ -536,5 +536,5 @@ fn parse_text(xml : String, start : Int, line : Int) -> TextParseResult {
   let raw_text = xml[start:pos].to_owned()
   let text = decode_entities(raw_text)
 
-  { text: Text(text), pos, line: current_line }
+  { text: Text(text), pos, line: current_line, }
 }

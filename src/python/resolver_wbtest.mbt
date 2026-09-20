@@ -29,16 +29,20 @@ test "parse_version rejects text without digits" {
 
 ///|
 test "is_supported_version enforces >= 3.8" {
-  assert_true(is_supported_version(PyVersion::{ major: 3, minor: 8, patch: 0 }))
   assert_true(
-    is_supported_version(PyVersion::{ major: 3, minor: 12, patch: 9 }),
+    is_supported_version(PyVersion::{ major: 3, minor: 8, patch: 0, }),
   )
-  assert_true(is_supported_version(PyVersion::{ major: 4, minor: 0, patch: 0 }))
-  assert_false(
-    is_supported_version(PyVersion::{ major: 3, minor: 7, patch: 17 }),
+  assert_true(
+    is_supported_version(PyVersion::{ major: 3, minor: 12, patch: 9, }),
+  )
+  assert_true(
+    is_supported_version(PyVersion::{ major: 4, minor: 0, patch: 0, }),
   )
   assert_false(
-    is_supported_version(PyVersion::{ major: 2, minor: 7, patch: 18 }),
+    is_supported_version(PyVersion::{ major: 3, minor: 7, patch: 17, }),
+  )
+  assert_false(
+    is_supported_version(PyVersion::{ major: 2, minor: 7, patch: 18, }),
   )
 }
 
@@ -47,15 +51,15 @@ test "sort_by_version_desc orders highest version first" {
   let candidates : Array[(String, PyVersion)] = [
     (
       "C:/pyenv/versions/3.8.10/python.exe",
-      PyVersion::{ major: 3, minor: 8, patch: 10 },
+      PyVersion::{ major: 3, minor: 8, patch: 10, },
     ),
     (
       "C:/pyenv/versions/3.12.9/python.exe",
-      PyVersion::{ major: 3, minor: 12, patch: 9 },
+      PyVersion::{ major: 3, minor: 12, patch: 9, },
     ),
     (
       "C:/pyenv/versions/3.11.4/python.exe",
-      PyVersion::{ major: 3, minor: 11, patch: 4 },
+      PyVersion::{ major: 3, minor: 11, patch: 4, },
     ),
   ]
   assert_eq(sort_by_version_desc(candidates), [

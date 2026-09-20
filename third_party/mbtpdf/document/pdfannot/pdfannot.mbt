@@ -168,7 +168,7 @@ fn read_annotation(pdf : @pdf.Pdf, annot : PdfObject) -> Annotation raise {
         Some(Array(dash)) => int_array_of_numbers(pdf, dash)
         _ => []
       }
-      { width, vradius: 0.0, hradius: 0.0, style, dasharray }
+      { width, vradius: 0.0, hradius: 0.0, style, dasharray, }
     }
     None =>
       match pdf.lookup_direct("/Border", annot) {
@@ -394,7 +394,7 @@ pub fn Border::new(
   style? : Style = Style::NoStyle,
   dasharray? : Array[Int] = [],
 ) -> Border {
-  { width, vradius, hradius, style, dasharray }
+  { width, vradius, hradius, style, dasharray, }
 }
 
 ///|

@@ -36,7 +36,7 @@ test "semantic document groups blocks under heading sections" {
       },
     ],
   }
-  let semantic = semantic_document_of(document)
+  let semantic = @semantic.semantic_document_of(document)
   inspect(semantic.sections.length(), content="1")
   debug_inspect(
     semantic.sections[0].title,
@@ -102,7 +102,7 @@ test "semantic document infers note caption and provenance hints" {
       },
     ],
   }
-  let semantic = semantic_document_of(document)
+  let semantic = @semantic.semantic_document_of(document)
   inspect(semantic.blocks[0].role, content="Note")
   inspect(semantic.blocks[1].role, content="Image")
   debug_inspect(semantic.blocks[1].provenance.page_no, content="Some(3)")
@@ -135,7 +135,7 @@ test "semantic document tracks pptx slide context and html title paragraphs" {
     ],
     annotations: [],
   }
-  let pptx_semantic = semantic_document_of(pptx_document)
+  let pptx_semantic = @semantic.semantic_document_of(pptx_document)
   inspect(pptx_semantic.blocks[0].role, content="Separator")
   inspect(pptx_semantic.blocks[1].role, content="Title")
   debug_inspect(pptx_semantic.blocks[1].provenance.slide_no, content="Some(3)")
@@ -155,7 +155,7 @@ test "semantic document tracks pptx slide context and html title paragraphs" {
     ],
     annotations: [],
   }
-  let html_semantic = semantic_document_of(html_document)
+  let html_semantic = @semantic.semantic_document_of(html_document)
   inspect(html_semantic.blocks[0].role, content="Title")
   debug_inspect(
     html_semantic.blocks[0].provenance.resource,
@@ -209,7 +209,7 @@ test "semantic document uses composite hints to stabilize roles" {
       },
     ],
   }
-  let semantic = semantic_document_of(document)
+  let semantic = @semantic.semantic_document_of(document)
   inspect(semantic.blocks[0].role, content="Title")
   inspect(semantic.blocks[1].role, content="Caption")
   inspect(semantic.blocks[2].role, content="Note")
@@ -248,7 +248,7 @@ test "semantic document preserves provenance from xlsx epub and pdf hints" {
       },
     ],
   }
-  let semantic = semantic_document_of(document)
+  let semantic = @semantic.semantic_document_of(document)
   debug_inspect(
     semantic.blocks[0].provenance.sheet_name,
     content=(

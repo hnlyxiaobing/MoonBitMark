@@ -254,7 +254,7 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
     Ok(events) => {
       let metadata = EpubMetadata::default()
       let manifest : Map[String, ManifestItem] = Map([])
-      let spine : Array[SpineItem] = Array::new()
+      let spine : Array[SpineItem] = Array(capacity=0)
       let mut current_element = ""
       let mut in_metadata = false
 
@@ -325,7 +325,7 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
         }
       }
 
-      { metadata, manifest, spine, opf_dir: "" }
+      { metadata, manifest, spine, opf_dir: "", }
     }
     Err(_) =>
       fail(

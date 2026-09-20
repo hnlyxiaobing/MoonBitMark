@@ -25,7 +25,7 @@ pub struct PdfUtil {
 
 ///|
 pub fn PdfUtil::new() -> PdfUtil {
-  { stdout_buffer, stderr_buffer }
+  { stdout_buffer, stderr_buffer, }
 }
 
 ///|

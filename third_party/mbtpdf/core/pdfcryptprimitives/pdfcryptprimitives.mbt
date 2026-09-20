@@ -31,7 +31,7 @@ pub struct PdfCryptPrimitives {
 
 ///|
 pub fn PdfCryptPrimitives::new() -> PdfCryptPrimitives {
-  { unit: () }
+  { unit: (), }
 }
 
 ///|

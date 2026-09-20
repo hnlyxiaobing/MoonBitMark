@@ -14,7 +14,7 @@ pub fn ToGet::new(
   length : Int,
   crypt? : ToGetCrypt = ToGetCrypt::NoChange,
 ) -> ToGet {
-  { input, position, length, crypt }
+  { input, position, length, crypt, }
 }
 
 ///|

@@ -12,7 +12,7 @@ pub(all) struct HtmlConverter {
 ///|
 /// Create a new HTML converter
 pub fn HtmlConverter::new() -> HtmlConverter {
-  HtmlConverter::{ dummy: 0 }
+  HtmlConverter::{ dummy: 0, }
 }
 
 ///|
@@ -1257,7 +1257,7 @@ fn normalize_table_rows(
         if cell.rowspan > 1 {
           if col >= pending.length() {
             pending.push(
-              Some(HtmlPendingSpan::{ remaining: cell.rowspan - 1, content }),
+              Some(HtmlPendingSpan::{ remaining: cell.rowspan - 1, content, }),
             )
           } else {
             pending[col] = Some(HtmlPendingSpan::{

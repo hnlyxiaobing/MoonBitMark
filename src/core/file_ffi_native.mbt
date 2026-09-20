@@ -34,7 +34,7 @@ pub fn read_file_bytes_ffi(path : String) -> Bytes raise {
     if read == 0L {
       break
     }
-    buffer.write_bytes(chunk.view(start=0, end=read.to_int()))
+    buffer.write_bytes(chunk.exact_view(start=0, end=read.to_int()))
     if read < chunk_len {
       break
     }

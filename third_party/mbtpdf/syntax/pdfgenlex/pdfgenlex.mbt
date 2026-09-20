@@ -28,7 +28,7 @@ pub struct PdfGenLex {
 
 ///|
 pub fn PdfGenLex::new() -> PdfGenLex {
-  { unit: () }
+  { unit: (), }
 }
 
 ///|
@@ -195,9 +195,9 @@ fn lex_item(s : String) -> Token {
           number.contains("e") ||
           number.contains("E")
         if !has_decimal {
-          try @strconv.parse_int(number) catch {
+          try @string.parse_int(number) catch {
             _ =>
-              try @strconv.parse_double(number) catch {
+              try @string.parse_double(number) catch {
                 _ => LexName(s)
               } noraise {
                 f => LexReal(f)
@@ -206,7 +206,7 @@ fn lex_item(s : String) -> Token {
             i => LexInt(i)
           }
         } else {
-          try @strconv.parse_double(number) catch {
+          try @string.parse_double(number) catch {
             _ => LexName(s)
           } noraise {
             f => LexReal(f)

@@ -19,7 +19,7 @@ pub fn Paper::new(
   width~ : Double,
   height~ : Double,
 ) -> Paper {
-  { unit, width, height }
+  { unit, width, height, }
 }
 
 ///|
@@ -57,17 +57,17 @@ pub fn Paper::rectangle(self : Paper) -> @pdf.PdfObject {
 ///|
 /// Flip a paper size between landscape and portrait.
 pub fn Paper::landscape(self : Paper) -> Paper {
-  { unit: self.unit, width: self.height, height: self.width }
+  { unit: self.unit, width: self.height, height: self.width, }
 }
 
 ///|
 fn mm_paper(width : Double, height : Double) -> Paper {
-  { unit: @pdfunits.LengthUnit::Millimetre, width, height }
+  { unit: @pdfunits.LengthUnit::Millimetre, width, height, }
 }
 
 ///|
 fn inch_paper(width : Double, height : Double) -> Paper {
-  { unit: @pdfunits.LengthUnit::Inch, width, height }
+  { unit: @pdfunits.LengthUnit::Inch, width, height, }
 }
 
 ///|

@@ -12,7 +12,7 @@ pub(all) struct PromptRegistry {
 
 ///|
 pub fn PromptRegistry::new() -> PromptRegistry {
-  PromptRegistry::{ prompts: [] }
+  PromptRegistry::{ prompts: [], }
 }
 
 ///|
@@ -247,7 +247,7 @@ fn prompt_argument(
 fn prompt_message(role : String, text : String) -> @types.McpPromptMessage {
   @types.McpPromptMessage::{
     role,
-    content: @types.TextContent::{ type_: "text", text },
+    content: @types.TextContent::{ type_: "text", text, },
   }
 }
 

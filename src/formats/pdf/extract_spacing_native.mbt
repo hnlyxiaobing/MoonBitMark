@@ -46,7 +46,7 @@ priv struct PdfSpacingExtractor {
 
 ///|
 fn PdfSpacingExtractor::new(pdf : @mbtpdf.Pdf) -> PdfSpacingExtractor {
-  { pdf, text: @pdftextlib.PdfText::new(pdf) }
+  { pdf, text: @pdftextlib.PdfText::new(pdf), }
 }
 
 ///|

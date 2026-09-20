@@ -122,7 +122,7 @@ test "docx tables become markdown tables" {
   let (blocks, _, warnings) = extract_blocks_from_docx_xml_with_annotations(
     xml,
     {},
-    DocxNumbering::{ num_to_abstract: {}, level_formats: {} },
+    DocxNumbering::{ num_to_abstract: {}, level_formats: {}, },
     {},
   )
   inspect(warnings.length(), content="0")

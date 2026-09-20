@@ -43,9 +43,9 @@ async fn materialize_input_path(
 ) -> MaterializedInput {
   match input {
     @core.FileInput(path, _) =>
-      MaterializedInput::{ file_path: path, cleanup_path: None }
+      MaterializedInput::{ file_path: path, cleanup_path: None, }
     @core.UrlInput(url, _) =>
-      MaterializedInput::{ file_path: url, cleanup_path: None }
+      MaterializedInput::{ file_path: url, cleanup_path: None, }
     @core.BytesInput(name, bytes, mime_type) => {
       let source_name = match name {
         Some(value) => value
@@ -82,7 +82,7 @@ async fn materialize_input_path(
             ),
           )
       }
-      MaterializedInput::{ file_path, cleanup_path: Some(file_path) }
+      MaterializedInput::{ file_path, cleanup_path: Some(file_path), }
     }
   }
 }

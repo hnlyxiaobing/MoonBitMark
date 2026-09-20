@@ -21,7 +21,7 @@ pub(all) struct ErrorLocation {
 
 ///|
 pub fn ErrorLocation::new() -> ErrorLocation {
-  { file: None, line: None, column: None, function: None }
+  { file: None, line: None, column: None, function: None, }
 }
 
 ///|
@@ -165,7 +165,7 @@ pub fn McpError::parse_error(
   message : String,
   context : ErrorContext,
 ) -> McpError {
-  { code: ParseError(code), message, details: None, context, cause: None }
+  { code: ParseError(code), message, details: None, context, cause: None, }
 }
 
 ///|
@@ -173,7 +173,7 @@ pub fn McpError::invalid_request(
   message : String,
   context : ErrorContext,
 ) -> McpError {
-  { code: InvalidRequest, message, details: None, context, cause: None }
+  { code: InvalidRequest, message, details: None, context, cause: None, }
 }
 
 ///|
@@ -195,7 +195,7 @@ pub fn McpError::invalid_params(
   message : String,
   context : ErrorContext,
 ) -> McpError {
-  { code: InvalidParams, message, details: None, context, cause: None }
+  { code: InvalidParams, message, details: None, context, cause: None, }
 }
 
 ///|
@@ -204,7 +204,7 @@ pub fn McpError::internal_error(
   details : String?,
   context : ErrorContext,
 ) -> McpError {
-  { code: InternalError, message, details, context, cause: None }
+  { code: InternalError, message, details, context, cause: None, }
 }
 
 ///|
@@ -214,7 +214,7 @@ pub fn McpError::server_error(
   details : String?,
   context : ErrorContext,
 ) -> McpError {
-  { code: ServerError(code), message, details, context, cause: None }
+  { code: ServerError(code), message, details, context, cause: None, }
 }
 
 ///|
@@ -224,7 +224,7 @@ pub fn McpError::internal_error_with_cause(
   context : ErrorContext,
   cause : McpError,
 ) -> McpError {
-  { code: InternalError, message, details, context, cause: Some(cause) }
+  { code: InternalError, message, details, context, cause: Some(cause), }
 }
 
 ///|

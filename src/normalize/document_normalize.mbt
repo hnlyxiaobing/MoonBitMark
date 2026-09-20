@@ -394,5 +394,5 @@ fn annotation_with_diagnostic(
     next_diagnostics.push(item)
   }
   next_diagnostics.push(diagnostic)
-  { ..annotation, diagnostics: next_diagnostics }
+  { ..annotation, diagnostics: next_diagnostics, }
 }

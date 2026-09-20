@@ -14,7 +14,7 @@ pub struct PdfTextUtil {
 
 ///|
 pub fn PdfTextUtil::new() -> PdfTextUtil {
-  { unit: () }
+  { unit: (), }
 }
 
 ///|
@@ -198,7 +198,7 @@ pub fn TextExtractor::new(font : @pdffont.Font) -> TextExtractor {
     Some(map) => tounicode_length_list(map)
     None => []
   }
-  { convert, tounicode, tounicode_lengths, font }
+  { convert, tounicode, tounicode_lengths, font, }
 }
 
 ///|

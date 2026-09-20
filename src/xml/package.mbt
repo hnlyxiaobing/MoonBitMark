@@ -19,10 +19,10 @@ pub fn parse_xml(
 fn parse_tokens(
   tokens : Array[Token],
 ) -> Result[Array[ParseEvent], XMLParseError] {
-  let events : Array[ParseEvent] = Array::new()
+  let events : Array[ParseEvent] = Array(capacity=0)
   let line = 1
   // 元素栈，用于追踪嵌套结构
-  let tag_stack : Array[String] = Array::new()
+  let tag_stack : Array[String] = Array(capacity=0)
 
   for token in tokens {
     match token {
@@ -31,7 +31,7 @@ fn parse_tokens(
         tag_stack.push(name)
         // 生成开始事件
         events.push(
-          ElementStart({ name, attributes: attrs, line_number: line }),
+          ElementStart({ name, attributes: attrs, line_number: line, }),
         )
       }
       EndTag(name) => {
@@ -45,7 +45,7 @@ fn parse_tokens(
               return Err(MismatchedTag(top, name))
             }
             // 生成结束事件
-            events.push(ElementEnd({ name, line_number: line }))
+            events.push(ElementEnd({ name, line_number: line, }))
           }
           None => return Err(UnclosedTag(name))
         }
@@ -53,14 +53,14 @@ fn parse_tokens(
       SelfCloseTag(name, attrs) => {
         // 自闭合标签同时生成开始和结束事件
         events.push(
-          ElementStart({ name, attributes: attrs, line_number: line }),
+          ElementStart({ name, attributes: attrs, line_number: line, }),
         )
-        events.push(ElementEnd({ name, line_number: line }))
+        events.push(ElementEnd({ name, line_number: line, }))
       }
       Text(content) =>
         // 只在内容非空时生成文本事件
         if content.length() > 0 {
-          events.push(TextContent({ content, line_number: line }))
+          events.push(TextContent({ content, line_number: line, }))
         }
       Comment(_) => {
         // 忽略注释
@@ -73,7 +73,7 @@ fn parse_tokens(
       CData(content) =>
         // CDATA 作为文本内容处理
         if content.length() > 0 {
-          events.push(TextContent({ content, line_number: line }))
+          events.push(TextContent({ content, line_number: line, }))
         }
     }
   }

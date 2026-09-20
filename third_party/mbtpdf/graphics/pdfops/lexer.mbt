@@ -175,5 +175,5 @@ pub fn Op::parse_single_stream(
 ) -> Array[Op] raise {
   let input = @pdfio.Input::of_bytes(stream)
   let lexemes = lex_stream(pdf, resources, input)
-  parse_lexemes({ val: 0 }, lexemes)
+  parse_lexemes({ val: 0, }, lexemes)
 }

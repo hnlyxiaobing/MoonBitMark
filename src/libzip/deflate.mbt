@@ -50,12 +50,12 @@ priv struct InflateState {
 
 ///|
 fn InflateState::new() -> InflateState {
-  let output : Array[Byte] = Array::new()
-  let window : Array[Byte] = Array::new()
+  let output : Array[Byte] = Array(capacity=0)
+  let window : Array[Byte] = Array(capacity=0)
   for _ in 0..<32768 {
     window.push(b'\x00')
   }
-  InflateState::{ output, window, window_pos: 0, produced: 0 }
+  InflateState::{ output, window, window_pos: 0, produced: 0, }
 }
 
 ///|
@@ -97,7 +97,7 @@ priv struct BitReader {
 
 ///|
 fn BitReader::new(data : Bytes) -> BitReader {
-  BitReader::{ byte_pos: 0, bit_pos: 0, data }
+  BitReader::{ byte_pos: 0, bit_pos: 0, data, }
 }
 
 ///|
@@ -794,7 +794,7 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
     }
   }
 
-  Ok(HuffmanTree::{ tables, max_len })
+  Ok(HuffmanTree::{ tables, max_len, })
 }
 
 ///|

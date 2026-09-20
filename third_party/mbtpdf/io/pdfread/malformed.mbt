@@ -102,7 +102,7 @@ fn read_malformed_pdf_objects(
     }
     match parsed {
       Some(obj) => {
-        objects.set(objnum, ({ val: @pdf.ObjectData::Parsed(obj) }, gen))
+        objects.set(objnum, ({ val: @pdf.ObjectData::Parsed(obj), }, gen))
         if objnum > max_obj {
           max_obj = objnum
         }

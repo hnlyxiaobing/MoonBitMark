@@ -204,7 +204,7 @@ fn read_individual_ocg(pdf : @pdf.Pdf, ocg : @pdf.PdfObject) -> Ocg raise {
     None => None
     Some(usage) => read_ocg_usage(pdf, usage)
   }
-  { ocg_name, ocg_intent, ocg_usage }
+  { ocg_name, ocg_intent, ocg_usage, }
 }
 
 ///|
@@ -240,7 +240,7 @@ pub fn OcgProperties::read(pdf : @pdf.Pdf) -> OcgProperties? raise {
               configs.map(config => read_config(pdf, config))
             _ => []
           }
-          Some({ ocgs, ocg_default_config, ocg_configs })
+          Some({ ocgs, ocg_default_config, ocg_configs, })
         }
       }
   }

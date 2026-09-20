@@ -11,7 +11,7 @@ pub struct PdfFlate {
 
 ///|
 pub fn PdfFlate::new() -> PdfFlate {
-  { unit: () }
+  { unit: (), }
 }
 
 ///|
@@ -107,7 +107,7 @@ fn build_huffman(lengths : Array[Int]) -> Huffman {
       table[len].set(rev, i)
     }
   }
-  { max_bits: max_len, table }
+  { max_bits: max_len, table, }
 }
 
 ///|
@@ -498,7 +498,7 @@ pub fn PdfFlate::uncompress(
 ) -> Unit raise FlateError {
   let data = read_all_input(input)
   let start = if header { zlib_start_offset(data) } else { 0 }
-  let reader = { data, byte_pos: start, bit_pos: 0 }
+  let reader = { data, byte_pos: start, bit_pos: 0, }
   let out : @pdfio.MutableBytes = Array::new()
   fn read_blocks(
     reader : BitReader,

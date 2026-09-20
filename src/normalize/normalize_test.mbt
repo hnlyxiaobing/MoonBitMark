@@ -15,7 +15,7 @@ test "normalize document adjusts headings tables and image paragraphs" {
     ],
     annotations: [],
   }
-  let normalized = normalize_document(document)
+  let normalized = @normalize.normalize_document(document)
   inspect(normalized.blocks.length(), content="5")
   inspect(normalized.blocks[0], content="Heading(4, [Text(\"Top\")])")
   inspect(normalized.blocks[1], content="Heading(6, [Text(\"Deep\")])")
@@ -34,7 +34,7 @@ test "normalize document preserves list indentation prefixes" {
     ],
     annotations: [],
   }
-  let normalized = normalize_document(document)
+  let normalized = @normalize.normalize_document(document)
   inspect(
     normalized.blocks[0],
     content="List([[Text(\"Top\")], [Text(\"  Nested item\")]], false)",

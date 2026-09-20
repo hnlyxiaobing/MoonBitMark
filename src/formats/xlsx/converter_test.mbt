@@ -1,7 +1,7 @@
 // XLSX Converter Tests
 
 ///|
-/// Test XlsxConverter::accepts with .xlsx extension
+/// Test @xlsx.XlsxConverter::accepts with .xlsx extension
 test "XlsxConverter accepts .xlsx extension" {
   let info = @core.StreamInfo::{
     extension: Some(".xlsx"),
@@ -10,12 +10,12 @@ test "XlsxConverter accepts .xlsx extension" {
     url: None,
     charset: None,
   }
-  let result = XlsxConverter::accepts(info)
+  let result = @xlsx.XlsxConverter::accepts(info)
   inspect(result, content="true")
 }
 
 ///|
-/// Test XlsxConverter::accepts with uppercase extension
+/// Test @xlsx.XlsxConverter::accepts with uppercase extension
 test "XlsxConverter accepts .XLSX extension" {
   let info = @core.StreamInfo::{
     extension: Some(".XLSX"),
@@ -24,12 +24,12 @@ test "XlsxConverter accepts .XLSX extension" {
     url: None,
     charset: None,
   }
-  let result = XlsxConverter::accepts(info)
+  let result = @xlsx.XlsxConverter::accepts(info)
   inspect(result, content="true")
 }
 
 ///|
-/// Test XlsxConverter::accepts rejects other extensions
+/// Test @xlsx.XlsxConverter::accepts rejects other extensions
 test "XlsxConverter rejects .docx extension" {
   let info = @core.StreamInfo::{
     extension: Some(".docx"),
@@ -38,12 +38,12 @@ test "XlsxConverter rejects .docx extension" {
     url: None,
     charset: None,
   }
-  let result = XlsxConverter::accepts(info)
+  let result = @xlsx.XlsxConverter::accepts(info)
   inspect(result, content="false")
 }
 
 ///|
-/// Test XlsxConverter::accepts with no extension
+/// Test @xlsx.XlsxConverter::accepts with no extension
 test "XlsxConverter handles no extension" {
   let info = @core.StreamInfo::{
     extension: None,
@@ -52,6 +52,6 @@ test "XlsxConverter handles no extension" {
     url: None,
     charset: None,
   }
-  let result = XlsxConverter::accepts(info)
+  let result = @xlsx.XlsxConverter::accepts(info)
   inspect(result, content="false")
 }

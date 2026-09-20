@@ -27,7 +27,7 @@ pub extend EpubMetadata with ToJson::{to_json}
 pub fn EpubMetadata::default() -> EpubMetadata {
   EpubMetadata::{
     title: None,
-    authors: Array::new(),
+    authors: Array(capacity=0),
     language: None,
     publisher: None,
     date: None,

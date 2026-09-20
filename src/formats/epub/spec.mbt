@@ -4,7 +4,7 @@
 ///|
 /// Create a new EPUB converter
 pub fn EpubConverter::new() -> EpubConverter {
-  EpubConverter::{ dummy: 0 }
+  EpubConverter::{ dummy: 0, }
 }
 
 ///|

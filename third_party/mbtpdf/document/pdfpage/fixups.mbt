@@ -173,7 +173,7 @@ fn page_reference_numbers_unordered_inner(
 
 ///|
 fn page_reference_numbers_unordered(pdf : @pdf.Pdf) -> Array[Int] raise {
-  let acc : Ref[Array[Int]] = { val: [] }
+  let acc : Ref[Array[Int]] = { val: [], }
   let root = pdf.lookup_obj(pdf.root)
   let pages_node = match pdf.lookup_direct("/Pages", root) {
     Some(p) => p

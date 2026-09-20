@@ -53,7 +53,7 @@ pub fn Pdf::parse_matrix(
         let d = self.getnum(vals[3])
         let e = self.getnum(vals[4])
         let f = self.getnum(vals[5])
-        { a, b, c, d, e, f }
+        { a, b, c, d, e, f, }
       }
     _ => raise PdfError::Msg("Malformed matrix")
   }

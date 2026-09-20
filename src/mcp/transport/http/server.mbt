@@ -31,14 +31,14 @@ pub fn McpHttpServerConfig::new(
   }
   let allow_nonlocal = load_http_allow_nonlocal_env()
   let normalized_bind_host = normalize_bind_host(bind_host, allow_nonlocal)
-  McpHttpServerConfig::{ bind_host: normalized_bind_host, port }
+  McpHttpServerConfig::{ bind_host: normalized_bind_host, port, }
 }
 
 ///|
 pub async fn McpHttpServer::new(config : McpHttpServerConfig) -> McpHttpServer {
   let bind_addr = bind_addr_from_config(config)
   let server = @async_http.Server(bind_addr)
-  McpHttpServer::{ config, dispatcher: @handler.McpDispatcher::new(), server }
+  McpHttpServer::{ config, dispatcher: @handler.McpDispatcher::new(), server, }
 }
 
 ///|
@@ -111,7 +111,7 @@ fn invalid_request_response(message : String) -> @types.JsonResponse {
   @types.JsonResponse::{
     jsonrpc: "2.0",
     result: None,
-    error: Some(@types.JsonError::{ code: -32700, message, data: None }),
+    error: Some(@types.JsonError::{ code: -32700, message, data: None, }),
     id: None,
   }
 }

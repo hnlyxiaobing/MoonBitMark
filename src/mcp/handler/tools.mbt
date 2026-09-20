@@ -15,7 +15,7 @@ pub(all) struct ToolRegistry {
 
 ///|
 pub fn ToolRegistry::new() -> ToolRegistry {
-  ToolRegistry::{ tools: Map([]) }
+  ToolRegistry::{ tools: Map([]), }
 }
 
 ///|
@@ -3224,7 +3224,9 @@ fn tool_result_for_response_mode(
 ///|
 fn ok_tool_result(summary : String) -> @types.McpToolResult {
   @types.McpToolResult::{
-    content: [@types.Text(@types.TextContent::{ type_: "text", text: summary })],
+    content: [
+      @types.Text(@types.TextContent::{ type_: "text", text: summary, }),
+    ],
     is_error: false,
     structured_content: None,
   }
@@ -3237,8 +3239,8 @@ fn ok_tool_result_with_markdown(
 ) -> @types.McpToolResult {
   @types.McpToolResult::{
     content: [
-      @types.Text(@types.TextContent::{ type_: "text", text: summary }),
-      @types.Text(@types.TextContent::{ type_: "text", text: markdown }),
+      @types.Text(@types.TextContent::{ type_: "text", text: summary, }),
+      @types.Text(@types.TextContent::{ type_: "text", text: markdown, }),
     ],
     is_error: false,
     structured_content: None,
@@ -3252,7 +3254,7 @@ fn structured_tool_result(
 ) -> @types.McpToolResult {
   @types.McpToolResult::{
     content: [
-      @types.Text(@types.TextContent::{ type_: "text", text: fallback_text }),
+      @types.Text(@types.TextContent::{ type_: "text", text: fallback_text, }),
     ],
     is_error: false,
     structured_content: Some(payload),
@@ -3262,7 +3264,9 @@ fn structured_tool_result(
 ///|
 fn error_tool_result(message : String) -> @types.McpToolResult {
   @types.McpToolResult::{
-    content: [@types.Text(@types.TextContent::{ type_: "text", text: message })],
+    content: [
+      @types.Text(@types.TextContent::{ type_: "text", text: message, }),
+    ],
     is_error: true,
     structured_content: None,
   }

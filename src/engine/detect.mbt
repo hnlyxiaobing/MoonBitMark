@@ -57,7 +57,8 @@ fn enrich_stream_info(
       }
     None =>
       match detect_magic_mimetype(bytes) {
-        Some(mimetype) => @core.StreamInfo::{ ..base, mimetype: Some(mimetype) }
+        Some(mimetype) =>
+          @core.StreamInfo::{ ..base, mimetype: Some(mimetype), }
         None => base
       }
   }

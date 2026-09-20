@@ -18,7 +18,7 @@
 ///|
 /// Process-wide cache: outer `None` = not resolved yet, `Some(result)` holds
 /// the resolution result (which may itself be `None` for "no interpreter").
-let resolve_cache : Ref[(String, Array[String])??] = { val: None }
+let resolve_cache : Ref[(String, Array[String])??] = { val: None, }
 
 ///|
 /// Resolve a usable Python interpreter. On success returns the program path

@@ -219,8 +219,8 @@ fn read_xref_stream(
 ) -> (Array[(Int, XRef)], Int, @pdf.PdfObject) raise {
   let original_pos = (input.pos_in)()
   let err = @pdf.PdfError::Msg(@pdf.input_pdferror(input, "Bad xref stream"))
-  let dict_level : Ref[Int] = { val: 0 }
-  let array_level : Ref[Int] = { val: 0 }
+  let dict_level : Ref[Int] = { val: 0, }
+  let array_level : Ref[Int] = { val: 0, }
   let xrefstream_objectnumber = match
     @pdfsyntax.PdfSyntax::new().lex_next(
       dict_level,
@@ -248,8 +248,8 @@ fn read_xref_stream(
     read_stream_data : Bool,
   ) -> Array[@pdfgenlex.Token] {
     let lexemes = Array::new()
-    let dict_level : Ref[Int] = { val: 0 }
-    let array_level : Ref[Int] = { val: 0 }
+    let dict_level : Ref[Int] = { val: 0, }
+    let array_level : Ref[Int] = { val: 0, }
     let mut done = false
     while !done {
       let t = @pdfsyntax.PdfSyntax::new().lex_next(
@@ -536,7 +536,7 @@ fn build_pdf_objects(
     }
     match xref {
       XRef::Plain(_, gen) =>
-        objects.set(objnum, ({ val: @pdf.ObjectData::ToParse }, gen))
+        objects.set(objnum, ({ val: @pdf.ObjectData::ToParse, }, gen))
       XRef::Stream(stream_id, _index) => {
         if stream_id_seen.get(stream_id) is None {
           stream_id_seen.set(stream_id, true)
@@ -599,7 +599,7 @@ fn build_pdf_objects(
         let obj = pair.1
         objects.set(
           objnum,
-          ({ val: @pdf.ObjectData::ParsedAlreadyDecrypted(obj) }, 0),
+          ({ val: @pdf.ObjectData::ParsedAlreadyDecrypted(obj), }, 0),
         )
         object_stream_ids.set(objnum, stream_id)
       }
@@ -671,5 +671,5 @@ fn build_pdf_objects(
       }
     }
   }
-  { max_obj_num: max_obj, parse: Some(parse_obj), objects, object_stream_ids }
+  { max_obj_num: max_obj, parse: Some(parse_obj), objects, object_stream_ids, }
 }

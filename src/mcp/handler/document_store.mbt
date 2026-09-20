@@ -55,7 +55,7 @@ async fn load_document_resource(
   }
   let byte_size = match metadata.get("byte_size") {
     Some(value) =>
-      @strconv.from_str(value[:]) catch {
+      @string.from_str(value[:]) catch {
         _ => return Err("Stored document metadata has invalid byte_size")
       }
     None => return Err("Stored document metadata is missing byte_size")
@@ -64,7 +64,13 @@ async fn load_document_resource(
     Some(value) if value != "" => Some(value)
     _ => None
   }
-  Ok(StoredDocument::{ resource_uri, filename, mime_type, byte_size, blob_path })
+  Ok(StoredDocument::{
+    resource_uri,
+    filename,
+    mime_type,
+    byte_size,
+    blob_path,
+  })
 }
 
 ///|
@@ -143,7 +149,7 @@ async fn list_stored_documents() -> Array[StoredDocument] {
       _ => continue
     }
     let byte_size = match metadata.get("byte_size") {
-      Some(value) => @strconv.from_str(value[:]) catch { _ => continue }
+      Some(value) => @string.from_str(value[:]) catch { _ => continue }
       None => continue
     }
     let mime_type = match metadata.get("mime_type") {
@@ -189,7 +195,7 @@ async fn delete_document_resource(
     _ => "unknown"
   }
   let byte_size = match metadata.get("byte_size") {
-    Some(value) => @strconv.from_str(value[:]) catch { _ => 0 }
+    Some(value) => @string.from_str(value[:]) catch { _ => 0 }
     None => 0
   }
   let mime_type = match metadata.get("mime_type") {

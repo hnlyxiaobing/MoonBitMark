@@ -8,7 +8,7 @@ pub struct PdfStandard14 {
 
 ///|
 pub fn PdfStandard14::new() -> PdfStandard14 {
-  { unit: () }
+  { unit: (), }
 }
 
 ///|

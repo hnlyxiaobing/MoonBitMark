@@ -194,7 +194,7 @@ test "pdf ocr warning when auto mode sees empty native text" {
   }
   debug_inspect(
     pdf_ocr_warning(
-      @ocr.OcrConfig::{ ..@ocr.OcrConfig::default(), mode: @ocr.Auto },
+      @ocr.OcrConfig::{ ..@ocr.OcrConfig::default(), mode: @ocr.Auto, },
       route_plan,
       "",
       @ocr.OcrResult::not_attempted(),

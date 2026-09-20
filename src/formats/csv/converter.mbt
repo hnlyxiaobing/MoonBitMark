@@ -9,7 +9,7 @@ pub(all) struct CsvConverter {
 ///|
 /// Create a new CSV converter
 pub fn CsvConverter::new() -> CsvConverter {
-  CsvConverter::{ dummy: 0 }
+  CsvConverter::{ dummy: 0, }
 }
 
 ///|
@@ -164,7 +164,7 @@ fn parse_csv(csv : String) -> CsvParseResult {
       "CSV contained ragged rows; padded missing cells to preserve table shape.",
     )
   }
-  CsvParseResult::{ rows, delimiter, warnings }
+  CsvParseResult::{ rows, delimiter, warnings, }
 }
 
 ///|

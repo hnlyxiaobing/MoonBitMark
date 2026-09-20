@@ -33,7 +33,7 @@ fn ensure_leading_slash(bytes : Bytes) -> Bytes {
 ///
 /// `bytes` should include the leading `/` byte.
 pub fn PdfName::of_bytes(bytes : Bytes) -> PdfName {
-  { bytes: ensure_leading_slash(bytes) }
+  { bytes: ensure_leading_slash(bytes), }
 }
 
 ///|

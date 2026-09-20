@@ -33,7 +33,7 @@ pub fn McpDispatcher::new_with_logger(logger : @util.Logger) -> McpDispatcher {
     _error => PromptRegistry::new()
   }
 
-  McpDispatcher::{ tools: registry, resources, prompts }
+  McpDispatcher::{ tools: registry, resources, prompts, }
 }
 
 ///|
@@ -46,7 +46,7 @@ pub fn McpServer::new_with_logger(
   transport : @transport.StdioTransport,
   logger : @util.Logger,
 ) -> McpServer {
-  McpServer::{ dispatcher: McpDispatcher::new_with_logger(logger), transport }
+  McpServer::{ dispatcher: McpDispatcher::new_with_logger(logger), transport, }
 }
 
 ///|
@@ -62,7 +62,7 @@ pub async fn McpDispatcher::handle_jsonrpc_request(
           Some(@types.JsonResponse::{
             jsonrpc: "2.0",
             result: None,
-            error: Some(@types.JsonError::{ code: -32600, message, data: None }),
+            error: Some(@types.JsonError::{ code: -32600, message, data: None, }),
             id: None,
           })
       }
@@ -131,12 +131,14 @@ fn McpDispatcher::handle_initialize(
   let result = @types.McpInitializeResult::{
     protocol_version: "2024-11-05",
     capabilities: @types.McpServerCapabilities::{
-      tools: @types.McpServerCapabilitiesTools::{ list_changed: false },
+      tools: @types.McpServerCapabilitiesTools::{ list_changed: false, },
       resources: Some(@types.McpServerCapabilitiesResources::{
         subscribe: false,
         list_changed: false,
       }),
-      prompts: Some(@types.McpServerCapabilitiesPrompts::{ list_changed: false }),
+      prompts: Some(@types.McpServerCapabilitiesPrompts::{
+        list_changed: false,
+      }),
     },
     server_info: @types.McpServerInfo::{
       name: "moonbitmark",
@@ -175,7 +177,7 @@ fn McpDispatcher::handle_tools_list(
   self : McpDispatcher,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
-  let result = @types.McpToolsListResult::{ tools: self.tools.list() }
+  let result = @types.McpToolsListResult::{ tools: self.tools.list(), }
   @types.JsonResponse::{
     jsonrpc: "2.0",
     result: Some(result.to_json()),
@@ -226,7 +228,7 @@ async fn McpDispatcher::handle_resources_read(
     Ok(read_params) =>
       match self.resources.read(read_params.uri) {
         Ok(content) => {
-          let result = @types.McpResourcesReadResult::{ contents: [content] }
+          let result = @types.McpResourcesReadResult::{ contents: [content], }
           @types.JsonResponse::{
             jsonrpc: "2.0",
             result: Some(result.to_json()),
@@ -252,7 +254,7 @@ async fn McpDispatcher::handle_resources_read(
       @types.JsonResponse::{
         jsonrpc: "2.0",
         result: None,
-        error: Some(@types.JsonError::{ code: -32602, message, data: None }),
+        error: Some(@types.JsonError::{ code: -32602, message, data: None, }),
         id,
       }
   }
@@ -263,7 +265,7 @@ fn McpDispatcher::handle_prompts_list(
   self : McpDispatcher,
   id : @types.JsonId?,
 ) -> @types.JsonResponse {
-  let result = @types.McpPromptsListResult::{ prompts: self.prompts.list() }
+  let result = @types.McpPromptsListResult::{ prompts: self.prompts.list(), }
   @types.JsonResponse::{
     jsonrpc: "2.0",
     result: Some(result.to_json()),
@@ -311,7 +313,7 @@ fn McpDispatcher::handle_prompts_get(
       @types.JsonResponse::{
         jsonrpc: "2.0",
         result: None,
-        error: Some(@types.JsonError::{ code: -32602, message, data: None }),
+        error: Some(@types.JsonError::{ code: -32602, message, data: None, }),
         id,
       }
   }
@@ -342,7 +344,7 @@ async fn McpDispatcher::handle_tools_call(
       @types.JsonResponse::{
         jsonrpc: "2.0",
         result: None,
-        error: Some(@types.JsonError::{ code: -32602, message, data: None }),
+        error: Some(@types.JsonError::{ code: -32602, message, data: None, }),
         id,
       }
   }
@@ -424,7 +426,7 @@ fn parse_tool_call_params(
         Some(value) => value
         None => @types.Object(Map([]))
       }
-      Ok(@types.McpToolCallParams::{ name, arguments })
+      Ok(@types.McpToolCallParams::{ name, arguments, })
     }
     _ => Err("Tool call params must be an object")
   }
@@ -464,7 +466,7 @@ fn parse_get_prompt_params(
           }
         None => @types.Object(Map([]))
       }
-      Ok(@types.McpGetPromptParams::{ name, arguments })
+      Ok(@types.McpGetPromptParams::{ name, arguments, })
     }
     _ => Err("Prompt get params must be an object")
   }
@@ -491,7 +493,7 @@ fn parse_cursor_param(params : @types.JsonValue?) -> String? {
 fn[T] paginate_list(items : Array[T], cursor : String?) -> (Array[T], String?) {
   let page_size = mcp_default_page_size()
   let start = match cursor {
-    Some(value) => @strconv.from_str(value) catch { _ => 0 }
+    Some(value) => @string.from_str(value) catch { _ => 0 }
     None => 0
   }
   if start >= items.length() {

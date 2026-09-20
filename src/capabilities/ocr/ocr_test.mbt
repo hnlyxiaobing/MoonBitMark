@@ -7,12 +7,12 @@ async test "recognize image bytes with mock backend" {
   if @python.resolve_python() is None {
     return
   }
-  let config = OcrConfig::{
-    ..OcrConfig::default(),
+  let config = @ocr.OcrConfig::{
+    ..@ocr.OcrConfig::default(),
     mode: Force,
     backend: Some("mock"),
   }
-  let result = recognize_image_bytes(
+  let result = @ocr.recognize_image_bytes(
     b"dummy",
     "scan.png",
     config,
@@ -46,12 +46,12 @@ async test "recognize image bytes with mock backend" {
 
 ///|
 async test "recognize image bytes reports unsupported backend" {
-  let config = OcrConfig::{
-    ..OcrConfig::default(),
+  let config = @ocr.OcrConfig::{
+    ..@ocr.OcrConfig::default(),
     mode: Force,
     backend: Some("missing"),
   }
-  let result = recognize_image_bytes(
+  let result = @ocr.recognize_image_bytes(
     b"dummy",
     "scan.png",
     config,

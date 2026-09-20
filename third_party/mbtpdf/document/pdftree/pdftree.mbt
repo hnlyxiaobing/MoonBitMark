@@ -154,7 +154,7 @@ fn key_string(obj : @pdf.PdfObject) -> String {
 
 ///|
 fn parse_int(value : String) -> Int {
-  try @strconv.parse_int(value) catch {
+  try @string.parse_int(value) catch {
     _ => 0
   } noraise {
     v => v

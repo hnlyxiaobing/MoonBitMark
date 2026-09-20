@@ -9,11 +9,11 @@ pub type Logger = (String) -> Unit
 
 ///|
 /// The current error logger, set to default upon startup.
-pub let logger : Ref[Logger] = { val: default }
+pub let logger : Ref[Logger] = { val: default, }
 
 ///|
 /// When true, @pdfe.log is suppressed.
-pub let quiet : Ref[Bool] = { val: false }
+pub let quiet : Ref[Bool] = { val: false, }
 
 ///|
 /// Log a string using the current logger.
@@ -25,7 +25,7 @@ pub fn log(message : String) -> Unit {
 
 ///|
 /// Debug flag for PDF reading operations.
-pub let read_debug : Ref[Bool] = { val: false }
+pub let read_debug : Ref[Bool] = { val: false, }
 
 ///|
 /// Run an action with logging suppressed, restoring the previous state.

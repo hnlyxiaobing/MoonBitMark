@@ -4,6 +4,5 @@ import {
   "hnlyxiaobing/moonbitmark/src/capabilities/ocr",
   "hnlyxiaobing/moonbitmark/src/libzip",
   "hnlyxiaobing/moonbitmark/src/xml",
-  "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",
 }

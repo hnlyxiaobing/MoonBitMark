@@ -14,7 +14,7 @@ pub(all) struct ResourceRegistry {
 
 ///|
 pub fn ResourceRegistry::new() -> ResourceRegistry {
-  ResourceRegistry::{ resources: [], resource_templates: [] }
+  ResourceRegistry::{ resources: [], resource_templates: [], }
 }
 
 ///|
@@ -30,7 +30,7 @@ pub fn ResourceRegistry::register(
 
   let resources = self.resources
   resources.push(resource)
-  ResourceRegistry::{ resources, resource_templates: self.resource_templates }
+  ResourceRegistry::{ resources, resource_templates: self.resource_templates, }
 }
 
 ///|
@@ -46,7 +46,10 @@ pub fn ResourceRegistry::register_template(
 
   let templates = self.resource_templates
   templates.push(template)
-  ResourceRegistry::{ resources: self.resources, resource_templates: templates }
+  ResourceRegistry::{
+    resources: self.resources,
+    resource_templates: templates,
+  }
 }
 
 ///|

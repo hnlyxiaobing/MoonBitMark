@@ -8,7 +8,7 @@ pub struct PdfAfm {
 
 ///|
 pub fn PdfAfm::new() -> PdfAfm {
-  { unit: () }
+  { unit: (), }
 }
 
 ///|
@@ -33,7 +33,7 @@ fn split_whitespace(line : String) -> Array[String] {
 
 ///|
 fn parse_int(token : String) -> Int raise {
-  @strconv.parse_int(token, base=10)
+  @string.parse_int(token, base=10)
 }
 
 ///|

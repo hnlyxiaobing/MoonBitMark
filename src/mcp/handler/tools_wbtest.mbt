@@ -56,7 +56,7 @@ fn build_long_text() -> String {
 
 ///|
 fn parse_int_string(value : String) -> Int raise {
-  @strconv.from_str(value[:])
+  @string.from_str(value[:])
 }
 
 ///|

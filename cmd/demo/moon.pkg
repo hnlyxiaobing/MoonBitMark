@@ -1,8 +1,6 @@
 import {
-  "hnlyxiaobing/moonbitmark/src/core",
   "hnlyxiaobing/moonbitmark/src/engine",
   "moonbitlang/async",
-  "moonbitlang/core/encoding/utf8",
 }
 
 pkgtype(kind: "executable")

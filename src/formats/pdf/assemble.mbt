@@ -15,7 +15,7 @@ fn assemble_pdf_document(
   let document = @ast.document(title, metadata, structure.blocks).with_annotations(
     structure.annotations,
   )
-  PdfAssemblyResult::{ normalization, metadata, document }
+  PdfAssemblyResult::{ normalization, metadata, document, }
 }
 
 ///|

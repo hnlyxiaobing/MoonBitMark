@@ -65,7 +65,7 @@ pub fn Pdf::renumber(
     } else {
       obj
     }
-    objects.set(new_num, ({ val: ObjectData::Parsed(updated) }, 0))
+    objects.set(new_num, ({ val: ObjectData::Parsed(updated), }, 0))
     if new_num > max_obj_num {
       max_obj_num = new_num
     }

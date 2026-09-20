@@ -1,9 +1,9 @@
 import {
   "hnlyxiaobing/moonbitmark/src/ast",
   "hnlyxiaobing/moonbitmark/src/core",
-  "moonbitlang/core/encoding/utf8",
 }
 
 import {
   "moonbitlang/async",
+  "moonbitlang/core/encoding/utf8",
 } for "wbtest"

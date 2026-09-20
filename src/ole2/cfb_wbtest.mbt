@@ -26,7 +26,7 @@ fn arr_set32(arr : Array[Byte], off : Int, v : UInt) -> Unit {
 
 ///|
 fn arr_of_bytes(data : Bytes) -> Array[Byte] {
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array(capacity=0)
   for b in data {
     out.push(b)
   }
@@ -83,7 +83,7 @@ fn make_directory_entry(
 
 ///|
 fn utf16le_of(name : String) -> Array[Byte] {
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array(capacity=0)
   for ch in name {
     let v = ch.to_int()
     out.push((v & 0xFF).to_byte())
@@ -99,8 +99,8 @@ fn utf16le_of(name : String) -> Array[Byte] {
 fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
   let cutoff = 4096
   let sector_size = 512
-  let big : Array[TestStream] = Array::new()
-  let small : Array[TestStream] = Array::new()
+  let big : Array[TestStream] = Array(capacity=0)
+  let small : Array[TestStream] = Array(capacity=0)
   for stream in streams {
     if stream.data.length() >= cutoff {
       big.push(stream)
@@ -109,8 +109,8 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
     }
   }
   // Assign big-stream sectors.
-  let big_start : Array[Int] = Array::new()
-  let big_padded_len : Array[Int] = Array::new()
+  let big_start : Array[Int] = Array(capacity=0)
+  let big_padded_len : Array[Int] = Array(capacity=0)
   let mut next_sector = 2
   for stream in big {
     let padded = pad_to_sectors(stream.data, sector_size)
@@ -120,9 +120,9 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
   }
   // Pack small streams into the mini stream (64-byte units).
   let mini_unit = 64
-  let ministream : Array[Byte] = Array::new()
-  let minifat : Array[UInt] = Array::new()
-  let small_start : Array[UInt] = Array::new()
+  let ministream : Array[Byte] = Array(capacity=0)
+  let minifat : Array[UInt] = Array(capacity=0)
+  let small_start : Array[UInt] = Array(capacity=0)
   for stream in small {
     let start_unit : UInt = minifat.length().reinterpret_as_uint()
     let units = (stream.data.length() + mini_unit - 1) / mini_unit
@@ -257,7 +257,7 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
   for i in 1..<109 {
     arr_set32(header, 0x4C + i * 4, 0xFFFFFFFF)
   }
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array(capacity=0)
   for b in bytes_of_arr(header) {
     out.push(b)
   }
@@ -287,12 +287,14 @@ fn bytes_of_ascii(text : String) -> Bytes {
 
 ///|
 test "cfb big stream roundtrip" {
-  let payload_arr : Array[Byte] = Array::new()
+  let payload_arr : Array[Byte] = Array(capacity=0)
   for i in 0..<8192 {
     payload_arr.push((i % 251).to_byte())
   }
   let payload = bytes_of_arr(payload_arr)
-  let cfb = build_test_cfb([TestStream::{ name: "WordDocument", data: payload }])
+  let cfb = build_test_cfb([
+    TestStream::{ name: "WordDocument", data: payload, },
+  ])
   let archive = CfbArchive::open(cfb)
   let opened = match archive {
     Some(_) => true
@@ -315,7 +317,7 @@ test "cfb big stream roundtrip" {
 ///|
 test "cfb mini stream roundtrip" {
   let payload = bytes_of_ascii("hello mini stream")
-  let cfb = build_test_cfb([TestStream::{ name: "Small", data: payload }])
+  let cfb = build_test_cfb([TestStream::{ name: "Small", data: payload, }])
   let a = CfbArchive::open(cfb).unwrap()
   inspect(a.has_stream("Small"), content="true")
   let data = a.read_stream("Small").unwrap()
@@ -328,9 +330,9 @@ test "cfb mixed big and mini streams" {
   let small1 = bytes_of_ascii("tiny")
   let small2 = Bytes::make(200, b's')
   let cfb = build_test_cfb([
-    TestStream::{ name: "Big", data: big },
-    TestStream::{ name: "Small1", data: small1 },
-    TestStream::{ name: "Small2", data: small2 },
+    TestStream::{ name: "Big", data: big, },
+    TestStream::{ name: "Small1", data: small1, },
+    TestStream::{ name: "Small2", data: small2, },
   ])
   let a = CfbArchive::open(cfb).unwrap()
   inspect(a.stream_names().length(), content="3")
@@ -343,7 +345,7 @@ test "cfb mixed big and mini streams" {
 test "cfb stream at mini cutoff boundary is big" {
   // Exactly 4096 bytes: size == cutoff is NOT below it -> FAT chain.
   let payload = Bytes::make(4096, b'C')
-  let cfb = build_test_cfb([TestStream::{ name: "Edge", data: payload }])
+  let cfb = build_test_cfb([TestStream::{ name: "Edge", data: payload, }])
   let a = CfbArchive::open(cfb).unwrap()
   inspect(a.read_stream("Edge").unwrap() == payload, content="true")
 }
@@ -352,7 +354,7 @@ test "cfb stream at mini cutoff boundary is big" {
 test "cfb multi-unit mini stream chain" {
   // 300 bytes spans 5 mini sectors; verify chain traversal.
   let payload = Bytes::make(300, b'm')
-  let cfb = build_test_cfb([TestStream::{ name: "Small", data: payload }])
+  let cfb = build_test_cfb([TestStream::{ name: "Small", data: payload, }])
   let a = CfbArchive::open(cfb).unwrap()
   let data = a.read_stream("Small").unwrap()
   inspect(data.length(), content="300")
@@ -362,7 +364,7 @@ test "cfb multi-unit mini stream chain" {
 ///|
 test "cfb utf16 stream name roundtrip" {
   let payload = bytes_of_ascii("data")
-  let cfb = build_test_cfb([TestStream::{ name: "数据流", data: payload }])
+  let cfb = build_test_cfb([TestStream::{ name: "数据流", data: payload, }])
   let a = CfbArchive::open(cfb).unwrap()
   debug_inspect(
     a.stream_names(),
@@ -376,7 +378,7 @@ test "cfb utf16 stream name roundtrip" {
 ///|
 test "cfb bad magic is rejected" {
   let cfb = build_test_cfb([
-    TestStream::{ name: "A", data: bytes_of_ascii("x") },
+    TestStream::{ name: "A", data: bytes_of_ascii("x"), },
   ])
   let corrupt_arr = arr_of_bytes(cfb)
   corrupt_arr.set(3, b'\x42')
@@ -396,7 +398,7 @@ test "cfb bad magic is rejected" {
 ///|
 test "cfb truncated file is rejected" {
   let cfb = build_test_cfb([
-    TestStream::{ name: "A", data: bytes_of_ascii("x") },
+    TestStream::{ name: "A", data: bytes_of_ascii("x"), },
   ])
   let truncated = cfb[0:300].to_owned()
   let msg = match CfbArchive::open_explained(truncated) {
@@ -412,7 +414,7 @@ test "cfb truncated file is rejected" {
 ///|
 test "cfb fat loop is detected" {
   let cfb = build_test_cfb([
-    TestStream::{ name: "A", data: bytes_of_ascii("x") },
+    TestStream::{ name: "A", data: bytes_of_ascii("x"), },
   ])
   let looped_arr = arr_of_bytes(cfb)
   // Directory is sector 1; point FAT[1] at itself to form a loop.
@@ -432,7 +434,7 @@ test "cfb fat loop is detected" {
 ///|
 test "cfb missing stream returns none" {
   let cfb = build_test_cfb([
-    TestStream::{ name: "A", data: bytes_of_ascii("x") },
+    TestStream::{ name: "A", data: bytes_of_ascii("x"), },
   ])
   let a = CfbArchive::open(cfb).unwrap()
   let missing = match a.read_stream("Nope") {
@@ -445,7 +447,7 @@ test "cfb missing stream returns none" {
 
 ///|
 test "cfb empty stream reads as empty bytes" {
-  let cfb = build_test_cfb([TestStream::{ name: "Empty", data: b"" }])
+  let cfb = build_test_cfb([TestStream::{ name: "Empty", data: b"", }])
   let a = CfbArchive::open(cfb).unwrap()
   let data = a.read_stream("Empty").unwrap()
   inspect(data.length(), content="0")
@@ -454,7 +456,7 @@ test "cfb empty stream reads as empty bytes" {
 ///|
 test "cfb ole2 signature helper" {
   let cfb = build_test_cfb([
-    TestStream::{ name: "A", data: bytes_of_ascii("x") },
+    TestStream::{ name: "A", data: bytes_of_ascii("x"), },
   ])
   inspect(cfb_is_ole2_signature(cfb), content="true")
   inspect(cfb_is_ole2_signature(b"PK\x03\x04xxxx"), content="false")

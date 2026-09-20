@@ -36,12 +36,12 @@ pub(all) struct Logger {
 
 ///|
 pub fn Logger::default() -> Logger {
-  Logger::new("", { level: Info, enable_timestamp: true, enable_color: false })
+  Logger::new("", { level: Info, enable_timestamp: true, enable_color: false, })
 }
 
 ///|
 pub fn Logger::new(name : String, config : LoggerConfig) -> Logger {
-  { config, name }
+  { config, name, }
 }
 
 ///|

@@ -148,10 +148,10 @@ test "pdf structured page reconstruction drops chart axis noise" {
 ///|
 test "pdf fallback linewise normalization rebuilds headings and bullet lines" {
   let chunks = normalize_fallback_page_chunks([
-    PdfRawLine::{ text: "The Evolution of the Word Processor" },
-    PdfRawLine::{ text: "" },
-    PdfRawLine::{ text: "Pre-Digital Era (19th - Early 20th Century)" },
-    PdfRawLine::{ text: "" },
+    PdfRawLine::{ text: "The Evolution of the Word Processor", },
+    PdfRawLine::{ text: "", },
+    PdfRawLine::{ text: "Pre-Digital Era (19th - Early 20th Century)", },
+    PdfRawLine::{ text: "", },
     PdfRawLine::{
       text: "The origins of word processing can be traced back to the invention of the typewriter in the",
     },
@@ -161,8 +161,8 @@ test "pdf fallback linewise normalization rebuilds headings and bullet lines" {
     PdfRawLine::{
       text: "revolutionized written communication by enabling people to produce legible documents.",
     },
-    PdfRawLine::{ text: "" },
-    PdfRawLine::{ text: "•" },
+    PdfRawLine::{ text: "", },
+    PdfRawLine::{ text: "•", },
     PdfRawLine::{
       text: "IBM MT/ST (Magnetic Tape/Selectric Typewriter): Introduced in 1964.",
     },
@@ -285,14 +285,14 @@ test "pdf paragraph merge keeps em dash tight across wrapped lines" {
 ///|
 test "pdf ocr recovery normalization preserves linewise block candidates" {
   let chunks = normalize_ocr_recovery_page_chunks([
-    PdfRawLine::{ text: "Project Status" },
-    PdfRawLine::{ text: "" },
-    PdfRawLine::{ text: "•" },
-    PdfRawLine::{ text: "Recovered backlog item" },
-    PdfRawLine::{ text: "" },
-    PdfRawLine::{ text: "Quarter  Revenue  Margin" },
-    PdfRawLine::{ text: "Q1  12.4  31%" },
-    PdfRawLine::{ text: "Q2  14.1  34%" },
+    PdfRawLine::{ text: "Project Status", },
+    PdfRawLine::{ text: "", },
+    PdfRawLine::{ text: "•", },
+    PdfRawLine::{ text: "Recovered backlog item", },
+    PdfRawLine::{ text: "", },
+    PdfRawLine::{ text: "Quarter  Revenue  Margin", },
+    PdfRawLine::{ text: "Q1  12.4  31%", },
+    PdfRawLine::{ text: "Q2  14.1  34%", },
   ])
   debug_inspect(
     chunks,
@@ -406,8 +406,8 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 760,
         bottom: 160,
         words: [
-          PdfLayoutWord::{ text: "Quarter", left: 90, right: 240 },
-          PdfLayoutWord::{ text: "Metrics", left: 360, right: 760 },
+          PdfLayoutWord::{ text: "Quarter", left: 90, right: 240, },
+          PdfLayoutWord::{ text: "Metrics", left: 360, right: 760, },
         ],
       },
       PdfLayoutLine::{
@@ -417,8 +417,8 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 760,
         bottom: 210,
         words: [
-          PdfLayoutWord::{ text: "Revenue", left: 420, right: 540 },
-          PdfLayoutWord::{ text: "Margin", left: 620, right: 760 },
+          PdfLayoutWord::{ text: "Revenue", left: 420, right: 540, },
+          PdfLayoutWord::{ text: "Margin", left: 620, right: 760, },
         ],
       },
       PdfLayoutLine::{
@@ -428,9 +428,9 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 720,
         bottom: 275,
         words: [
-          PdfLayoutWord::{ text: "Q1", left: 100, right: 170 },
-          PdfLayoutWord::{ text: "12.4", left: 450, right: 520 },
-          PdfLayoutWord::{ text: "31%", left: 650, right: 720 },
+          PdfLayoutWord::{ text: "Q1", left: 100, right: 170, },
+          PdfLayoutWord::{ text: "12.4", left: 450, right: 520, },
+          PdfLayoutWord::{ text: "31%", left: 650, right: 720, },
         ],
       },
       PdfLayoutLine::{
@@ -440,9 +440,9 @@ test "pdf layout reconstruction flattens merged table headers from bbox words" {
         right: 720,
         bottom: 330,
         words: [
-          PdfLayoutWord::{ text: "Q2", left: 100, right: 170 },
-          PdfLayoutWord::{ text: "14.1", left: 450, right: 520 },
-          PdfLayoutWord::{ text: "34%", left: 650, right: 720 },
+          PdfLayoutWord::{ text: "Q2", left: 100, right: 170, },
+          PdfLayoutWord::{ text: "14.1", left: 450, right: 520, },
+          PdfLayoutWord::{ text: "34%", left: 650, right: 720, },
         ],
       },
     ],

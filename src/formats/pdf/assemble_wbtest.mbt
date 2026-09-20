@@ -13,7 +13,7 @@ test "pdf assembly metadata records route summary" {
           page_no: 1,
           source_kind: NativeTextFast,
           raw_text: Some(raw_pages[0]),
-          lines: [PdfRawLine::{ text: "Monthly Report" }],
+          lines: [PdfRawLine::{ text: "Monthly Report", }],
           layout: None,
         },
         PdfPageExtraction::{
@@ -114,8 +114,8 @@ test "pdf assembly metadata records fallback extraction details" {
           source_kind: NativeTextStructured,
           raw_text: Some(raw_pages[0]),
           lines: [
-            PdfRawLine::{ text: "Formula" },
-            PdfRawLine::{ text: "a2 + 8 = 12" },
+            PdfRawLine::{ text: "Formula", },
+            PdfRawLine::{ text: "a2 + 8 = 12", },
           ],
           layout: None,
         },

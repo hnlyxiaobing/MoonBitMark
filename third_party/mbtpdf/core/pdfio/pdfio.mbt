@@ -223,7 +223,7 @@ pub fn Output::of_write_at(
   let mut pos = 0
   let mut highest_written = -1
   let single : MutableBytes = mkbytes(1)
-  let buffer : Ref[MutableBytes] = { val: mkbytes(4096) }
+  let buffer : Ref[MutableBytes] = { val: mkbytes(4096), }
   let output_bytes = (bytes : Bytes) => {
     for b in bytes {
       if pos > buffer.val.length() - 1 {
@@ -269,7 +269,7 @@ pub fn Output::of_write_at(
 ///|
 /// Build an input-output, with an initial buffer size.
 pub fn Output::of_bytes(size : Int) -> (Output, Ref[MutableBytes]) {
-  let data : Ref[MutableBytes] = { val: mkbytes(size) }
+  let data : Ref[MutableBytes] = { val: mkbytes(size), }
   (output_of_bytes(data), data)
 }
 
@@ -461,7 +461,7 @@ pub struct BitstreamWrite {
 ///|
 /// Build a bitstream from an input.
 pub fn Bitstream::of_input(input : Input) -> Bitstream {
-  { input, curr_byte: 0, bit: 0, bits_read: 0 }
+  { input, curr_byte: 0, bit: 0, bits_read: 0, }
 }
 
 ///|
@@ -523,7 +523,7 @@ pub fn Bitstream::align(self : Bitstream) -> Unit {
 ///|
 /// Make a new write bitstream.
 pub fn BitstreamWrite::new() -> BitstreamWrite {
-  { bytes: Array::new(), bit: 0 }
+  { bytes: Array::new(), bit: 0, }
 }
 
 ///|

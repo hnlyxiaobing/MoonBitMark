@@ -9,7 +9,7 @@ pub(all) struct JsonConverter {
 ///|
 /// Create a new JSON converter
 pub fn JsonConverter::new() -> JsonConverter {
-  JsonConverter::{ dummy: 0 }
+  JsonConverter::{ dummy: 0, }
 }
 
 ///|

@@ -181,7 +181,7 @@ fn parse_bool_env(name : String, fallback : Bool) -> Result[Bool, String] {
 fn parse_positive_int_env(name : String) -> Result[Int?, String] {
   match @env.get_env_var(name) {
     Some(raw) if raw.trim() != "" => {
-      let value : Int = @strconv.from_str(raw.trim()) catch {
+      let value : Int = @string.from_str(raw.trim()) catch {
         _ => return Err(name + " must be a positive integer.")
       }
       if value > 0 {

@@ -96,9 +96,9 @@ pub fn PdfSyntax::lex_number(
     number.contains("e") ||
     number.contains("E")
   if !has_decimal {
-    try @strconv.parse_int(number) catch {
+    try @string.parse_int(number) catch {
       _ =>
-        try @strconv.parse_double(number) catch {
+        try @string.parse_double(number) catch {
           _ => LexNone
         } noraise {
           f => LexReal(f)
@@ -107,7 +107,7 @@ pub fn PdfSyntax::lex_number(
       i => LexInt(i)
     }
   } else {
-    try @strconv.parse_double(number) catch {
+    try @string.parse_double(number) catch {
       _ => LexNone
     } noraise {
       f => LexReal(f)
@@ -610,8 +610,8 @@ pub fn PdfSyntax::lex_dictionary(
   input : @pdfio.Input,
 ) -> Array[Token] raise {
   let tokens = Array::new()
-  let dict_level : Ref[Int] = { val: 0 }
-  let array_level : Ref[Int] = { val: 0 }
+  let dict_level : Ref[Int] = { val: 0, }
+  let array_level : Ref[Int] = { val: 0, }
   let mut done = false
   while !done {
     let t = lex_syntax.lex_next(

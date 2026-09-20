@@ -8,7 +8,7 @@ pub struct PdfGlyphList {
 
 ///|
 pub fn PdfGlyphList::new() -> PdfGlyphList {
-  { unit: () }
+  { unit: (), }
 }
 
 ///|
@@ -3647,7 +3647,7 @@ fn parse_glyphlist_line(line : String) -> (String, Array[Int])? raise {
         if token.length() == 0 {
           continue
         }
-        let value : Int = @strconv.parse_int(token, base=16) catch {
+        let value : Int = @string.parse_int(token, base=16) catch {
           _ => continue
         }
         codes.push(value)

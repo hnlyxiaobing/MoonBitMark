@@ -9,7 +9,7 @@ pub(all) struct TextConverter {
 ///|
 /// Create a new text converter
 pub fn TextConverter::new() -> TextConverter {
-  TextConverter::{ dummy: 0 }
+  TextConverter::{ dummy: 0, }
 }
 
 ///|

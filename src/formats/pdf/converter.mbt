@@ -7,7 +7,7 @@ pub(all) struct PdfConverter {
 ///|
 /// Create a new PDF converter
 pub fn PdfConverter::new() -> PdfConverter {
-  PdfConverter::{ dummy: 0 }
+  PdfConverter::{ dummy: 0, }
 }
 
 ///|
@@ -80,7 +80,7 @@ pub async fn PdfConverter::convert(
   .with_warnings(warnings)
   .with_diagnostics(diagnostics)
   .with_stats(
-    Some({ ..stats, used_fallback: extraction.used_text_fallback || ocr_used }),
+    Some({ ..stats, used_fallback: extraction.used_text_fallback || ocr_used, }),
   )
   .with_document(Some(assembly.document))
 }
@@ -271,7 +271,7 @@ fn extraction_with_pages(
         .map(line => trim_preserve_inline_whitespace(line.to_owned()))
     }
     for line in raw_lines {
-      lines.push(PdfRawLine::{ text: line })
+      lines.push(PdfRawLine::{ text: line, })
     }
     let source_kind = match route_plan.pages.get(page_no - 1) {
       Some(route) => route.provider

@@ -315,7 +315,7 @@ priv struct NoteContext {
 
 ///|
 fn extract_notes_paragraphs(events : Array[@xml.ParseEvent]) -> Array[String] {
-  let ctx = NoteContext::{ in_text: false, current_text: "", paragraphs: [] }
+  let ctx = NoteContext::{ in_text: false, current_text: "", paragraphs: [], }
   for event in events {
     match event {
       @xml.ElementStart(evt) => {
@@ -573,7 +573,7 @@ fn parse_chart_xml(xml : String, chart_path : String) -> (ChartData?, String?) {
         return (None, None)
       }
       let title = chart_title_from_parts(ctx.title_parts)
-      (Some(ChartData::{ title, series: copy_chart_series(ctx.series) }), None)
+      (Some(ChartData::{ title, series: copy_chart_series(ctx.series), }), None)
     }
     Err(_) => (None, Some("Failed to parse chart XML: \{chart_path}."))
   }
@@ -1198,7 +1198,7 @@ fn compact_shape_paragraphs(
   for value in values {
     let normalized = normalize_pptx_text(value.text)
     if normalized != "" {
-      compacted.push(ShapeParagraph::{ text: normalized, kind: value.kind })
+      compacted.push(ShapeParagraph::{ text: normalized, kind: value.kind, })
     }
   }
   compacted

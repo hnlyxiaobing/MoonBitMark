@@ -254,7 +254,7 @@ pub fn ConvertResult::with_document(
   self : ConvertResult,
   document : @ast.Document?,
 ) -> ConvertResult {
-  { ..self, document, raw_document: document, normalized_document: document }
+  { ..self, document, raw_document: document, normalized_document: document, }
 }
 
 ///|
@@ -268,7 +268,7 @@ pub fn ConvertResult::with_ast_views(
     Some(value) => Some(value)
     None => raw_document
   }
-  { ..self, document, raw_document, normalized_document, semantic_document }
+  { ..self, document, raw_document, normalized_document, semantic_document, }
 }
 
 ///|
@@ -535,7 +535,7 @@ pub fn ConversionDiagnostic::with_defaults(
     Some(existing) => Some(existing)
     None => hint
   }
-  { ..self, phase: next_phase, source: next_source, hint: next_hint }
+  { ..self, phase: next_phase, source: next_source, hint: next_hint, }
 }
 
 ///|

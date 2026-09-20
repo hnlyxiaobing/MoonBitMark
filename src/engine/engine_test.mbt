@@ -18,7 +18,7 @@ test "MarkItDown detects image converter by extension" {
 
 ///|
 test "custom registration keeps highest priority" {
-  let engine = @engine.MarkItDown::{ converters: [] }
+  let engine = @engine.MarkItDown::{ converters: [], }
     .register_named(@engine.Text, 10)
     .register_named(@engine.Html, 50)
   let info = @core.StreamInfo::{

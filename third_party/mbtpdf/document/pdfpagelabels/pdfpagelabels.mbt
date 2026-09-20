@@ -28,7 +28,7 @@ pub struct PdfPageLabels {
 
 ///|
 pub fn PdfPageLabels::new() -> PdfPageLabels {
-  { unit: () }
+  { unit: (), }
 }
 
 ///|
@@ -91,7 +91,7 @@ fn label_of_range(pdf : @pdf.Pdf, range : (PdfObject, PdfObject)) -> PageLabel {
     Some(Integer(i)) => i
     _ => 1
   }
-  { labelstyle, labelprefix, startpage, startvalue }
+  { labelstyle, labelprefix, startpage, startvalue, }
 }
 
 ///|

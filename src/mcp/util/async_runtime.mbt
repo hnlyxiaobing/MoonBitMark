@@ -28,7 +28,7 @@ pub(all) struct EventLoop {
 
 ///|
 pub fn EventLoop::new() -> EventLoop {
-  { next_id: 0 }
+  { next_id: 0, }
 }
 
 ///|
@@ -76,12 +76,12 @@ pub fn[T] Future::is_ready(self : Future[T]) -> Bool {
 
 ///|
 pub fn[T] Future::ready(value : T) -> Future[T] {
-  { completed: true, value: Some(value), error: None }
+  { completed: true, value: Some(value), error: None, }
 }
 
 ///|
 pub fn[T] Future::error(message : String) -> Future[T] {
-  { completed: true, value: None, error: Some(message) }
+  { completed: true, value: None, error: Some(message), }
 }
 
 ///|

@@ -5,7 +5,7 @@ pub(all) struct ImageConverter {
 
 ///|
 pub fn ImageConverter::new() -> ImageConverter {
-  ImageConverter::{ dummy: 0 }
+  ImageConverter::{ dummy: 0, }
 }
 
 ///|

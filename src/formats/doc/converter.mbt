@@ -15,7 +15,7 @@ pub(all) struct DocConverter {
 ///|
 /// Create a new DOC converter.
 pub fn DocConverter::new() -> DocConverter {
-  DocConverter::{ dummy: 0 }
+  DocConverter::{ dummy: 0, }
 }
 
 ///|
@@ -572,7 +572,7 @@ fn parse_sprms(fkp : Bytes, start : Int, length : Int) -> DocSprms {
     }
     j = j + 2 + op_len
   }
-  DocSprms::{ ilfo, in_table, row_end }
+  DocSprms::{ ilfo, in_table, row_end, }
 }
 
 ///|

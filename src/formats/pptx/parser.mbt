@@ -151,7 +151,7 @@ fn extract_slide_refs(
     in_sld_id_lst: false,
     slide_num: 0,
     relations,
-    slide_refs: Array::new(),
+    slide_refs: Array(capacity=0),
   }
 
   for event in events {

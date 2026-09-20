@@ -29,7 +29,7 @@ fn PdfText::parse_matrix(
       let d = self.pdf.getnum(vals[3])
       let e = self.pdf.getnum(vals[4])
       let f = self.pdf.getnum(vals[5])
-      { a, b, c, d, e, f }
+      { a, b, c, d, e, f, }
     }
     _ => raise @pdf.PdfError::Msg("Bad matrix")
   }
@@ -498,7 +498,7 @@ pub fn PdfText::read_cid_system_info(
     Some(Integer(i)) => i
     _ => raise @pdf.PdfError::Msg("No /Supplement")
   }
-  { registry, ordering, supplement }
+  { registry, ordering, supplement, }
 }
 
 ///|

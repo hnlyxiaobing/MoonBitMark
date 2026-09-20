@@ -28,7 +28,7 @@ pub(all) struct TransformMatrix {
 ///|
 /// The identity transform.
 pub fn Transform::identity() -> Transform {
-  { ops: [] }
+  { ops: [], }
 }
 
 ///|
@@ -40,7 +40,7 @@ pub fn Transform::new(ops : Array[TransformOp]) -> Transform {
 ///|
 /// The identity matrix.
 pub fn TransformMatrix::identity() -> TransformMatrix {
-  { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 0.0, f: 0.0 }
+  { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 0.0, f: 0.0, }
 }
 
 ///|
@@ -125,7 +125,7 @@ pub fn TransformMatrix::to_string(self : TransformMatrix) -> String {
 /// Compose a transformation operation onto an existing transform.
 pub fn Transform::compose(self : Transform, op : TransformOp) -> Transform {
   if self.ops.length() == 0 {
-    return { ops: [op] }
+    return { ops: [op], }
   }
   let head = self.ops[0]
   match (head, op) {
@@ -145,7 +145,7 @@ pub fn Transform::compose(self : Transform, op : TransformOp) -> Transform {
           ),
         }
       } else {
-        { ops: concat_ops([op], self.ops) }
+        { ops: concat_ops([op], self.ops), }
       }
     (TransformOp::Rotate(p, a), TransformOp::Rotate(p2, a2)) =>
       if point_eq(p, p2) {
@@ -153,7 +153,7 @@ pub fn Transform::compose(self : Transform, op : TransformOp) -> Transform {
           ops: concat_ops([TransformOp::Rotate(p, a + a2)], tail_ops(self.ops)),
         }
       } else {
-        { ops: concat_ops([op], self.ops) }
+        { ops: concat_ops([op], self.ops), }
       }
     (TransformOp::ShearX(p, a), TransformOp::ShearX(p2, a2)) =>
       if point_eq(p, p2) {
@@ -161,7 +161,7 @@ pub fn Transform::compose(self : Transform, op : TransformOp) -> Transform {
           ops: concat_ops([TransformOp::ShearX(p, a + a2)], tail_ops(self.ops)),
         }
       } else {
-        { ops: concat_ops([op], self.ops) }
+        { ops: concat_ops([op], self.ops), }
       }
     (TransformOp::ShearY(p, a), TransformOp::ShearY(p2, a2)) =>
       if point_eq(p, p2) {
@@ -169,16 +169,16 @@ pub fn Transform::compose(self : Transform, op : TransformOp) -> Transform {
           ops: concat_ops([TransformOp::ShearY(p, a + a2)], tail_ops(self.ops)),
         }
       } else {
-        { ops: concat_ops([op], self.ops) }
+        { ops: concat_ops([op], self.ops), }
       }
-    _ => { ops: concat_ops([op], self.ops) }
+    _ => { ops: concat_ops([op], self.ops), }
   }
 }
 
 ///|
 /// Append two transforms (perform b then a).
 pub fn Transform::append(self : Transform, other : Transform) -> Transform {
-  { ops: concat_ops(self.ops, other.ops) }
+  { ops: concat_ops(self.ops, other.ops), }
 }
 
 ///|
@@ -223,7 +223,7 @@ pub fn TransformMatrix::invert(
 ///|
 /// Make a translation matrix.
 pub fn TransformMatrix::translate(tx : Double, ty : Double) -> TransformMatrix {
-  { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: tx, f: ty }
+  { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: tx, f: ty, }
 }
 
 ///|
@@ -235,7 +235,7 @@ pub fn TransformMatrix::scale(
 ) -> TransformMatrix {
   let translate = TransformMatrix::translate(-center.0, -center.1)
   let translate_back = TransformMatrix::translate(center.0, center.1)
-  let scale_matrix = { a: sx, b: 0.0, c: 0.0, d: sy, e: 0.0, f: 0.0 }
+  let scale_matrix = { a: sx, b: 0.0, c: 0.0, d: sy, e: 0.0, f: 0.0, }
   translate_back.compose(scale_matrix.compose(translate))
 }
 
@@ -266,7 +266,7 @@ pub fn TransformMatrix::shear_x(
 ) -> TransformMatrix {
   let translate = TransformMatrix::translate(-center.0, -center.1)
   let translate_back = TransformMatrix::translate(center.0, center.1)
-  let shear_matrix = { a: 1.0, b: 0.0, c: factor, d: 1.0, e: 0.0, f: 0.0 }
+  let shear_matrix = { a: 1.0, b: 0.0, c: factor, d: 1.0, e: 0.0, f: 0.0, }
   translate_back.compose(shear_matrix.compose(translate))
 }
 
@@ -278,7 +278,7 @@ pub fn TransformMatrix::shear_y(
 ) -> TransformMatrix {
   let translate = TransformMatrix::translate(-center.0, -center.1)
   let translate_back = TransformMatrix::translate(center.0, center.1)
-  let shear_matrix = { a: 1.0, b: factor, c: 0.0, d: 1.0, e: 0.0, f: 0.0 }
+  let shear_matrix = { a: 1.0, b: factor, c: 0.0, d: 1.0, e: 0.0, f: 0.0, }
   translate_back.compose(shear_matrix.compose(translate))
 }
 
