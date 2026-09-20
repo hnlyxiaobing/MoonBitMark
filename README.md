@@ -67,7 +67,7 @@ _build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe --dump-ast
 
 ```toml
 import {
-  "hnlyxiaobing/moonbitmark@0.4.4",
+  "hnlyxiaobing/moonbitmark@0.4.5",
 }
 ```
 
