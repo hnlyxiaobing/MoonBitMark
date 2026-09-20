@@ -61,6 +61,45 @@ _build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe --diag-jso
 _build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe --dump-ast tests\conversion_eval\fixtures\inputs\html\simple_table.html
 ```
 
+## 作为依赖使用（mooncakes）
+
+`moon.mod` 中声明依赖（版本要求 `>= 0.4.4`）：
+
+```toml
+import {
+  "hnlyxiaobing/moonbitmark@0.4.4",
+}
+```
+
+在包的 `moon.pkg` 中导入转换器并使用：
+
+```toml
+import {
+  "hnlyxiaobing/moonbitmark/src/engine",
+  "moonbitlang/async",
+}
+
+supported_targets = "native"
+```
+
+```moonbit
+///|
+async fn main raise {
+  let engine = @engine.MarkItDown::new()
+  let result = engine.convert("input.docx")
+  println(result.markdown)
+}
+```
+
+注意：
+
+- **版本要求 `>= 0.4.4`**：0.3.0–0.4.3 的 PDF 支持依赖 registry 版
+  `bobzhang/mbtpdf@0.1.2`，该版本使用了当前工具链已移除的 `@strconv` API，
+  消费者侧 `moon check` 会直接失败（实测 7 个错误）。详见
+  [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)。- 使用 `async fn main` 时必须**直接**声明 `moonbitlang/async` 依赖：模块间的传递
+  依赖不能被本包直接导入（否则报 "its containing module is not imported by ..."）。
+- `src/engine` 等包为 native-only，消费者侧需以 `--target native` 构建。
+
 ## CLI 选项
 
 - `--frontmatter`

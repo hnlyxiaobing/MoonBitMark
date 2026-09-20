@@ -2,8 +2,37 @@
 
 这里只保留当前仍然会影响使用或开发判断的问题。
 
-## OCR 仍是 bridge-backed 可选能力
+## 0.4.3 及更早的发布版本在消费者侧无法编译（请使用 >= 0.4.4）
 
+- 位置：mooncakes registry 上的 `hnlyxiaobing/moonbitmark` 历史版本
+- 影响：引用 `*@0.4.3` 及更早版本的模块 `moon check --target native` 直接失败。逐版本
+  实测（独立消费者模块，仅依赖 registry 版本）：
+
+  | 依赖版本 | 结果 |
+  | --- | --- |
+  | 0.3.0 / 0.4.0 / 0.4.1 / 0.4.2 / 0.4.3 | `Failed with 0 warnings, 7 errors` |
+  | 0.4.4 | 0 error / 0 warning |
+
+  7 个错误全部来自下载到 `.mooncakes/bobzhang/mbtpdf/` 的源码
+  （`document/pdftree/pdftree.mbt:157`、`font/pdfcmap/pdfcmap.mbt:150,366`、
+  `font/pdfglyphlist/pdfglyphlist.mbt:3650`、`syntax/pdfgenlex/pdfgenlex.mbt:198,200,209`），
+  内容为 ``Value parse_int / parse_double not found in package `strconv` ``。- 原因：这些版本的 PDF 支持依赖 registry 版 `bobzhang/mbtpdf@0.1.2`（上游最新，
+  2026-01-28），而该版本仍调用当前工具链已从 `moonbitlang/core/strconv` 移除的
+  `parse_int` / `parse_double`（相关 API 已迁至 `@string`）。本仓库内能通过是因为
+  `moon.work` 曾把 mbtpdf 重定向到打过补丁的 `third_party/mbtpdf`，消费者拿不到该重定向。
+- 现状：**0.4.4 起已把 `third_party/mbtpdf` 内联进本模块**并重写导入路径，不再依赖
+  registry 版 mbtpdf；消费者侧 `moon check --target native` 为 0 error / 0 warning，
+  且可实际完成 PDF → Markdown 转换。
+- 处置限制：mooncakes 不提供模块所有者自助 yank 单个版本的能力。CLI 只有
+  `moon deprecate`，它作用于整个模块的所有版本（`--reason` 标记 / `--undo` 撤销），
+  会把 0.4.4 一起标记，且官方文档明确说明"Deprecation does not affect version
+  selection"；网页端（`moonbitlang/mooncakes.io`）的 yank 相关代码仅为只读展示
+  （`decode_yanked`、`yanked_banner`、`version_selector.current_yanked`），无所有者入口。
+- 建议：新项目直接使用 `>= 0.4.4`（`moon view hnlyxiaobing/moonbitmark` 的 Latest
+  已是 0.4.4，默认解析不会命中 0.4.3）；只有显式 pin 旧版本或沿用旧 lockfile 的项目
+  会踩到该问题。若要彻底隐藏 0.4.3，需向 mooncakes 维护方申请管理员级 yank。
+
+## OCR 仍是 bridge-backed 可选能力
 - 位置：`src/capabilities/ocr/`、`scripts/ocr/bridge.py`
 - 影响：OCR 依赖 Python 和可用 backend，不是纯 MoonBit 内建能力。
 
