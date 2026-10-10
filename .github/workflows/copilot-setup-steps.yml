@@ -36,6 +36,10 @@ jobs:
 
       - name: Update MoonBit dependencies
         run: |
-            moon version --all
             moon update
+            # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+            # which the release channel still rejects; only the dev channel
+            # compiles it. Track the dev channel so this environment matches.
+            moon upgrade --dev
+            moon version --all
             

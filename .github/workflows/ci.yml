@@ -33,8 +33,12 @@ jobs:
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           export PATH="$HOME/.moon/bin:$PATH"
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          moon version --all
           moon update
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects; only the dev channel
+          # compiles it. Track the dev channel so CI matches the sources.
+          moon upgrade --dev
+          moon version --all
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -65,8 +69,12 @@ jobs:
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           export PATH="$HOME/.moon/bin:$PATH"
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-          moon version --all
           moon update
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects; only the dev channel
+          # compiles it. Track the dev channel so CI matches the sources.
+          moon upgrade --dev
+          moon version --all
 
       - name: moon test with coverage
         shell: bash
@@ -103,8 +111,12 @@ jobs:
           $moonBin = "$env:USERPROFILE\.moon\bin"
           $env:PATH = "$moonBin;$env:PATH"
           Add-Content -Path $env:GITHUB_PATH -Value $moonBin
-          moon version --all
           moon update
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects; only the dev channel
+          # compiles it. Track the dev channel so CI matches the sources.
+          moon upgrade --dev
+          moon version --all
 
       - name: moon check
         shell: pwsh
@@ -173,8 +185,12 @@ jobs:
           $moonBin = "$env:USERPROFILE\.moon\bin"
           $env:PATH = "$moonBin;$env:PATH"
           Add-Content -Path $env:GITHUB_PATH -Value $moonBin
-          moon version --all
           moon update
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects; only the dev channel
+          # compiles it. Track the dev channel so CI matches the sources.
+          moon upgrade --dev
+          moon version --all
 
       - name: Build native release binaries
         shell: pwsh

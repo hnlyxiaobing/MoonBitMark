@@ -586,7 +586,7 @@ fn decompress_dynamic_huffman_block(
     }
 
     match code {
-      0..=15 => {
+      0..<=15 => {
         lit_len_dist[i] = code
         i = i + 1
       }
@@ -759,7 +759,7 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
   }
 
   let mut remaining = 1
-  for bits in 1..=max_len {
+  for bits in 1..<=max_len {
     remaining = (remaining << 1) - bl_count[bits]
     if remaining < 0 {
       return Err("Oversubscribed Huffman tree")
@@ -774,7 +774,7 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
     0
   })
 
-  for bits in 1..=max_len {
+  for bits in 1..<=max_len {
     code = (code + bl_count[bits - 1]) << 1
     next_code[bits] = code
   }
@@ -804,7 +804,7 @@ fn decode_huffman(
   tree : HuffmanTree,
 ) -> Result[Int, String] {
   let mut code = 0
-  for bit_len in 1..=tree.max_len {
+  for bit_len in 1..<=tree.max_len {
     let bit_result = reader.read_bits(1)
     let bit = match bit_result {
       Ok(v) => v

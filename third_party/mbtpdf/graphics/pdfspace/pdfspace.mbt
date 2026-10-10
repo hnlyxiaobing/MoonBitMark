@@ -92,7 +92,7 @@ fn build_table(
   }
   let table : Map[Int, Array[Int]] = Map::new(capacity=hival + 1)
   let mut offset = 0
-  for x in 0..=hival {
+  for x in 0..<=hival {
     let row = Array::new(capacity=components)
     for _ in 0..<components {
       row.push(@pdfio.bget_unsafe(data, offset))

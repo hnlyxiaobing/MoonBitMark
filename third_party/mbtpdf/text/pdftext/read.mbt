@@ -538,7 +538,7 @@ pub fn PdfTextUtil::read_cid_widths(
               if c_last < c {
                 raise @pdf.PdfError::Msg("Bad /W array")
               }
-              for code in c..=c_last {
+              for code in c..<=c_last {
                 out.push((code, w))
               }
               i = i + 3

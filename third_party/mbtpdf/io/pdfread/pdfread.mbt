@@ -192,14 +192,14 @@ fn read_header(ctx : PdfRead, input : @pdfio.Input) -> (Int, Int) raise {
       chars[4] == '-' &&
       chars[6] == '.' {
       let major_char = chars[5]
-      if !(major_char is ('0'..='9')) {
+      if !(major_char is ('0'..<='9')) {
         return (2, 0)
       }
       let minor_digits = Array::new()
       let mut idx = 7
       while idx < chars.length() {
         let c = chars[idx]
-        if c is ('0'..='9') {
+        if c is ('0'..<='9') {
           minor_digits.push(c)
           idx = idx + 1
         } else {

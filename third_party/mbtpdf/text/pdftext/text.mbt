@@ -122,7 +122,7 @@ fn codepoints_of_utf16be_inner(bytes : Array[Int]) -> Array[Int] raise {
     }
     let w1 = (bytes[i] << 8) | bytes[i + 1]
     match w1 {
-      0xd800..=0xdbff => {
+      0xd800..<=0xdbff => {
         if i + 3 >= len {
           raise Failure::Failure("codepoints_of_utf16be")
         }
@@ -136,7 +136,7 @@ fn codepoints_of_utf16be_inner(bytes : Array[Int]) -> Array[Int] raise {
           raise Failure::Failure("codepoints_of_utf16be")
         }
       }
-      0xdc00..=0xdfff => raise Failure::Failure("codepoints_of_utf16be")
+      0xdc00..<=0xdfff => raise Failure::Failure("codepoints_of_utf16be")
       _ => {
         out.push(w1)
         i = i + 2
