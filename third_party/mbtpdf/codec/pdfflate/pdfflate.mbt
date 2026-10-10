@@ -127,16 +127,16 @@ fn decode_symbol(reader : BitReader, huff : Huffman) -> Int raise FlateError {
 ///|
 fn fixed_literal_lengths() -> Array[Int] {
   let lengths = Array::make(288, 0)
-  for i in 0..<=143 {
+  for i in 0..=143 {
     lengths[i] = 8
   }
-  for i in 144..<=255 {
+  for i in 144..=255 {
     lengths[i] = 9
   }
-  for i in 256..<=279 {
+  for i in 256..=279 {
     lengths[i] = 7
   }
-  for i in 280..<=287 {
+  for i in 280..=287 {
     lengths[i] = 8
   }
   lengths

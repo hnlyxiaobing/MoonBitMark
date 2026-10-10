@@ -474,7 +474,7 @@ fn[T] flatten(lists : Array[Array[T]]) -> Array[T] {
 ///|
 fn indices_for_length(length : Int) -> Array[Int] {
   let out = Array::new(capacity=length)
-  for i in 1..<=length {
+  for i in 1..=length {
     out.push(i)
   }
   out

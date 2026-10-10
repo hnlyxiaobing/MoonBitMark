@@ -132,7 +132,7 @@ fn contains_ascii(bytes : Bytes, needle : String) -> Bool {
   if bytes.length() < needle_bytes.length() {
     return false
   }
-  for start in 0..<=(bytes.length() - needle_bytes.length()) {
+  for start in 0..=(bytes.length() - needle_bytes.length()) {
     let mut matched = true
     for offset in 0..<needle_bytes.length() {
       if bytes[start + offset] != needle_bytes[offset] {

@@ -24,7 +24,7 @@ fn ilist(start : Int, finish : Int) -> Array[Int] {
     return []
   }
   let out = Array::new(capacity=finish - start + 1)
-  for i in start..<=finish {
+  for i in start..=finish {
     out.push(i)
   }
   out

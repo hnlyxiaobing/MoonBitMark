@@ -81,7 +81,7 @@ fn encode_png_line(
   let mut best_filter = 0
   let mut best_encoded = encode_png_filter(current, prior, bytes_per_pixel, 0)
   let mut best_cost = predictor_cost(best_encoded)
-  for f in 1..<=4 {
+  for f in 1..=4 {
     let candidate = encode_png_filter(current, prior, bytes_per_pixel, f)
     let cost = predictor_cost(candidate)
     if cost < best_cost {
