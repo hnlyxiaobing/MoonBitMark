@@ -410,7 +410,7 @@ pub fn count_markdown_blocks(markdown : String) -> Int {
 pub fn stats_for_markdown(
   markdown : String,
   duration_ms? : Int,
-  used_fallback? : Bool = false,
+  used_fallback~ : Bool = false,
 ) -> ConvertStats {
   ConvertStats::{
     char_count: markdown.length(),
@@ -673,7 +673,7 @@ pub fn diagnostics_from_warnings(
   warnings : Array[String],
   phase : ConversionPhase?,
   source : DiagnosticSource?,
-  hint? : DiagnosticHint = Custom("Inspect the converter output for details."),
+  hint~ : DiagnosticHint = Custom("Inspect the converter output for details."),
 ) -> Array[ConversionDiagnostic] {
   let diagnostics : Array[ConversionDiagnostic] = []
   for warning in warnings {

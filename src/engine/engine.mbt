@@ -121,7 +121,7 @@ pub async fn MarkItDown::detect_source(
 pub async fn MarkItDown::convert(
   self : MarkItDown,
   input : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   self.convert_source(@core.InputSource::from_string(input), ctx~)
 }
@@ -130,7 +130,7 @@ pub async fn MarkItDown::convert(
 pub async fn MarkItDown::convert_source(
   self : MarkItDown,
   input : @core.InputSource,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let info = detect_stream_info(input)
   let input_source = diagnostic_source_of_input(input)

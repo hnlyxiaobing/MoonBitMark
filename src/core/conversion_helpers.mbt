@@ -42,10 +42,10 @@ pub fn apply_ocr_metadata(
   metadata : Map[String, String],
   config : @ocr.OcrConfig,
   provider : String?,
-  embedded_image_count? : Int = 0,
-  attempted? : Bool = false,
-  available? : Bool = false,
-  fallback_used? : Bool = false,
+  embedded_image_count~ : Int = 0,
+  attempted~ : Bool = false,
+  available~ : Bool = false,
+  fallback_used~ : Bool = false,
 ) -> Unit {
   metadata["ocr_mode"] = config.mode.label()
   metadata["ocr_backend"] = config.backend_or_auto()

@@ -488,6 +488,20 @@ test "doc multipiece utf16 and cp1252 pieces" {
 }
 
 ///|
+test "doc multipiece emits cp1252 codepage warning" {
+  let result = convert_bytes(doc_bytes(word_multipiece_b64()), "multi.doc") catch {
+    err => fail("convert failed: \{err}")
+  }
+  let mut found = false
+  for w in result.warnings {
+    if w.contains("cp1252") {
+      found = true
+    }
+  }
+  assert_true(found)
+}
+
+///|
 test "doc cp1252 high region decodes" {
   // 0xE9 é, 0xA9 ©, 0x80 €, 0x96 –, 0xD0 Ð, 0xFF ÿ
   let text = decode_cp1252(b"\xE9\xA9\x80\x96\xD0\xFF", 0, 6)

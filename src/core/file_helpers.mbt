@@ -155,7 +155,7 @@ pub fn numbered_asset_filename(
   prefix : String,
   index : Int,
   source_path : String,
-  fallback_extension? : String = "bin",
+  fallback_extension~ : String = "bin",
 ) -> String {
   prefix +
   index.to_string() +

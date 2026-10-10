@@ -29,7 +29,7 @@ pub fn TextConverter::accepts(info : @core.StreamInfo) -> Bool {
 /// Convert function - reads file and returns content
 pub async fn TextConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   TextConverter::convert_source(@core.FileInput(file_path, None), ctx~)
 }
@@ -37,7 +37,7 @@ pub async fn TextConverter::convert(
 ///|
 pub async fn TextConverter::convert_source(
   input : @core.InputSource,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   ignore(ctx)
   let content = normalize_text_content(
@@ -319,7 +319,7 @@ fn should_preserve_text_lines(chunk : String) -> Bool {
 ///|
 fn normalize_text_paragraph(
   chunk : String,
-  preserve_lines? : Bool = false,
+  preserve_lines~ : Bool = false,
 ) -> String {
   if preserve_lines {
     let lines : Array[String] = []

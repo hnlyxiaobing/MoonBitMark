@@ -15,7 +15,7 @@ pub fn EpubConverter::accepts(info : @core.StreamInfo) -> Bool {
 ///|
 pub async fn EpubConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let epub_data = @core.read_file_bytes(file_path)
 
@@ -432,7 +432,9 @@ fn parse_xhtml_blocks(
     return finalize_epub_blocks(xml_blocks)
   }
   let html_blocks = finalize_epub_blocks(
-    normalize_epub_html_blocks(@html.html_to_blocks(xml_string)),
+    normalize_epub_html_blocks(
+      @html.html_to_blocks(preprocess_epub_html_fallback(xml_string)),
+    ),
   )
   if html_blocks.length() == 0 {
     warnings.push("No content blocks parsed from spine item: " + archive_path)
@@ -658,6 +660,68 @@ fn strip_epub_tag_blocks(text : String, tag : String) -> String {
           Some(close_rel) => {
             let close_end = start + close_rel + close_marker.length()
             result = result[:start].to_owned() + result[close_end:].to_owned()
+          }
+          None => break
+        }
+      None => break
+    }
+  }
+  result
+}
+
+///|
+fn preprocess_epub_html_fallback(text : String) -> String {
+  let mut result = text
+  result = strip_epub_tag_blocks(result, "video")
+  result = strip_epub_tag_blocks(result, "audio")
+  result = strip_epub_void_tags(result, "source")
+  result = strip_epub_void_tags(result, "track")
+  result = expand_epub_hgroup(result)
+  result
+}
+
+///|
+fn strip_epub_void_tags(text : String, tag : String) -> String {
+  let mut result = text
+  let open_marker = "<" + tag
+  while result.contains(open_marker) {
+    match result.find(open_marker) {
+      Some(start) =>
+        match result[start:].to_owned().find(">") {
+          Some(end_rel) => {
+            let end = start + end_rel + 1
+            result = result[:start].to_owned() + result[end:].to_owned()
+          }
+          None => break
+        }
+      None => break
+    }
+  }
+  result
+}
+
+///|
+fn expand_epub_hgroup(text : String) -> String {
+  let mut result = text
+  let open_marker = "<hgroup"
+  let close_marker = "</hgroup>"
+  while result.contains(open_marker) {
+    match result.find(open_marker) {
+      Some(start) =>
+        match result[start:].to_owned().find(">") {
+          Some(open_end_rel) => {
+            let open_tag_end = start + open_end_rel + 1
+            match result[open_tag_end:].to_owned().find(close_marker) {
+              Some(close_rel) => {
+                let close_start = open_tag_end + close_rel
+                let close_end = close_start + close_marker.length()
+                let inner = result[open_tag_end:close_start].to_owned()
+                result = result[:start].to_owned() +
+                  inner +
+                  result[close_end:].to_owned()
+              }
+              None => break
+            }
           }
           None => break
         }

@@ -142,3 +142,34 @@ test "epub asset appendix only keeps ocr blocks" {
   )
   inspect(@ast.render_markdown(@ast.document(None, {}, blocks)), content="body")
 }
+
+///|
+test "epub html fallback strips video elements" {
+  let html = "<p>Before</p><video src=\"clip.mp4\" controls=\"controls\">fallback</video><p>After</p>"
+  let result = strip_epub_tag_blocks(html, "video")
+  inspect(result, content="<p>Before</p><p>After</p>")
+}
+
+///|
+test "epub html fallback strips void source and track tags" {
+  let html = "<p>Text</p><source src=\"clip.mp4\" type=\"video/mp4\"><track kind=\"subtitles\" src=\"sub.vtt\"/><p>More</p>"
+  let result = strip_epub_void_tags(
+    strip_epub_void_tags(html, "source"),
+    "track",
+  )
+  inspect(result, content="<p>Text</p><p>More</p>")
+}
+
+///|
+test "epub html fallback expands hgroup keeping child headings" {
+  let html = "<hgroup><h1>Title</h1><h2>Subtitle</h2></hgroup><p>Body</p>"
+  let result = expand_epub_hgroup(html)
+  inspect(result, content="<h1>Title</h1><h2>Subtitle</h2><p>Body</p>")
+}
+
+///|
+test "epub html fallback preprocesses mixed media and hgroup" {
+  let html = "<hgroup><h1>Title</h1></hgroup><video src=\"x.mp4\">fb</video><source src=\"x.mp4\"/><p>Text</p>"
+  let result = preprocess_epub_html_fallback(html)
+  inspect(result, content="<h1>Title</h1><p>Text</p>")
+}

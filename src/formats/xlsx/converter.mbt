@@ -26,7 +26,7 @@ pub fn XlsxConverter::accepts(info : @core.StreamInfo) -> Bool {
 /// Convert an XLSX file to Markdown
 pub async fn XlsxConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   ignore(ctx)
   let bytes = @core.read_file_bytes(file_path)

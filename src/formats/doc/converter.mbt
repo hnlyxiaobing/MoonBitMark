@@ -34,7 +34,7 @@ pub fn DocConverter::accepts(info : @core.StreamInfo) -> Bool {
 /// Convert a Word binary file to Markdown.
 pub async fn DocConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let bytes = @core.read_file_bytes(file_path)
   convert_bytes(bytes, file_path, ctx~) catch {
@@ -48,7 +48,7 @@ pub async fn DocConverter::convert(
 pub fn convert_bytes(
   bytes : Bytes,
   source_name : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult raise {
   ignore(ctx)
 
@@ -117,8 +117,20 @@ pub fn convert_bytes(
   )
   let warnings : Array[String] = []
   let main_text = match pieces {
-    Some(piece_list) if piece_list.length() > 0 =>
+    Some(piece_list) if piece_list.length() > 0 => {
+      let mut has_compressed = false
+      for piece in piece_list {
+        if piece.compressed {
+          has_compressed = true
+        }
+      }
+      if has_compressed {
+        warnings.push(
+          "8-bit pieces decoded as cp1252; if text appears garbled, the document may use a different codepage.",
+        )
+      }
       join_piece_text(word_document, piece_list, fib.ccp_text)
+    }
     _ =>
       match contiguous_text(word_document, fib) {
         Some(text) => text
@@ -140,7 +152,14 @@ pub fn convert_bytes(
     pieces,
   )
 
-  let blocks = build_doc_blocks(main_text, paragraphs)
+  let char_runs = parse_char_format_table(
+    word_document,
+    table_stream,
+    fib.fc_plcf_bte_chpx,
+    fib.lcb_plcf_bte_chpx,
+  )
+
+  let blocks = build_doc_blocks(main_text, paragraphs, char_runs)
   let metadata = Map([])
   metadata["format"] = "doc"
   metadata["container"] = "ole2"
@@ -176,6 +195,8 @@ priv struct DocFib {
   lcb_clx : Int
   fc_plcf_bte_papx : Int
   lcb_plcf_bte_papx : Int
+  fc_plcf_bte_chpx : Int
+  lcb_plcf_bte_chpx : Int
 }
 
 ///|
@@ -204,6 +225,8 @@ fn parse_fib(word_document : Bytes) -> Result[DocFib, String] {
     lcb_clx: doc_u32le(word_document, 0x1A6),
     fc_plcf_bte_papx: doc_u32le(word_document, 0x102),
     lcb_plcf_bte_papx: doc_u32le(word_document, 0x106),
+    fc_plcf_bte_chpx: doc_u32le(word_document, 0x0FA),
+    lcb_plcf_bte_chpx: doc_u32le(word_document, 0x0FE),
   }
   Ok(fib)
 }
@@ -438,6 +461,8 @@ priv struct DocParagraph {
   ilfo : Int
   in_table : Bool
   row_end : Bool
+  start_fc : Int
+  end_fc : Int
   text : String
 }
 
@@ -517,8 +542,85 @@ fn parse_paragraph_table(
             ilfo,
             in_table,
             row_end,
+            start_fc,
+            end_fc,
             text: clean_doc_text(raw_text),
           })
+        }
+      }
+      result
+    }
+  }
+}
+
+///|
+/// One run of text with uniform character formatting.
+priv struct DocTextRun {
+  start_fc : Int
+  end_fc : Int
+  bold : Bool
+  italic : Bool
+}
+
+///|
+/// Parse PlcfBteChpx -> FKP -> Chpx to recover character formatting runs.
+/// Returns a list of text runs with their bold/italic flags.
+fn parse_char_format_table(
+  word_document : Bytes,
+  table : Bytes?,
+  fc_plcf : Int,
+  lcb_plcf : Int,
+) -> Array[DocTextRun] {
+  let result : Array[DocTextRun] = []
+  match table {
+    None => result
+    Some(tbl) => {
+      if lcb_plcf < 8 || fc_plcf < 0 || fc_plcf + lcb_plcf > tbl.length() {
+        return result
+      }
+      let plcf = tbl[fc_plcf:fc_plcf + lcb_plcf].to_owned()
+      let count = (lcb_plcf - 4) / 8
+      if count <= 0 {
+        return result
+      }
+      for i in 0..<count {
+        let pn = doc_u32le(plcf, (count + 1) * 4 + i * 4)
+        let fkp_offset = pn * 512
+        if fkp_offset + 512 > word_document.length() {
+          continue
+        }
+        let fkp = word_document[fkp_offset:fkp_offset + 512].to_owned()
+        let crun = fkp[511].to_int()
+        if crun <= 0 {
+          continue
+        }
+        let rgbx_off = (crun + 1) * 4
+        for j in 0..<crun {
+          let start_fc = doc_u32le(fkp, j * 4)
+          let end_fc = doc_u32le(fkp, (j + 1) * 4)
+          let b_off = fkp[rgbx_off + j].to_int()
+          let mut bold = false
+          let mut italic = false
+          if b_off != 0 {
+            let po = b_off
+            if po < 512 {
+              let cb = fkp[po].to_int()
+              let grp_len = if cb != 0 {
+                cb - 1
+              } else if po + 1 < 512 {
+                fkp[po + 1].to_int() - 1
+              } else {
+                0
+              }
+              let grp_start = if cb != 0 { po + 1 } else { po + 2 }
+              if grp_len > 0 && grp_start + grp_len <= 512 {
+                let fmt = parse_char_sprms(fkp, grp_start, grp_len)
+                bold = fmt.bold
+                italic = fmt.italic
+              }
+            }
+          }
+          result.push(DocTextRun::{ start_fc, end_fc, bold, italic, })
         }
       }
       result
@@ -576,6 +678,45 @@ fn parse_sprms(fkp : Bytes, start : Int, length : Int) -> DocSprms {
 }
 
 ///|
+priv struct DocCharFormat {
+  bold : Bool
+  italic : Bool
+}
+
+///|
+/// Parse character-level sprms from a Chpx grpprl to extract bold/italic flags.
+/// Character sprm opcodes per [MS-DOC]:
+/// - 0x0835 (sprmFBold): 1 byte operand, non-zero = bold
+/// - 0x0836 (sprmFItalic): 1 byte operand, non-zero = italic
+fn parse_char_sprms(fkp : Bytes, start : Int, length : Int) -> DocCharFormat {
+  let mut bold = false
+  let mut italic = false
+  let mut j = start
+  while j + 2 <= start + length {
+    let op = doc_u16le(fkp, j)
+    let spra = (op >> 13) & 7
+    let op_len = match spra {
+      0 | 1 => 1
+      2 | 4 | 5 => 2
+      3 => 4
+      7 => 3
+      6 => if j + 3 <= start + length { fkp[j + 2].to_int() + 1 } else { 0 }
+      _ => 0
+    }
+    if op_len <= 0 || j + 2 + op_len > start + length {
+      break
+    }
+    if op == 0x0835 && op_len >= 1 {
+      bold = fkp[j + 2].to_int() != 0
+    } else if op == 0x0836 && op_len >= 1 {
+      italic = fkp[j + 2].to_int() != 0
+    }
+    j = j + 2 + op_len
+  }
+  DocCharFormat::{ bold, italic, }
+}
+
+///|
 /// Assemble AST blocks: Heading 1-9 from istd, List items for ilfo,
 /// pipe tables from in_table paragraphs (row ends from row_end), and
 /// plain paragraphs otherwise. Falls back to splitting main text on
@@ -585,6 +726,7 @@ fn parse_sprms(fkp : Bytes, start : Int, length : Int) -> DocSprms {
 fn build_doc_blocks(
   main_text : String,
   paragraphs : Array[DocParagraph],
+  char_runs : Array[DocTextRun],
 ) -> Array[@ast.Block] {
   let blocks : Array[@ast.Block] = []
   if paragraphs.length() == 0 {
@@ -607,7 +749,13 @@ fn build_doc_blocks(
           current_row = []
         }
       } else if para.text.length() > 0 {
-        current_row.push(@ast.text_inlines(para.text))
+        let inlines = build_formatted_inlines(
+          para.text,
+          para.start_fc,
+          para.end_fc,
+          char_runs,
+        )
+        current_row.push(inlines)
       }
       continue
     }
@@ -621,7 +769,13 @@ fn build_doc_blocks(
     }
     if para.ilfo > 0 {
       if para.text.length() > 0 {
-        list_items.push(@ast.text_inlines(para.text))
+        let inlines = build_formatted_inlines(
+          para.text,
+          para.start_fc,
+          para.end_fc,
+          char_runs,
+        )
+        list_items.push(inlines)
       }
       continue
     }
@@ -632,10 +786,16 @@ fn build_doc_blocks(
     if para.text.length() == 0 {
       continue
     }
+    let inlines = build_formatted_inlines(
+      para.text,
+      para.start_fc,
+      para.end_fc,
+      char_runs,
+    )
     if para.istd >= 1 && para.istd <= 9 {
-      blocks.push(@ast.text_heading(para.istd, para.text))
+      blocks.push(@ast.Heading(para.istd, inlines))
     } else {
-      blocks.push(@ast.text_paragraph(para.text))
+      blocks.push(@ast.Paragraph(inlines))
     }
   }
   if current_row.length() > 0 {
@@ -648,6 +808,88 @@ fn build_doc_blocks(
     blocks.push(@ast.List(list_items, false))
   }
   blocks
+}
+
+///|
+/// Build formatted inline elements from paragraph text and character runs.
+/// Splits the text according to formatting changes and wraps in Strong/Emphasis.
+fn build_formatted_inlines(
+  text : String,
+  start_fc : Int,
+  end_fc : Int,
+  char_runs : Array[DocTextRun],
+) -> Array[@ast.Inline] {
+  if text.length() == 0 {
+    return []
+  }
+  // Find char_runs that overlap with this paragraph's fc range
+  let relevant_runs : Array[DocTextRun] = []
+  for run in char_runs {
+    if run.start_fc < end_fc && run.end_fc > start_fc {
+      relevant_runs.push(run)
+    }
+  }
+  // If no formatting runs, return plain text
+  if relevant_runs.length() == 0 {
+    return [@ast.Inline::Text(text)]
+  }
+  // Build formatted segments
+  let result : Array[@ast.Inline] = []
+  let mut current_pos = start_fc
+  let text_len = end_fc - start_fc
+  for run in relevant_runs {
+    // Add unformatted text before this run
+    if run.start_fc > current_pos {
+      let skip = current_pos - start_fc
+      let take = run.start_fc - current_pos
+      if skip >= 0 && take > 0 && skip + take <= text.length() {
+        let segment = text[skip:skip + take].to_owned()
+        if segment.length() > 0 {
+          result.push(@ast.Inline::Text(segment))
+        }
+      }
+    }
+    // Add formatted text for this run
+    let run_start = if run.start_fc > start_fc {
+      run.start_fc - start_fc
+    } else {
+      0
+    }
+    let run_end = if run.end_fc < end_fc {
+      run.end_fc - start_fc
+    } else {
+      text_len
+    }
+    if run_start < run_end && run_start >= 0 && run_end <= text.length() {
+      let segment = text[run_start:run_end].to_owned()
+      if segment.length() > 0 {
+        let mut inline = @ast.Inline::Text(segment)
+        if run.italic {
+          inline = @ast.Inline::Emphasis([inline])
+        }
+        if run.bold {
+          inline = @ast.Inline::Strong([inline])
+        }
+        result.push(inline)
+      }
+    }
+    current_pos = run.end_fc
+  }
+  // Add remaining unformatted text
+  if current_pos < end_fc {
+    let skip = current_pos - start_fc
+    if skip >= 0 && skip < text.length() {
+      let segment = text[skip:].to_owned()
+      if segment.length() > 0 {
+        result.push(@ast.Inline::Text(segment))
+      }
+    }
+  }
+  if result.length() == 0 {
+    [@ast.Inline::Text(text)]
+  } else {
+    result
+  }
 }
 
 ///|

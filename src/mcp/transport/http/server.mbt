@@ -23,8 +23,8 @@ pub fn default_mcp_http_port() -> Int {
 
 ///|
 pub fn McpHttpServerConfig::new(
-  bind_host? : String = default_mcp_http_bind_host(),
-  port? : Int = default_mcp_http_port(),
+  bind_host~ : String = default_mcp_http_bind_host(),
+  port~ : Int = default_mcp_http_port(),
 ) -> McpHttpServerConfig raise {
   if port <= 0 || port > 65535 {
     fail("HTTP MCP port must be between 1 and 65535.")

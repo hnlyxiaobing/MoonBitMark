@@ -60,11 +60,8 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
 ## PDF 抽取的已知残留
 
 - 位置：`src/formats/pdf/extract_spacing_native.mbt`（词距感知原生抽取路径）
-- 影响：字间空格恢复（TJ 位移 / Td 水平移动物化）已覆盖主要场景，但仍有残留：
+- 影响：字间空格恢复（TJ 位移 / Td 水平移动 / Tm 文本矩阵物化）已覆盖主要场景，但仍有残留：
 
-  - `OpTm` 定位产生的词间间隙未恢复（`Tm` 的 e 分量含已排文本宽度，无字宽信息
-    无法精确换算），每个问题 fixture 残留约 ≤3 个粘连 token。
-  - `OpTw`（词间距）/ `OpTc`（字间距）仍忽略。
   - 无坐标/bbox 输出，密集表格结构不可恢复，`pdf_embedded_images_tables` case 的
     `table_compare` 保持关闭。
 
@@ -72,13 +69,12 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
   遍历会丢页（第 2 页"Formula"一节缺失），导致该 case 的 `text_order` 暂未启用；
   修复需上游处理，见 `docs/solution_plan_2026-08-12.md` 第 1 节 M4。仓库内联的
   `third_party/mbtpdf` 只跟随 target/portability 修复，不做行为改动。
-## EPUB HTML 兜底路径的媒体元素处理（二期项）
+## EPUB HTML 兜底路径的媒体元素处理
 
-- 位置：`src/formats/html/converter.mbt`、`src/formats/epub/converter.mbt`
-- 影响：spine XHTML 的 XML 解析路径已修复（tokenizer 支持 DOCTYPE/CDATA），良构
-  XHTML 不再触发该问题；但 HTML 兜底路径遇到 `<video>/<audio>/<hgroup>` 等未知
-  标签时仍会把剩余内容压成一个段落。二期方案：EPUB 侧在调用兜底前预处理剥离
-  媒体元素、展开 `hgroup`，不改动 `@html` 公共行为。
+- 位置：`src/formats/epub/converter.mbt`（`preprocess_epub_html_fallback`）
+- 现状：EPUB 侧在调用 HTML 兜底前预处理剥离 `<video>/<audio>` 配对标签和
+  `<source>/<track>` _void 标签，并展开 `<hgroup>` 保留子标题。spine XHTML 的 XML
+  解析路径已修复（tokenizer 支持 DOCTYPE/CDATA），良构 XHTML 不再触发该问题。
 ## Word 二进制（.doc/.wps）转换的已知残留
 
 - 位置：`src/formats/doc/converter.mbt`、`src/ole2/cfb.mbt`（0.4.0 新增）
@@ -86,8 +82,9 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
   Markdown（标题 / 段落 / 简单 pipe 表格 / SummaryInformation 元数据），但受
   FIB/FKP/PAPX 子集解析限制，仍有以下残留：
 
-  - **字符级格式不恢复**：仅恢复段落样式 `istd` 到内置 Heading 1-9 的映射，
-    run 级 bold/italic/underline/字号/颜色均丢弃。
+  - **字符级格式部分恢复**：已恢复 run 级 bold（→ `**strong**`）和 italic（→
+    `*emphasis`*）格式，通过解析 PlcfBteChpx → FKP → Chpx → sprm 提取字符属性。
+    下划线、字号、颜色等仍不恢复。
   - **字段代码不展开**：`Plcffld` 未解析，页码、TOC、超链接、交叉引用等字段
     显示为原始结果文本（Word 已缓存的结果），不解析域代码本身。
   - **图片 / OLE 嵌入对象不提取**：内嵌图片（PIC 字段 / Escher 记录）与嵌入
@@ -97,5 +94,6 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
   - **合并单元格与嵌套表格**：pipe 表格按单元格段落顺序渲染，`gridSpan` /
     `vMerge` 合并信息不处理。
   - **非 cp1252 的 8-bit piece 会乱码**：8-bit piece 固定按 cp1252 解码；
-    中文等使用 UTF-16LE piece 的文档正常，但以 GBK 存储的 8-bit piece 会乱码
-    （诚实降级，不静默丢弃）。
+    中文等使用 UTF-16LE piece 的文档正常，但以 GBK 存储的 8-bit piece 会乱码。
+    当文档含 8-bit 压缩 piece 时会发出 codepage 诊断警告，提示文本可能因编码不
+    匹配而乱码（诚实降级，不静默丢弃）。

@@ -7,12 +7,15 @@
 /// Assemble a minimal single-page PDF (Helvetica base font, uncompressed
 /// content stream) with a correct xref table. All content is ASCII, so
 /// string lengths equal byte offsets.
-fn build_test_pdf(content : String) -> String {
+fn build_test_pdf(
+  content : String,
+  base_font~ : String = "Helvetica",
+) -> String {
   let objects : Array[String] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /\{base_font} >>",
     "<< /Length \{content.length()} >>\nstream\n\{content}\nendstream",
   ]
   let header = "%PDF-1.4\n"
@@ -55,8 +58,11 @@ fn pad_xref_offset(value : Int) -> String {
 }
 
 ///|
-fn extract_test_content(content : String) -> String raise {
-  let input = @pdfio.Input::of_string(build_test_pdf(content))
+fn extract_test_content(
+  content : String,
+  base_font~ : String = "Helvetica",
+) -> String raise {
+  let input = @pdfio.Input::of_string(build_test_pdf(content, base_font~))
   let pdf = @pdfread.PdfRead::new().pdf_of_input(None, None, input)
   let warnings : Array[String] = []
   let pages = extract_spacing_pages(pdf, warnings)
@@ -144,4 +150,121 @@ test "wide gap with a Latin side is materialized" {
     "BT /F1 10 Tf 100 700 Td [(add) -300 (\\050)] TJ ET",
   )
   inspect(text, content="add (")
+}
+
+///|
+test "Tc above threshold materializes space between Tj pieces" {
+  // Tc=3 at 10pt: 3/10 = 0.3 >= 0.21, so a word boundary is inserted.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td 3 Tc (Hello) Tj (World) Tj ET",
+  )
+  inspect(text, content="Hello World")
+}
+
+///|
+test "Tc below threshold does not split words" {
+  // Tc=1 at 10pt: 1/10 = 0.1 < 0.21, pieces stay glued.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td 1 Tc (Hello) Tj (World) Tj ET",
+  )
+  inspect(text, content="HelloWorld")
+}
+
+///|
+test "Tw does not alter extracted text with existing spaces" {
+  // Tw affects visual width of existing space glyphs but does not add or
+  // remove characters; the space in "Hello World" is already in the string.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td 5 Tw (Hello World) Tj ET",
+  )
+  inspect(text, content="Hello World")
+}
+
+///|
+test "DoubleQuote operator sets Tc state for subsequent pieces" {
+  // " 0 3 (Hello) sets Tc=3; the following (World) Tj sees the Tc gap.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td 0 3 (Hello) \" (World) Tj ET",
+  )
+  inspect(text, content="Hello World")
+}
+
+///|
+test "Tc persists across multiple Tj within same BT block" {
+  // Tc=3 set once, applies to every subsequent Tj in the block.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td 3 Tc (A) Tj (B) Tj (C) Tj ET",
+  )
+  inspect(text, content="A B C")
+}
+
+///|
+test "pending_space does not leak across BT blocks" {
+  // First BT sets pending_space via Tc after Tj; the second BT must start
+  // clean — "next" must not inherit a spurious leading space.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td 3 Tc (hello) Tj ET BT /F1 10 Tf 100 700 Td (next) Tj ET",
+  )
+  inspect(text, content="hello\nnext")
+}
+
+///|
+test "Tm large gap materializes a word space" {
+  // "Hi" at x=100, then Tm places "there" at x=200 — a gap far exceeding
+  // the advance width of "Hi" at 10pt (~10.6 units), so it is a word boundary.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 10 0 0 10 100 700 Tm (Hi) Tj 10 0 0 10 200 700 Tm (there) Tj ET",
+  )
+  inspect(text, content="Hi there")
+}
+
+///|
+test "Tm small gap does not split words" {
+  // Place second Tm very close to first text end — gap well below threshold.
+  // "Hi" at 10pt Helvetica ≈ 10.56 units, so x=110 gives gap ≈ 0.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 10 0 0 10 100 700 Tm (Hi) Tj 10 0 0 10 110 700 Tm (!) Tj ET",
+  )
+  inspect(text, content="Hi!")
+}
+
+///|
+test "quote operator starts a new line before showing text" {
+  // ' is T* followed by Tj: the next piece moves to the next line.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td (Line1) Tj (Line2) ' ET",
+  )
+  inspect(text, content="Line1\nLine2")
+}
+
+///|
+test "TD horizontal move materializes a word space" {
+  // TD also sets the leading; with ty = 0 only the horizontal move counts.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td (The) Tj 8 0 TD (plot) Tj ET",
+  )
+  inspect(text, content="The plot")
+}
+
+///|
+test "backwards Td move does not materialize a space" {
+  // A negative tx moves the pen left, so the pieces overlap instead of
+  // opening a word gap; the ratio test is one-sided.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 100 700 Td (The) Tj -8 0 Td (plot) Tj ET",
+  )
+  inspect(text, content="Theplot")
+}
+
+///|
+test "Tm gap is over-estimated when the font has no metrics" {
+  // Non-standard fonts have no advance table, so expected_x stays at the
+  // previous Tm origin and the "gap" is the whole inter-run distance. Two
+  // runs one glyph-width apart therefore read as a word gap. This documents
+  // the known trade-off of keeping OpTm enabled without metrics.
+  let text = extract_test_content(
+    "BT /F1 10 Tf 10 0 0 10 100 700 Tm (Hi) Tj 10 0 0 10 110 700 Tm (!) Tj ET",
+    base_font="MyEmbeddedFont",
+  )
+  inspect(text, content="Hi !")
 }

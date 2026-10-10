@@ -117,6 +117,9 @@ fn PdfSpacingExtractor::append_text_from_streams(
   let mut last_char : Char? = None
   let mut current_font_size = default_font_size
   let mut pending_space = false
+  let mut current_tc : Double = 0.0
+  let mut current_std_font : @pdffont.StandardFont? = None
+  let mut expected_x : Double = 0.0
   let extractor_cache : Map[String, @pdftextlib.TextExtractor] = Map(
     [],
     capacity=8,
@@ -174,6 +177,77 @@ fn PdfSpacingExtractor::append_text_from_streams(
       }
     } else {
       decode_pdfdoc(value)
+    }
+  }
+
+  fn resolve_standard_font(font_name : String) -> @pdffont.StandardFont? {
+    let base_font = match self.pdf.lookup_direct("/Font", resources) {
+      Some(fonts) =>
+        match self.pdf.lookup_direct(font_name, fonts) {
+          Some(font_obj) =>
+            match self.pdf.lookup_direct("/BaseFont", font_obj) {
+              Some(Name(bf)) => {
+                let s = bf.to_string_bytes()
+                let stripped = if s.has_prefix("/") {
+                  s[1:].to_owned()
+                } else {
+                  s
+                }
+                match stripped.find("+") {
+                  Some(pos) => stripped[pos + 1:].to_owned()
+                  None => stripped
+                }
+              }
+              _ => return None
+            }
+          None => return None
+        }
+      None => return None
+    }
+    match base_font {
+      "Helvetica" => Some(@pdffont.StandardFont::Helvetica)
+      "Helvetica-Bold" => Some(@pdffont.StandardFont::HelveticaBold)
+      "Helvetica-Oblique" => Some(@pdffont.StandardFont::HelveticaOblique)
+      "Helvetica-BoldOblique" =>
+        Some(@pdffont.StandardFont::HelveticaBoldOblique)
+      "Times-Roman" => Some(@pdffont.StandardFont::TimesRoman)
+      "Times-Bold" => Some(@pdffont.StandardFont::TimesBold)
+      "Times-Italic" => Some(@pdffont.StandardFont::TimesItalic)
+      "Times-BoldItalic" => Some(@pdffont.StandardFont::TimesBoldItalic)
+      "Courier" => Some(@pdffont.StandardFont::Courier)
+      "Courier-Bold" => Some(@pdffont.StandardFont::CourierBold)
+      "Courier-Oblique" => Some(@pdffont.StandardFont::CourierOblique)
+      "Courier-BoldOblique" => Some(@pdffont.StandardFont::CourierBoldOblique)
+      "Symbol" => Some(@pdffont.StandardFont::Symbol)
+      "ZapfDingbats" => Some(@pdffont.StandardFont::ZapfDingbats)
+      _ => None
+    }
+  }
+
+  /// Advance width of `raw` in text-space units, used to track the pen
+  /// position for the OpTm gap check. Metrics exist only for the standard 14
+  /// fonts; any other font (embedded/CID subsets) returns 0.0, so
+  /// `expected_x` stops at the last Tm origin rather than the true pen
+  /// position. The OpTm gap is then the full inter-run distance instead of
+  /// the whitespace between ink, which over-estimates and can insert a space
+  /// between Tm runs that are only one glyph-width apart. Kept as-is because
+  /// the alternative — skipping OpTm entirely without metrics — would lose
+  /// real word gaps for producers that place one word per Tm. The test
+  /// "Tm gap is over-estimated when the font has no metrics" pins this.
+  fn compute_text_advance(raw : String) -> Double {
+    match current_std_font {
+      Some(std_font) => {
+        let w = @pdfstandard14.PdfStandard14::new().textwidth(
+          true,
+          @pdffont.Encoding::WinAnsiEncoding,
+          std_font,
+          raw,
+        ) catch {
+          _ => return 0.0
+        }
+        w.to_double() * current_font_size / 1000.0
+      }
+      None => 0.0
     }
   }
 
@@ -285,6 +359,10 @@ fn PdfSpacingExtractor::append_text_from_streams(
         in_text = true
         current_extractor = None
         current_font_size = default_font_size
+        current_tc = 0.0
+        pending_space = false
+        current_std_font = None
+        expected_x = 0.0
       }
       OpET => {
         in_text = false
@@ -294,36 +372,100 @@ fn PdfSpacingExtractor::append_text_from_streams(
         if in_text {
           maybe_update_font(name)
           current_font_size = if size > 0.0 { size } else { default_font_size }
+          current_std_font = resolve_standard_font(name)
+          // Abandon the pen estimate: it was measured in the previous font's
+          // metrics. A mid-line font switch can therefore miss one OpTm gap
+          // rather than invent one, which is the conservative direction.
+          expected_x = 0.0
         }
       OpTw(_) => ()
-      OpTj(text) => if in_text { append_text_value(text) }
-      OpTJ(obj) => if in_text { append_text_array(obj) }
+      OpTc(c) => if in_text { current_tc = c }
+      OpTj(text) =>
+        if in_text {
+          append_text_value(text)
+          expected_x = expected_x + compute_text_advance(text)
+          if current_tc.abs() / current_font_size >= space_ratio {
+            pending_space = true
+          }
+        }
+      OpTJ(obj) =>
+        if in_text {
+          append_text_array(obj)
+          let items = match obj {
+            Array(vs) => vs
+            String(_) => [obj]
+            _ => []
+          }
+          for value in items {
+            match value {
+              String(t) => expected_x = expected_x + compute_text_advance(t)
+              _ => ()
+            }
+          }
+          if current_tc.abs() / current_font_size >= space_ratio {
+            pending_space = true
+          }
+        }
       OpSingleQuote(text) =>
         if in_text {
           append_newline()
           append_text_value(text)
+          expected_x = expected_x + compute_text_advance(text)
+          if current_tc.abs() / current_font_size >= space_ratio {
+            pending_space = true
+          }
         }
-      OpDoubleQuote(_, _, text) =>
+      OpDoubleQuote(_, ac, text) =>
         if in_text {
+          current_tc = ac
           append_newline()
           append_text_value(text)
+          expected_x = expected_x + compute_text_advance(text)
+          if current_tc.abs() / current_font_size >= space_ratio {
+            pending_space = true
+          }
         }
       OpTStar => if in_text { append_newline() }
       OpTd(tx, ty) =>
         if in_text {
           if ty != 0.0 {
             append_newline()
-          } else if tx / current_font_size >= space_ratio {
-            pending_space = true
+            expected_x = 0.0
+          } else {
+            expected_x = expected_x + tx
+            if tx / current_font_size >= space_ratio {
+              pending_space = true
+            }
           }
         }
       OpTD(tx, ty) =>
         if in_text {
           if ty != 0.0 {
             append_newline()
-          } else if tx / current_font_size >= space_ratio {
-            pending_space = true
+            expected_x = 0.0
+          } else {
+            expected_x = expected_x + tx
+            if tx / current_font_size >= space_ratio {
+              pending_space = true
+            }
           }
+        }
+      OpTm(tm) =>
+        if in_text {
+          // Compare the new pen position against where the previous glyph
+          // run ended. `expected_x > 0.0` doubles as "text has been placed";
+          // it cannot tell "nothing yet" from "text at x=0", which only
+          // costs a missed space at the very start of a line.
+          // Approximation: the gap uses the raw `tm.e` translation and
+          // ignores the horizontal scale `tm.a`, so scaled text matrices
+          // shift the computed gap by that factor.
+          if expected_x > 0.0 {
+            let gap = tm.e - expected_x
+            if gap / current_font_size >= space_ratio {
+              pending_space = true
+            }
+          }
+          expected_x = tm.e
         }
       OpDo(name) => append_text_from_xobject(name)
       _ => ()

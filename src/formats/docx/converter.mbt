@@ -29,7 +29,7 @@ pub fn DocxConverter::accepts(info : @core.StreamInfo) -> Bool {
 /// Convert a DOCX file to Markdown
 pub async fn DocxConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let bytes = @core.read_file_bytes(file_path)
 

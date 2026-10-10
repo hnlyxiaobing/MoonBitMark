@@ -29,7 +29,7 @@ pub fn PptxConverter::accepts(info : @core.StreamInfo) -> Bool {
 /// Convert a PPTX file to Markdown
 pub async fn PptxConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let bytes = @core.read_file_bytes(file_path)
 

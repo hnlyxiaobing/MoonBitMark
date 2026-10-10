@@ -586,7 +586,7 @@ fn decompress_dynamic_huffman_block(
     }
 
     match code {
-      0..=15 => {
+      0..<=15 => {
         lit_len_dist[i] = code
         i = i + 1
       }

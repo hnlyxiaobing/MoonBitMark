@@ -27,7 +27,7 @@ pub fn PdfConverter::accepts(info : @core.StreamInfo) -> Bool {
 /// Convert function - extracts text from PDF and returns as Markdown
 pub async fn PdfConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let started = @async.now()
   let raw_extraction = extract_pdf_native(file_path)

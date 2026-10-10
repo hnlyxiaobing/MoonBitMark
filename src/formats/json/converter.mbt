@@ -29,7 +29,7 @@ pub fn JsonConverter::accepts(info : @core.StreamInfo) -> Bool {
 /// Convert function - converts JSON to Markdown code block
 pub async fn JsonConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   JsonConverter::convert_source(@core.FileInput(file_path, None), ctx~)
 }
@@ -37,7 +37,7 @@ pub async fn JsonConverter::convert(
 ///|
 pub async fn JsonConverter::convert_source(
   input : @core.InputSource,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   ignore(ctx)
   let content = @core.strip_utf8_bom(@core.read_input_utf8(input))

@@ -23,7 +23,7 @@ pub fn ImageConverter::accepts(info : @core.StreamInfo) -> Bool {
 ///|
 pub async fn ImageConverter::convert(
   file_path : String,
-  ctx? : @core.ConvertContext = @core.ConvertContext::default(),
+  ctx~ : @core.ConvertContext = @core.ConvertContext::default(),
 ) -> @core.ConvertResult {
   let bytes = @core.read_file_bytes(file_path)
   let asset_name = @core.file_name_only(file_path)

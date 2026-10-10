@@ -13,6 +13,8 @@ import {
   "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf" @mbtpdf,
   "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfpage",
   "hnlyxiaobing/moonbitmark/third_party/mbtpdf/graphics/pdfops",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/font/pdffont",
+  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/font/pdfstandard14",
   "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
   "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfread",
   "hnlyxiaobing/moonbitmark/third_party/mbtpdf/io/pdfreadfs",
