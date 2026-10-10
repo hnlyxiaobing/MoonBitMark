@@ -31,15 +31,17 @@ jobs:
 
       - name: Set up MoonBit
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects, so this environment
+          # tracks the nightly channel. `moon upgrade --dev` cannot be used
+          # here: it needs a TTY.
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o /tmp/install-moonbit.sh
+          MOONBIT_INSTALL_VERSION=nightly bash /tmp/install-moonbit.sh
           echo "$HOME/.moon/bin" >> $GITHUB_PATH
 
       - name: Update MoonBit dependencies
         run: |
+            export PATH="$HOME/.moon/bin:$PATH"
             moon update
-            # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-            # which the release channel still rejects; only the dev channel
-            # compiles it. Track the dev channel so this environment matches.
-            moon upgrade --dev
             moon version --all
-            
+

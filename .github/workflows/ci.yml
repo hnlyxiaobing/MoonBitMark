@@ -30,14 +30,14 @@ jobs:
       - name: Set up MoonBit
         shell: bash
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects, so CI tracks the nightly
+          # channel. `moon upgrade --dev` cannot be used here: it needs a TTY.
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o /tmp/install-moonbit.sh
+          MOONBIT_INSTALL_VERSION=nightly bash /tmp/install-moonbit.sh
           export PATH="$HOME/.moon/bin:$PATH"
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           moon update
-          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-          # which the release channel still rejects; only the dev channel
-          # compiles it. Track the dev channel so CI matches the sources.
-          moon upgrade --dev
           moon version --all
 
       - name: Set up Python
@@ -66,14 +66,14 @@ jobs:
       - name: Set up MoonBit
         shell: bash
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects, so CI tracks the nightly
+          # channel. `moon upgrade --dev` cannot be used here: it needs a TTY.
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o /tmp/install-moonbit.sh
+          MOONBIT_INSTALL_VERSION=nightly bash /tmp/install-moonbit.sh
           export PATH="$HOME/.moon/bin:$PATH"
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           moon update
-          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-          # which the release channel still rejects; only the dev channel
-          # compiles it. Track the dev channel so CI matches the sources.
-          moon upgrade --dev
           moon version --all
 
       - name: moon test with coverage
@@ -106,16 +106,16 @@ jobs:
       - name: Set up MoonBit
         shell: pwsh
         run: |
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects, so CI tracks the nightly
+          # channel. `moon upgrade --dev` cannot be used here: it needs a TTY.
+          $env:MOONBIT_INSTALL_VERSION = "nightly"
           Invoke-WebRequest -Uri "https://cli.moonbitlang.com/install/powershell.ps1" -OutFile "$env:TEMP\install-moonbit.ps1"
           & "$env:TEMP\install-moonbit.ps1"
           $moonBin = "$env:USERPROFILE\.moon\bin"
           $env:PATH = "$moonBin;$env:PATH"
           Add-Content -Path $env:GITHUB_PATH -Value $moonBin
           moon update
-          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-          # which the release channel still rejects; only the dev channel
-          # compiles it. Track the dev channel so CI matches the sources.
-          moon upgrade --dev
           moon version --all
 
       - name: moon check
@@ -180,16 +180,16 @@ jobs:
       - name: Set up MoonBit
         shell: pwsh
         run: |
+          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
+          # which the release channel still rejects, so CI tracks the nightly
+          # channel. `moon upgrade --dev` cannot be used here: it needs a TTY.
+          $env:MOONBIT_INSTALL_VERSION = "nightly"
           Invoke-WebRequest -Uri "https://cli.moonbitlang.com/install/powershell.ps1" -OutFile "$env:TEMP\install-moonbit.ps1"
           & "$env:TEMP\install-moonbit.ps1"
           $moonBin = "$env:USERPROFILE\.moon\bin"
           $env:PATH = "$moonBin;$env:PATH"
           Add-Content -Path $env:GITHUB_PATH -Value $moonBin
           moon update
-          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-          # which the release channel still rejects; only the dev channel
-          # compiles it. Track the dev channel so CI matches the sources.
-          moon upgrade --dev
           moon version --all
 
       - name: Build native release binaries
