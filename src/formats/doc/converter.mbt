@@ -554,6 +554,7 @@ priv struct DocTextRun {
   end_fc : Int
   bold : Bool
   italic : Bool
+  underline : Bool
 }
 
 ///|
@@ -595,6 +596,7 @@ fn parse_char_format_table(
           let b_off = fkp[rgbx_off + j].to_int()
           let mut bold = false
           let mut italic = false
+          let mut underline = false
           if b_off != 0 {
             let po = b_off
             if po < 512 {
@@ -611,10 +613,11 @@ fn parse_char_format_table(
                 let fmt = parse_char_sprms(fkp, grp_start, grp_len)
                 bold = fmt.bold
                 italic = fmt.italic
+                underline = fmt.underline
               }
             }
           }
-          result.push(DocTextRun::{ start_fc, end_fc, bold, italic, })
+          result.push(DocTextRun::{ start_fc, end_fc, bold, italic, underline, })
         }
       }
       result
@@ -675,16 +678,19 @@ fn parse_sprms(fkp : Bytes, start : Int, length : Int) -> DocSprms {
 priv struct DocCharFormat {
   bold : Bool
   italic : Bool
+  underline : Bool
 }
 
 ///|
-/// Parse character-level sprms from a Chpx grpprl to extract bold/italic flags.
-/// Character sprm opcodes per [MS-DOC]:
+/// Parse character-level sprms from a Chpx grpprl to extract bold/italic/
+/// underline flags. Character sprm opcodes per [MS-DOC]:
 /// - 0x0835 (sprmFBold): 1 byte operand, non-zero = bold
 /// - 0x0836 (sprmFItalic): 1 byte operand, non-zero = italic
+/// - 0x2A3E (sprmCKul): 1 byte operand, non-zero = some underline style
 fn parse_char_sprms(fkp : Bytes, start : Int, length : Int) -> DocCharFormat {
   let mut bold = false
   let mut italic = false
+  let mut underline = false
   let mut j = start
   while j + 2 <= start + length {
     let op = doc_u16le(fkp, j)
@@ -704,10 +710,12 @@ fn parse_char_sprms(fkp : Bytes, start : Int, length : Int) -> DocCharFormat {
       bold = fkp[j + 2].to_int() != 0
     } else if op == 0x0836 && op_len >= 1 {
       italic = fkp[j + 2].to_int() != 0
+    } else if op == 0x2A3E && op_len >= 1 {
+      underline = fkp[j + 2].to_int() != 0
     }
     j = j + 2 + op_len
   }
-  DocCharFormat::{ bold, italic, }
+  DocCharFormat::{ bold, italic, underline, }
 }
 
 ///|
@@ -857,7 +865,12 @@ fn build_formatted_inlines(
     if run_start < run_end && run_start >= 0 && run_end <= text.length() {
       let segment = text[run_start:run_end].to_owned()
       if segment.length() > 0 {
-        let mut inline = @ast.Inline::Text(segment)
+        let mut inline = if run.underline {
+          // Markdown has no underline: emit `<u>...</u>` as raw inline HTML.
+          @ast.Inline::Html("<u>" + escape_html_inline_text(segment) + "</u>")
+        } else {
+          @ast.Inline::Text(segment)
+        }
         if run.italic {
           inline = @ast.Inline::Emphasis([inline])
         }
@@ -901,6 +914,25 @@ fn flush_doc_table(
     body.push(rows[i])
   }
   blocks.push(@ast.Table(headers, body))
+}
+
+///|
+/// Escape the HTML-significant characters in document text before wrapping it
+/// in raw inline HTML (`Inline::Html` emits its payload verbatim).
+fn escape_html_inline_text(text : String) -> String {
+  let sb = StringBuilder()
+  for ch in text {
+    if ch == '&' {
+      sb.write_string("&amp;")
+    } else if ch == '<' {
+      sb.write_string("&lt;")
+    } else if ch == '>' {
+      sb.write_string("&gt;")
+    } else {
+      sb.write_char(ch)
+    }
+  }
+  sb.to_string()
 }
 
 ///|

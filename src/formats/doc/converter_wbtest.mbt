@@ -565,3 +565,72 @@ test "doc utf16le surrogate pair decodes" {
   let text = decode_utf16le(b"\x3D\xD8\x00\xDE", 0, 2)
   assert_eq(text, "😀")
 }
+
+///|
+test "parse_char_sprms decodes underline sprm" {
+  // sprmCKul = 0x2A3E with operand 0x01 -> underlined.
+  let fmt = parse_char_sprms(b"\x3E\x2A\x01", 0, 3)
+  assert_true(fmt.underline)
+  assert_false(fmt.bold)
+  assert_false(fmt.italic)
+}
+
+///|
+test "parse_char_sprms decodes combined bold and underline sprms" {
+  // sprmFBold = 0x0835 (operand 0x01), sprmCKul = 0x2A3E (operand 0x03).
+  let fmt = parse_char_sprms(b"\x35\x08\x01\x3E\x2A\x03", 0, 6)
+  assert_true(fmt.bold)
+  assert_true(fmt.underline)
+  assert_false(fmt.italic)
+}
+
+///|
+test "parse_char_sprms treats zero underline operand as not underlined" {
+  let fmt = parse_char_sprms(b"\x3E\x2A\x00", 0, 3)
+  assert_false(fmt.underline)
+}
+
+///|
+test "build_formatted_inlines wraps underlined runs in raw html" {
+  let runs : Array[DocTextRun] = [
+    DocTextRun::{
+      start_fc: 0,
+      end_fc: 10,
+      bold: false,
+      italic: false,
+      underline: true,
+    },
+  ]
+  let inlines = build_formatted_inlines("underlined", 0, 10, runs)
+  assert_eq(@ast.render_inlines(inlines), "<u>underlined</u>")
+}
+
+///|
+test "build_formatted_inlines escapes html inside underlined runs" {
+  let runs : Array[DocTextRun] = [
+    DocTextRun::{
+      start_fc: 0,
+      end_fc: 5,
+      bold: false,
+      italic: false,
+      underline: true,
+    },
+  ]
+  let inlines = build_formatted_inlines("a<b&c", 0, 5, runs)
+  assert_eq(@ast.render_inlines(inlines), "<u>a&lt;b&amp;c</u>")
+}
+
+///|
+test "build_formatted_inlines combines bold with underline" {
+  let runs : Array[DocTextRun] = [
+    DocTextRun::{
+      start_fc: 0,
+      end_fc: 4,
+      bold: true,
+      italic: false,
+      underline: true,
+    },
+  ]
+  let inlines = build_formatted_inlines("bold", 0, 4, runs)
+  assert_eq(@ast.render_inlines(inlines), "**<u>bold</u>**")
+}
