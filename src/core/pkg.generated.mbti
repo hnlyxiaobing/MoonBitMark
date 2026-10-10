@@ -37,11 +37,17 @@ pub fn file_stem(String) -> String?
 
 pub fn find_last_char(String, Char) -> Int?
 
+pub fn find_markup_tag(String, String, Int, Bool) -> Int?
+
+pub fn find_tag_close(String, Int) -> Int?
+
 pub fn image_extension_for_media_type(String) -> String
 
 pub fn is_image_filename(String) -> Bool
 
 pub fn join_path(String, String) -> String
+
+pub fn markup_tag_matches(String, Int, String, Bool) -> Bool
 
 pub fn normalize_path(String) -> String
 

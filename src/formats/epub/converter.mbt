@@ -525,11 +525,11 @@ fn extract_epub_gutenberg_prelude(body : String) -> Array[@ast.Block] {
 
 ///|
 fn extract_epub_body(xml_string : String) -> String {
-  match xml_string.find("<body") {
+  match @core.find_markup_tag(xml_string, "body", 0, false) {
     Some(body_start) =>
-      match xml_string[body_start:].to_owned().find(">") {
-        Some(body_tag_end_rel) => {
-          let content_start = body_start + body_tag_end_rel + 1
+      match @core.find_tag_close(xml_string, body_start) {
+        Some(body_gt) => {
+          let content_start = body_gt + 1
           match xml_string[content_start:].to_owned().find("</body>") {
             Some(body_end_rel) =>
               xml_string[content_start:content_start + body_end_rel].to_owned()
@@ -616,28 +616,27 @@ fn find_matching_epub_div_end(text : String, div_start : Int) -> Int? {
   let mut depth = 0
   let mut index = div_start
   while index < text.length() {
-    let remaining = text[index:].to_owned()
-    let next_open = remaining.find("<div")
-    let next_close = remaining.find("</div>")
+    let next_open = @core.find_markup_tag(text, "div", index, false)
+    let next_close = @core.find_markup_tag(text, "div", index, true)
     match (next_open, next_close) {
-      (Some(open_rel), Some(close_rel)) =>
-        if open_rel < close_rel {
+      (Some(open), Some(close)) =>
+        if open < close {
           depth = depth + 1
-          index = index + open_rel + 4
+          index = open + 4
         } else {
           depth = depth - 1
-          index = index + close_rel + 6
+          index = close + 6
           if depth == 0 {
             return Some(index)
           }
         }
-      (Some(open_rel), None) => {
+      (Some(open), None) => {
         depth = depth + 1
-        index = index + open_rel + 4
+        index = open + 4
       }
-      (None, Some(close_rel)) => {
+      (None, Some(close)) => {
         depth = depth - 1
-        index = index + close_rel + 6
+        index = close + 6
         if depth == 0 {
           return Some(index)
         }
@@ -651,19 +650,27 @@ fn find_matching_epub_div_end(text : String, div_start : Int) -> Int? {
 ///|
 fn strip_epub_tag_blocks(text : String, tag : String) -> String {
   let mut result = text
-  let open_marker = "<" + tag
-  let close_marker = "</" + tag + ">"
-  while result.contains(open_marker) {
-    match result.find(open_marker) {
-      Some(start) =>
-        match result[start:].to_owned().find(close_marker) {
-          Some(close_rel) => {
-            let close_end = start + close_rel + close_marker.length()
-            result = result[:start].to_owned() + result[close_end:].to_owned()
-          }
-          None => break
-        }
+  let mut from = 0
+  while true {
+    match @core.find_markup_tag(result, tag, from, false) {
       None => break
+      Some(start) =>
+        match @core.find_tag_close(result, start) {
+          None => break
+          Some(open_end) =>
+            match @core.find_markup_tag(result, tag, open_end + 1, true) {
+              None => break
+              Some(close_start) =>
+                match @core.find_tag_close(result, close_start) {
+                  None => break
+                  Some(close_end) => {
+                    result = result[:start].to_owned() +
+                      result[close_end + 1:].to_owned()
+                    from = start
+                  }
+                }
+            }
+        }
     }
   }
   result
@@ -683,18 +690,18 @@ fn preprocess_epub_html_fallback(text : String) -> String {
 ///|
 fn strip_epub_void_tags(text : String, tag : String) -> String {
   let mut result = text
-  let open_marker = "<" + tag
-  while result.contains(open_marker) {
-    match result.find(open_marker) {
-      Some(start) =>
-        match result[start:].to_owned().find(">") {
-          Some(end_rel) => {
-            let end = start + end_rel + 1
-            result = result[:start].to_owned() + result[end:].to_owned()
-          }
-          None => break
-        }
+  let mut from = 0
+  while true {
+    match @core.find_markup_tag(result, tag, from, false) {
       None => break
+      Some(start) =>
+        match @core.find_tag_close(result, start) {
+          None => break
+          Some(end) => {
+            result = result[:start].to_owned() + result[end + 1:].to_owned()
+            from = start
+          }
+        }
     }
   }
   result
@@ -703,29 +710,29 @@ fn strip_epub_void_tags(text : String, tag : String) -> String {
 ///|
 fn expand_epub_hgroup(text : String) -> String {
   let mut result = text
-  let open_marker = "<hgroup"
-  let close_marker = "</hgroup>"
-  while result.contains(open_marker) {
-    match result.find(open_marker) {
-      Some(start) =>
-        match result[start:].to_owned().find(">") {
-          Some(open_end_rel) => {
-            let open_tag_end = start + open_end_rel + 1
-            match result[open_tag_end:].to_owned().find(close_marker) {
-              Some(close_rel) => {
-                let close_start = open_tag_end + close_rel
-                let close_end = close_start + close_marker.length()
-                let inner = result[open_tag_end:close_start].to_owned()
-                result = result[:start].to_owned() +
-                  inner +
-                  result[close_end:].to_owned()
-              }
-              None => break
-            }
-          }
-          None => break
-        }
+  let mut from = 0
+  while true {
+    match @core.find_markup_tag(result, "hgroup", from, false) {
       None => break
+      Some(start) =>
+        match @core.find_tag_close(result, start) {
+          None => break
+          Some(open_gt) =>
+            match @core.find_markup_tag(result, "hgroup", open_gt + 1, true) {
+              None => break
+              Some(close_start) =>
+                match @core.find_tag_close(result, close_start) {
+                  None => break
+                  Some(close_gt) => {
+                    let inner = result[open_gt + 1:close_start].to_owned()
+                    result = result[:start].to_owned() +
+                      inner +
+                      result[close_gt + 1:].to_owned()
+                    from = start + inner.length()
+                  }
+                }
+            }
+        }
     }
   }
   result
@@ -736,7 +743,7 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
   let mut best_index = text.length()
   let mut best_tag = ""
   let mut best_level = 0
-  match text.find("<h1") {
+  match @core.find_markup_tag(text, "h1", 0, false) {
     Some(index) if index < best_index => {
       best_index = index
       best_tag = "h1"
@@ -744,7 +751,7 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
     }
     _ => ()
   }
-  match text.find("<h2") {
+  match @core.find_markup_tag(text, "h2", 0, false) {
     Some(index) if index < best_index => {
       best_index = index
       best_tag = "h2"
@@ -752,7 +759,7 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
     }
     _ => ()
   }
-  match text.find("<h3") {
+  match @core.find_markup_tag(text, "h3", 0, false) {
     Some(index) if index < best_index => {
       best_index = index
       best_tag = "h3"
@@ -760,7 +767,7 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
     }
     _ => ()
   }
-  match text.find("<h4") {
+  match @core.find_markup_tag(text, "h4", 0, false) {
     Some(index) if index < best_index => {
       best_index = index
       best_tag = "h4"
@@ -768,7 +775,7 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
     }
     _ => ()
   }
-  match text.find("<h5") {
+  match @core.find_markup_tag(text, "h5", 0, false) {
     Some(index) if index < best_index => {
       best_index = index
       best_tag = "h5"
@@ -776,7 +783,7 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
     }
     _ => ()
   }
-  match text.find("<h6") {
+  match @core.find_markup_tag(text, "h6", 0, false) {
     Some(index) if index < best_index => {
       best_index = index
       best_tag = "h6"
@@ -784,7 +791,7 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
     }
     _ => ()
   }
-  match text.find("<p") {
+  match @core.find_markup_tag(text, "p", 0, false) {
     Some(index) if index < best_index => {
       best_index = index
       best_tag = "p"
@@ -792,7 +799,7 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
     }
     _ => ()
   }
-  match text.find("<div") {
+  match @core.find_markup_tag(text, "div", 0, false) {
     Some(index) if index < best_index => {
       best_index = index
       best_tag = "div"
@@ -809,16 +816,25 @@ fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
 
 ///|
 fn extract_epub_tag_block(text : String, tag : String) -> (String, String)? {
-  let open_marker = "<" + tag
-  let close_marker = "</" + tag + ">"
-  match text.find(open_marker) {
+  match @core.find_markup_tag(text, tag, 0, false) {
     Some(start) =>
-      match text[start:].to_owned().find(close_marker) {
-        Some(close_rel) => {
-          let close_end = start + close_rel + close_marker.length()
-          Some((text[start:close_end].to_owned(), text[close_end:].to_owned()))
-        }
+      match @core.find_tag_close(text, start) {
         None => None
+        Some(open_gt) =>
+          match @core.find_markup_tag(text, tag, open_gt + 1, true) {
+            None => None
+            Some(close_start) =>
+              match @core.find_tag_close(text, close_start) {
+                None => None
+                Some(close_gt) =>
+                  Some(
+                    (
+                      text[start:close_gt + 1].to_owned(),
+                      text[close_gt + 1:].to_owned(),
+                    ),
+                  )
+              }
+          }
       }
     None => None
   }
@@ -861,9 +877,9 @@ fn parse_epub_gutenberg_fragment(
 
 ///|
 fn epub_fragment_inner_text(fragment : String) -> String {
-  match fragment.find(">") {
-    Some(start_end) => {
-      let content_start = start_end + 1
+  match @core.find_tag_close(fragment, 0) {
+    Some(open_gt) => {
+      let content_start = open_gt + 1
       match find_last_epub_substring(fragment, "</") {
         Some(end_start) if end_start >= content_start =>
           fragment[content_start:end_start].to_owned()
@@ -892,22 +908,35 @@ fn is_epub_div_block_noise(text : String) -> Bool {
 
 ///|
 fn strip_epub_markup(text : String) -> String {
-  let mut result = ""
-  let mut inside_tag = false
-  for ch in text {
-    if ch == '<' {
-      inside_tag = true
-      continue
-    }
-    if ch == '>' {
-      inside_tag = false
-      continue
-    }
-    if !inside_tag {
-      result = result + ch.to_string()
+  let sb = StringBuilder()
+  let mut index = 0
+  let mut text_start = 0
+  while index < text.length() {
+    if text[index] == '<' {
+      match @core.find_tag_close(text, index) {
+        Some(end) => {
+          if index > text_start {
+            sb.write_string(text[text_start:index].to_owned())
+          }
+          index = end + 1
+          text_start = index
+        }
+        None => {
+          // Unterminated tag: drop the remainder, matching the previous
+          // character-scanner behavior.
+          text_start = text.length()
+          index = text.length()
+        }
+      }
+    } else {
+      index = index + 1
     }
   }
-  result
+  if text_start < text.length() {
+    sb.write_string(text[text_start:].to_owned())
+  }
+  sb
+  .to_string()
   .replace(old="&nbsp;", new=" ")
   .replace(old="&#160;", new=" ")
   .replace(old="&amp;", new="&")

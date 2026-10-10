@@ -257,14 +257,15 @@ test "backwards Td move does not materialize a space" {
 }
 
 ///|
-test "Tm gap is over-estimated when the font has no metrics" {
-  // Non-standard fonts have no advance table, so expected_x stays at the
-  // previous Tm origin and the "gap" is the whole inter-run distance. Two
-  // runs one glyph-width apart therefore read as a word gap. This documents
-  // the known trade-off of keeping OpTm enabled without metrics.
+test "Tm gap is not materialized when the font has no metrics" {
+  // Non-standard fonts have no advance table, so `expected_x` cannot track
+  // the true pen position and a Tm-driven "gap" would be the whole inter-run
+  // distance (glyph ink included). The extractor therefore skips the OpTm
+  // gap check without metrics and leaves the decision to TJ/Td/Tc, which are
+  // exact. Two runs one glyph-width apart must stay glued.
   let text = extract_test_content(
     "BT /F1 10 Tf 10 0 0 10 100 700 Tm (Hi) Tj 10 0 0 10 110 700 Tm (!) Tj ET",
     base_font="MyEmbeddedFont",
   )
-  inspect(text, content="Hi !")
+  inspect(text, content="Hi!")
 }

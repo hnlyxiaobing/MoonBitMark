@@ -452,14 +452,20 @@ fn PdfSpacingExtractor::append_text_from_streams(
         }
       OpTm(tm) =>
         if in_text {
-          // Compare the new pen position against where the previous glyph
-          // run ended. `expected_x > 0.0` doubles as "text has been placed";
-          // it cannot tell "nothing yet" from "text at x=0", which only
-          // costs a missed space at the very start of a line.
+          // Only materialize a Tm-derived space when the current font has
+          // metrics (`current_std_font`), because the gap needs the pen
+          // position after the previous run. With an embedded/subset font
+          // `compute_text_advance` returns 0.0, so `expected_x` stays at the
+          // previous Tm origin and the "gap" becomes the whole inter-run
+          // distance (glyph ink included). That over-estimate inserts spaces
+          // inside runs the producer split only for positioning, e.g. the
+          // subscripts of `H2SO4` in `pdf_embedded_images_tables` becoming
+          // `H2 SO 4`. Without metrics we leave the decision to the exact
+          // TJ/Td/Tc signals instead of guessing.
           // Approximation: the gap uses the raw `tm.e` translation and
           // ignores the horizontal scale `tm.a`, so scaled text matrices
           // shift the computed gap by that factor.
-          if expected_x > 0.0 {
+          if current_std_font is Some(_) && expected_x > 0.0 {
             let gap = tm.e - expected_x
             if gap / current_font_size >= space_ratio {
               pending_space = true

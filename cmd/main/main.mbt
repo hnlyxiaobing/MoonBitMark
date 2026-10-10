@@ -114,6 +114,7 @@ fn print_usage() -> Unit {
   println("  - Images (.png, .jpg, .jpeg, .bmp, .gif, .tif, .tiff, .webp)")
   println("  - HTML (.html, .htm, .xhtml)")
   println("  - Word (.docx)")
+  println("  - Word binary (.doc, .wps)")
   println("  - PowerPoint (.pptx)")
   println("  - Excel (.xlsx)")
   println("  - EPUB (.epub)")

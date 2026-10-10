@@ -118,13 +118,7 @@ pub fn convert_bytes(
   let warnings : Array[String] = []
   let main_text = match pieces {
     Some(piece_list) if piece_list.length() > 0 => {
-      let mut has_compressed = false
-      for piece in piece_list {
-        if piece.compressed {
-          has_compressed = true
-        }
-      }
-      if has_compressed {
+      if compressed_piece_has_c1(word_document, piece_list) {
         warnings.push(
           "8-bit pieces decoded as cp1252; if text appears garbled, the document may use a different codepage.",
         )

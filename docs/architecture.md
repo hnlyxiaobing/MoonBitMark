@@ -110,6 +110,15 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 - DOCX、PPTX、XLSX、EPUB 共享 `libzip + xml` 基础设施。
 - `libzip` 已覆盖 stored、fixed Huffman 和 dynamic Huffman 三条解压路径。
 
+### Word 二进制（.doc / .wps）
+
+- DOC / WPS 走独立的二进制路径：`src/ole2/`（纯 MoonBit 的 OLE2/CFB 复合文件读取）
+  + `src/formats/doc/`（FIB、CLX→piece table、PlcfBtePapx/PlcfBteChpx → FKP → Papx/Chpx、
+  sprm 子集解析）。
+- 这条路径**既不使用 `libzip`，也不使用 `xml`**：它不做 ZIP 解包，也不解析 XML，
+  而是直接按 MS-DOC / MS-CFB 的二进制结构读取。
+- 已支持标题、段落、简单 pipe 表格、SummaryInformation 元数据和 run 级 bold/italic。
+
 ### PDF
 
 - PDF 管线拆分为 route、extract、normalize、structure、assemble 和 diagnostics。
@@ -126,6 +135,7 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 | 能力 | 默认路径 | 外部依赖 |
 | --- | --- | --- |
 | TXT / CSV / JSON / HTML / DOCX / PPTX / XLSX / EPUB 容器解析 | 纯 MoonBit | 无 |
+| DOC / WPS 二进制解析 | 纯 MoonBit（`src/ole2/` + `src/formats/doc/`，不使用 libzip/xml） | 无 |
 | PDF 提取 | MoonBit 包 | 模块内联的 `third_party/mbtpdf`（上游 `bobzhang/mbtpdf` 的固化副本，不再走 registry 依赖） |
 | PDF fallback | 可选 bridge | `python scripts/pdf/bridge.py` |
 | OCR | 可选 bridge | `python scripts/ocr/bridge.py`，backend 为 `mock`、`tesseract` 或 `auto` |

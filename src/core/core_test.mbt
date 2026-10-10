@@ -84,3 +84,41 @@ test "find_last_char returns final index" {
   )
   debug_inspect(@core.find_last_char("no-delimiter", '/'), content="None")
 }
+
+///|
+test "find_tag_close skips greater-than inside quotes" {
+  assert_eq(@core.find_tag_close("<a href=\"x>y\">t", 0), Some(13))
+  assert_eq(@core.find_tag_close("<a href='p>q'/>", 0), Some(14))
+  assert_eq(@core.find_tag_close("<a href=\"x>y\">", 0), Some(13))
+}
+
+///|
+test "find_tag_close handles self-closing and unterminated tags" {
+  assert_eq(@core.find_tag_close("<a/>", 0), Some(3))
+  assert_eq(@core.find_tag_close("<a b=\"x", 0), None)
+  assert_eq(@core.find_tag_close("<a>", 5), None)
+  assert_eq(@core.find_tag_close("<a>", -1), None)
+}
+
+///|
+test "markup_tag_matches enforces tag name boundaries" {
+  assert_true(@core.markup_tag_matches("<table>", 0, "table", false))
+  assert_true(
+    @core.markup_tag_matches("<table class=\"x\">", 0, "table", false),
+  )
+  assert_true(@core.markup_tag_matches("<table/>", 0, "table", false))
+  assert_true(@core.markup_tag_matches("<table", 0, "table", false))
+  assert_true(@core.markup_tag_matches("</table>", 0, "table", true))
+  assert_false(@core.markup_tag_matches("<tablet>", 0, "table", false))
+  assert_false(@core.markup_tag_matches("</tablet>", 0, "table", true))
+  assert_false(@core.markup_tag_matches("<pre>", 0, "p", false))
+}
+
+///|
+test "find_markup_tag skips longer names for opener and closer" {
+  let text = "<tablet>k</tablet><table>x</table>after"
+  assert_eq(@core.find_markup_tag(text, "table", 0, false), Some(18))
+  assert_eq(@core.find_markup_tag(text, "table", 0, true), Some(26))
+  assert_eq(@core.find_markup_tag("<pre>", "p", 0, false), None)
+  assert_eq(@core.find_markup_tag("<p>", "p", 0, false), Some(0))
+}

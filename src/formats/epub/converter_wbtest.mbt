@@ -173,3 +173,26 @@ test "epub html fallback preprocesses mixed media and hgroup" {
   let result = preprocess_epub_html_fallback(html)
   inspect(result, content="<h1>Title</h1><p>Text</p>")
 }
+
+///|
+test "epub tag scanning respects quoted greater-than in attributes" {
+  inspect(
+    strip_epub_void_tags("<p>x</p><source src=\"a>b\"><p>y</p>", "source"),
+    content="<p>x</p><p>y</p>",
+  )
+  inspect(
+    expand_epub_hgroup("<hgroup data-x=\"a>b\"><h1>T</h1></hgroup><p>B</p>"),
+    content="<h1>T</h1><p>B</p>",
+  )
+  inspect(strip_epub_markup("<p title=\"a>b\">hi</p>"), content="hi")
+}
+
+///|
+test "epub tag blocks honor tag name boundaries" {
+  inspect(
+    strip_epub_tag_blocks(
+      "<tablet>keep</tablet><table>drop</table>after", "table",
+    ),
+    content="<tablet>keep</tablet>after",
+  )
+}

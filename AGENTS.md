@@ -73,6 +73,7 @@ src/
 │   ├── pdf/          # PDF via mbtpdf library
 │   ├── html/         # HTML + URL fetching
 │   ├── image/        # Image OCR support
+│   ├── doc/          # Word 97-2003 binary (.doc/.wps) via OLE2/CFB
 │   ├── docx/         # DOCX via Pure MoonBit (libzip + xml)
 │   ├── pptx/         # PPTX via Pure MoonBit (libzip + xml)
 │   ├── xlsx/         # XLSX via Pure MoonBit (libzip + xml)
@@ -80,6 +81,7 @@ src/
 ├── libzip/           # Pure MoonBit ZIP library (Store + Deflate)
 ├── mcp/              # MCP protocol, handler and transport
 ├── normalize/        # Shared structural normalization passes
+├── ole2/             # Pure MoonBit OLE2/CFB (Compound File) reader
 ├── python/           # Python interpreter resolution + bridge script location
 ├── semantic/         # Section tree, role, provenance derivation
 └── xml/              # Pure MoonBit XML parser (SAX-style)

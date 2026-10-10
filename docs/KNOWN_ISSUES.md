@@ -64,6 +64,16 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
 
   - 无坐标/bbox 输出，密集表格结构不可恢复，`pdf_embedded_images_tables` case 的
     `table_compare` 保持关闭。
+  - 词距基于标准 14 字体的 AFM 度量估算：非标准 14 字体（内嵌/子集字体）没有度量表，
+    `expected_x` 无法跟踪真实笔位，因此 Tm 文本矩阵的间距检查在没有度量时**跳过**，
+    只依赖精确的 TJ 位移 / Td 水平移动 / Tc 字符间距信号。否则把整段跨距当作词距会
+    在生产者仅为排版而拆分的相邻 Tm 段之间插入多余空格（例如
+    `pdf_embedded_images_tables` 里的下标 `H2SO4` 被拆成 `H2 SO 4`）。代价是"每个词
+    一个 Tm"的内嵌字体生产者会丢词间空格，这是有意的保守取舍
+    （`extract_spacing_wbtest.mbt` 的 "Tm gap is not materialized when the font has no
+    metrics" 固定了该行为）。
+  - 间距计算使用 Tm 的平移量 `tm.e`，忽略水平缩放 `tm.a`；缩放文本矩阵下间距按该
+    比例偏移。
 
 - 固化副本继承的上游 mbtpdf 问题：含重复 object 定义的 PDF（如 `code_and_formula.pdf`）页树
   遍历会丢页（第 2 页"Formula"一节缺失），导致该 case 的 `text_order` 暂未启用；
@@ -75,6 +85,11 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
 - 现状：EPUB 侧在调用 HTML 兜底前预处理剥离 `<video>/<audio>` 配对标签和
   `<source>/<track>` _void 标签，并展开 `<hgroup>` 保留子标题。spine XHTML 的 XML
   解析路径已修复（tokenizer 支持 DOCTYPE/CDATA），良构 XHTML 不再触发该问题。
+- 标签扫描：兜底扫描器（EPUB 侧与 HTML 侧共用 `src/core/markup_scan.mbt` 的
+  `find_tag_close` / `markup_tag_matches` / `find_markup_tag`）现在跳过引号内的
+  `>`（如 `<source src="a>b">`），并做标签名边界检查（`<tablet>` 不再被当作
+  `<table>`、`<pre>` 不再被当作 `<p>`）。`src/xml` 的 SAX 解析器原本就正确处理
+  引号内 `>`，行为未变，另有黑盒测试锁定该契约。
 ## Word 二进制（.doc/.wps）转换的已知残留
 
 - 位置：`src/formats/doc/converter.mbt`、`src/ole2/cfb.mbt`（0.4.0 新增）
@@ -95,5 +110,6 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
     `vMerge` 合并信息不处理。
   - **非 cp1252 的 8-bit piece 会乱码**：8-bit piece 固定按 cp1252 解码；
     中文等使用 UTF-16LE piece 的文档正常，但以 GBK 存储的 8-bit piece 会乱码。
-    当文档含 8-bit 压缩 piece 时会发出 codepage 诊断警告，提示文本可能因编码不
-    匹配而乱码（诚实降级，不静默丢弃）。
+    只有当 8-bit 压缩 piece 实际含有 cp1252 的 C1 区字节（0x80–0x9F，即在单字节
+    代码页之间含义不固定的区间）时才发出 codepage 诊断警告；纯 ASCII 的 8-bit
+    piece 不再误报（0xA0–0xFF 映射与 Latin-1 一致，无法据此判断代码页）。

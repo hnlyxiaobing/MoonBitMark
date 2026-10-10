@@ -24,9 +24,9 @@ fn html_document_base(input : String, html : String) -> String? {
 ///|
 fn extract_base_href(html : String) -> String? {
   let lower = html.to_lower()
-  match find_from(lower, "<base", 0) {
+  match @core.find_markup_tag(lower, "base", 0, false) {
     Some(start) =>
-      match find_from(html, ">", start) {
+      match @core.find_tag_close(html, start) {
         Some(end_idx) => {
           let value = extract_attribute(
             html[start:end_idx + 1].to_owned(),

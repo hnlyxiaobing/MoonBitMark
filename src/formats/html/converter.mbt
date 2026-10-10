@@ -140,7 +140,7 @@ fn largest_tag_inner_html(html : String, tag : String) -> String? {
   let mut best : String? = None
   let mut remaining = html
   while remaining.trim() != "" {
-    match find_from(remaining.to_lower(), "<" + tag, 0) {
+    match @core.find_markup_tag(remaining.to_lower(), tag, 0, false) {
       Some(start) => {
         remaining = remaining[start:].to_owned()
         match take_tag_parts(remaining, tag) {
@@ -239,9 +239,9 @@ fn html_to_annotated_blocks_with_base(
 ///|
 fn extract_body_html(html : String) -> String {
   let lower = html.to_lower()
-  match lower.find("<body") {
+  match @core.find_markup_tag(lower, "body", 0, false) {
     Some(start) =>
-      match find_from(html, ">", start) {
+      match @core.find_tag_close(html, start) {
         Some(open_end) =>
           match find_from(lower, "</body>", open_end + 1) {
             Some(close_start) => html[open_end + 1:close_start].to_owned()
@@ -343,7 +343,7 @@ fn parse_next_html_block(
     )
   }
   if html.has_prefix("<hr") {
-    let rest = match find_from(html, ">", 0) {
+    let rest = match @core.find_tag_close(html, 0) {
       Some(end) => html[end + 1:].to_owned()
       None => ""
     }
@@ -503,7 +503,7 @@ fn parse_image_html_block(
   html : String,
   base_url : String?,
 ) -> (@ast.Block, String)? {
-  match find_from(html, ">", 0) {
+  match @core.find_tag_close(html, 0) {
     Some(end) => {
       let open_tag = html[:end + 1].to_owned()
       let rest = html[end + 1:].to_owned()
@@ -592,9 +592,9 @@ fn take_tag_inner_html(html : String, tag : String) -> (String, String)? {
 ///|
 fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
   let lower = html.to_lower()
-  match find_from(lower, "<" + tag, 0) {
+  match @core.find_markup_tag(lower, tag, 0, false) {
     Some(start) if start == 0 =>
-      match find_from(html, ">", start) {
+      match @core.find_tag_close(html, start) {
         Some(open_end) => {
           let open_tag = html[start:open_end + 1].to_owned()
           if open_tag.trim().to_owned().has_suffix("/>") {
@@ -612,7 +612,7 @@ fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
                     None => return None
                   }
                 } else if html_matches_tag(lower, tag_start, tag, true) {
-                  let close_end = match find_from(html, ">", tag_start) {
+                  let close_end = match @core.find_tag_close(html, tag_start) {
                     Some(value) => value
                     None => return None
                   }
@@ -624,7 +624,7 @@ fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
                   depth = depth - 1
                   cursor = close_end + 1
                 } else if html_matches_tag(lower, tag_start, tag, false) {
-                  let nested_end = match find_from(html, ">", tag_start) {
+                  let nested_end = match @core.find_tag_close(html, tag_start) {
                     Some(value) => value
                     None => return None
                   }
@@ -736,7 +736,7 @@ fn inline_html_to_inlines(
           cursor = next_cursor
         }
         None =>
-          match find_from(fragment, ">", cursor) {
+          match @core.find_tag_close(fragment, cursor) {
             Some(end) => cursor = end + 1
             None => {
               push_text_inline(inlines, fragment[cursor:].to_owned())
@@ -765,13 +765,13 @@ fn parse_known_inline(
   let remaining = fragment[cursor:].to_owned()
   let lower = remaining.to_lower()
   if lower.has_prefix("<br") {
-    return match find_from(remaining, ">", 0) {
+    return match @core.find_tag_close(remaining, 0) {
       Some(end) => Some(([@ast.LineBreak], cursor + end + 1))
       None => None
     }
   }
   if lower.has_prefix("<img") {
-    return match find_from(remaining, ">", 0) {
+    return match @core.find_tag_close(remaining, 0) {
       Some(end) => {
         let open_tag = remaining[0:end + 1].to_owned()
         let src = resolve_html_image_url(
@@ -979,9 +979,9 @@ pub async fn convert_from_file(file_path : String) -> String {
 ///|
 fn extract_title(html : String) -> String? {
   let lower = html.to_lower()
-  match lower.find("<title") {
+  match @core.find_markup_tag(lower, "title", 0, false) {
     Some(start) =>
-      match find_from(html, ">", start) {
+      match @core.find_tag_close(html, start) {
         Some(tag_end) =>
           match find_from(lower, "</title>", tag_end + 1) {
             Some(close_start) => {
@@ -1124,7 +1124,7 @@ fn remove_tag_block(html : String, tag_name : String) -> String {
   let mut found = true
   while found {
     let lower_result = result.to_lower()
-    match find_from(lower_result, "<" + tag_name, 0) {
+    match @core.find_markup_tag(lower_result, tag_name, 0, false) {
       Some(start) => {
         let before = result[:start].to_owned()
         match take_tag_parts(result[start:].to_owned(), tag_name) {
@@ -1344,7 +1344,7 @@ fn strip_remaining_tags(html : String) -> String {
   while found {
     match result.find("<") {
       Some(idx) =>
-        match find_from(result, ">", idx) {
+        match @core.find_tag_close(result, idx) {
           Some(end_idx) => {
             let before = result[:idx].to_owned()
             let after = result[end_idx + 1:].to_owned()

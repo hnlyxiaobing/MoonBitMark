@@ -81,6 +81,34 @@ fn cp1252_high(byte : Int) -> Int? {
 }
 
 ///|
+/// Whether any 8-bit compressed piece contains a byte in the cp1252
+/// 0x80..0x9F control region. Only those bytes are ambiguous across
+/// single-byte codepages: bytes below 0x80 and at or above 0xA0 decode
+/// identically in cp1252 and Latin-1, so a pure-ASCII or Latin-1 piece gives
+/// no reason to suspect the document uses a codepage this converter cannot
+/// read. Bytes are scanned rather than decoded characters because the
+/// 0xA0..0xFF region maps 1:1 and would otherwise be indistinguishable.
+fn compressed_piece_has_c1(
+  word_document : Bytes,
+  pieces : Array[DocPiece],
+) -> Bool {
+  for piece in pieces {
+    if piece.compressed {
+      let chars = piece.cp1 - piece.cp0
+      if chars > 0 && piece.byte_offset + chars <= word_document.length() {
+        for i in 0..<chars {
+          let byte = word_document[piece.byte_offset + i].to_int()
+          if byte >= 0x80 && byte <= 0x9F {
+            return true
+          }
+        }
+      }
+    }
+  }
+  false
+}
+
+///|
 /// Minimal SummaryInformation property set parsing: title, author,
 /// created date and page count. Unknown/broken properties are skipped.
 /// Layout follows MS-OLEPS PropertySetStream: header (28 bytes) + FMTID

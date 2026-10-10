@@ -153,3 +153,30 @@ test "html keeps pre code blocks inside article flow" {
     content="Noisy Article\n\n# Main Story\n\n> Quoted insight.\n\n``` js\nconst total = 42;\n```",
   )
 }
+
+///|
+test "html tag scanning respects quoted greater-than in attributes" {
+  match take_tag_parts("<div class=\"a>b\">x</div>tail", "div") {
+    Some((open_tag, inner, rest)) => {
+      assert_eq(open_tag, "<div class=\"a>b\">")
+      assert_eq(inner, "x")
+      assert_eq(rest, "tail")
+    }
+    None => fail("expected div tag parts")
+  }
+  inspect(strip_remaining_tags("<p title=\"a>b\">hi</p>"), content="hi")
+  debug_inspect(
+    extract_title("<title data-x=\"a>b\">Title</title>"),
+    content=(
+      #|Some("Title")
+    ),
+  )
+}
+
+///|
+test "html tag removal honors tag name boundaries" {
+  inspect(
+    remove_tag_block("<tablet>keep</tablet><table>x</table>", "table"),
+    content="<tablet>keep</tablet>",
+  )
+}

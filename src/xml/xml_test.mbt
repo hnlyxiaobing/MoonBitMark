@@ -297,3 +297,25 @@ test "error on invalid markup declaration" {
       assert_true(true)
   }
 }
+
+///|
+test "parser keeps greater-than inside quoted attribute value" {
+  let xml = "<a b=\"x>y\">t</a>"
+  match @xml.parse_xml(xml) {
+    Ok(events) =>
+      match events[0] {
+        ElementStart(event) => assert_eq(event.attributes.get("b"), Some("x>y"))
+        _ => fail("expected ElementStart event")
+      }
+    Err(e) =>
+      match e {
+        SyntaxError(line, msg) => fail("SyntaxError at line \{line}: \{msg}")
+        UnclosedTag(tag) => fail("UnclosedTag: \{tag}")
+        MismatchedTag(expected, actual) =>
+          fail("MismatchedTag: expected \{expected}, got \{actual}")
+        InvalidAttributeFormat(msg) => fail("InvalidAttributeFormat: \{msg}")
+        InvalidEntity(entity) => fail("InvalidEntity: \{entity}")
+        IOError(msg) => fail("IOError: \{msg}")
+      }
+  }
+}
