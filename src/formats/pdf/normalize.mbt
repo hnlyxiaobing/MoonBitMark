@@ -594,7 +594,6 @@ fn restore_scientific_spacing(text : String) -> String {
   .replace(old="Fig.8.", new="Fig. 8.")
   .replace(old="Table1", new="Table 1")
   .replace(old="Listing1", new="Listing 1")
-  .replace(old="MH2SO4", new="M H2SO4")
   .replace(old="A/cm 2", new="A/cm2")
   .replace(old="Corrosion rate(mm/year)", new="Corrosion rate (mm/year)")
   .replace(
