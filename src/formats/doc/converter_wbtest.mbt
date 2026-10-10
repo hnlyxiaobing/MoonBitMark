@@ -591,7 +591,39 @@ test "parse_char_sprms treats zero underline operand as not underlined" {
 }
 
 ///|
+test "build_formatted_inlines indexes fc space as two units per character" {
+  // "abcdef" spans fc 0..12 (extract_fc_range: every character is 2 fc units);
+  // the bold run covers characters 0..3, i.e. fc 0..6.
+  let runs : Array[DocTextRun] = [
+    DocTextRun::{
+      start_fc: 0,
+      end_fc: 6,
+      bold: true,
+      italic: false,
+      underline: false,
+    },
+  ]
+  let inlines = build_formatted_inlines("abcdef", 0, runs)
+  assert_eq(@ast.render_inlines(inlines), "**abc**def")
+}
+
+///|
 test "build_formatted_inlines wraps underlined runs in raw html" {
+  let runs : Array[DocTextRun] = [
+    DocTextRun::{
+      start_fc: 0,
+      end_fc: 20,
+      bold: false,
+      italic: false,
+      underline: true,
+    },
+  ]
+  let inlines = build_formatted_inlines("underlined", 0, runs)
+  assert_eq(@ast.render_inlines(inlines), "<u>underlined</u>")
+}
+
+///|
+test "build_formatted_inlines escapes html inside underlined runs" {
   let runs : Array[DocTextRun] = [
     DocTextRun::{
       start_fc: 0,
@@ -601,22 +633,7 @@ test "build_formatted_inlines wraps underlined runs in raw html" {
       underline: true,
     },
   ]
-  let inlines = build_formatted_inlines("underlined", 0, 10, runs)
-  assert_eq(@ast.render_inlines(inlines), "<u>underlined</u>")
-}
-
-///|
-test "build_formatted_inlines escapes html inside underlined runs" {
-  let runs : Array[DocTextRun] = [
-    DocTextRun::{
-      start_fc: 0,
-      end_fc: 5,
-      bold: false,
-      italic: false,
-      underline: true,
-    },
-  ]
-  let inlines = build_formatted_inlines("a<b&c", 0, 5, runs)
+  let inlines = build_formatted_inlines("a<b&c", 0, runs)
   assert_eq(@ast.render_inlines(inlines), "<u>a&lt;b&amp;c</u>")
 }
 
@@ -625,12 +642,71 @@ test "build_formatted_inlines combines bold with underline" {
   let runs : Array[DocTextRun] = [
     DocTextRun::{
       start_fc: 0,
-      end_fc: 4,
+      end_fc: 8,
       bold: true,
       italic: false,
       underline: true,
     },
   ]
-  let inlines = build_formatted_inlines("bold", 0, 4, runs)
+  let inlines = build_formatted_inlines("bold", 0, runs)
   assert_eq(@ast.render_inlines(inlines), "**<u>bold</u>**")
+}
+
+///|
+test "parse_hyperlink_target extracts url and bookmark targets" {
+  assert_eq(
+    parse_hyperlink_target(" HYPERLINK \"https://example.com\" "),
+    Some("https://example.com"),
+  )
+  assert_eq(
+    parse_hyperlink_target("HYPERLINK https://example.com \\o \"tip\""),
+    Some("https://example.com"),
+  )
+  assert_eq(
+    parse_hyperlink_target(" HYPERLINK \\l \"section-2\" "),
+    Some("#section-2"),
+  )
+  assert_eq(parse_hyperlink_target(" PAGE \\* MERGEFORMAT "), None)
+  assert_eq(parse_hyperlink_target(""), None)
+}
+
+///|
+test "build_formatted_inlines expands a hyperlink field" {
+  // 0x13 begins the field, 0x14 separates instruction from result, 0x15 ends.
+  let raw = "\u{13}HYPERLINK \"https://example.com\"\u{14}Example\u{15}"
+  let inlines = build_formatted_inlines(raw, 0, [])
+  assert_eq(@ast.render_inlines(inlines), "[Example](https://example.com)")
+}
+
+///|
+test "build_formatted_inlines keeps surrounding text around a field" {
+  let raw = "See \u{13}HYPERLINK \"https://example.com\"\u{14}here\u{15} now"
+  let inlines = build_formatted_inlines(raw, 0, [])
+  assert_eq(@ast.render_inlines(inlines), "See [here](https://example.com) now")
+}
+
+///|
+test "build_formatted_inlines emits non-hyperlink field results as text" {
+  let raw = "Total: \u{13}PAGE\u{14}7\u{15}"
+  let inlines = build_formatted_inlines(raw, 0, [])
+  assert_eq(@ast.render_inlines(inlines), "Total: 7")
+}
+
+///|
+test "build_formatted_inlines does not drop an unterminated field" {
+  // Missing 0x15: the remainder must survive as literal text.
+  let raw = "Intro \u{13}HYPERLINK \"https://example.com\""
+  let inlines = build_formatted_inlines(raw, 0, [])
+  assert_eq(
+    @ast.render_inlines(inlines),
+    "Intro HYPERLINK \"https://example.com\"",
+  )
+}
+
+///|
+test "build_formatted_inlines trims paragraph marks and trailing cells" {
+  let inlines = build_formatted_inlines("Cell\u{7}", 0, [])
+  assert_eq(@ast.render_inlines(inlines), "Cell")
+  let blank = build_formatted_inlines("\u{13}PAGE\u{14}\u{15}", 0, [])
+  assert_eq(@ast.render_inlines(blank), "")
 }

@@ -46,7 +46,8 @@
 （可用 `MOONBITMARK_PYTHON` 覆盖），bridge 脚本路径按可执行文件位置探测
 （可用 `MOONBITMARK_OCR_BRIDGE` / `MOONBITMARK_PDF_BRIDGE` 覆盖），失败诊断已按
 "脚本缺失 / Python 缺失 / spawn 失败 / 依赖缺失 / 超时 / backend 缺失"分层并附
-remedy。
+remedy。触发条件：出现"零 Python 依赖构建"的硬需求时，才考虑纯 MoonBit 原生
+OCR（含原生图片预处理）；否则保持 bridge-backed 可选能力。
 
 ## Windows native release 构建依赖 MSVC（环境要求）
 
@@ -63,7 +64,8 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
 - 影响：字间空格恢复（TJ 位移 / Td 水平移动 / Tm 文本矩阵物化）已覆盖主要场景，但仍有残留：
 
   - 无坐标/bbox 输出，密集表格结构不可恢复，`pdf_embedded_images_tables` case 的
-    `table_compare` 保持关闭。
+    `table_compare` 保持关闭。扩展条件：出现必须开启 `table_compare` 或要求恢复
+    密集表格结构的 case（原生路径当前只保留文本行，bbox 仅存在于 bridge JSON）。
   - 词距基于标准 14 字体的 AFM 度量估算：非标准 14 字体（内嵌/子集字体）没有度量表，
     `expected_x` 无法跟踪真实笔位，因此 Tm 文本矩阵的间距检查在没有度量时**跳过**，
     只依赖精确的 TJ 位移 / Td 水平移动 / Tc 字符间距信号。否则把整段跨距当作词距会
@@ -78,7 +80,8 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
 - 固化副本继承的上游 mbtpdf 问题：含重复 object 定义的 PDF（如 `code_and_formula.pdf`）页树
   遍历会丢页（第 2 页"Formula"一节缺失），导致该 case 的 `text_order` 暂未启用；
   修复需上游处理，见 `docs/solution_plan_2026-08-12.md` 第 1 节 M4。仓库内联的
-  `third_party/mbtpdf` 只跟随 target/portability 修复，不做行为改动。
+  `third_party/mbtpdf` 只跟随 target/portability 修复，不做行为改动。触发条件：
+  上游修复该遍历问题，或本仓库决定 fork 该副本自行修补。
 ## EPUB HTML 兜底路径的媒体元素处理
 
 - 位置：`src/formats/epub/converter.mbt`（`preprocess_epub_html_fallback`）
@@ -97,17 +100,25 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
   Markdown（标题 / 段落 / 简单 pipe 表格 / SummaryInformation 元数据），但受
   FIB/FKP/PAPX 子集解析限制，仍有以下残留：
 
-  - **字符级格式部分恢复**：已恢复 run 级 bold（→ `**strong**`）和 italic（→
-    `*emphasis`*）格式，通过解析 PlcfBteChpx → FKP → Chpx → sprm 提取字符属性。
-    下划线、字号、颜色等仍不恢复。
-  - **字段代码不展开**：`Plcffld` 未解析，页码、TOC、超链接、交叉引用等字段
-    显示为原始结果文本（Word 已缓存的结果），不解析域代码本身。
+  - **字符级格式部分恢复**：已恢复 run 级 bold（→ `**strong**`）、italic（→
+    `*emphasis*`）和下划线（→ 原始内联 HTML `<u>...</u>`）格式，通过解析
+    PlcfBteChpx → FKP → Chpx → sprm（sprmFBold/sprmFItalic/sprmCKul）提取字符
+    属性。字号、颜色等仍不恢复（Markdown 无对应语义）。字符 run 的 fc 边界按
+    “每字符 2 个 fc 单位”换算后与段落文本对齐（此前按 fc 差值直接索引字符，
+    存在 2× 错位，导致 bold/italic 基本不生效）。
+  - **超链接字段展开，其余字段保留缓存结果**：段落文本中内联的域定界符
+    （0x13/0x14/0x15）现已解析，`HYPERLINK "url"` 与 `\l "bookmark"` 分别展开为
+    `[结果](url)` 与 `[结果](#bookmark)`。页码、TOC、交叉引用等其它字段仍显示
+    Word 缓存的域结果文本（不解析域代码本身）。
   - **图片 / OLE 嵌入对象不提取**：内嵌图片（PIC 字段 / Escher 记录）与嵌入
     对象被忽略，转换结果只含文本。
   - **批注与修订标记不解析**：注解字符（0x05）与 track changes 标记不还原。
   - **页眉页脚 / 脚注尾注**：hdrftr / footnotes 分区未提取。
   - **合并单元格与嵌套表格**：pipe 表格按单元格段落顺序渲染，`gridSpan` /
     `vMerge` 合并信息不处理。
+  - 上列图片/OLE、批注（0x05 字符）、页眉页脚/脚注、合并单元格的扩展触发条件：
+    解析 FKP/PLC 的共享基础设施已随字符格式与字段解析落地；出现对这些结构有
+    明确需求的 case 时，再逐项扩展（无需先重构现有管线）。
   - **非 cp1252 的 8-bit piece 会乱码**：8-bit piece 固定按 cp1252 解码；
     中文等使用 UTF-16LE piece 的文档正常，但以 GBK 存储的 8-bit piece 会乱码。
     只有当 8-bit 压缩 piece 实际含有 cp1252 的 C1 区字节（0x80–0x9F，即在单字节

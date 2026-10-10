@@ -449,14 +449,15 @@ fn contiguous_text(word_document : Bytes, fib : DocFib) -> String? {
 }
 
 ///|
-/// A paragraph recovered from the PlcfBtePapx table.
+/// A paragraph recovered from the PlcfBtePapx table. `text` is the raw
+/// character range (field delimiters and control characters included) so
+/// formatting runs and hyperlink fields can be resolved against fc space.
 priv struct DocParagraph {
   istd : Int
   ilfo : Int
   in_table : Bool
   row_end : Bool
   start_fc : Int
-  end_fc : Int
   text : String
 }
 
@@ -537,8 +538,7 @@ fn parse_paragraph_table(
             in_table,
             row_end,
             start_fc,
-            end_fc,
-            text: clean_doc_text(raw_text),
+            text: raw_text,
           })
         }
       }
@@ -744,19 +744,14 @@ fn build_doc_blocks(
   let mut table_rows : Array[Array[Array[@ast.Inline]]] = []
   let mut current_row : Array[Array[@ast.Inline]] = []
   for para in paragraphs {
+    let inlines = build_formatted_inlines(para.text, para.start_fc, char_runs)
     if para.in_table {
       if para.row_end {
         if current_row.length() > 0 {
           table_rows.push(current_row)
           current_row = []
         }
-      } else if para.text.length() > 0 {
-        let inlines = build_formatted_inlines(
-          para.text,
-          para.start_fc,
-          para.end_fc,
-          char_runs,
-        )
+      } else if inlines.length() > 0 {
         current_row.push(inlines)
       }
       continue
@@ -770,13 +765,7 @@ fn build_doc_blocks(
       table_rows = []
     }
     if para.ilfo > 0 {
-      if para.text.length() > 0 {
-        let inlines = build_formatted_inlines(
-          para.text,
-          para.start_fc,
-          para.end_fc,
-          char_runs,
-        )
+      if inlines.length() > 0 {
         list_items.push(inlines)
       }
       continue
@@ -785,15 +774,9 @@ fn build_doc_blocks(
       blocks.push(@ast.List(list_items, false))
       list_items = []
     }
-    if para.text.length() == 0 {
+    if inlines.length() == 0 {
       continue
     }
-    let inlines = build_formatted_inlines(
-      para.text,
-      para.start_fc,
-      para.end_fc,
-      char_runs,
-    )
     if para.istd >= 1 && para.istd <= 9 {
       blocks.push(@ast.Heading(para.istd, inlines))
     } else {
@@ -813,90 +796,297 @@ fn build_doc_blocks(
 }
 
 ///|
-/// Build formatted inline elements from paragraph text and character runs.
-/// Splits the text according to formatting changes and wraps in Strong/Emphasis.
+/// Build formatted inline elements from a paragraph's raw text and character
+/// runs. The raw text keeps the field delimiters (0x13/0x14/0x15) so hyperlink
+/// fields can be expanded first; each visible slice is then split by the
+/// formatting runs and cleaned.
+///
+/// fc space counts two units per character (see extract_fc_range), so
+/// `raw character index = (fc - fc_base) / 2`.
 fn build_formatted_inlines(
-  text : String,
+  raw_text : String,
   start_fc : Int,
-  end_fc : Int,
   char_runs : Array[DocTextRun],
 ) -> Array[@ast.Inline] {
+  let (text, leading) = trim_doc_raw(raw_text)
   if text.length() == 0 {
     return []
   }
-  // Find char_runs that overlap with this paragraph's fc range
-  let relevant_runs : Array[DocTextRun] = []
-  for run in char_runs {
-    if run.start_fc < end_fc && run.end_fc > start_fc {
-      relevant_runs.push(run)
-    }
-  }
-  // If no formatting runs, return plain text
-  if relevant_runs.length() == 0 {
-    return [@ast.Inline::Text(text)]
-  }
-  // Build formatted segments
+  let fc_base = start_fc + 2 * leading
   let result : Array[@ast.Inline] = []
-  let mut current_pos = start_fc
-  let text_len = end_fc - start_fc
-  for run in relevant_runs {
-    // Add unformatted text before this run
-    if run.start_fc > current_pos {
-      let skip = current_pos - start_fc
-      let take = run.start_fc - current_pos
-      if skip >= 0 && take > 0 && skip + take <= text.length() {
-        let segment = text[skip:skip + take].to_owned()
-        if segment.length() > 0 {
-          result.push(@ast.Inline::Text(segment))
+  for entry in split_doc_field_spans(text) {
+    let (offset, span) = entry
+    match span {
+      DocSpan::Literal(segment) =>
+        for inline in format_doc_text(segment, fc_base + 2 * offset, char_runs) {
+          result.push(inline)
         }
-      }
-    }
-    // Add formatted text for this run
-    let run_start = if run.start_fc > start_fc {
-      run.start_fc - start_fc
-    } else {
-      0
-    }
-    let run_end = if run.end_fc < end_fc {
-      run.end_fc - start_fc
-    } else {
-      text_len
-    }
-    if run_start < run_end && run_start >= 0 && run_end <= text.length() {
-      let segment = text[run_start:run_end].to_owned()
-      if segment.length() > 0 {
-        let mut inline = if run.underline {
-          // Markdown has no underline: emit `<u>...</u>` as raw inline HTML.
-          @ast.Inline::Html("<u>" + escape_html_inline_text(segment) + "</u>")
-        } else {
-          @ast.Inline::Text(segment)
+      DocSpan::Hyperlink(segment, url) => {
+        let children = format_doc_text(segment, fc_base + 2 * offset, char_runs)
+        if children.length() > 0 {
+          result.push(@ast.Inline::Link(children, url))
         }
-        if run.italic {
-          inline = @ast.Inline::Emphasis([inline])
-        }
-        if run.bold {
-          inline = @ast.Inline::Strong([inline])
-        }
-        result.push(inline)
-      }
-    }
-    current_pos = run.end_fc
-  }
-  // Add remaining unformatted text
-  if current_pos < end_fc {
-    let skip = current_pos - start_fc
-    if skip >= 0 && skip < text.length() {
-      let segment = text[skip:].to_owned()
-      if segment.length() > 0 {
-        result.push(@ast.Inline::Text(segment))
       }
     }
   }
-  if result.length() == 0 {
-    [@ast.Inline::Text(text)]
+  result
+}
+
+///|
+/// Split `raw` into plain and formatted inlines. `fc_base` is the fc of
+/// `raw[0]`; character runs are matched in fc space (two units per character).
+fn format_doc_text(
+  raw : String,
+  fc_base : Int,
+  char_runs : Array[DocTextRun],
+) -> Array[@ast.Inline] {
+  let result : Array[@ast.Inline] = []
+  let len = raw.length()
+  if len == 0 {
+    return result
+  }
+  let fc_end = fc_base + 2 * len
+  let mut cursor = 0
+  for run in char_runs {
+    if run.end_fc <= fc_base || run.start_fc >= fc_end {
+      continue
+    }
+    let r0 = clamp_int((run.start_fc - fc_base) / 2, 0, len)
+    let r1 = clamp_int((run.end_fc - fc_base) / 2, 0, len)
+    if r0 > cursor {
+      push_doc_plain(result, raw[cursor:r0].to_owned())
+    }
+    if r1 > r0 {
+      push_doc_formatted(result, raw[r0:r1].to_owned(), run)
+    }
+    if r1 > cursor {
+      cursor = r1
+    }
+  }
+  if cursor < len {
+    push_doc_plain(result, raw[cursor:len].to_owned())
+  }
+  result
+}
+
+///|
+fn push_doc_plain(result : Array[@ast.Inline], raw : String) -> Unit {
+  let cleaned = clean_doc_text_inline(raw)
+  if cleaned != "" {
+    result.push(@ast.Inline::Text(cleaned))
+  }
+}
+
+///|
+fn push_doc_formatted(
+  result : Array[@ast.Inline],
+  raw : String,
+  run : DocTextRun,
+) -> Unit {
+  let cleaned = clean_doc_text_inline(raw)
+  if cleaned == "" {
+    return
+  }
+  let mut inline = if run.underline {
+    // Markdown has no underline: emit `<u>...</u>` as raw inline HTML.
+    @ast.Inline::Html("<u>" + escape_html_inline_text(cleaned) + "</u>")
   } else {
-    result
+    @ast.Inline::Text(cleaned)
   }
+  if run.italic {
+    inline = @ast.Inline::Emphasis([inline])
+  }
+  if run.bold {
+    inline = @ast.Inline::Strong([inline])
+  }
+  result.push(inline)
+}
+
+///|
+fn clamp_int(value : Int, lo : Int, hi : Int) -> Int {
+  if value < lo {
+    lo
+  } else if value > hi {
+    hi
+  } else {
+    value
+  }
+}
+
+///|
+/// A slice of a paragraph's raw text: either literal text or a hyperlink field.
+priv enum DocSpan {
+  Literal(String)
+  Hyperlink(String, String)
+}
+
+///|
+/// Split raw paragraph text into literal and hyperlink spans, each paired with
+/// the raw character offset of its visible content. Field codes are delimited
+/// by 0x13 (begin), 0x14 (separator) and 0x15 (end); nesting is tracked so only
+/// top-level fields are recognized. A hyperlink field keeps its result text and
+/// target; any other field degrades to its literal result text. An unterminated
+/// field is emitted verbatim so malformed documents lose no text.
+fn split_doc_field_spans(text : String) -> Array[(Int, DocSpan)] {
+  let spans : Array[(Int, DocSpan)] = []
+  let mut literal_start = 0
+  let mut i = 0
+  while i < text.length() {
+    if text[i].to_int() == 0x13 {
+      if i > literal_start {
+        spans.push(
+          (literal_start, DocSpan::Literal(text[literal_start:i].to_owned())),
+        )
+      }
+      let (span, offset, next) = parse_doc_field_at(text, i)
+      spans.push((offset, span))
+      i = next
+      literal_start = next
+    } else {
+      i = i + 1
+    }
+  }
+  if literal_start < text.length() {
+    spans.push(
+      (
+        literal_start,
+        DocSpan::Literal(text[literal_start:text.length()].to_owned()),
+      ),
+    )
+  }
+  spans
+}
+
+///|
+/// Parse the field starting at `start` (`text[start]` is 0x13). Returns the
+/// span, the raw offset of its visible content and the index past the field.
+fn parse_doc_field_at(text : String, start : Int) -> (DocSpan, Int, Int) {
+  let mut depth = 1
+  let mut i = start + 1
+  let instr_start = i
+  let mut in_result = false
+  let mut result_start = i
+  while i < text.length() {
+    let code = text[i].to_int()
+    if code == 0x13 {
+      depth = depth + 1
+    } else if code == 0x14 {
+      if depth == 1 && !in_result {
+        in_result = true
+        result_start = i + 1
+      }
+    } else if code == 0x15 {
+      depth = depth - 1
+      if depth == 0 {
+        let next = i + 1
+        if !in_result {
+          // No separator: keep the instruction text as literal content.
+          return (
+            DocSpan::Literal(text[instr_start:i].to_owned()),
+            instr_start,
+            next,
+          )
+        }
+        let instr = text[instr_start:result_start - 1].to_owned()
+        let visible = text[result_start:i].to_owned()
+        return match parse_hyperlink_target(instr) {
+          Some(url) => (DocSpan::Hyperlink(visible, url), result_start, next)
+          None => (DocSpan::Literal(visible), result_start, next)
+        }
+      }
+    }
+    i = i + 1
+  }
+  // Unterminated field: emit the remainder verbatim (delimiters included) so no
+  // text is silently dropped; the cleaner strips the stray delimiters.
+  (DocSpan::Literal(text[start:text.length()].to_owned()), start, text.length())
+}
+
+///|
+/// Extract the target of a HYPERLINK field instruction. Handles
+/// `HYPERLINK "url"`, `HYPERLINK url` and `\l "bookmark"` (returned as
+/// `#bookmark`); other switches such as `\o` are skipped.
+fn parse_hyperlink_target(instr : String) -> String? {
+  let tokens = tokenize_field_instr(instr)
+  let mut i = 0
+  while i < tokens.length() {
+    if tokens[i].to_lower() == "hyperlink" {
+      let mut j = i + 1
+      while j < tokens.length() {
+        let token = tokens[j]
+        if token == "\\l" {
+          if j + 1 < tokens.length() {
+            return Some("#" + tokens[j + 1])
+          }
+          return None
+        } else if token.has_prefix("\\") {
+          // Switch: skip it and, when present, its non-switch argument.
+          j = j + 1
+          if j < tokens.length() && !tokens[j].has_prefix("\\") {
+            j = j + 1
+          }
+        } else {
+          return Some(token)
+        }
+      }
+      return None
+    }
+    i = i + 1
+  }
+  None
+}
+
+///|
+/// Split a field instruction into whitespace-separated tokens, stripping
+/// double-quote quoting so `"a b"` stays a single token.
+fn tokenize_field_instr(instr : String) -> Array[String] {
+  let tokens : Array[String] = []
+  let mut current = ""
+  let mut in_quote = false
+  for ch in instr {
+    if ch == '"' {
+      in_quote = !in_quote
+    } else if !in_quote && (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') {
+      if current != "" {
+        tokens.push(current)
+        current = ""
+      }
+    } else {
+      current = current + ch.to_string()
+    }
+  }
+  if current != "" {
+    tokens.push(current)
+  }
+  tokens
+}
+
+///|
+/// Trim whitespace, cell and paragraph marks from the ends of raw paragraph
+/// text. Returns the trimmed text and the number of leading characters removed
+/// so the caller can keep the fc base aligned.
+fn trim_doc_raw(text : String) -> (String, Int) {
+  let mut start = 0
+  while start < text.length() && is_doc_trim_char(text[start]) {
+    start = start + 1
+  }
+  let mut end = text.length()
+  while end > start && is_doc_trim_char(text[end - 1]) {
+    end = end - 1
+  }
+  (text[start:end].to_owned(), start)
+}
+
+///|
+fn is_doc_trim_char(ch : UInt16) -> Bool {
+  let code = ch.to_int()
+  code == 0x07 ||
+  code == 0x09 ||
+  code == 0x0A ||
+  code == 0x0B ||
+  code == 0x0C ||
+  code == 0x0D ||
+  code == 0x20
 }
 
 ///|
@@ -941,6 +1131,16 @@ fn escape_html_inline_text(text : String) -> String {
 /// 0x0C page break -> double newline, 0x0D paragraph mark -> newline,
 /// field codes (0x13/0x14/0x15), NUL and 0x7F removed, other C0 stripped.
 fn clean_doc_text(input : String) -> String {
+  clean_doc_text_inline(input).trim().to_owned()
+}
+
+///|
+/// Character-level normalization of raw document text without trimming. Used
+/// when the text has already been split by formatting/field boundaries, so only
+/// the assembled paragraph is trimmed. Removal and expansion of control
+/// characters means the result is not length-comparable to the input, which is
+/// safe here because boundaries are resolved in fc space beforehand.
+fn clean_doc_text_inline(input : String) -> String {
   let sb = StringBuilder()
   for ch in input {
     let code = ch.to_int()
@@ -952,17 +1152,19 @@ fn clean_doc_text(input : String) -> String {
       sb.write_string("\n\n")
     } else if code == 0x0D {
       sb.write_string("\n")
-    } else if code == 0x13 || code == 0x15 || code == 0x00 || code == 0x7F {
+    } else if code == 0x13 ||
+      code == 0x14 ||
+      code == 0x15 ||
+      code == 0x00 ||
+      code == 0x7F {
       ()
-    } else if code == 0x14 {
-      sb.write_string(" ")
-    } else if code < 0x20 || code == 0x7F {
+    } else if code < 0x20 {
       ()
     } else {
       sb.write_char(ch)
     }
   }
-  sb.to_string().trim().to_owned()
+  sb.to_string()
 }
 
 ///|

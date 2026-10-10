@@ -117,7 +117,9 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
   sprm 子集解析）。
 - 这条路径**既不使用 `libzip`，也不使用 `xml`**：它不做 ZIP 解包，也不解析 XML，
   而是直接按 MS-DOC / MS-CFB 的二进制结构读取。
-- 已支持标题、段落、简单 pipe 表格、SummaryInformation 元数据和 run 级 bold/italic。
+- 已支持标题、段落、简单 pipe 表格、SummaryInformation 元数据、run 级
+  bold/italic/underline，以及超链接字段（`HYPERLINK`）展开。下划线渲染为原始
+  内联 HTML `<u>...</u>`（Markdown 无下划线语法）。
 
 ### PDF
 
