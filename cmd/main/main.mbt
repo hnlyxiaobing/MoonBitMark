@@ -599,6 +599,11 @@ fn json_of_inline(inline : @ast.Inline) -> String {
       ])
     @ast.LineBreak =>
       json_object([json_field("type", json_string("line_break"))])
+    @ast.Html(raw) =>
+      json_object([
+        json_field("type", json_string("html")),
+        json_field("content", json_string(raw)),
+      ])
   }
 }
 

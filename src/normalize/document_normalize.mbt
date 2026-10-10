@@ -360,6 +360,10 @@ fn normalize_inline_whitespace(
         flush_pending_text()
         normalized.push(@ast.LineBreak)
       }
+      @ast.Html(raw) => {
+        flush_pending_text()
+        normalized.push(@ast.Html(raw))
+      }
     }
   }
   flush_pending_text()

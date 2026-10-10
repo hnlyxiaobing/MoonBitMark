@@ -40,6 +40,10 @@ fn render_inline(inline : Inline) -> String {
     Image(alt, src) => "![" + escape_link_label(alt) + "](" + src + ")"
     Code(content) => render_inline_code(content)
     LineBreak => "  \n"
+    // Raw inline HTML escape hatch (Markdown has no underline, so DOC emits
+    // `<u>...</u>` here). The payload is emitted verbatim and must already be
+    // HTML-escaped by the producer.
+    Html(raw) => raw
   }
 }
 

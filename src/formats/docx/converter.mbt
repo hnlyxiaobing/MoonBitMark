@@ -635,6 +635,7 @@ fn normalize_docx_heading_inline(inline : @ast.Inline) -> @ast.Inline {
     @ast.Image(alt, src) => @ast.Image(alt, src)
     @ast.Code(text) => @ast.Code(normalize_docx_heading_text(text))
     @ast.LineBreak => @ast.LineBreak
+    @ast.Html(raw) => @ast.Html(raw)
   }
 }
 

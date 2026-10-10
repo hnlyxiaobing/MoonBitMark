@@ -2914,6 +2914,11 @@ fn mcp_json_of_inline(inline : @ast.Inline) -> String {
       ])
     @ast.LineBreak =>
       mcp_json_object([mcp_json_field("type", mcp_json_string("line_break"))])
+    @ast.Html(raw) =>
+      mcp_json_object([
+        mcp_json_field("type", mcp_json_string("html")),
+        mcp_json_field("content", mcp_json_string(raw)),
+      ])
   }
 }
 

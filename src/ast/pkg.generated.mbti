@@ -82,6 +82,7 @@ pub(all) enum Inline {
   Image(String, String)
   Code(String)
   LineBreak
+  Html(String)
 } derive(Eq, ToJson, @debug.Debug)
 pub fn Inline::equal(Self, Self) -> Bool
 pub fn Inline::not_equal(Self, Self) -> Bool

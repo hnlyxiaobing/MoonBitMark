@@ -1630,6 +1630,7 @@ fn plain_text_inline(inline : @ast.Inline) -> String {
     @ast.Image(_, _) => ""
     @ast.Code(text) => text
     @ast.LineBreak => "\n"
+    @ast.Html(raw) => raw
   }
 }
 

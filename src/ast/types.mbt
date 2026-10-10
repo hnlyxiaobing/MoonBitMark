@@ -24,6 +24,7 @@ pub(all) enum Inline {
   Image(String, String)
   Code(String)
   LineBreak
+  Html(String)
 } derive(Debug, Eq, ToJson)
 
 ///|
@@ -206,5 +207,6 @@ fn plain_text_of_inline(inline : Inline) -> String {
     Image(alt, _) => alt
     Code(text) => text
     LineBreak => "\n"
+    Html(raw) => raw
   }
 }

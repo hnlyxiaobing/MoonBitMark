@@ -916,6 +916,7 @@ fn plain_html_inline_text(inline : @ast.Inline) -> String {
     @ast.Image(alt, _) => alt
     @ast.Code(text) => text
     @ast.LineBreak => "\n"
+    @ast.Html(raw) => raw
   }
 }
 

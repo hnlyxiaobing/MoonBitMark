@@ -31,6 +31,14 @@ test "render inline variants" {
 }
 
 ///|
+test "render inline html is emitted verbatim" {
+  inspect(
+    @ast.render_inlines([Text("a"), Html("<u>under</u>"), Text("b")]),
+    content="a<u>under</u>b",
+  )
+}
+
+///|
 test "render inline text escapes markdown specials" {
   inspect(
     @ast.render_inlines([Text("# heading *stars* [link] _under_ `code` \\")]),
