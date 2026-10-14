@@ -1,7 +1,7 @@
 ///|
 /// Converter for PDF files
 pub(all) struct PdfConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|
@@ -211,8 +211,8 @@ fn trim_trailing_empty_ocr_pages(pages : Array[String]) -> Array[String] {
 fn recovery_page_text(
   raw_text : String,
   ocr_pages : Array[String],
-  page_index : Int,
-  recovery_index : Int,
+  page_index : Int32,
+  recovery_index : Int32,
   page_aligned : Bool,
   recovery_aligned : Bool,
 ) -> String {
@@ -238,8 +238,8 @@ fn recovery_page_text(
 }
 
 ///|
-fn recovery_page_numbers(route_plan : PdfRoutePlan) -> Array[Int] {
-  let page_numbers : Array[Int] = []
+fn recovery_page_numbers(route_plan : PdfRoutePlan) -> Array[Int32] {
+  let page_numbers : Array[Int32] = []
   for page in route_plan.pages {
     if page.provider == OcrRecovery {
       page_numbers.push(page.page_no)

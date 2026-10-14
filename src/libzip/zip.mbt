@@ -15,15 +15,15 @@ struct ZipEntry {
   /// 文件名
   name : String
   /// 压缩方法
-  compression_method : Int
+  compression_method : Int32
   /// 压缩大小
-  compressed_size : Int
+  compressed_size : Int32
   /// 原始大小
-  uncompressed_size : Int
+  uncompressed_size : Int32
   /// 数据偏移
-  data_offset : Int
+  data_offset : Int32
   /// CRC32
-  crc32 : UInt
+  crc32 : UInt32
 }
 
 ///|
@@ -47,7 +47,7 @@ pub fn ZipArchive::open(buffer : Bytes) -> ZipArchive? {
 
 ///|
 /// 查找 EOCD (End of Central Directory) 记录
-fn find_eocd(buffer : Bytes) -> Int? {
+fn find_eocd(buffer : Bytes) -> Int32? {
   // EOCD 签名: 0x06054b50
   // 从文件末尾向前搜索
   let mut pos = buffer.length() - 22
@@ -63,7 +63,7 @@ fn find_eocd(buffer : Bytes) -> Int? {
 
 ///|
 /// 读取小端序 UInt32
-fn read_uint32_le(buffer : Bytes, offset : Int) -> UInt {
+fn read_uint32_le(buffer : Bytes, offset : Int32) -> UInt32 {
   buffer[offset].to_uint() |
   (buffer[offset + 1].to_uint() << 8) |
   (buffer[offset + 2].to_uint() << 16) |
@@ -74,7 +74,7 @@ fn read_uint32_le(buffer : Bytes, offset : Int) -> UInt {
 /// 解析中央目录
 fn parse_central_directory(
   buffer : Bytes,
-  eocd_offset : Int,
+  eocd_offset : Int32,
 ) -> Array[ZipEntry] {
   // 从 EOCD 获取中央目录偏移
   // EOCD 格式: 偏移16是中央目录偏移(4字节UInt32)
@@ -94,13 +94,13 @@ fn parse_central_directory(
 
 ///|
 /// 读取小端序 UInt16
-fn read_uint16_le(buffer : Bytes, offset : Int) -> UInt {
+fn read_uint16_le(buffer : Bytes, offset : Int32) -> UInt32 {
   buffer[offset].to_uint() | (buffer[offset + 1].to_uint() << 8)
 }
 
 ///|
 /// 解析单个中央目录条目
-fn parse_central_dir_entry(buffer : Bytes, offset : Int) -> ZipEntry {
+fn parse_central_dir_entry(buffer : Bytes, offset : Int32) -> ZipEntry {
   // Central Directory Header 固定部分 46 字节
   let name_len = read_uint16_le(buffer, offset + 28).reinterpret_as_int()
 
@@ -120,7 +120,7 @@ fn parse_central_dir_entry(buffer : Bytes, offset : Int) -> ZipEntry {
 
 ///|
 /// 获取中央目录条目大小
-fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
+fn get_central_dir_entry_size(buffer : Bytes, offset : Int32) -> Int32 {
   46 +
   read_uint16_le(buffer, offset + 28).reinterpret_as_int() +
   read_uint16_le(buffer, offset + 30).reinterpret_as_int() +
@@ -129,7 +129,7 @@ fn get_central_dir_entry_size(buffer : Bytes, offset : Int) -> Int {
 
 ///|
 /// 将字节转换为字符串
-fn bytes_to_string(buffer : Bytes, offset : Int, len : Int) -> String {
+fn bytes_to_string(buffer : Bytes, offset : Int32, len : Int32) -> String {
   let bytes = buffer[offset:offset + len].to_owned()
   // 使用 UTF-8 解码，如果失败则尝试直接转换
   @utf8.decode(bytes) catch {

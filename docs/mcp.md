@@ -26,6 +26,8 @@ MoonBitMark 的 MCP 接口仍是实验性的，本地可用入口有两个：
 - `compare_with_baseline`
 - `upload_document`
 - `convert_uploaded_document`
+- `list_documents`
+- `delete_document`
 
 静态资源：
 
@@ -34,11 +36,18 @@ MoonBitMark 的 MCP 接口仍是实验性的，本地可用入口有两个：
 - `moonbitmark://known-issues`
 - `moonbitmark://ocr-boundaries`
 - `moonbitmark://mcp-usage`
+- `moonbitmark://server-info`
+
+资源模板：
+
+- `moonbitmark://document/{id}`（`upload_document` 写入、`list_documents` /
+  `delete_document` 管理的上传文档）
 
 静态 prompts：
 
 - `convert-document`
 - `diagnose-conversion-failure`
+- `batch-convert`
 
 ## 启动方式
 

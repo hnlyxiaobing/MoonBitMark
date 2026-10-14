@@ -1,9 +1,0 @@
-import {
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/syntax/pdfgenlex",
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
-  "moonbitlang/core/string",
-}
-
-warnings = "-all"

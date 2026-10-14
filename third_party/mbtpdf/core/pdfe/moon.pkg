@@ -1,5 +1,0 @@
-import {
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfutil",
-}
-
-warnings = "-all"

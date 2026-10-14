@@ -9,6 +9,8 @@
 - `sync`：同步 benchmark 子集到 `fixtures/inputs/`
 - `prepare`：生成/刷新 reference markdown
 - `run`：执行 MoonBitMark 评测并输出报告，可选 `--compare-baselines`
+- `compare-baseline`：对单个输入跑指定 baseline（`--tool markitdown|docling`），
+  可与候选 markdown 对比
 - `all`：按 `sync -> prepare -> run` 全流程执行，可选 `--compare-baselines`
 
 推荐直接通过仓库根目录的 `scripts/run_conversion_eval.ps1` 调用。

@@ -4,6 +4,7 @@ import {
   "hnlyxiaobing/moonbitmark/src/core",
   "hnlyxiaobing/moonbitmark/src/ast",
   "hnlyxiaobing/moonbitmark/src/engine",
+  "hnlyxiaobing/moonbitmark/src/mcp/types",
   "hnlyxiaobing/moonbitmark/src/semantic",
   "moonbitlang/async/fs",
   "moonbitlang/async",

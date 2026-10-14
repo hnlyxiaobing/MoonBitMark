@@ -3,7 +3,7 @@
 ///|
 /// Converter for plain text files
 pub(all) struct TextConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|
@@ -181,7 +181,7 @@ fn text_chunk_to_list(chunk : String) -> @ast.Block? {
   let items : Array[String] = []
   let mut current_item = ""
   let mut ordered : Bool? = None
-  let mut base_indent : Int? = None
+  let mut base_indent : Int32? = None
 
   for raw_line in chunk.split("\n").to_array() {
     let line = raw_line.to_owned()
@@ -274,7 +274,7 @@ fn append_text_list_line(current : String, next_line : String) -> String {
 }
 
 ///|
-fn parse_text_list_marker(line : String) -> (Bool, Int, String)? {
+fn parse_text_list_marker(line : String) -> (Bool, Int32, String)? {
   let indent = line.length() - line.trim_start().length()
   let trimmed = line.trim_start().to_owned()
   if trimmed.has_prefix("- ") ||
@@ -349,7 +349,7 @@ fn normalize_text_paragraph(
 }
 
 ///|
-fn count_lines(content : String) -> Int {
+fn count_lines(content : String) -> Int32 {
   if content == "" {
     0
   } else {

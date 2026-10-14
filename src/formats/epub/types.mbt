@@ -85,5 +85,5 @@ pub extend EpubPackage with @debug.Debug::{to_repr}
 ///|
 /// EPUB converter struct
 pub(all) struct EpubConverter {
-  dummy : Int
+  dummy : Int32
 }

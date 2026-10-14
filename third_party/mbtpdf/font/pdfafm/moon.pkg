@@ -1,6 +1,0 @@
-import {
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfio",
-  "moonbitlang/core/string",
-}
-
-warnings = "-all"

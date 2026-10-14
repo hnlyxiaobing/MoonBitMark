@@ -2,7 +2,7 @@
 
 ///|
 fn print_usage() -> Unit {
-  println("MoonBitMark MCP Server v0.3.0")
+  println("MoonBitMark MCP Server v0.4.6")
   println("")
   println("Recommended local STDIO entry points:")
   println("  - cmd /d /c scripts\\mcp\\moonbitmark-mcp.cmd")

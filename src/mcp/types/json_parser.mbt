@@ -3,8 +3,8 @@
 ///|
 pub enum JsonParseError {
   UnexpectedEnd
-  ExpectedChar(Int)
-  InvalidEscape(Int)
+  ExpectedChar(Int32)
+  InvalidEscape(Int32)
   ExpectedColon
   ExpectedCommaOrTerminator
   InvalidJson(String)
@@ -26,7 +26,7 @@ pub fn JsonParseError::to_string(self : JsonParseError) -> String {
 
 ///|
 priv struct ParserState {
-  mut index : Int
+  mut index : Int32
 }
 
 ///|
@@ -113,7 +113,7 @@ fn parse_string(
 fn decode_escape(
   input : String,
   state : ParserState,
-  escaped : Int,
+  escaped : Int32,
 ) -> Result[Char, JsonParseError] {
   match escaped {
     34 => Ok('"')
@@ -325,17 +325,21 @@ fn skip_whitespace(input : String, state : ParserState) -> Unit {
 }
 
 ///|
-fn is_current_char(input : String, state : ParserState, expected : Int) -> Bool {
+fn is_current_char(
+  input : String,
+  state : ParserState,
+  expected : Int32,
+) -> Bool {
   state.index < input.length() && char_code_at(input, state.index) == expected
 }
 
 ///|
-fn is_digit(ch : Int) -> Bool {
+fn is_digit(ch : Int32) -> Bool {
   ch >= 48 && ch <= 57
 }
 
 ///|
-fn hex_to_int(hex : String) -> Int? {
+fn hex_to_int(hex : String) -> Int32? {
   let mut result = 0
   for ch in hex {
     let digit = match ch {
@@ -414,7 +418,7 @@ fn parse_float(text : String) -> Float? {
 }
 
 ///|
-fn pow10(exponent : Int) -> Float {
+fn pow10(exponent : Int32) -> Float {
   let mut result = 1.0F
   let mut i = 0
   while i < exponent {
@@ -425,6 +429,6 @@ fn pow10(exponent : Int) -> Float {
 }
 
 ///|
-fn char_code_at(text : String, index : Int) -> Int {
+fn char_code_at(text : String, index : Int32) -> Int32 {
   text.at(index).to_int()
 }

@@ -6,10 +6,10 @@
 
 ///|
 // FAT special sector values ([MS-CFB] 2.3.1).
-let cfb_freesect : UInt = 0xFFFFFFFF
+let cfb_freesect : UInt32 = 0xFFFFFFFF
 
 ///|
-let cfb_endofchain : UInt = 0xFFFFFFFE
+let cfb_endofchain : UInt32 = 0xFFFFFFFE
 
 ///|
 // Header signature: D0 CF 11 E0 A1 B1 1A E1.
@@ -17,38 +17,38 @@ let cfb_magic : Bytes = b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
 
 ///|
 // Header byte order marker (little endian).
-let cfb_byte_order_le : Int = 0xFFFE
+let cfb_byte_order_le : Int32 = 0xFFFE
 
 ///|
 /// One 128-byte directory entry of the CFB directory chain.
 pub(all) struct CfbDirectoryEntry {
   name : String
   /// 1 = storage, 2 = stream, 5 = root entry, 0 = unallocated
-  entry_type : Int
-  start_sector : UInt
-  stream_size : UInt
+  entry_type : Int32
+  start_sector : UInt32
+  stream_size : UInt32
 }
 
 ///|
 /// An opened OLE2 compound file.
 pub(all) struct CfbArchive {
   data : Bytes
-  sector_size : Int
-  mini_sector_size : Int
-  mini_cutoff : UInt
-  fat : Array[UInt]
-  minifat : Array[UInt]
+  sector_size : Int32
+  mini_sector_size : Int32
+  mini_cutoff : UInt32
+  fat : Array[UInt32]
+  minifat : Array[UInt32]
   entries : Array[CfbDirectoryEntry]
   ministream : Bytes
 }
 
 ///|
-fn cfb_u16le(b : Bytes, o : Int) -> Int {
+fn cfb_u16le(b : Bytes, o : Int32) -> Int32 {
   b[o].to_int() | (b[o + 1].to_int() << 8)
 }
 
 ///|
-fn cfb_u32le(b : Bytes, o : Int) -> UInt {
+fn cfb_u32le(b : Bytes, o : Int32) -> UInt32 {
   b[o].to_uint() |
   (b[o + 1].to_uint() << 8) |
   (b[o + 2].to_uint() << 16) |
@@ -110,7 +110,7 @@ pub fn CfbArchive::open_explained(buffer : Bytes) -> Result[CfbArchive, String] 
   let first_minifat = cfb_u32le(buffer, 0x3C)
   let first_difat = cfb_u32le(buffer, 0x44)
   // Build the DIFAT: 109 slots in the header, then optional chain sectors.
-  let difat : Array[UInt] = []
+  let difat : Array[UInt32] = []
   for i in 0..<109 {
     let v = cfb_u32le(buffer, 0x4C + i * 4)
     if v == cfb_freesect {
@@ -147,7 +147,7 @@ pub fn CfbArchive::open_explained(buffer : Bytes) -> Result[CfbArchive, String] 
     difat_sec = cfb_u32le(buffer, off + per_sector * 4)
   }
   // Assemble the FAT from the DIFAT-listed sectors.
-  let fat : Array[UInt] = []
+  let fat : Array[UInt32] = []
   for sec in difat {
     let idx = sec.reinterpret_as_int()
     if idx < 0 || idx >= max_sectors {
@@ -197,7 +197,7 @@ pub fn CfbArchive::open_explained(buffer : Bytes) -> Result[CfbArchive, String] 
   }
   let archive = CfbArchive::{ ..archive, entries, }
   // MiniFAT chain.
-  let minifat : Array[UInt] = []
+  let minifat : Array[UInt32] = []
   if first_minifat != cfb_endofchain && first_minifat != cfb_freesect {
     let minifat_bytes = match archive.read_fat_chain(first_minifat, -1) {
       Some(bytes) => bytes
@@ -238,7 +238,7 @@ pub fn CfbArchive::open(buffer : Bytes) -> CfbArchive? {
 }
 
 ///|
-fn parse_cfb_directory_entry(bytes : Bytes, off : Int) -> CfbDirectoryEntry {
+fn parse_cfb_directory_entry(bytes : Bytes, off : Int32) -> CfbDirectoryEntry {
   let name_len = cfb_u16le(bytes, off + 0x40)
   let mut char_count = name_len / 2
   if char_count > 0 {
@@ -256,7 +256,11 @@ fn parse_cfb_directory_entry(bytes : Bytes, off : Int) -> CfbDirectoryEntry {
 }
 
 ///|
-fn cfb_decode_utf16le(bytes : Bytes, offset : Int, char_count : Int) -> String {
+fn cfb_decode_utf16le(
+  bytes : Bytes,
+  offset : Int32,
+  char_count : Int32,
+) -> String {
   let sb = StringBuilder()
   let mut i = 0
   while i < char_count {
@@ -286,8 +290,8 @@ fn cfb_decode_utf16le(bytes : Bytes, offset : Int, char_count : Int) -> String {
 ///|
 /// Follow a sector chain through `table`, stopping at ENDOFCHAIN.
 /// Returns None on out-of-range sectors or loops.
-fn cfb_chain_sectors(start : UInt, table : Array[UInt]) -> Array[UInt]? {
-  let out : Array[UInt] = []
+fn cfb_chain_sectors(start : UInt32, table : Array[UInt32]) -> Array[UInt32]? {
+  let out : Array[UInt32] = []
   let mut cur = start
   let limit = table.length() + 1
   while cur != cfb_endofchain && cur != cfb_freesect {
@@ -309,8 +313,8 @@ fn cfb_chain_sectors(start : UInt, table : Array[UInt]) -> Array[UInt]? {
 /// Read `size` bytes following a FAT chain; `size < 0` means "whole chain".
 fn CfbArchive::read_fat_chain(
   self : CfbArchive,
-  start : UInt,
-  size : Int,
+  start : UInt32,
+  size : Int32,
 ) -> Bytes? {
   if start == cfb_endofchain || start == cfb_freesect {
     if size <= 0 {
@@ -348,8 +352,8 @@ fn CfbArchive::read_fat_chain(
 /// Read `size` bytes following a MiniFAT chain through the mini stream.
 fn CfbArchive::read_mini_chain(
   self : CfbArchive,
-  start : UInt,
-  size : Int,
+  start : UInt32,
+  size : Int32,
 ) -> Bytes? {
   if size <= 0 {
     return Some(b"")
@@ -380,7 +384,7 @@ fn CfbArchive::read_mini_chain(
 }
 
 ///|
-fn cfb_imin(a : Int, b : Int) -> Int {
+fn cfb_imin(a : Int32, b : Int32) -> Int32 {
   if a < b {
     a
   } else {

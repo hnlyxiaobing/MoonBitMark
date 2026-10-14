@@ -11,7 +11,7 @@ pub(all) suberror ZipError {
   /// 文件不存在
   FileNotFound(String)
   /// 不支持的压缩方法
-  UnsupportedMethod(Int)
+  UnsupportedMethod(Int32)
   /// 解压失败
   DecompressFailed(String)
   /// CRC 校验失败

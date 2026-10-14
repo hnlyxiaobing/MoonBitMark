@@ -110,7 +110,7 @@ fn render_table(
 fn table_width(
   headers : Array[Array[Inline]],
   rows : Array[Array[Array[Inline]]],
-) -> Int {
+) -> Int32 {
   let mut width = headers.length()
   for row in rows {
     if row.length() > width {
@@ -121,7 +121,7 @@ fn table_width(
 }
 
 ///|
-fn render_table_row(cells : Array[Array[Inline]], width : Int) -> String {
+fn render_table_row(cells : Array[Array[Inline]], width : Int32) -> String {
   let normalized = normalize_table_row(cells, width)
   "| " +
   normalized.map(cell => escape_table_cell(render_inlines(cell))).join(" | ") +
@@ -131,7 +131,7 @@ fn render_table_row(cells : Array[Array[Inline]], width : Int) -> String {
 ///|
 fn normalize_table_row(
   cells : Array[Array[Inline]],
-  width : Int,
+  width : Int32,
 ) -> Array[Array[Inline]] {
   let normalized : Array[Array[Inline]] = []
   let mut index = 0

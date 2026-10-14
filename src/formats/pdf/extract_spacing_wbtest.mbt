@@ -21,7 +21,7 @@ fn build_test_pdf(
   let header = "%PDF-1.4\n"
   let buf = StringBuilder()
   buf.write_string(header)
-  let offsets : Array[Int] = []
+  let offsets : Array[Int32] = []
   let mut offset = header.length()
   for i, obj in objects {
     offsets.push(offset)
@@ -43,7 +43,7 @@ fn build_test_pdf(
 }
 
 ///|
-fn pad_xref_offset(value : Int) -> String {
+fn pad_xref_offset(value : Int32) -> String {
   let digits = value.to_string()
   let padding = 10 - digits.length()
   if padding <= 0 {

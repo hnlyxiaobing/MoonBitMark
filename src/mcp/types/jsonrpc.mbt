@@ -18,7 +18,7 @@ pub(all) struct JsonResponse {
 
 ///|
 pub(all) struct JsonError {
-  code : Int
+  code : Int32
   message : String
   data : JsonValue?
 }
@@ -26,7 +26,7 @@ pub(all) struct JsonError {
 ///|
 pub(all) enum JsonId {
   StringId(String)
-  NumberId(Int)
+  NumberId(Int32)
   NullId
 }
 
@@ -75,7 +75,7 @@ pub fn JsonResponse::to_json(self : JsonResponse) -> JsonValue {
 ///|
 pub(all) enum JsonValue {
   String(String)
-  Number(Int)
+  Number(Int32)
   Float(Float)
   Bool(Bool)
   Null
@@ -105,7 +105,7 @@ pub fn JsonValue::get(self : JsonValue, key : String) -> JsonValue? {
 }
 
 ///|
-pub fn JsonValue::get_array(self : JsonValue, index : Int) -> JsonValue? {
+pub fn JsonValue::get_array(self : JsonValue, index : Int32) -> JsonValue? {
   match self {
     Array(values) =>
       if index >= 0 && index < values.length() {

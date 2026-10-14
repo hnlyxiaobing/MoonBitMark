@@ -2,7 +2,7 @@
 /// XML 解析错误类型
 pub(all) suberror XMLParseError {
   /// 语法错误
-  SyntaxError(Int, String)
+  SyntaxError(Int32, String)
   /// 未闭合标签
   UnclosedTag(String)
   /// 标签不匹配
@@ -19,7 +19,7 @@ pub(all) suberror XMLParseError {
 /// XML 解析器配置
 pub(all) struct XMLParserConfig {
   encoding : String
-  buffer_size : Int
+  buffer_size : Int32
 }
 
 ///|
@@ -46,21 +46,21 @@ pub enum Token {
 pub(all) struct ElementStartEvent {
   name : String
   attributes : Map[String, String]
-  line_number : Int
+  line_number : Int32
 }
 
 ///|
 /// 元素结束事件
 pub(all) struct ElementEndEvent {
   name : String
-  line_number : Int
+  line_number : Int32
 }
 
 ///|
 /// 文本内容事件
 pub(all) struct TextEvent {
   content : String
-  line_number : Int
+  line_number : Int32
 }
 
 ///|

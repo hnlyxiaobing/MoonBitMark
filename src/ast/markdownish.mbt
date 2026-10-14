@@ -138,7 +138,7 @@ fn parse_list_block(chunk : String) -> Block {
 }
 
 ///|
-fn ordered_list_prefix_length(line : String) -> Int? {
+fn ordered_list_prefix_length(line : String) -> Int32? {
   let mut digits = 0
   let mut index = 0
   for ch in line {

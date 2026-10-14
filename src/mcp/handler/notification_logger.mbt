@@ -83,7 +83,7 @@ fn mcp_level_should_emit(
 }
 
 ///|
-fn mcp_level_rank(level : @types.McpLoggingLevel) -> Int {
+fn mcp_level_rank(level : @types.McpLoggingLevel) -> Int32 {
   match level {
     @types.McpLoggingLevel::Debug => 0
     @types.McpLoggingLevel::Info => 1

@@ -55,7 +55,7 @@ fn build_long_text() -> String {
 }
 
 ///|
-fn parse_int_string(value : String) -> Int raise {
+fn parse_int_string(value : String) -> Int32 raise {
   @string.from_str(value[:])
 }
 
@@ -87,7 +87,7 @@ fn json_object_field(
 ///|
 fn json_array_at(
   value : @types.JsonValue,
-  index : Int,
+  index : Int32,
 ) -> @types.JsonValue raise {
   match value {
     @types.Array(items) =>
@@ -108,7 +108,7 @@ fn json_string_field(value : @types.JsonValue, key : String) -> String raise {
 }
 
 ///|
-fn json_int_field(value : @types.JsonValue, key : String) -> Int raise {
+fn json_int_field(value : @types.JsonValue, key : String) -> Int32 raise {
   match json_object_field(value, key) {
     @types.Number(number) => number
     _ => fail("expected int field: " + key)
@@ -116,7 +116,7 @@ fn json_int_field(value : @types.JsonValue, key : String) -> Int raise {
 }
 
 ///|
-fn json_array_length(value : @types.JsonValue) -> Int raise {
+fn json_array_length(value : @types.JsonValue) -> Int32 raise {
   match value {
     @types.Array(items) => items.length()
     _ => fail("expected array length")

@@ -7,7 +7,7 @@
 /// Index of the `>` that closes the tag opened at `lt_index` (`text[lt_index]`
 /// is expected to be `<`), skipping any `>` that appears inside a `"`/`'`
 /// quoted attribute value. Returns `None` when the tag is unterminated.
-pub fn find_tag_close(text : String, lt_index : Int) -> Int? {
+pub fn find_tag_close(text : String, lt_index : Int32) -> Int32? {
   if lt_index < 0 || lt_index >= text.length() {
     return None
   }
@@ -35,7 +35,7 @@ pub fn find_tag_close(text : String, lt_index : Int) -> Int? {
 /// such as `table` from matching a longer name such as `tablet`.
 pub fn markup_tag_matches(
   text : String,
-  start : Int,
+  start : Int32,
   name : String,
   closing : Bool,
 ) -> Bool {
@@ -62,9 +62,9 @@ pub fn markup_tag_matches(
 pub fn find_markup_tag(
   text : String,
   name : String,
-  from : Int,
+  from : Int32,
   closing : Bool,
-) -> Int? {
+) -> Int32? {
   let prefix = if closing { "</" + name } else { "<" + name }
   let mut index = if from < 0 { 0 } else { from }
   while index < text.length() {
@@ -82,7 +82,7 @@ pub fn find_markup_tag(
 }
 
 ///|
-fn find_markup_from(text : String, needle : String, start : Int) -> Int? {
+fn find_markup_from(text : String, needle : String, start : Int32) -> Int32? {
   if start >= text.length() {
     None
   } else {

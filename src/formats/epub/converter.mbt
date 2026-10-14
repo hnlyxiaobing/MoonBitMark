@@ -579,7 +579,7 @@ fn extract_epub_div_with_marker(text : String, marker : String) -> String? {
 }
 
 ///|
-fn extract_epub_div_range(text : String, marker : String) -> (Int, Int)? {
+fn extract_epub_div_range(text : String, marker : String) -> (Int32, Int32)? {
   match text.find(marker) {
     Some(marker_index) =>
       match find_last_epub_substring(text[:marker_index].to_owned(), "<div") {
@@ -595,11 +595,11 @@ fn extract_epub_div_range(text : String, marker : String) -> (Int, Int)? {
 }
 
 ///|
-fn find_last_epub_substring(text : String, pattern : String) -> Int? {
+fn find_last_epub_substring(text : String, pattern : String) -> Int32? {
   if pattern == "" || text.length() < pattern.length() {
     return None
   }
-  let mut last : Int? = None
+  let mut last : Int32? = None
   let mut index = 0
   let max_start = text.length() - pattern.length()
   while index <= max_start {
@@ -612,7 +612,7 @@ fn find_last_epub_substring(text : String, pattern : String) -> Int? {
 }
 
 ///|
-fn find_matching_epub_div_end(text : String, div_start : Int) -> Int? {
+fn find_matching_epub_div_end(text : String, div_start : Int32) -> Int32? {
   let mut depth = 0
   let mut index = div_start
   while index < text.length() {
@@ -739,7 +739,7 @@ fn expand_epub_hgroup(text : String) -> String {
 }
 
 ///|
-fn find_next_epub_block_start(text : String) -> (Int, String, Int)? {
+fn find_next_epub_block_start(text : String) -> (Int32, String, Int32)? {
   let mut best_index = text.length()
   let mut best_tag = ""
   let mut best_level = 0
@@ -844,7 +844,7 @@ fn extract_epub_tag_block(text : String, tag : String) -> (String, String)? {
 fn parse_epub_gutenberg_fragment(
   fragment : String,
   tag : String,
-  level : Int,
+  level : Int32,
 ) -> @ast.Block? {
   if tag == "div" {
     let div_text = sanitize_epub_text(
@@ -1133,7 +1133,7 @@ fn flush_epub_xml_text_block(
   blocks : Array[@ast.Block],
   tag : String,
   text : String,
-  heading_level : Int,
+  heading_level : Int32,
 ) -> Unit {
   let normalized = sanitize_epub_text(text)
   if normalized == "" || is_epub_noise_text(normalized) {
@@ -1193,7 +1193,7 @@ fn is_epub_ignored_xml_tag(tag : String) -> Bool {
 }
 
 ///|
-fn epub_xml_heading_level(tag : String) -> Int {
+fn epub_xml_heading_level(tag : String) -> Int32 {
   match tag {
     "h1" => 1
     "h2" => 2
@@ -1227,7 +1227,7 @@ fn normalize_gutenberg_blocks(blocks : Array[@ast.Block]) -> Array[@ast.Block] {
 }
 
 ///|
-fn find_first_epub_chapter_heading(blocks : Array[@ast.Block]) -> Int? {
+fn find_first_epub_chapter_heading(blocks : Array[@ast.Block]) -> Int32? {
   for i, block in blocks {
     match block {
       @ast.Heading(_, inlines) => {
@@ -1662,7 +1662,10 @@ fn plain_text_markdownish(text : String) -> String {
 }
 
 ///|
-fn extract_markdown_link_label(text : String, start : Int) -> (String, Int?) {
+fn extract_markdown_link_label(
+  text : String,
+  start : Int32,
+) -> (String, Int32?) {
   let mut i = start
   if text[i] == '!' {
     i = i + 1
@@ -1810,7 +1813,7 @@ fn append_epub_asset_blocks(
 }
 
 ///|
-fn epub_asset_placeholder(index : Int) -> String {
+fn epub_asset_placeholder(index : Int32) -> String {
   @core.asset_placeholder("epub", index)
 }
 
@@ -1887,7 +1890,7 @@ fn epub_warning_diagnostics(
 async fn ocr_epub_assets(
   assets : Array[@core.OutputAsset],
   config : @ocr.OcrConfig,
-) -> (Array[@ast.Block], Array[String], Int, String?) {
+) -> (Array[@ast.Block], Array[String], Int32, String?) {
   let blocks : Array[@ast.Block] = []
   let warnings : Array[String] = []
   let mut count = 0

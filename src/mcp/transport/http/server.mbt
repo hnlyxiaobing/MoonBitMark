@@ -1,7 +1,7 @@
 ///|
 pub(all) struct McpHttpServerConfig {
   bind_host : String
-  port : Int
+  port : Int32
 }
 
 ///|
@@ -17,14 +17,14 @@ pub fn default_mcp_http_bind_host() -> String {
 }
 
 ///|
-pub fn default_mcp_http_port() -> Int {
+pub fn default_mcp_http_port() -> Int32 {
   8765
 }
 
 ///|
 pub fn McpHttpServerConfig::new(
   bind_host~ : String = default_mcp_http_bind_host(),
-  port~ : Int = default_mcp_http_port(),
+  port~ : Int32 = default_mcp_http_port(),
 ) -> McpHttpServerConfig raise {
   if port <= 0 || port > 65535 {
     fail("HTTP MCP port must be between 1 and 65535.")
@@ -127,7 +127,7 @@ fn is_http_bad_request_response(response : @types.JsonResponse) -> Bool {
 ///|
 async fn send_jsonrpc_response(
   conn : @async_http.ServerConnection,
-  status_code : Int,
+  status_code : Int32,
   reason : String,
   response : @types.JsonResponse,
 ) -> Unit {
@@ -137,7 +137,7 @@ async fn send_jsonrpc_response(
 ///|
 async fn send_json_response(
   conn : @async_http.ServerConnection,
-  status_code : Int,
+  status_code : Int32,
   reason : String,
   body : String,
 ) -> Unit {
@@ -150,7 +150,7 @@ async fn send_json_response(
 ///|
 async fn send_plain_response(
   conn : @async_http.ServerConnection,
-  status_code : Int,
+  status_code : Int32,
   reason : String,
   body : String,
 ) -> Unit {
@@ -183,7 +183,7 @@ async fn send_method_not_allowed(
 ///|
 async fn send_empty_response(
   conn : @async_http.ServerConnection,
-  status_code : Int,
+  status_code : Int32,
   reason : String,
 ) -> Unit {
   conn.send_response(status_code, reason)

@@ -2,20 +2,20 @@
 
 ///|
 /// ZIP 文件签名常量
-pub let local_file_header_sig : UInt = 0x04034b50
+pub let local_file_header_sig : UInt32 = 0x04034b50
 
 ///|
-pub let central_dir_sig : UInt = 0x02014b50
+pub let central_dir_sig : UInt32 = 0x02014b50
 
 ///|
-pub let end_of_central_dir_sig : UInt = 0x06054b50
+pub let end_of_central_dir_sig : UInt32 = 0x06054b50
 
 ///|
 /// 压缩方法
 pub enum CompressionMethod {
-  Store(Int) // 无压缩
-  Deflate(Int) // DEFLATE 压缩
-  Unknown(Int) // 未知方法
+  Store(Int32) // 无压缩
+  Deflate(Int32) // DEFLATE 压缩
+  Unknown(Int32) // 未知方法
 } derive(Debug, Eq)
 
 ///|
@@ -25,7 +25,7 @@ pub extend CompressionMethod with @debug.Debug::{to_repr}
 pub extend CompressionMethod with Eq::{not_equal, equal}
 
 ///|
-pub fn compression_method_from_int(code : Int) -> CompressionMethod {
+pub fn compression_method_from_int(code : Int32) -> CompressionMethod {
   if code == 0 {
     Store(code)
   } else if code == 8 {

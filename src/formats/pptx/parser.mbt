@@ -3,7 +3,7 @@
 ///|
 /// 幻灯片引用信息
 pub struct SlideRef {
-  slide_num : Int
+  slide_num : Int32
   r_id : String
   slide_path : String
 }
@@ -136,7 +136,7 @@ fn handle_relation_element_start(
 /// PPTX 解析上下文
 priv struct PresentationContext {
   mut in_sld_id_lst : Bool
-  mut slide_num : Int
+  mut slide_num : Int32
   relations : Map[String, String]
   slide_refs : Array[SlideRef]
 }

@@ -2,20 +2,20 @@
 
 ///|
 pub enum McpErrorCode {
-  ParseError(Int)
+  ParseError(Int32)
   InvalidRequest
   MethodNotFound
   InvalidParams
   InternalError
-  ServerError(Int)
+  ServerError(Int32)
   ToolError(String)
 }
 
 ///|
 pub(all) struct ErrorLocation {
   file : String?
-  line : Int?
-  column : Int?
+  line : Int32?
+  column : Int32?
   function : String?
 }
 
@@ -40,7 +40,7 @@ pub fn ErrorLocation::with_file(
 ///|
 pub fn ErrorLocation::with_line(
   self : ErrorLocation,
-  line : Int,
+  line : Int32,
 ) -> ErrorLocation {
   {
     file: self.file,
@@ -53,7 +53,7 @@ pub fn ErrorLocation::with_line(
 ///|
 pub fn ErrorLocation::with_column(
   self : ErrorLocation,
-  column : Int,
+  column : Int32,
 ) -> ErrorLocation {
   {
     file: self.file,
@@ -161,7 +161,7 @@ pub(all) struct McpError {
 
 ///|
 pub fn McpError::parse_error(
-  code : Int,
+  code : Int32,
   message : String,
   context : ErrorContext,
 ) -> McpError {
@@ -209,7 +209,7 @@ pub fn McpError::internal_error(
 
 ///|
 pub fn McpError::server_error(
-  code : Int,
+  code : Int32,
   message : String,
   details : String?,
   context : ErrorContext,
@@ -243,7 +243,7 @@ pub fn McpError::tool_error(
 }
 
 ///|
-pub fn McpError::to_jsonrpc_code(self : McpError) -> Int {
+pub fn McpError::to_jsonrpc_code(self : McpError) -> Int32 {
   match self.code {
     ParseError(code) => code
     InvalidRequest => -32600

@@ -18,7 +18,7 @@ async fn run_ocr_file_bridge(
   file_path : String,
   source_name : String,
   config : OcrConfig,
-  page_numbers : Array[Int],
+  page_numbers : Array[Int32],
 ) -> OcrResult {
   ignore(file_path)
   ignore(source_name)

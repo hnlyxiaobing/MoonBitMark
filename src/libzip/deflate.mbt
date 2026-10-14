@@ -44,8 +44,8 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
 priv struct InflateState {
   output : Array[Byte]
   window : Array[Byte]
-  mut window_pos : Int
-  mut produced : Int
+  mut window_pos : Int32
+  mut produced : Int32
 }
 
 ///|
@@ -69,8 +69,8 @@ fn InflateState::write_byte(self : InflateState, byte : Byte) -> Unit {
 ///|
 fn InflateState::copy_from_distance(
   self : InflateState,
-  distance : Int,
-  length : Int,
+  distance : Int32,
+  length : Int32,
 ) -> Bool {
   if distance <= 0 || distance > 32768 {
     return false
@@ -90,8 +90,8 @@ fn InflateState::copy_from_distance(
 ///|
 /// 位读取器
 priv struct BitReader {
-  mut byte_pos : Int
-  mut bit_pos : Int
+  mut byte_pos : Int32
+  mut bit_pos : Int32
   data : Bytes
 }
 
@@ -102,7 +102,10 @@ fn BitReader::new(data : Bytes) -> BitReader {
 
 ///|
 /// 读取指定位数 (LSB 优先)
-fn BitReader::read_bits(self : BitReader, count : Int) -> Result[Int, String] {
+fn BitReader::read_bits(
+  self : BitReader,
+  count : Int32,
+) -> Result[Int32, String] {
   let mut result = 0
   let mut bits_read = 0
 
@@ -154,7 +157,7 @@ fn BitReader::read_byte(self : BitReader) -> Result[Byte, String] {
 
 ///|
 /// 读取 UInt16 (小端序)
-fn BitReader::read_uint16_le(self : BitReader) -> Result[Int, String] {
+fn BitReader::read_uint16_le(self : BitReader) -> Result[Int32, String] {
   let lo_result = self.read_byte()
   let lo = match lo_result {
     Ok(b) => b
@@ -266,15 +269,15 @@ fn decompress_fixed_huffman_block(
 
 ///|
 /// Int 转 Byte
-fn int_to_byte(n : Int) -> Byte {
+fn int_to_byte(n : Int32) -> Byte {
   // 使用 UInt 中间转换
-  let u : UInt = n.reinterpret_as_uint()
+  let u : UInt32 = n.reinterpret_as_uint()
   u.to_byte()
 }
 
 ///|
 /// 解码固定 Huffman 符号
-fn decode_fixed_symbol(reader : BitReader) -> Result[Int, String] {
+fn decode_fixed_symbol(reader : BitReader) -> Result[Int32, String] {
   // 读取前7位判断范围 (MSB first for Huffman codes)
   let first7_result = reader.read_bits_reverse(7)
   let first7 = match first7_result {
@@ -330,8 +333,8 @@ fn decode_fixed_symbol(reader : BitReader) -> Result[Int, String] {
 /// 正确实现：逐位读取，每次左移结果，新位作为 LSB
 fn BitReader::read_bits_reverse(
   self : BitReader,
-  count : Int,
-) -> Result[Int, String] {
+  count : Int32,
+) -> Result[Int32, String] {
   let mut result = 0
   let mut bits_read = 0
 
@@ -359,7 +362,9 @@ fn BitReader::read_bits_reverse(
 
 ///|
 /// 长度码基础值表
-let length_base : FixedArray[Int] = FixedArray::makei(29, fn(i : Int) -> Int {
+let length_base : FixedArray[Int32] = FixedArray::makei(29, fn(
+  i : Int32,
+) -> Int32 {
   match i {
     0 => 3
     1 => 4
@@ -395,7 +400,9 @@ let length_base : FixedArray[Int] = FixedArray::makei(29, fn(i : Int) -> Int {
 
 ///|
 /// 长度码额外位数表
-let length_extra : FixedArray[Int] = FixedArray::makei(29, fn(i : Int) -> Int {
+let length_extra : FixedArray[Int32] = FixedArray::makei(29, fn(
+  i : Int32,
+) -> Int32 {
   match i {
     0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 => 0
     8 | 9 | 10 | 11 => 1
@@ -409,7 +416,9 @@ let length_extra : FixedArray[Int] = FixedArray::makei(29, fn(i : Int) -> Int {
 
 ///|
 /// 距离码基础值表
-let dist_base : FixedArray[Int] = FixedArray::makei(30, fn(i : Int) -> Int {
+let dist_base : FixedArray[Int32] = FixedArray::makei(30, fn(
+  i : Int32,
+) -> Int32 {
   match i {
     0 => 1
     1 => 2
@@ -446,7 +455,9 @@ let dist_base : FixedArray[Int] = FixedArray::makei(30, fn(i : Int) -> Int {
 
 ///|
 /// 距离码额外位数表
-let dist_extra : FixedArray[Int] = FixedArray::makei(30, fn(i : Int) -> Int {
+let dist_extra : FixedArray[Int32] = FixedArray::makei(30, fn(
+  i : Int32,
+) -> Int32 {
   match i {
     0 | 1 | 2 | 3 => 0
     4 | 5 => 1
@@ -467,7 +478,7 @@ let dist_extra : FixedArray[Int] = FixedArray::makei(30, fn(i : Int) -> Int {
 
 ///|
 /// 解码长度
-fn decode_length(reader : BitReader, code : Int) -> Result[Int, String] {
+fn decode_length(reader : BitReader, code : Int32) -> Result[Int32, String] {
   let idx = code - 257
   if idx < 0 || idx >= 29 {
     return Err("Invalid length code")
@@ -487,7 +498,7 @@ fn decode_length(reader : BitReader, code : Int) -> Result[Int, String] {
 
 ///|
 /// 解码距离
-fn decode_distance(reader : BitReader, code : Int) -> Result[Int, String] {
+fn decode_distance(reader : BitReader, code : Int32) -> Result[Int32, String] {
   if code < 0 || code >= 30 {
     return Err("Invalid distance code")
   }
@@ -528,9 +539,9 @@ fn decompress_dynamic_huffman_block(
   }
 
   // 读取码长码顺序 (RFC 1951 规定的顺序)
-  let code_length_order : FixedArray[Int] = FixedArray::makei(19, fn(
-    i : Int,
-  ) -> Int {
+  let code_length_order : FixedArray[Int32] = FixedArray::makei(19, fn(
+    i : Int32,
+  ) -> Int32 {
     match i {
       0 => 16
       1 => 17
@@ -555,7 +566,7 @@ fn decompress_dynamic_huffman_block(
   })
 
   // 读取码长码 - 使用 LSB first (这些不是 Huffman 编码)
-  let code_lengths : FixedArray[Int] = FixedArray::makei(19, fn(_) { 0 })
+  let code_lengths : FixedArray[Int32] = FixedArray::makei(19, fn(_) { 0 })
 
   for i in 0..<hclen {
     let len_result = reader.read_bits(3)
@@ -575,7 +586,7 @@ fn decompress_dynamic_huffman_block(
 
   // 读取字面量/长度和距离编码长度
   let total = hlit + hdist
-  let lit_len_dist : FixedArray[Int] = FixedArray::makei(total, fn(_) { 0 })
+  let lit_len_dist : FixedArray[Int32] = FixedArray::makei(total, fn(_) { 0 })
   let mut i = 0
 
   while i < total {
@@ -704,22 +715,22 @@ fn decompress_dynamic_huffman_block(
 ///|
 /// 切片 FixedArray
 fn fixedarray_slice(
-  arr : FixedArray[Int],
-  start : Int,
-  end : Int,
-) -> FixedArray[Int] {
-  FixedArray::makei(end - start, fn(i : Int) -> Int { arr[start + i] })
+  arr : FixedArray[Int32],
+  start : Int32,
+  end : Int32,
+) -> FixedArray[Int32] {
+  FixedArray::makei(end - start, fn(i : Int32) -> Int32 { arr[start + i] })
 }
 
 ///|
 /// Huffman 树
 priv struct HuffmanTree {
-  tables : FixedArray[Map[Int, Int]]
-  max_len : Int
+  tables : FixedArray[Map[Int32, Int32]]
+  max_len : Int32
 }
 
 ///|
-fn reverse_low_bits(code : Int, bit_count : Int) -> Int {
+fn reverse_low_bits(code : Int32, bit_count : Int32) -> Int32 {
   let mut result = 0
   let mut remaining = code
   for _ in 0..<bit_count {
@@ -731,13 +742,15 @@ fn reverse_low_bits(code : Int, bit_count : Int) -> Int {
 
 ///|
 /// 构建 Huffman 树
-fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] {
+fn build_huffman_tree(
+  lengths : FixedArray[Int32],
+) -> Result[HuffmanTree, String] {
   // 计算每个码长的数量
   let max_allowed_len = 15
   let mut max_len = 0
 
   // 计算每个长度的符号数量
-  let bl_count : FixedArray[Int] = FixedArray::makei(max_allowed_len + 1, fn(
+  let bl_count : FixedArray[Int32] = FixedArray::makei(max_allowed_len + 1, fn(
     _,
   ) {
     0
@@ -767,8 +780,8 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
   }
 
   // 计算每个码长的起始码
-  let mut code : Int = 0
-  let next_code : FixedArray[Int] = FixedArray::makei(max_allowed_len + 1, fn(
+  let mut code : Int32 = 0
+  let next_code : FixedArray[Int32] = FixedArray::makei(max_allowed_len + 1, fn(
     _,
   ) {
     0
@@ -779,7 +792,7 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
     next_code[bits] = code
   }
 
-  let tables : FixedArray[Map[Int, Int]] = FixedArray::makei(max_len + 1, fn(
+  let tables : FixedArray[Map[Int32, Int32]] = FixedArray::makei(max_len + 1, fn(
     _,
   ) {
     Map([])
@@ -802,7 +815,7 @@ fn build_huffman_tree(lengths : FixedArray[Int]) -> Result[HuffmanTree, String] 
 fn decode_huffman(
   reader : BitReader,
   tree : HuffmanTree,
-) -> Result[Int, String] {
+) -> Result[Int32, String] {
   let mut code = 0
   for bit_len in 1..<=tree.max_len {
     let bit_result = reader.read_bits(1)

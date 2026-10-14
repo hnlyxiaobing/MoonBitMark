@@ -910,7 +910,7 @@ fn optional_string_arg(args : @types.JsonValue, key : String) -> String? {
 fn optional_positive_int_arg(
   args : @types.JsonValue,
   key : String,
-) -> Result[Int?, String] {
+) -> Result[Int32?, String] {
   match args.get(key) {
     Some(@types.Number(value)) =>
       if value > 0 {
@@ -978,7 +978,7 @@ fn is_url_input(input : String) -> Bool {
 }
 
 ///|
-async fn file_size_bytes(input : String) -> Int? {
+async fn file_size_bytes(input : String) -> Int32? {
   if is_url_input(input) {
     None
   } else {
@@ -1007,7 +1007,7 @@ fn advisory_format(detected_format : String, format_hint : String?) -> String {
 }
 
 ///|
-fn effective_max_chars(mode : String, max_chars : Int?) -> Int? {
+fn effective_max_chars(mode : String, max_chars : Int32?) -> Int32? {
   match max_chars {
     Some(value) => Some(value)
     None => if mode == "preview" { Some(4000) } else { None }
@@ -1015,7 +1015,7 @@ fn effective_max_chars(mode : String, max_chars : Int?) -> Int? {
 }
 
 ///|
-fn limit_markdown(markdown : String, max_chars : Int?) -> String {
+fn limit_markdown(markdown : String, max_chars : Int32?) -> String {
   match max_chars {
     Some(limit) =>
       if markdown.length() > limit {
@@ -1030,7 +1030,7 @@ fn limit_markdown(markdown : String, max_chars : Int?) -> String {
 ///|
 fn should_recommend_preview(
   format : String,
-  file_size_bytes : Int?,
+  file_size_bytes : Int32?,
   is_url : Bool,
 ) -> Bool {
   if is_url {
@@ -1054,7 +1054,7 @@ fn should_recommend_preview(
 ///|
 fn preview_reason(
   format : String,
-  file_size_bytes : Int?,
+  file_size_bytes : Int32?,
   is_url : Bool,
 ) -> String {
   if is_url {
@@ -1110,7 +1110,7 @@ fn optional_string(value : String?) -> String {
 }
 
 ///|
-fn optional_int_string(value : Int?) -> String {
+fn optional_int_string(value : Int32?) -> String {
   match value {
     Some(number) => number.to_string()
     None => "null"
@@ -1125,7 +1125,7 @@ fn inspect_document_payload(
   effective_format : String,
   extension : String?,
   filename : String?,
-  file_size_bytes : Int?,
+  file_size_bytes : Int32?,
   config : McpSecurityConfig,
   preview_recommended : Bool,
   is_url : Bool,
@@ -1217,10 +1217,10 @@ fn convert_to_markdown_payload(
   detected_format : String,
   effective_format : String,
   format_hint : String?,
-  requested_max_chars : Int?,
-  effective_max_chars : Int?,
+  requested_max_chars : Int32?,
+  effective_max_chars : Int32?,
   returned_markdown : String,
-  total_chars : Int,
+  total_chars : Int32,
   truncated : Bool,
   config : McpSecurityConfig,
   preview_recommended : Bool,
@@ -1570,7 +1570,7 @@ fn normalizer_explanation(result : @core.ConvertResult) -> @types.JsonValue {
 fn normalizer_step_summary(
   step : String,
   description : String,
-  changed_blocks : Int,
+  changed_blocks : Int32,
 ) -> @types.JsonValue {
   @types.Object({
     "step": @types.String(step),
@@ -1904,7 +1904,7 @@ fn inline_caption_signature(caption : Array[@ast.Inline]?) -> String {
 }
 
 ///|
-fn semantic_confidence_value(block : @semantic.SemanticBlock?) -> Int? {
+fn semantic_confidence_value(block : @semantic.SemanticBlock?) -> Int32? {
   match block {
     Some(value) => Some(value.confidence)
     None => None
@@ -2665,7 +2665,7 @@ fn metadata_bool(metadata : Map[String, String], key : String) -> Bool {
 }
 
 ///|
-fn metadata_int(metadata : Map[String, String], key : String) -> Int {
+fn metadata_int(metadata : Map[String, String], key : String) -> Int32 {
   match metadata.get(key) {
     Some(value) =>
       match try_parse_int(value) {
@@ -2696,7 +2696,7 @@ fn metadata_csv_numbers(
 }
 
 ///|
-fn try_parse_int(text : String) -> Int? {
+fn try_parse_int(text : String) -> Int32? {
   let trimmed = text.trim().to_owned()
   if trimmed == "" {
     return None
@@ -3033,7 +3033,7 @@ fn render_semantic_provenance_json(provenance : @semantic.Provenance) -> String 
 }
 
 ///|
-fn mcp_json_array_of_ints(values : Array[Int]) -> String {
+fn mcp_json_array_of_ints(values : Array[Int32]) -> String {
   let items : Array[String] = []
   for value in values {
     items.push(value.to_string())
@@ -3125,7 +3125,7 @@ fn json_optional_string(value : String?) -> @types.JsonValue {
 }
 
 ///|
-fn json_optional_int(value : Int?) -> @types.JsonValue {
+fn json_optional_int(value : Int32?) -> @types.JsonValue {
   match value {
     Some(number) => @types.Number(number)
     None => @types.Null
@@ -3297,7 +3297,7 @@ fn bool_string(value : Bool) -> String {
 }
 
 ///|
-fn count_sections(sections : Array[@semantic.Section]) -> Int {
+fn count_sections(sections : Array[@semantic.Section]) -> Int32 {
   let mut total = 0
   for section in sections {
     total = total + 1 + count_sections(section.children)
@@ -3306,7 +3306,9 @@ fn count_sections(sections : Array[@semantic.Section]) -> Int {
 }
 
 ///|
-fn count_low_confidence_blocks(blocks : Array[@semantic.SemanticBlock]) -> Int {
+fn count_low_confidence_blocks(
+  blocks : Array[@semantic.SemanticBlock],
+) -> Int32 {
   let mut total = 0
   for block in blocks {
     if block.confidence < 60 {
@@ -3612,8 +3614,8 @@ fn format_extension(format_name : String) -> String {
 }
 
 ///|
-fn find_last_char(text : String, target : Char) -> Int? {
-  let mut found : Int? = None
+fn find_last_char(text : String, target : Char) -> Int32? {
+  let mut found : Int32? = None
   let mut index = 0
   for ch in text {
     if ch == target {
@@ -3667,7 +3669,10 @@ fn json_object_string_arg_or_null(
 }
 
 ///|
-fn json_object_nullable_int_arg(value : @types.JsonValue, key : String) -> Int? {
+fn json_object_nullable_int_arg(
+  value : @types.JsonValue,
+  key : String,
+) -> Int32? {
   match value {
     @types.Object(map) =>
       match map.get(key) {

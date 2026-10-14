@@ -37,7 +37,7 @@ pub(all) struct OcrConfig {
   language : String
   enable_embedded_images : Bool
   backend : String?
-  timeout_ms : Int?
+  timeout_ms : Int32?
 } derive(Debug, Eq, ToJson)
 
 ///|

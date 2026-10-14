@@ -7,7 +7,7 @@ pub fn embedded_ocr_empty_warning(asset_name : String) -> String {
 }
 
 ///|
-pub fn asset_placeholder(format_name : String, index : Int) -> String {
+pub fn asset_placeholder(format_name : String, index : Int32) -> String {
   "moonbitmark-raw://" + format_name + "/" + index.to_string()
 }
 
@@ -42,7 +42,7 @@ pub fn apply_ocr_metadata(
   metadata : Map[String, String],
   config : @ocr.OcrConfig,
   provider : String?,
-  embedded_image_count~ : Int = 0,
+  embedded_image_count~ : Int32 = 0,
   attempted~ : Bool = false,
   available~ : Bool = false,
   fallback_used~ : Bool = false,

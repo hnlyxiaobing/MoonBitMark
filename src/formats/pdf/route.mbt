@@ -221,7 +221,7 @@ fn PdfRouteFlag::label(self : PdfRouteFlag) -> String {
 
 ///|
 fn summarize_route_flags(route_plan : PdfRoutePlan) -> String {
-  let counts : Map[String, Int] = Map([])
+  let counts : Map[String, Int32] = Map([])
   for page in route_plan.pages {
     for flag in page.flags {
       let label = flag.label()
@@ -250,7 +250,7 @@ fn summarize_route_flags(route_plan : PdfRoutePlan) -> String {
 
 ///|
 fn summarize_route_providers(route_plan : PdfRoutePlan) -> String {
-  let counts : Map[String, Int] = Map([])
+  let counts : Map[String, Int32] = Map([])
   for page in route_plan.pages {
     let label = page.provider.label()
     counts[label] = match counts.get(label) {
@@ -275,7 +275,7 @@ fn summarize_route_providers(route_plan : PdfRoutePlan) -> String {
 
 ///|
 fn summarize_route_text_quality(route_plan : PdfRoutePlan) -> String {
-  let counts : Map[String, Int] = Map([])
+  let counts : Map[String, Int32] = Map([])
   for page in route_plan.pages {
     let label = page.text_quality.label()
     counts[label] = match counts.get(label) {
@@ -299,7 +299,7 @@ fn summarize_route_text_quality(route_plan : PdfRoutePlan) -> String {
 
 ///|
 fn summarize_route_layout_complexity(route_plan : PdfRoutePlan) -> String {
-  let counts : Map[String, Int] = Map([])
+  let counts : Map[String, Int32] = Map([])
   for page in route_plan.pages {
     let label = page.layout_complexity.label()
     counts[label] = match counts.get(label) {
@@ -394,7 +394,7 @@ fn non_empty_lines(text : String) -> Array[String] {
 }
 
 ///|
-fn count_digit_heavy_lines(lines : Array[String]) -> Int {
+fn count_digit_heavy_lines(lines : Array[String]) -> Int32 {
   let mut count = 0
   for line in lines {
     let mut digits = 0
@@ -414,7 +414,7 @@ fn count_digit_heavy_lines(lines : Array[String]) -> Int {
 }
 
 ///|
-fn count_short_lines(lines : Array[String]) -> Int {
+fn count_short_lines(lines : Array[String]) -> Int32 {
   let mut count = 0
   for line in lines {
     if line.length() <= 48 {
@@ -425,7 +425,7 @@ fn count_short_lines(lines : Array[String]) -> Int {
 }
 
 ///|
-fn count_numeric_value_lines(lines : Array[String]) -> Int {
+fn count_numeric_value_lines(lines : Array[String]) -> Int32 {
   let mut count = 0
   for line in lines {
     let tokens = tokenize_words(line)
@@ -446,7 +446,7 @@ fn count_numeric_value_lines(lines : Array[String]) -> Int {
 }
 
 ///|
-fn count_long_tokens(words : Array[String]) -> Int {
+fn count_long_tokens(words : Array[String]) -> Int32 {
   let mut count = 0
   for word in words {
     let normalized = normalize_word_token(word)
@@ -458,7 +458,7 @@ fn count_long_tokens(words : Array[String]) -> Int {
 }
 
 ///|
-fn count_code_hits(text : String) -> Int {
+fn count_code_hits(text : String) -> Int32 {
   let mut hits = 0
   let keywords = [
     "function", "return", "class", "const", "let", "var", "public", "private", "import",
@@ -476,7 +476,7 @@ fn count_code_hits(text : String) -> Int {
 }
 
 ///|
-fn count_formula_hits(text : String) -> Int {
+fn count_formula_hits(text : String) -> Int32 {
   let mut hits = 0
   let keywords = ["Formula", "Theorem", "Lemma", "Proof", "=>", "∑", "∫"]
   for keyword in keywords {
@@ -503,9 +503,9 @@ fn count_formula_hits(text : String) -> Int {
 fn count_table_hits(
   text : String,
   lines : Array[String],
-  digit_heavy_lines : Int,
-  numeric_value_lines : Int,
-) -> Int {
+  digit_heavy_lines : Int32,
+  numeric_value_lines : Int32,
+) -> Int32 {
   let mut hits = 0
   if text.contains("Table ") || text.contains("TABLE ") {
     hits = hits + 1
@@ -531,7 +531,7 @@ fn count_table_hits(
 }
 
 ///|
-fn count_broken_spacing_hits(words : Array[String], text : String) -> Int {
+fn count_broken_spacing_hits(words : Array[String], text : String) -> Int32 {
   let mut hits = 0
   for word in words {
     if looks_like_broken_spacing_token(word) {
@@ -573,7 +573,7 @@ fn looks_like_broken_spacing_token(word : String) -> Bool {
 }
 
 ///|
-fn count_multi_column_hits(lines : Array[String], short_lines : Int) -> Int {
+fn count_multi_column_hits(lines : Array[String], short_lines : Int32) -> Int32 {
   if lines.length() < 12 {
     return 0
   }
@@ -598,9 +598,9 @@ fn count_multi_column_hits(lines : Array[String], short_lines : Int) -> Int {
 ///|
 fn classify_text_quality(
   flattened : String,
-  line_count : Int,
-  word_count : Int,
-  long_tokens : Int,
+  line_count : Int32,
+  word_count : Int32,
+  long_tokens : Int32,
 ) -> PdfTextQuality {
   if flattened == "" {
     return Empty

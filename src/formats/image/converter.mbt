@@ -1,6 +1,6 @@
 ///|
 pub(all) struct ImageConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|

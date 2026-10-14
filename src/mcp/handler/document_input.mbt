@@ -13,7 +13,7 @@ priv struct ResolvedMcpDocument {
   input_source : @core.InputSource
   source_filename : String?
   mime_type : String?
-  byte_size : Int?
+  byte_size : Int32?
   upload_encoding : String?
 }
 
@@ -231,7 +231,7 @@ fn optional_raw_string_arg(args : @types.JsonValue, key : String) -> String? {
 
 ///|
 fn enforce_upload_size(
-  size : Int,
+  size : Int32,
   config : McpSecurityConfig,
 ) -> Result[Unit, String] {
   if size <= config.max_upload_bytes {

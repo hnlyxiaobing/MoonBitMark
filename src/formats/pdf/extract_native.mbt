@@ -83,7 +83,7 @@ async fn extract_pdf_native(file_path : String) -> PdfNativeExtraction {
 fn should_attempt_pdf_bridge(
   native_pages : Array[String],
   native_route : PdfRoutePlan,
-  actual_page_count : Int,
+  actual_page_count : Int32,
 ) -> Bool {
   if native_pages.length() < actual_page_count {
     return true
@@ -99,19 +99,19 @@ fn should_attempt_pdf_bridge(
 }
 
 ///|
-fn pdf_bridge_page_limit() -> Int {
+fn pdf_bridge_page_limit() -> Int32 {
   8
 }
 
 ///|
-fn pdf_bridge_char_limit() -> Int {
+fn pdf_bridge_char_limit() -> Int32 {
   120000
 }
 
 ///|
 fn pdf_bridge_is_small_enough(
   native_pages : Array[String],
-  actual_page_count : Int,
+  actual_page_count : Int32,
 ) -> Bool {
   actual_page_count <= pdf_bridge_page_limit() &&
   total_pdf_chars(native_pages) <= pdf_bridge_char_limit()
@@ -122,7 +122,7 @@ fn should_prefer_pdf_bridge_pages(
   native_pages : Array[String],
   native_route : PdfRoutePlan,
   bridge_pages : Array[String],
-  actual_page_count : Int,
+  actual_page_count : Int32,
   bridge_available : Bool,
 ) -> Bool {
   if !bridge_available || bridge_pages.length() == 0 {
@@ -193,7 +193,7 @@ fn native_pages_show_broken_spacing(pages : Array[String]) -> Bool {
 }
 
 ///|
-fn total_pdf_chars(pages : Array[String]) -> Int {
+fn total_pdf_chars(pages : Array[String]) -> Int32 {
   let mut total = 0
   for page in pages {
     total = total + collapse_inline_whitespace(page).length()
@@ -202,7 +202,7 @@ fn total_pdf_chars(pages : Array[String]) -> Int {
 }
 
 ///|
-fn count_problem_route_flags(route_plan : PdfRoutePlan) -> Int {
+fn count_problem_route_flags(route_plan : PdfRoutePlan) -> Int32 {
   let mut count = 0
   for page in route_plan.pages {
     for flag in page.flags {

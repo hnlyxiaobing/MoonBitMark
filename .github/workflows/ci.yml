@@ -30,11 +30,11 @@ jobs:
       - name: Set up MoonBit
         shell: bash
         run: |
-          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-          # which the release channel still rejects, so CI tracks the nightly
-          # channel. `moon upgrade --dev` cannot be used here: it needs a TTY.
+          # Install the stable (`latest`) MoonBit channel; `moon upgrade` is
+          # not usable in non-interactive steps (it needs a TTY), so CI
+          # installs via the installer script instead.
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o /tmp/install-moonbit.sh
-          MOONBIT_INSTALL_VERSION=nightly bash /tmp/install-moonbit.sh
+          MOONBIT_INSTALL_VERSION=latest bash /tmp/install-moonbit.sh
           export PATH="$HOME/.moon/bin:$PATH"
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           moon update
@@ -66,11 +66,11 @@ jobs:
       - name: Set up MoonBit
         shell: bash
         run: |
-          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-          # which the release channel still rejects, so CI tracks the nightly
-          # channel. `moon upgrade --dev` cannot be used here: it needs a TTY.
+          # Install the stable (`latest`) MoonBit channel; `moon upgrade` is
+          # not usable in non-interactive steps (it needs a TTY), so CI
+          # installs via the installer script instead.
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh -o /tmp/install-moonbit.sh
-          MOONBIT_INSTALL_VERSION=nightly bash /tmp/install-moonbit.sh
+          MOONBIT_INSTALL_VERSION=latest bash /tmp/install-moonbit.sh
           export PATH="$HOME/.moon/bin:$PATH"
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           moon update
@@ -106,10 +106,10 @@ jobs:
       - name: Set up MoonBit
         shell: pwsh
         run: |
-          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-          # which the release channel still rejects, so CI tracks the nightly
-          # channel. `moon upgrade --dev` cannot be used here: it needs a TTY.
-          $env:MOONBIT_INSTALL_VERSION = "nightly"
+          # Install the stable (`latest`) MoonBit channel; `moon upgrade` is
+          # not usable in non-interactive steps (it needs a TTY), so CI
+          # installs via the installer script instead.
+          $env:MOONBIT_INSTALL_VERSION = "latest"
           Invoke-WebRequest -Uri "https://cli.moonbitlang.com/install/powershell.ps1" -OutFile "$env:TEMP\install-moonbit.ps1"
           & "$env:TEMP\install-moonbit.ps1"
           $moonBin = "$env:USERPROFILE\.moon\bin"
@@ -180,10 +180,10 @@ jobs:
       - name: Set up MoonBit
         shell: pwsh
         run: |
-          # The sources use the MoonBit 0.8 inclusive-range syntax (`..<=`),
-          # which the release channel still rejects, so CI tracks the nightly
-          # channel. `moon upgrade --dev` cannot be used here: it needs a TTY.
-          $env:MOONBIT_INSTALL_VERSION = "nightly"
+          # Install the stable (`latest`) MoonBit channel; `moon upgrade` is
+          # not usable in non-interactive steps (it needs a TTY), so CI
+          # installs via the installer script instead.
+          $env:MOONBIT_INSTALL_VERSION = "latest"
           Invoke-WebRequest -Uri "https://cli.moonbitlang.com/install/powershell.ps1" -OutFile "$env:TEMP\install-moonbit.ps1"
           & "$env:TEMP\install-moonbit.ps1"
           $moonBin = "$env:USERPROFILE\.moon\bin"

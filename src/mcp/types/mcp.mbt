@@ -91,7 +91,7 @@ pub(all) struct McpResource {
   title : String?
   description : String?
   mime_type : String?
-  size : Int?
+  size : Int32?
 }
 
 ///|

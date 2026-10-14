@@ -21,7 +21,7 @@ fn parse_pdf_layout_json(layout_json : String?) -> Array[PdfLayoutPage] {
 ///|
 fn page_layout_at(
   layouts : Array[PdfLayoutPage],
-  page_no : Int,
+  page_no : Int32,
 ) -> PdfLayoutPage? {
   for layout in layouts {
     if layout.page_no == page_no {
@@ -75,7 +75,7 @@ fn layout_lines_in_reading_order(
 }
 
 ///|
-fn detect_layout_column_split(lines : Array[PdfLayoutLine]) -> Int? {
+fn detect_layout_column_split(lines : Array[PdfLayoutLine]) -> Int32? {
   if lines.length() < 4 {
     return None
   }
@@ -108,8 +108,8 @@ fn detect_layout_column_split(lines : Array[PdfLayoutLine]) -> Int? {
 ///|
 fn reorder_layout_lines_by_columns(
   lines : Array[PdfLayoutLine],
-  split : Int,
-  page_width : Int,
+  split : Int32,
+  page_width : Int32,
 ) -> Array[PdfLayoutLine] {
   let preamble : Array[PdfLayoutLine] = []
   let left : Array[PdfLayoutLine] = []
@@ -153,9 +153,9 @@ fn reorder_layout_lines_by_columns(
 ///|
 fn count_layout_lines_on_side(
   lines : Array[PdfLayoutLine],
-  split : Int,
+  split : Int32,
   left_side : Bool,
-) -> Int {
+) -> Int32 {
   let mut count = 0
   for line in lines {
     if layout_line_crosses_split(line, split, 1000) {
@@ -172,15 +172,15 @@ fn count_layout_lines_on_side(
 }
 
 ///|
-fn layout_line_center(line : PdfLayoutLine) -> Int {
+fn layout_line_center(line : PdfLayoutLine) -> Int32 {
   line.left + (line.right - line.left) / 2
 }
 
 ///|
 fn layout_line_crosses_split(
   line : PdfLayoutLine,
-  split : Int,
-  page_width : Int,
+  split : Int32,
+  page_width : Int32,
 ) -> Bool {
   (line.left < split && line.right > split) ||
   line.right - line.left >= page_width * 6 / 10
@@ -232,7 +232,7 @@ fn compare_layout_lines(
   left : PdfLayoutLine,
   right : PdfLayoutLine,
   by_left : Bool,
-) -> Int {
+) -> Int32 {
   if by_left {
     if left.left == right.left {
       left.top - right.top

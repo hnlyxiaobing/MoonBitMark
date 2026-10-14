@@ -5,7 +5,7 @@ priv struct StoredDocument {
   resource_uri : String
   filename : String
   mime_type : String?
-  byte_size : Int
+  byte_size : Int32
   blob_path : String
 }
 
@@ -350,7 +350,7 @@ async fn write_document_meta(
   id : String,
   filename : String,
   mime_type : String?,
-  byte_size : Int,
+  byte_size : Int32,
 ) -> Unit {
   let lines : Array[String] = [
     "id: " + id,

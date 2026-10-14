@@ -153,7 +153,7 @@ pub fn image_extension_for_media_type(media_type : String) -> String {
 ///|
 pub fn numbered_asset_filename(
   prefix : String,
-  index : Int,
+  index : Int32,
   source_path : String,
   fallback_extension~ : String = "bin",
 ) -> String {
@@ -188,7 +188,7 @@ pub fn is_image_filename(filename : String) -> Bool {
 }
 
 ///|
-pub fn find_last_char(s : String, target : Char) -> Int? {
+pub fn find_last_char(s : String, target : Char) -> Int32? {
   let mut found = -1
   let mut i = 0
   for ch in s {

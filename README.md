@@ -26,6 +26,7 @@ MoonBitMark 是一个用 MoonBit 实现的文档转 Markdown 工具。当前主�
 - EPUB
 - DOC（Word 97-2003 二进制）
 - WPS（WPS Writer 二进制）
+
 ## 快速开始
 
 基础校验：
@@ -50,15 +51,55 @@ moon build --target native --release
 运行 CLI：
 
 ```bash
-_build/native/release/build/moonbitlang/moonbitmark/cmd/main/main.exe <input> [output]
+_build/native/release/build/cmd/main/main.exe <input> [output]
 ```
 
 示例：
 
 ```powershell
-_build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe tests\conversion_eval\fixtures\inputs\html\simple_table.html
-_build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe --diag-json tests\conversion_eval\fixtures\inputs\pdf\multi_page.pdf
-_build\native\release\build\moonbitlang\moonbitmark\cmd\main\main.exe --dump-ast tests\conversion_eval\fixtures\inputs\html\simple_table.html
+_build\native\release\build\cmd\main\main.exe tests\conversion_eval\fixtures\inputs\html\simple_table.html
+_build\native\release\build\cmd\main\main.exe --diag-json tests\conversion_eval\fixtures\inputs\pdf\multi_page.pdf
+_build\native\release\build\cmd\main\main.exe --dump-ast tests\conversion_eval\fixtures\inputs\html\simple_table.html
+```
+
+## 安装为 `moonbitmark` 命令（Windows）
+
+一次安装后可在任意目录直接使用 `moonbitmark`：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -OutDir D:\docs\markdown
+```
+
+安装脚本会：
+
+- 构建（或复用）release 二进制，复制为 `%LOCALAPPDATA%\MoonBitMark\bin\moonbitmark.exe`
+- 复制 `scripts\ocr`、`scripts\pdf` bridge 脚本到安装目录
+- 把 `bin` 目录加入用户 PATH（**新开终端**后生效）
+- 设置 `MOONBITMARK_OCR_BRIDGE` / `MOONBITMARK_PDF_BRIDGE` 用户环境变量
+- `-OutDir` 给定时写入 `%USERPROFILE%\.moonbitmark\config.json` 的 `out_dir` 字段
+
+卸载：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\uninstall.ps1   # -RemoveConfig 同时删除配置
+```
+
+## 默认输出目录
+
+不指定输出文件时，Markdown 会写入 `<out_dir>/<输入名>.md`。`out_dir` 按以下优先级解析（高到低）：
+
+1. `MOONBITMARK_OUT_DIR` 环境变量（空值跳过该层）
+2. `<home>/.moonbitmark/config.json` 的 `out_dir` 字段（JSON，如 `{"out_dir": "D:/docs/md"}`；缺失或空则禁用）
+
+都没有时保持旧行为：输出到 stdout。显式给出输出文件路径时始终优先。输出目录不存在时自动创建。`--detect-only`、`--diag-json`、`--dump-*` 等调试模式始终输出到 stdout（除非显式给了输出文件）。
+
+示例：
+
+```powershell
+# 配置了默认输出目录后：
+moonbitmark report.docx            # -> <out_dir>/report.md
+moonbitmark notes.html             # -> <out_dir>/notes.md
+moonbitmark report.docx out\x.md   # 显式输出，忽略默认目录
 ```
 
 ## 作为依赖使用（mooncakes）
@@ -96,7 +137,8 @@ async fn main raise {
 - **版本要求 `>= 0.4.4`**：0.3.0–0.4.3 的 PDF 支持依赖 registry 版
   `bobzhang/mbtpdf@0.1.2`，该版本使用了当前工具链已移除的 `@strconv` API，
   消费者侧 `moon check` 会直接失败（实测 7 个错误）。详见
-  [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)。- 使用 `async fn main` 时必须**直接**声明 `moonbitlang/async` 依赖：模块间的传递
+  [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)。
+- 使用 `async fn main` 时必须**直接**声明 `moonbitlang/async` 依赖：模块间的传递
   依赖不能被本包直接导入（否则报 "its containing module is not imported by ..."）。
 - `src/engine` 等包为 native-only，消费者侧需以 `--target native` 构建。
 
@@ -118,6 +160,7 @@ async fn main raise {
 - `--dump-normalized-ast`
 - `--dump-semantic`
 - `--debug`
+- `--help`
 
 其中：
 
@@ -141,6 +184,7 @@ src/
 ├── libzip/           纯 MoonBit ZIP / Deflate
 ├── mcp/              MCP 协议、handler 与传输
 ├── normalize/        共享结构归一化 passes
+├── ole2/             纯 MoonBit OLE2/CFB 复合文件读取
 ├── python/           Python 解释器解析与 bridge 脚本定位
 ├── semantic/         Section tree / role / provenance 派生层
 └── xml/              纯 MoonBit XML parser
@@ -203,7 +247,7 @@ powershell -ExecutionPolicy Bypass -File tests/ocr/pdf_ocr_force_smoke.ps1
 - CLI 是当前主公共入口。
 - DOCX、PPTX、XLSX、EPUB 的容器解析依赖仓库内的 `libzip + xml`。
 - OCR 是可选能力，依赖 `scripts/ocr/bridge.py` 和可用 backend；Python 解释器经 `src/python/` 的 resolver 显式解析（可用 `MOONBITMARK_PYTHON` 覆盖）。
-- PDF 主路径使用模块内联的 `third_party/mbtpdf`（上游 `bobzhang/mbtpdf` 的固化副本，词距感知抽取），必要时可按页触发 OCR fallback，并把恢复页信息写回 metadata / diagnostics / eval；当前已补到页级恢复、linewise normalization 和一类常见 OCR 空格分列表格重建。
+- PDF 主路径使用 registry 依赖 `bobzhang/mbtpdf@0.2.0`（词距感知抽取在本仓库实现），必要时可按页触发 OCR fallback，并把恢复页信息写回 metadata / diagnostics / eval；当前已补到页级恢复、linewise normalization 和一类常见 OCR 空格分列表格重建。
 - MCP 仍是实验性接口，默认以本地 STDIO 或 loopback HTTP 使用为前提。
 - Windows native release 构建依赖 MSVC；`scripts/build.bat` 自动探测 vcvars64（可用 `MOONBITMARK_VCVARS64` 覆盖）。
 

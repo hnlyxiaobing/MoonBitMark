@@ -90,7 +90,7 @@ pub fn parent_dir(path : String) -> String? {
 pub fn exe_probe_candidates(
   exe_path : String,
   relative_path : String,
-  max_levels : Int,
+  max_levels : Int32,
 ) -> Array[String] {
   let candidates : Array[String] = []
   let mut dir = parent_dir(exe_path)

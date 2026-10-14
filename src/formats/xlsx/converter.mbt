@@ -4,7 +4,7 @@
 ///|
 /// Converter for XLSX files
 pub(all) struct XlsxConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|
@@ -443,21 +443,21 @@ fn parse_worksheet_to_blocks(
 /// Sheet data structure
 priv struct SheetData {
   rows : Array[Array[String]]
-  mut max_cols : Int
+  mut max_cols : Int32
 }
 
 ///|
 priv struct SheetCellPos {
-  row : Int
-  col : Int
+  row : Int32
+  col : Int32
 }
 
 ///|
 priv struct SheetRegion {
-  min_row : Int
-  max_row : Int
-  min_col : Int
-  max_col : Int
+  min_row : Int32
+  max_row : Int32
+  min_col : Int32
+  max_col : Int32
 }
 
 ///|
@@ -626,7 +626,7 @@ fn normalize_xlsx_cell_text(text : String) -> String {
 
 ///|
 /// Parse integer from string
-fn parse_int(s : String) -> Int? {
+fn parse_int(s : String) -> Int32? {
   let mut result = 0
   let mut i = 0
   while i < s.length() {
@@ -643,7 +643,7 @@ fn parse_int(s : String) -> Int? {
 
 ///|
 /// Convert cell reference (e.g., "A1", "C10") to column index
-fn cell_ref_to_col_index(cell_ref : String) -> Int {
+fn cell_ref_to_col_index(cell_ref : String) -> Int32 {
   let mut col_idx = 0
   let chars = cell_ref.iter()
   for ch in chars {
@@ -760,7 +760,7 @@ fn sheet_neighbors(position : SheetCellPos) -> Array[SheetCellPos] {
 }
 
 ///|
-fn sheet_cell_key(row : Int, col : Int) -> String {
+fn sheet_cell_key(row : Int32, col : Int32) -> String {
   row.to_string() + ":" + col.to_string()
 }
 
@@ -848,7 +848,7 @@ fn extract_sheet_region_title(
 }
 
 ///|
-fn count_non_empty_cells(row : Array[String]) -> Int {
+fn count_non_empty_cells(row : Array[String]) -> Int32 {
   let mut count = 0
   for cell in row {
     if cell != "" {
@@ -945,7 +945,7 @@ fn append_xlsx_asset_gallery(
 }
 
 ///|
-fn xlsx_asset_placeholder(index : Int) -> String {
+fn xlsx_asset_placeholder(index : Int32) -> String {
   @core.asset_placeholder("xlsx", index)
 }
 

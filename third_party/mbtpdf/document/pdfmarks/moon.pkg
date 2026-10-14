@@ -1,8 +1,0 @@
-import {
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdf",
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdfe",
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/core/pdftransform",
-  "hnlyxiaobing/moonbitmark/third_party/mbtpdf/document/pdfdest",
-}
-
-warnings = "-all"

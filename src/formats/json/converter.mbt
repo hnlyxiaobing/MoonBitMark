@@ -3,7 +3,7 @@
 ///|
 /// Converter for JSON files
 pub(all) struct JsonConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|

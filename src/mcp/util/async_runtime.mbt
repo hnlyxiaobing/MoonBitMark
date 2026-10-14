@@ -9,7 +9,7 @@ pub enum TaskState {
 
 ///|
 pub(all) struct AsyncTask[T] {
-  id : Int
+  id : Int32
   state : TaskState
   result : T?
 }
@@ -23,7 +23,7 @@ pub(all) struct Future[T] {
 
 ///|
 pub(all) struct EventLoop {
-  mut next_id : Int
+  mut next_id : Int32
 }
 
 ///|

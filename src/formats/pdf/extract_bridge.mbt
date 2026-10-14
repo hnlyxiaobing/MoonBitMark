@@ -60,7 +60,7 @@ async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
     run_args.push(arg)
   }
 
-  let exit_code_result : Result[Int, Error] = try {
+  let exit_code_result : Result[Int32, Error] = try {
     let stderr = @process.redirect_to_file(
       stderr_path,
       create_mode=@fs.CreateOrTruncate,
@@ -91,7 +91,7 @@ async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
 async fn parse_pdf_bridge_response(
   output_path : String,
   stderr_path : String,
-  exit_code : Int,
+  exit_code : Int32,
 ) -> PdfBridgeResponse {
   let json_text_result : Result[String, Error] = Ok(
     @core.read_utf8_file(output_path),

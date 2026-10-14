@@ -38,7 +38,7 @@ pub extend Inline with ToJson::{to_json}
 
 ///|
 pub(all) enum Block {
-  Heading(Int, Array[Inline])
+  Heading(Int32, Array[Inline])
   Paragraph(Array[Inline])
   List(Array[Array[Inline]], Bool)
   Quote(Array[String])
@@ -83,7 +83,7 @@ pub impl Show for Block with fn output(self, logger) {
 }
 
 ///|
-pub fn default_block_annotation(index : Int) -> BlockAnnotation {
+pub fn default_block_annotation(index : Int32) -> BlockAnnotation {
   BlockAnnotation::{
     id: "block-" + (index + 1).to_string(),
     source_hint: None,
@@ -95,7 +95,7 @@ pub fn default_block_annotation(index : Int) -> BlockAnnotation {
 ///|
 pub fn normalize_annotations(
   annotations : Array[BlockAnnotation],
-  block_count : Int,
+  block_count : Int32,
 ) -> Array[BlockAnnotation] {
   let normalized : Array[BlockAnnotation] = []
   let mut index = 0
@@ -137,7 +137,7 @@ pub fn document(
 }
 
 ///|
-pub fn text_heading(level : Int, content : String) -> Block {
+pub fn text_heading(level : Int32, content : String) -> Block {
   Heading(level, text_inlines(content))
 }
 

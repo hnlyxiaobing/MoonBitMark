@@ -7,7 +7,7 @@ You can browse and install extra skills here:
 
 ## Project Overview
 
-MoonBitMark is a document converter that transforms TXT, CSV, JSON, PDF, image, HTML/XHTML/URL, DOCX, PPTX, XLSX, and EPUB inputs into Markdown. The CLI is the main public entrypoint; OCR is an optional bridge-backed capability, and MCP is currently an experimental STDIO server.
+MoonBitMark is a document converter that transforms TXT, CSV, JSON, PDF, image, HTML/XHTML/URL, DOCX, DOC/WPS, PPTX, XLSX, and EPUB inputs into Markdown. The CLI is the main public entrypoint; OCR is an optional bridge-backed capability, and MCP is currently an experimental local server (STDIO and HTTP).
 
 ## Commands
 
@@ -23,7 +23,7 @@ scripts/build.bat
 moon build --target native --release
 
 # Run the compiled binary
-_build/native/release/build/moonbitlang/moonbitmark/cmd/main/main.exe <input> [output]
+_build/native/release/build/cmd/main/main.exe <input> [output]
 # Run tests
 moon test
 
@@ -53,8 +53,8 @@ moon info && moon fmt
   blackbox test files (ending in `_test.mbt`) and whitebox test files (ending in
   `_wbtest.mbt`).
 
-- In the toplevel directory, there is a `moon.mod.json` file listing module
-  metadata.
+- In the toplevel directory, there is a `moon.mod` file listing module
+  metadata (name, version, imports, license).
 
 ### Architecture
 
@@ -70,7 +70,7 @@ src/
 │   ├── text/         # Plain text (.txt)
 │   ├── csv/          # CSV → Markdown tables
 │   ├── json/         # JSON → code blocks
-│   ├── pdf/          # PDF via mbtpdf library
+│   ├── pdf/          # PDF via bobzhang/mbtpdf@0.2.0 registry dep (+ optional bridge/OCR fallback)
 │   ├── html/         # HTML + URL fetching
 │   ├── image/        # Image OCR support
 │   ├── doc/          # Word 97-2003 binary (.doc/.wps) via OLE2/CFB
@@ -92,24 +92,27 @@ cmd/
 ├── mcp-server/       # MCP STDIO entry point
 └── mcp-http-server/  # MCP HTTP entry point
 ```
-**Conversion flow:** CLI → detect format by extension → select converter → read/convert → output Markdown
+**Conversion flow:** CLI → `engine.detect` (extension + magic/container sniffing) → converter registry → convert → normalize → semantic → Markdown output
 
 ### Adding a New Converter
 
 1. Create `src/formats/<format>/converter.mbt` with:
    - `XxxConverter` struct
    - `accepts(info: @core.StreamInfo) -> Bool` - check if format matches
-   - `convert(file_path: String) -> String raise` - async conversion
+   - `convert(file_path: String, ctx~ : @core.ConvertContext) -> @core.ConvertResult raise` - async conversion entry (light formats also expose `convert_source`)
 
 2. Create `src/formats/<format>/moon.pkg`:
    ```
    import {
-     "moonbitlang/moonbitmark/src/core",
+     "hnlyxiaobing/moonbitmark/src/core",
      "moonbitlang/async/fs",
    }
    ```
 
-3. Register in `cmd/main/main.mbt` by adding format detection in `convert_file()`.
+3. Register in `src/engine/engine.mbt`:
+   - add a variant to `ConverterKind`
+   - add a `register_named(<Kind>, <priority>)` entry in `register_default_converters`
+   - add the `accepts_<fmt>` wrapper and the `convert` dispatch branch
 
 ## Coding Convention
 
@@ -171,20 +174,13 @@ suberror MyError { NotFound, InvalidInput(String) }
 
 ## Repo-Scoped Skills
 
-- This repo includes project-scoped skills under `.codex/skills/`.
-- When working in this repository, prefer explicitly invoking them with
-  `$skill-name` in your prompt when the task matches.
-- Common examples:
-  - `$moonbit-agent-guide` for general MoonBit development, testing, and `moon`
-    tooling workflows.
-  - `$moonbit-refactoring` for package-local refactors, renames, and code
-    reorganization.
-  - `$moonbit-lang` for MoonBit language rules, syntax, and type-system
-    questions.
-  - `$moonbit-spec-test-development` or `$moonbit-extract-spec-test` for
-    spec-driven development and test extraction workflows.
-- Repo-scoped skills are preferred over user-global variants when both exist,
-  because they can be pinned and updated together with this repository.
+- This repo includes project-scoped skills under `.codex/skills/`; currently
+  that is `$moonbitmark-commit-push` (commit/push workflow).
+- Additional MoonBit skills (e.g. `$moonbit-agent-guide`,
+  `$moonbit-refactoring`, `$moonbit-lang`) come from the
+  [moonbitlang/skills](https://github.com/moonbitlang/skills) marketplace and
+  must be installed before use; prefer repo-scoped skills over user-global
+  variants when both exist.
 
 ## Commit And Push Workflow
 
@@ -206,52 +202,19 @@ suberror MyError { NotFound, InvalidInput(String) }
 - If the worktree contains changes that appear unrelated to the current task and
   the intended commit scope cannot be determined safely, stop and ask the user
   before creating the commit.
-
-### Commit Skill
-
-- `$moonbitmark-commit-push` is the repo-scoped skill for the final
-  `status -> validation -> commit message -> commit -> push` workflow.
-- Use it when the user asks to "提交", "commit", "push", "提交并推送", or any
-  equivalent finalization request.
-
-## Commit And Push Workflow
-
-- When a development round is complete and the user asks to submit the work, use
-  `$moonbitmark-commit-push` to finish the repository state.
-- Before committing, inspect `git status --short`, `git diff --stat`, and
-  `git diff --name-status` so the commit message is based on the actual change
-  scope instead of guessed from filenames alone.
-- Run validation that matches the changed files before committing. For MoonBit
-  source/package changes, prefer `moon info`, `moon fmt`, and `moon test`. For
-  non-MoonBit changes, run the most relevant lightweight verification available.
-- Write commit messages in imperative mood with a concise subject line and a
-  short body that names the main change areas and any important verification.
-- Avoid vague subjects such as `update files`, `misc fixes`, or `cleanup`.
-- Stage the intended repository changes, create the commit with the generated
-  message, and push the current branch to the configured remote.
-- Do not amend, force-push, or rewrite history unless the user explicitly asks
-  for it.
-- If the worktree contains changes that appear unrelated to the current task and
-  the intended commit scope cannot be determined safely, stop and ask the user
-  before creating the commit.
-
-### Commit Skill
-
-- `$moonbitmark-commit-push` is the repo-scoped skill for the final
-  `status -> validation -> commit message -> commit -> push` workflow.
-- Use it when the user asks to "提交", "commit", "push", "提交并推送", or any
-  equivalent finalization request.
+- Use `$moonbitmark-commit-push` when the user asks to "提交", "commit",
+  "push", "提交并推送", or any equivalent finalization request.
 
 ## Dependencies
 
 - `moonbitlang/async` - File system, HTTP client
-- `bobzhang/mbtpdf` - PDF text extraction. Inlined into this module at
-  `third_party/mbtpdf` (no `moon.work`, no registry dependency) so its
-  native-only I/O packages (`io/pdfiofs`, `io/pdfreadfs`, `io/pdfwritefs`) can
-  carry per-file `targets` restrictions and so consumers do not depend on the
-  registry build of the upstream module. Each vendored package keeps
-  `warnings = "-all"` in its `moon.pkg`; do not edit the copy beyond
-  target/portability fixes.
+- `bobzhang/mbtpdf` - PDF text extraction, consumed from the registry as
+  `bobzhang/mbtpdf@0.2.0` (0.2.0 fixes the old `@strconv` breakage and drops
+  `text/pdftext`'s reference to the fs adapter chain, so the module passes
+  `moon check` on native and wasm-gc without a vendored copy). Do **not**
+  import upstream's `io/pdfiofs` / `io/pdfreadfs` / `io/pdfwritefs`
+  packages: they are not wasm-gc clean and would break the dual-target
+  gate.
 ## Multi-Target Layout
 
 The project's supported runtime is `native` (`preferred_target`). Files that

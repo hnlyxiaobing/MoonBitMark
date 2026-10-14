@@ -6,7 +6,7 @@ type HtmlAnnotatedBlock = (@ast.Block, @ast.BlockAnnotation)
 ///|
 /// Converter for HTML files
 pub(all) struct HtmlConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|
@@ -450,7 +450,7 @@ fn build_html_document(
 ///|
 fn parse_heading_html_block(
   html : String,
-  level : Int,
+  level : Int32,
   base_url : String?,
 ) -> (@ast.Block, String)? {
   let tag = "h" + level.to_string()
@@ -650,14 +650,14 @@ fn take_tag_parts(html : String, tag : String) -> (String, String, String)? {
 ///|
 priv struct HtmlTableCell {
   content : Array[@ast.Inline]
-  colspan : Int
-  rowspan : Int
+  colspan : Int32
+  rowspan : Int32
   is_header : Bool
 }
 
 ///|
 priv struct HtmlPendingSpan {
-  remaining : Int
+  remaining : Int32
   content : Array[@ast.Inline]
 }
 
@@ -759,9 +759,9 @@ fn inline_html_to_inlines(
 ///|
 fn parse_known_inline(
   fragment : String,
-  cursor : Int,
+  cursor : Int32,
   base_url : String?,
-) -> (Array[@ast.Inline], Int)? {
+) -> (Array[@ast.Inline], Int32)? {
   let remaining = fragment[cursor:].to_owned()
   let lower = remaining.to_lower()
   if lower.has_prefix("<br") {
@@ -863,11 +863,11 @@ fn parse_known_inline(
 ///|
 fn wrap_inline_children(
   remaining : String,
-  cursor : Int,
+  cursor : Int32,
   base_url : String?,
   tag : String,
   wrap : (Array[@ast.Inline]) -> @ast.Inline,
-) -> (Array[@ast.Inline], Int)? {
+) -> (Array[@ast.Inline], Int32)? {
   match take_tag_parts(remaining, tag) {
     Some((_, inner, rest)) => {
       let children = inline_html_to_inlines(inner, base_url)
@@ -1107,7 +1107,7 @@ fn html_warning_diagnostics(
 }
 
 ///|
-fn find_from(haystack : String, needle : String, start : Int) -> Int? {
+fn find_from(haystack : String, needle : String, start : Int32) -> Int32? {
   if start >= haystack.length() {
     None
   } else {
@@ -1325,7 +1325,7 @@ fn normalize_table_rows(
 ///|
 fn normalize_html_table_row(
   row : Array[Array[@ast.Inline]],
-  width : Int,
+  width : Int32,
 ) -> Array[Array[@ast.Inline]] {
   let normalized : Array[Array[@ast.Inline]] = []
   let mut index = 0
@@ -1404,8 +1404,12 @@ fn code_language_from_tag(tag : String) -> String? {
 }
 
 ///|
-fn find_first_of(text : String, needles : Array[String], start : Int) -> Int? {
-  let mut best : Int? = None
+fn find_first_of(
+  text : String,
+  needles : Array[String],
+  start : Int32,
+) -> Int32? {
+  let mut best : Int32? = None
   for needle in needles {
     match find_from(text, needle, start) {
       Some(index) =>
@@ -1533,7 +1537,7 @@ fn split_whitespace(text : String) -> Array[String] {
 }
 
 ///|
-fn parse_span_attribute(raw : String) -> Int {
+fn parse_span_attribute(raw : String) -> Int32 {
   if raw == "" {
     return 1
   }
@@ -1552,7 +1556,7 @@ fn parse_span_attribute(raw : String) -> Int {
 }
 
 ///|
-fn leading_header_row_count(rows : Array[HtmlTableRow]) -> Int {
+fn leading_header_row_count(rows : Array[HtmlTableRow]) -> Int32 {
   let mut count = 0
   for row in rows {
     if row.is_header {
@@ -1582,7 +1586,7 @@ fn html_table_cells_all_header(cells : Array[HtmlTableCell]) -> Bool {
 }
 
 ///|
-fn earliest_option(left : Int?, right : Int?) -> Int? {
+fn earliest_option(left : Int32?, right : Int32?) -> Int32? {
   match left {
     Some(l) =>
       match right {
@@ -1596,7 +1600,7 @@ fn earliest_option(left : Int?, right : Int?) -> Int? {
 ///|
 fn html_matches_tag(
   lower_html : String,
-  start : Int,
+  start : Int32,
   tag : String,
   closing : Bool,
 ) -> Bool {
@@ -1623,7 +1627,7 @@ fn is_html_space(ch : UInt16) -> Bool {
 }
 
 ///|
-fn find_last_char(s : String, target : Char) -> Int? {
+fn find_last_char(s : String, target : Char) -> Int32? {
   let mut found = -1
   let mut index = 0
   for ch in s {

@@ -3,8 +3,8 @@
 ///
 /// The per-page extraction loop below is a behavioral copy of mbtpdf's
 /// private functions `extract_text_from_page`, `append_text_from_streams`
-/// and `lookup_text_extractor` (vendored at
-/// `third_party/mbtpdf/text/pdftext/extract.mbt`). They are copied because
+/// and `lookup_text_extractor` (upstream `bobzhang/mbtpdf@0.2.0`,
+/// `text/pdftext/extract.mbt`). They are copied because
 /// `PdfText.pdf` is a private field, so the loop cannot be reused through
 /// the public API. The copy is extended locally to materialize inter-word
 /// spacing from TJ displacement numbers and Td horizontal moves, which the
@@ -97,7 +97,7 @@ fn PdfSpacingExtractor::extract_text_from_page(
   page : @pdfpage.Page,
 ) -> String raise {
   let builder = StringBuilder()
-  let visited : Map[Int, Bool] = Map([], capacity=8)
+  let visited : Map[Int32, Bool] = Map([], capacity=8)
   self.append_text_from_streams(builder, page.resources, page.content, visited)
   builder.to_string()
 }
@@ -108,7 +108,7 @@ fn PdfSpacingExtractor::append_text_from_streams(
   builder : StringBuilder,
   resources : @mbtpdf.PdfObject,
   streams : Array[@mbtpdf.PdfObject],
-  visited : Map[Int, Bool],
+  visited : Map[Int32, Bool],
 ) -> Unit raise {
   let ops = @pdfops.Op::parse_operators(self.pdf, resources, streams)
   let mut in_text = false
@@ -283,10 +283,10 @@ fn PdfSpacingExtractor::append_text_from_streams(
   /// `append_text_value` can veto it.
   fn append_text_array(obj : @mbtpdf.PdfObject) -> Unit {
     match obj {
-      Array(values) =>
+      PdfArray(values) =>
         for value in values {
           match value {
-            String(text) => append_text_value(text)
+            PdfString(text) => append_text_value(text)
             Real(adjustment) =>
               if -adjustment / 1000.0 >= space_ratio {
                 pending_space = true
@@ -298,7 +298,7 @@ fn PdfSpacingExtractor::append_text_from_streams(
             _ => ()
           }
         }
-      String(text) => append_text_value(text)
+      PdfString(text) => append_text_value(text)
       _ => ()
     }
   }
@@ -309,7 +309,7 @@ fn PdfSpacingExtractor::append_text_from_streams(
     )
   }
 
-  fn mark_visited(obj_num : Int?) -> Bool {
+  fn mark_visited(obj_num : Int32?) -> Bool {
     match obj_num {
       Some(i) =>
         match visited.get(i) {
@@ -328,7 +328,7 @@ fn PdfSpacingExtractor::append_text_from_streams(
       Some(Dictionary(entries)) =>
         if entries.search_by(pair => pair.0 == name) is Some(idx) {
           let obj_ref = entries[idx].1
-          let obj_num : Int? = if obj_ref is Indirect(i) {
+          let obj_num : Int32? = if obj_ref is Indirect(i) {
             Some(i)
           } else {
             None
@@ -392,13 +392,13 @@ fn PdfSpacingExtractor::append_text_from_streams(
         if in_text {
           append_text_array(obj)
           let items = match obj {
-            Array(vs) => vs
-            String(_) => [obj]
+            PdfArray(vs) => vs
+            PdfString(_) => [obj]
             _ => []
           }
           for value in items {
             match value {
-              String(t) => expected_x = expected_x + compute_text_advance(t)
+              PdfString(t) => expected_x = expected_x + compute_text_advance(t)
               _ => ()
             }
           }

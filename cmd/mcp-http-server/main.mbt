@@ -1,6 +1,6 @@
 ///|
 fn print_usage() -> Unit {
-  println("MoonBitMark MCP HTTP Server v0.3.0")
+  println("MoonBitMark MCP HTTP Server v0.4.6")
   println("")
   println("Usage:")
   println(

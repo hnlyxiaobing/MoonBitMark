@@ -4,7 +4,7 @@
 ///|
 /// Converter for PPTX files
 pub(all) struct PptxConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|
@@ -214,7 +214,7 @@ fn append_pptx_asset_gallery(
 }
 
 ///|
-fn pptx_asset_placeholder(index : Int) -> String {
+fn pptx_asset_placeholder(index : Int32) -> String {
   @core.asset_placeholder("pptx", index)
 }
 
@@ -354,7 +354,7 @@ fn pptx_warning_diagnostics(
 async fn ocr_pptx_assets(
   assets : Array[@core.OutputAsset],
   config : @ocr.OcrConfig,
-) -> (String, Array[String], Int, String?) {
+) -> (String, Array[String], Int32, String?) {
   let lines : Array[String] = []
   let warnings : Array[String] = []
   let mut count = 0

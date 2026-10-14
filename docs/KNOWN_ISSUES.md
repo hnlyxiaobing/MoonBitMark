@@ -16,7 +16,8 @@
   7 个错误全部来自下载到 `.mooncakes/bobzhang/mbtpdf/` 的源码
   （`document/pdftree/pdftree.mbt:157`、`font/pdfcmap/pdfcmap.mbt:150,366`、
   `font/pdfglyphlist/pdfglyphlist.mbt:3650`、`syntax/pdfgenlex/pdfgenlex.mbt:198,200,209`），
-  内容为 ``Value parse_int / parse_double not found in package `strconv` ``。- 原因：这些版本的 PDF 支持依赖 registry 版 `bobzhang/mbtpdf@0.1.2`（上游最新，
+  内容为 ``Value parse_int / parse_double not found in package `strconv` ``。
+- 原因：这些版本的 PDF 支持依赖 registry 版 `bobzhang/mbtpdf@0.1.2`（上游最新，
   2026-01-28），而该版本仍调用当前工具链已从 `moonbitlang/core/strconv` 移除的
   `parse_int` / `parse_double`（相关 API 已迁至 `@string`）。本仓库内能通过是因为
   `moon.work` 曾把 mbtpdf 重定向到打过补丁的 `third_party/mbtpdf`，消费者拿不到该重定向。
@@ -77,11 +78,14 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
   - 间距计算使用 Tm 的平移量 `tm.e`，忽略水平缩放 `tm.a`；缩放文本矩阵下间距按该
     比例偏移。
 
-- 固化副本继承的上游 mbtpdf 问题：含重复 object 定义的 PDF（如 `code_and_formula.pdf`）页树
+- 上游 mbtpdf 问题：含重复 object 定义的 PDF（如 `code_and_formula.pdf`）页树
   遍历会丢页（第 2 页"Formula"一节缺失），导致该 case 的 `text_order` 暂未启用；
-  修复需上游处理，见 `docs/solution_plan_2026-08-12.md` 第 1 节 M4。仓库内联的
-  `third_party/mbtpdf` 只跟随 target/portability 修复，不做行为改动。触发条件：
-  上游修复该遍历问题，或本仓库决定 fork 该副本自行修补。
+  修复需上游处理，见 `docs/archive/solution_plan_2026-08-12.md` 第 1 节 M4。
+  自迁移后本仓库依赖 registry `bobzhang/mbtpdf@0.2.0`（vendored 副本已于
+  迁移时删除），该遍历行为在 0.2.0 上是否已修复尚未单独验证（全量 `moon test`
+  通过，但不含该 eval case 的 text_order 断言）。触发条件：
+  上游修复该遍历问题并发布新版本，或本仓库 pin/fork 上游修补。
+
 ## EPUB HTML 兜底路径的媒体元素处理
 
 - 位置：`src/formats/epub/converter.mbt`（`preprocess_epub_html_fallback`）
@@ -93,6 +97,7 @@ vswhere → 常见安装路径枚举的顺序探测 vcvars64，并在加载后�
   `>`（如 `<source src="a>b">`），并做标签名边界检查（`<tablet>` 不再被当作
   `<table>`、`<pre>` 不再被当作 `<p>`）。`src/xml` 的 SAX 解析器原本就正确处理
   引号内 `>`，行为未变，另有黑盒测试锁定该契约。
+
 ## Word 二进制（.doc/.wps）转换的已知残留
 
 - 位置：`src/formats/doc/converter.mbt`、`src/ole2/cfb.mbt`（0.4.0 新增）

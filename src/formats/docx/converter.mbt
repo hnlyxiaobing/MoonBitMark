@@ -4,7 +4,7 @@
 ///|
 /// Converter for DOCX files
 pub(all) struct DocxConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|
@@ -180,10 +180,10 @@ priv struct DocxContext {
   mut current_text : String
   mut current_inlines : Array[@ast.Inline]
   mut current_paragraph_style : String?
-  mut heading_level : Int
+  mut heading_level : Int32
   mut in_list : Bool
   mut current_list_num_id : String?
-  mut current_list_level : Int
+  mut current_list_level : Int32
   mut run_bold : Bool
   mut run_italic : Bool
   mut current_hyperlink : String?
@@ -444,7 +444,7 @@ fn append_docx_list_item(
   ctx : DocxContext,
   inlines : Array[@ast.Inline],
   ordered : Bool,
-  level : Int,
+  level : Int32,
 ) -> Unit {
   let normalized = if level > 0 {
     docx_prefixed_inlines("  ".repeat(level), inlines)
@@ -701,7 +701,7 @@ fn apply_docx_paragraph_style(ctx : DocxContext, style : String?) -> Unit {
 }
 
 ///|
-fn parse_heading_level(style : String) -> Int {
+fn parse_heading_level(style : String) -> Int32 {
   let mut digits = ""
   for ch in style {
     if ch >= '0' && ch <= '9' {
@@ -722,7 +722,7 @@ fn parse_heading_level(style : String) -> Int {
 }
 
 ///|
-fn parse_decimal_digits(text : String) -> Int {
+fn parse_decimal_digits(text : String) -> Int32 {
   let mut value = 0
   for ch in text {
     value = value * 10 + (ch.to_int() - '0'.to_int())
@@ -731,7 +731,7 @@ fn parse_decimal_digits(text : String) -> Int {
 }
 
 ///|
-fn docx_parse_level(value : String?) -> Int {
+fn docx_parse_level(value : String?) -> Int32 {
   match value {
     Some(text) if text != "" => parse_decimal_digits(text)
     _ => 0
@@ -859,7 +859,7 @@ fn parse_docx_numbering(archive : @libzip.ZipArchive) -> DocxNumbering {
 priv struct DocxNumberingContext {
   numbering : DocxNumbering
   mut current_abstract_id : String?
-  mut current_level : Int?
+  mut current_level : Int32?
   mut current_level_format : String?
   mut current_num_id : String?
   mut current_num_abstract_id : String?
@@ -946,7 +946,7 @@ fn handle_docx_numbering_end(
 }
 
 ///|
-fn docx_numbering_key(abstract_id : String, level : Int) -> String {
+fn docx_numbering_key(abstract_id : String, level : Int32) -> String {
   abstract_id + ":" + level.to_string()
 }
 
@@ -954,7 +954,7 @@ fn docx_numbering_key(abstract_id : String, level : Int) -> String {
 fn docx_numbering_is_ordered(
   numbering : DocxNumbering,
   num_id : String,
-  level : Int,
+  level : Int32,
 ) -> Bool {
   match numbering.num_to_abstract.get(num_id) {
     Some(abstract_id) =>
@@ -1222,7 +1222,7 @@ fn append_docx_asset_blocks(
 }
 
 ///|
-fn docx_asset_placeholder(index : Int) -> String {
+fn docx_asset_placeholder(index : Int32) -> String {
   @core.asset_placeholder("docx", index)
 }
 
@@ -1314,7 +1314,7 @@ fn docx_warning_diagnostics(
 async fn ocr_docx_assets(
   assets : Array[@core.OutputAsset],
   config : @ocr.OcrConfig,
-) -> (Array[@ast.Block], Array[String], Int, String?) {
+) -> (Array[@ast.Block], Array[String], Int32, String?) {
   let blocks : Array[@ast.Block] = []
   let warnings : Array[String] = []
   let mut count = 0

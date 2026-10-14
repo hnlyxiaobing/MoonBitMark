@@ -3,7 +3,7 @@ pub async fn recognize_image_file(
   file_path : String,
   config : OcrConfig,
   source_name~ : String = file_path,
-  page_numbers~ : Array[Int] = [],
+  page_numbers~ : Array[Int32] = [],
 ) -> OcrResult {
   if config.mode == Off {
     return OcrResult::not_attempted()

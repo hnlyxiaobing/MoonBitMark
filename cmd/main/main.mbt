@@ -33,7 +33,7 @@ fn strip_failure_wrappers(text : String) -> String {
 ///|
 /// Locate the next `Failure( ... )` span. Returns the index of `Failure(`
 /// itself and the index of its matching closing parenthesis.
-fn find_failure_wrapper(text : String) -> (Int, Int)? {
+fn find_failure_wrapper(text : String) -> (Int32, Int32)? {
   let marker = "Failure("
   guard text.find(marker) is Some(open) else { return None }
   let mut depth = 0
@@ -67,7 +67,7 @@ fn extract_failure_content(body : String) -> String {
 ///|
 struct CliOptions {
   input : String
-  output : String?
+  mut output : String?
   ctx : @core.ConvertContext
   diag_json : Bool
   detect_only : Bool
@@ -79,7 +79,7 @@ struct CliOptions {
 
 ///|
 fn print_usage() -> Unit {
-  println("MoonBitMark v0.3.0 - File to Markdown Converter")
+  println("MoonBitMark v0.4.6 - File to Markdown Converter")
   println("")
   println("Usage: moon run cmd/main [options] <input> [output_file]")
   println("")
@@ -105,6 +105,18 @@ fn print_usage() -> Unit {
   println("  --dump-semantic   Print derived semantic section tree")
   println("  --debug           Enable debug context")
   println("  --help            Show this help message")
+  println("")
+  println("Default output directory:")
+  println("  When no output file is given, markdown is written to")
+  println("  <out_dir>/<input-name>.md, where out_dir comes from (highest")
+  println("  priority first):")
+  println(
+    "    1. MOONBITMARK_OUT_DIR environment variable (empty falls through)",
+  )
+  println("    2. <home>/.moonbitmark/config.json field \"out_dir\"")
+  println("  Without either, markdown is printed to stdout as before.")
+  println("  Debug modes (--detect-only, --diag-json, --dump-*) always print")
+  println("  to stdout unless an output file is given explicitly.")
   println("")
   println("Supported formats:")
   println("  - Plain text (.txt)")
@@ -137,7 +149,7 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
   let mut ocr_language = "eng"
   let mut ocr_images = false
   let mut ocr_backend : String? = None
-  let mut ocr_timeout_ms : Int? = None
+  let mut ocr_timeout_ms : Int32? = None
   let positional : Array[String] = []
 
   let mut i = 1
@@ -276,7 +288,7 @@ fn parse_args(args : Array[String]) -> CliOptions raise {
 }
 
 ///|
-fn bool_count(values : Array[Bool]) -> Int {
+fn bool_count(values : Array[Bool]) -> Int32 {
   let mut count = 0
   for value in values {
     if value {
@@ -297,7 +309,7 @@ fn parse_ocr_mode(value : String) -> @ocr.OcrMode raise {
 }
 
 ///|
-fn parse_positive_int(value : String, option_name : String) -> Int raise {
+fn parse_positive_int(value : String, option_name : String) -> Int32 raise {
   if value == "" {
     fail("Missing integer value for " + option_name)
   }
@@ -309,6 +321,19 @@ fn parse_positive_int(value : String, option_name : String) -> Int raise {
     result = result * 10 + (ch.to_int() - '0'.to_int())
   }
   result
+}
+
+///|
+/// True when this run's output should honor the default output directory:
+/// plain markdown conversion with no explicit output file. Debug and
+/// diagnostic modes keep printing to the terminal.
+fn uses_default_output(options : CliOptions) -> Bool {
+  !options.detect_only &&
+  !options.diag_json &&
+  !options.dump_ast &&
+  !options.dump_raw_ast &&
+  !options.dump_normalized_ast &&
+  !options.dump_semantic
 }
 
 ///|
@@ -324,6 +349,15 @@ async fn run_cli() -> Unit {
       print_usage()
       println("")
       fail("CLI argument error: " + strip_failure_wrappers(err.to_string()))
+    }
+  }
+  let default_out_dir : String? = load_default_out_dir() catch {
+    err => raise CliError(strip_failure_wrappers(err.to_string()))
+  }
+  if options.output is None && uses_default_output(options) {
+    match default_out_dir {
+      Some(dir) => options.output = Some(derive_output_path(options.input, dir))
+      None => ()
     }
   }
   let engine = @engine.MarkItDown::new()
@@ -409,6 +443,7 @@ fn normalize_cli_path(path : String) -> String {
 async fn emit_output(output : String, path : String?) -> Unit {
   match path {
     Some(file_path) => {
+      @engine.ensure_parent_directory(file_path)
       let file = @fs.open(
         file_path,
         mode=WriteOnly,
@@ -717,7 +752,7 @@ fn json_of_provenance(provenance : @semantic.Provenance) -> String {
 }
 
 ///|
-fn json_array_of_ints(values : Array[Int]) -> String {
+fn json_array_of_ints(values : Array[Int32]) -> String {
   let items : Array[String] = []
   for value in values {
     items.push(value.to_string())

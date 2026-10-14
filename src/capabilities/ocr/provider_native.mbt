@@ -12,7 +12,7 @@ async fn run_ocr_file_bridge(
   file_path : String,
   source_name : String,
   config : OcrConfig,
-  page_numbers : Array[Int],
+  page_numbers : Array[Int32],
 ) -> OcrResult {
   run_bridge(file_path, source_name, source_name, config, page_numbers)
 }
@@ -42,7 +42,7 @@ async fn run_bridge(
   _source_name : String,
   temp_name : String,
   config : OcrConfig,
-  page_numbers : Array[Int],
+  page_numbers : Array[Int32],
 ) -> OcrResult {
   let temp_dir = ocr_temp_dir()
   ensure_ocr_temp_dir(temp_dir)
@@ -117,7 +117,7 @@ async fn run_bridge(
     run_args.push(arg)
   }
 
-  let exit_code_result : Result[Int, Error] = try {
+  let exit_code_result : Result[Int32, Error] = try {
     let stderr = @process.redirect_to_file(
       stderr_path,
       create_mode=@fs.CreateOrTruncate,
@@ -152,7 +152,7 @@ async fn run_bridge(
 async fn parse_bridge_response(
   output_path : String,
   stderr_path : String,
-  exit_code : Int,
+  exit_code : Int32,
 ) -> OcrResult {
   let json_text_result : Result[String, Error] = Ok(read_utf8_file(output_path)) catch {
     err => Err(err)
@@ -307,7 +307,7 @@ fn sanitize_file_stem(name : String) -> String {
 }
 
 ///|
-fn find_last_char(s : String, target : Char) -> Int? {
+fn find_last_char(s : String, target : Char) -> Int32? {
   let mut found = -1
   let mut i = 0
   for ch in s {

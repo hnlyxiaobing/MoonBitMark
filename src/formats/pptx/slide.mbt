@@ -74,7 +74,7 @@ fn process_slides_with_assets_and_annotations(
 ///|
 fn process_slide_xml_with_relationships_with_annotations(
   xml : String,
-  slide_num : Int,
+  slide_num : Int32,
   slide_path : String,
   archive : @libzip.ZipArchive,
   relationships : Array[SlideRelationship],
@@ -138,7 +138,7 @@ fn process_slide_xml_with_relationships_with_annotations(
 ///|
 fn process_slide_xml(
   xml : String,
-  slide_num : Int,
+  slide_num : Int32,
   slide_path : String,
 ) -> (Array[@ast.Block], String?) {
   match @xml.parse_xml(xml) {
@@ -234,7 +234,7 @@ fn slide_relationship_path(slide_path : String) -> String {
 ///|
 fn extract_related_note_blocks(
   archive : @libzip.ZipArchive,
-  slide_num : Int,
+  slide_num : Int32,
   slide_path : String,
   relationships : Array[SlideRelationship],
 ) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
@@ -350,7 +350,7 @@ fn extract_notes_paragraphs(events : Array[@xml.ParseEvent]) -> Array[String] {
 ///|
 fn extract_related_chart_blocks(
   archive : @libzip.ZipArchive,
-  slide_num : Int,
+  slide_num : Int32,
   slide_path : String,
   relationships : Array[SlideRelationship],
 ) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) {
@@ -411,7 +411,7 @@ fn extract_related_chart_blocks(
 
 ///|
 fn extract_related_asset_blocks(
-  slide_num : Int,
+  slide_num : Int32,
   slide_path : String,
   relationships : Array[SlideRelationship],
   asset_placeholders : Map[String, String],
@@ -469,7 +469,7 @@ fn extract_related_asset_blocks(
 ///|
 fn annotate_pptx_blocks(
   blocks : Array[@ast.Block],
-  slide_num : Int,
+  slide_num : Int32,
   resource : String,
   kind : String,
 ) -> Array[@ast.BlockAnnotation] {
@@ -482,7 +482,7 @@ fn annotate_pptx_blocks(
 
 ///|
 fn pptx_block_annotation(
-  slide_num : Int,
+  slide_num : Int32,
   resource : String,
   kind : String,
 ) -> @ast.BlockAnnotation {
@@ -672,7 +672,7 @@ fn append_chart_text(current : String, next : String) -> String {
 ///|
 fn render_chart_blocks(
   chart : ChartData,
-  chart_index : Int,
+  chart_index : Int32,
 ) -> Array[@ast.Block] {
   let blocks : Array[@ast.Block] = []
   let title = match chart.title {
@@ -732,8 +732,8 @@ fn merged_chart_categories(series : Array[ChartSeries]) -> Array[String] {
 ///|
 fn max_chart_row_count(
   series : Array[ChartSeries],
-  category_count : Int,
-) -> Int {
+  category_count : Int32,
+) -> Int32 {
   let mut row_count = category_count
   for item in series {
     if item.values.length() > row_count {
@@ -744,7 +744,7 @@ fn max_chart_row_count(
 }
 
 ///|
-fn chart_category_at(categories : Array[String], index : Int) -> String {
+fn chart_category_at(categories : Array[String], index : Int32) -> String {
   if index < categories.length() {
     categories[index]
   } else {
@@ -816,7 +816,7 @@ priv struct SlideContext {
 ///|
 fn extract_slide_blocks(
   events : Array[@xml.ParseEvent],
-  slide_num : Int,
+  slide_num : Int32,
 ) -> Array[@ast.Block] {
   let ctx = SlideContext::{
     in_text: false,

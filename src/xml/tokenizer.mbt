@@ -6,8 +6,8 @@
 /// 解析结果（包含 Token、新位置、新行号）
 priv struct ParseResult {
   token : Token
-  pos : Int
-  line : Int
+  pos : Int32
+  line : Int32
 }
 
 ///|
@@ -15,23 +15,23 @@ priv struct ParseResult {
 priv struct AttrParseResult {
   name : String
   value : String
-  pos : Int
-  line : Int
+  pos : Int32
+  line : Int32
 }
 
 ///|
 /// 文本解析结果
 priv struct TextParseResult {
   text : Token
-  pos : Int
-  line : Int
+  pos : Int32
+  line : Int32
 }
 
 ///|
 /// DOCTYPE 跳过结果（新位置、新行号）
 priv struct DoctypeSkipResult {
-  pos : Int
-  line : Int
+  pos : Int32
+  line : Int32
 }
 
 ///|
@@ -144,7 +144,11 @@ fn tokenize(xml : String) -> Result[Array[Token], XMLParseError] {
 
 ///|
 /// 解析注释
-fn parse_comment(xml : String, start : Int, line : Int) -> ParseResult raise {
+fn parse_comment(
+  xml : String,
+  start : Int32,
+  line : Int32,
+) -> ParseResult raise {
   let mut pos = start
   let mut current_line = line
 
@@ -165,7 +169,7 @@ fn parse_comment(xml : String, start : Int, line : Int) -> ParseResult raise {
 
 ///|
 /// 解析 CDATA
-fn parse_cdata(xml : String, start : Int, line : Int) -> ParseResult raise {
+fn parse_cdata(xml : String, start : Int32, line : Int32) -> ParseResult raise {
   let mut pos = start
   let mut current_line = line
 
@@ -190,8 +194,8 @@ fn parse_cdata(xml : String, start : Int, line : Int) -> ParseResult raise {
 /// 避免子集内含 `>` 时截断
 fn skip_doctype(
   xml : String,
-  start : Int,
-  line : Int,
+  start : Int32,
+  line : Int32,
 ) -> DoctypeSkipResult raise {
   let mut pos = start
   let mut current_line = line
@@ -221,8 +225,8 @@ fn skip_doctype(
 /// 解析 XML 声明
 fn parse_declaration(
   xml : String,
-  start : Int,
-  line : Int,
+  start : Int32,
+  line : Int32,
 ) -> ParseResult raise {
   let mut pos = start
   let mut current_line = line
@@ -244,7 +248,11 @@ fn parse_declaration(
 
 ///|
 /// 解析结束标签
-fn parse_end_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
+fn parse_end_tag(
+  xml : String,
+  start : Int32,
+  line : Int32,
+) -> ParseResult raise {
   let mut pos = start
   let mut current_line = line
 
@@ -296,7 +304,11 @@ fn parse_end_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
 
 ///|
 /// 解析开始标签
-fn parse_start_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
+fn parse_start_tag(
+  xml : String,
+  start : Int32,
+  line : Int32,
+) -> ParseResult raise {
   let mut pos = start
   let mut current_line = line
   let attrs : Map[String, String] = Map([])
@@ -392,8 +404,8 @@ fn parse_start_tag(xml : String, start : Int, line : Int) -> ParseResult raise {
 /// 解析属性
 fn parse_attribute(
   xml : String,
-  start : Int,
-  line : Int,
+  start : Int32,
+  line : Int32,
 ) -> AttrParseResult raise {
   let mut pos = start
   let mut current_line = line
@@ -521,7 +533,7 @@ fn decode_entities(s : String) -> String {
 
 ///|
 /// 解析文本内容
-fn parse_text(xml : String, start : Int, line : Int) -> TextParseResult {
+fn parse_text(xml : String, start : Int32, line : Int32) -> TextParseResult {
   let mut pos = start
   let mut current_line = line
 

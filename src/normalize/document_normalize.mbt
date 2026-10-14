@@ -79,7 +79,7 @@ fn normalize_heading_levels(
 }
 
 ///|
-fn clamp_heading_level(level : Int) -> Int {
+fn clamp_heading_level(level : Int32) -> Int32 {
   if level < 1 {
     1
   } else if level > 6 {
@@ -235,7 +235,7 @@ fn normalize_table(
 fn table_width(
   headers : Array[Array[@ast.Inline]],
   rows : Array[Array[Array[@ast.Inline]]],
-) -> Int {
+) -> Int32 {
   let mut width = headers.length()
   for row in rows {
     if row.length() > width {
@@ -248,7 +248,7 @@ fn table_width(
 ///|
 fn normalize_row_shape(
   row : Array[Array[@ast.Inline]],
-  width : Int,
+  width : Int32,
 ) -> Array[Array[@ast.Inline]] {
   let normalized : Array[Array[@ast.Inline]] = []
   let mut index = 0

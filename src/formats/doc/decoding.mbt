@@ -2,7 +2,7 @@
 
 ///|
 /// Decode `chars` UTF-16LE code units at byte offset `off` (surrogate aware).
-fn decode_utf16le(bytes : Bytes, off : Int, chars : Int) -> String {
+fn decode_utf16le(bytes : Bytes, off : Int32, chars : Int32) -> String {
   let sb = StringBuilder()
   let mut i = 0
   while i < chars {
@@ -26,7 +26,7 @@ fn decode_utf16le(bytes : Bytes, off : Int, chars : Int) -> String {
 
 ///|
 /// Decode `chars` bytes as cp1252 (ASCII + Windows-1252 high region).
-fn decode_cp1252(bytes : Bytes, off : Int, chars : Int) -> String {
+fn decode_cp1252(bytes : Bytes, off : Int32, chars : Int32) -> String {
   let sb = StringBuilder()
   for i in 0..<chars {
     let byte = bytes[off + i].to_int()
@@ -47,7 +47,7 @@ fn decode_cp1252(bytes : Bytes, off : Int, chars : Int) -> String {
 
 ///|
 /// Windows-1252 code points for the 0x80..0x9F control region.
-fn cp1252_high(byte : Int) -> Int? {
+fn cp1252_high(byte : Int32) -> Int32? {
   match byte {
     0x80 => Some(0x20AC) // EURO SIGN
     0x82 => Some(0x201A) // SINGLE LOW-9 QUOTATION MARK
@@ -177,7 +177,7 @@ fn parse_summary_information(archive : @ole2.CfbArchive) -> Map[String, String] 
 ///|
 /// VT_LPSTR: u32 byte count (including the trailing null) followed by
 /// ANSI text. The trailing null is dropped from the decoded value.
-fn read_prop_lpstr(props : Bytes, val_off : Int) -> String? {
+fn read_prop_lpstr(props : Bytes, val_off : Int32) -> String? {
   let cch = doc_u32le(props, val_off + 4)
   let text_off = val_off + 8
   if cch <= 1 || text_off + cch > props.length() {
@@ -195,7 +195,7 @@ fn read_prop_lpstr(props : Bytes, val_off : Int) -> String? {
 ///|
 /// VT_LPWSTR: u32 character count (including the trailing null) followed
 /// by UTF-16LE text. The trailing null is dropped from the decoded value.
-fn read_prop_lpwstr(props : Bytes, val_off : Int) -> String? {
+fn read_prop_lpwstr(props : Bytes, val_off : Int32) -> String? {
   let cch = doc_u32le(props, val_off + 4)
   let text_off = val_off + 8
   if cch <= 1 || text_off + cch * 2 > props.length() {
@@ -212,7 +212,7 @@ fn read_prop_lpwstr(props : Bytes, val_off : Int) -> String? {
 
 ///|
 /// VT_FILETIME: 64-bit 100ns ticks since 1601-01-01, rendered as YYYY-MM-DD.
-fn read_prop_filetime(props : Bytes, val_off : Int) -> String {
+fn read_prop_filetime(props : Bytes, val_off : Int32) -> String {
   let ft = doc_u64le(props, val_off + 4)
   if ft == 0UL {
     return ""
@@ -224,7 +224,7 @@ fn read_prop_filetime(props : Bytes, val_off : Int) -> String {
 }
 
 ///|
-fn pad2(value : Int) -> String {
+fn pad2(value : Int32) -> String {
   if value < 10 {
     "0" + value.to_string()
   } else {
@@ -235,7 +235,7 @@ fn pad2(value : Int) -> String {
 ///|
 /// Convert a days-since-1970 count to a (year, month, day) civil date
 /// (Howard Hinnant's `civil_from_days` algorithm).
-fn civil_from_days(z : Int) -> (Int, Int, Int) {
+fn civil_from_days(z : Int32) -> (Int32, Int32, Int32) {
   let zz = z + 719468
   let era = if zz >= 0 { zz / 146097 } else { (zz - 146096) / 146097 }
   let doe = zz - era * 146097
@@ -250,13 +250,13 @@ fn civil_from_days(z : Int) -> (Int, Int, Int) {
 
 ///|
 /// VT_I4: signed 32-bit integer.
-fn read_prop_i4(props : Bytes, val_off : Int) -> String {
+fn read_prop_i4(props : Bytes, val_off : Int32) -> String {
   let raw = doc_u32le_uint(props, val_off + 4)
   raw.reinterpret_as_int().to_string()
 }
 
 ///|
-fn doc_u64le(b : Bytes, o : Int) -> UInt64 {
+fn doc_u64le(b : Bytes, o : Int32) -> UInt64 {
   if o + 8 > b.length() {
     return 0UL
   }

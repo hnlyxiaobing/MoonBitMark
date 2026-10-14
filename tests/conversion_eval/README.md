@@ -83,6 +83,8 @@ case 支持以下可选字段，用于验证 CLI 在损坏 / 不支持 / 缺失�
 - 截断 ZIP（local header 完好、central directory 缺失）：`negative_truncated_docx`
 - 合法 ZIP 但缺少必需内部条目：`negative_empty_archive_docx`
 - 非 PDF 内容：`negative_corrupt_pdf`
+- 非 OLE2/CFB 内容：`negative_corrupt_doc`（坏签名）
+- 加密 Word 二进制：`negative_word_encrypted`（明确拒绝，不静默转换）
 - 未知扩展名：`negative_unknown_extension`
 - 输入文件不存在：`negative_missing_file`
 - 目录当作输入：`negative_directory_input`
@@ -203,6 +205,7 @@ tests/conversion_eval/
 ## 当前覆盖格式
 
 - `csv`
+- `doc`
 - `docx`
 - `epub`
 - `html`

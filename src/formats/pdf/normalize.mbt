@@ -154,7 +154,7 @@ fn drop_edge_furniture_chunks(
 }
 
 ///|
-fn looks_like_header_furniture(text : String, remaining : Int) -> Bool {
+fn looks_like_header_furniture(text : String, remaining : Int32) -> Bool {
   let normalized = collapse_inline_whitespace(text)
   if normalized == "" || remaining < 2 {
     return false
@@ -164,7 +164,7 @@ fn looks_like_header_furniture(text : String, remaining : Int) -> Bool {
 }
 
 ///|
-fn looks_like_footer_furniture(text : String, remaining : Int) -> Bool {
+fn looks_like_footer_furniture(text : String, remaining : Int32) -> Bool {
   let normalized = collapse_inline_whitespace(text)
   if normalized == "" || remaining < 2 {
     return false
@@ -311,8 +311,8 @@ fn normalize_fallback_page_chunks(lines : Array[PdfRawLine]) -> Array[String] {
 ///|
 fn collect_fallback_heading(
   lines : Array[PdfRawLine],
-  start : Int,
-) -> (String, Int) {
+  start : Int32,
+) -> (String, Int32) {
   let current = collapse_inline_whitespace(lines[start].text)
   if !is_heading_candidate_text(current) {
     return ("", start)
@@ -332,8 +332,8 @@ fn collect_fallback_heading(
 ///|
 fn collect_fallback_list_item(
   lines : Array[PdfRawLine],
-  start : Int,
-) -> (String, Int)? {
+  start : Int32,
+) -> (String, Int32)? {
   let current = collapse_inline_whitespace(lines[start].text)
   let marker = fallback_list_marker(current)
   if marker == "" && parse_list_item(current) is None {
@@ -371,8 +371,8 @@ fn collect_fallback_list_item(
 ///|
 fn collect_fallback_paragraph(
   lines : Array[PdfRawLine],
-  start : Int,
-) -> (String, Int) {
+  start : Int32,
+) -> (String, Int32) {
   let mut text = collapse_inline_whitespace(lines[start].text)
   let mut index = start + 1
   while index < lines.length() {
@@ -421,8 +421,8 @@ fn fallback_list_marker(text : String) -> String {
 ///|
 fn next_fallback_content_line(
   lines : Array[PdfRawLine],
-  start : Int,
-) -> (String, Int)? {
+  start : Int32,
+) -> (String, Int32)? {
   let mut index = start
   while index < lines.length() {
     let text = collapse_inline_whitespace(lines[index].text)
@@ -909,7 +909,7 @@ fn detect_repeated_edge_chunk(
   pages : Array[PdfPageText],
   header : Bool,
 ) -> String? {
-  let counts : Map[String, Int] = Map([])
+  let counts : Map[String, Int32] = Map([])
   for page in pages {
     match edge_chunk(page.chunks, header) {
       Some(chunk) if is_repeated_edge_candidate(chunk) => {
@@ -983,7 +983,7 @@ fn remove_repeated_edge_chunks(
 ///|
 fn merge_partial_numbering_chunks(
   chunks : Array[String],
-) -> (Array[String], Int) {
+) -> (Array[String], Int32) {
   let merged : Array[String] = []
   let mut merge_count = 0
   let mut index = 0
@@ -1182,7 +1182,7 @@ fn tokenize_words(text : String) -> Array[String] {
 }
 
 ///|
-fn join_words_from(words : Array[String], start : Int) -> String {
+fn join_words_from(words : Array[String], start : Int32) -> String {
   let result : Array[String] = []
   let mut index = start
   while index < words.length() {
@@ -1195,8 +1195,8 @@ fn join_words_from(words : Array[String], start : Int) -> String {
 ///|
 fn join_words_range(
   words : Array[String],
-  start : Int,
-  end_exclusive : Int,
+  start : Int32,
+  end_exclusive : Int32,
 ) -> String {
   let result : Array[String] = []
   let mut index = start

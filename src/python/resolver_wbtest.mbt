@@ -1,6 +1,6 @@
 ///|
 /// Test helper: unwrap a parsed version into a comparable tuple.
-fn version_tuple(text : String) -> (Int, Int, Int)? {
+fn version_tuple(text : String) -> (Int32, Int32, Int32)? {
   match parse_version(text) {
     Some(version) => Some((version.major, version.minor, version.patch))
     None => None

@@ -456,8 +456,8 @@ fn reconstruct_structured_page_blocks(
 ///|
 fn collect_ocr_recovery_paragraph(
   chunks : Array[String],
-  start : Int,
-) -> (String, Int) {
+  start : Int32,
+) -> (String, Int32) {
   let parts : Array[String] = []
   let mut index = start
   while index < chunks.length() {
@@ -479,9 +479,9 @@ fn collect_ocr_recovery_paragraph(
 ///|
 fn collect_layout_paragraph(
   lines : Array[PdfLayoutLine],
-  start : Int,
+  start : Int32,
   route : PdfPageRoute,
-) -> (String, Int) {
+) -> (String, Int32) {
   let parts : Array[String] = []
   let mut index = start
   while index < lines.length() {
@@ -502,7 +502,7 @@ fn collect_layout_paragraph(
 ///|
 fn layout_line_starts_new_block(
   lines : Array[PdfLayoutLine],
-  index : Int,
+  index : Int32,
   route : PdfPageRoute,
 ) -> Bool {
   let chunk = collapse_inline_whitespace(lines[index].text)
@@ -519,7 +519,7 @@ fn layout_line_starts_new_block(
 }
 
 ///|
-fn ocr_chunk_starts_new_block(chunks : Array[String], index : Int) -> Bool {
+fn ocr_chunk_starts_new_block(chunks : Array[String], index : Int32) -> Bool {
   let chunk = collapse_inline_whitespace(chunks[index])
   chunk == "" ||
   parse_list_item(chunk) is Some(_) ||
@@ -531,7 +531,7 @@ fn ocr_chunk_starts_new_block(chunks : Array[String], index : Int) -> Bool {
 fn build_pdf_page_annotations(
   route : PdfPageRoute,
   blocks : Array[@ast.Block],
-  start_index : Int,
+  start_index : Int32,
 ) -> Array[@ast.BlockAnnotation] {
   let annotations : Array[@ast.BlockAnnotation] = []
   let page_has_table = pdf_page_contains_table(blocks)
@@ -628,7 +628,7 @@ fn summarize_route_page_flags(route : PdfPageRoute) -> String {
 ///|
 fn summarize_pdf_blocks(
   blocks : Array[@ast.Block],
-  merged_paragraph_count : Int,
+  merged_paragraph_count : Int32,
 ) -> PdfStructureSummary {
   let mut heading_count = 0
   let mut list_block_count = 0
@@ -657,9 +657,9 @@ fn summarize_pdf_blocks(
 ///|
 fn collect_structured_paragraph(
   chunks : Array[String],
-  start : Int,
+  start : Int32,
   route : PdfPageRoute,
-) -> (String, Int) {
+) -> (String, Int32) {
   let parts : Array[String] = []
   let mut index = start
   while index < chunks.length() {
@@ -709,8 +709,8 @@ fn merge_structured_paragraph_parts(parts : Array[String]) -> String {
 ///|
 fn collect_code_block_lines(
   chunks : Array[String],
-  start : Int,
-) -> (Array[String], Int) {
+  start : Int32,
+) -> (Array[String], Int32) {
   let lines : Array[String] = []
   let mut index = start
   while index < chunks.length() {
@@ -850,7 +850,7 @@ fn should_keep_code_space(prev : Char?, next : Char?) -> Bool {
 }
 
 ///|
-fn next_non_space_char(chars : Array[Char], start : Int) -> Char? {
+fn next_non_space_char(chars : Array[Char], start : Int32) -> Char? {
   let mut index = start
   while index < chars.length() {
     if chars[index] != ' ' {
@@ -862,7 +862,7 @@ fn next_non_space_char(chars : Array[Char], start : Int) -> Char? {
 }
 
 ///|
-fn skip_blank_chunks(chunks : Array[String], start : Int) -> Int {
+fn skip_blank_chunks(chunks : Array[String], start : Int32) -> Int32 {
   let mut index = start
   while index < chunks.length() && chunks[index] == "" {
     index = index + 1
@@ -923,7 +923,10 @@ fn looks_like_table_caption(text : String) -> Bool {
 }
 
 ///|
-fn collect_table_caption(chunks : Array[String], start : Int) -> (String, Int) {
+fn collect_table_caption(
+  chunks : Array[String],
+  start : Int32,
+) -> (String, Int32) {
   let caption = chunks[start]
   if start + 1 < chunks.length() {
     let next = chunks[start + 1]
@@ -947,8 +950,8 @@ fn looks_like_caption_continuation(text : String) -> Bool {
 ///|
 fn try_parse_scientific_table(
   chunks : Array[String],
-  start : Int,
-) -> (Array[String], Array[Array[String]], Int)? {
+  start : Int32,
+) -> (Array[String], Array[Array[String]], Int32)? {
   let header_lines : Array[String] = []
   let data_groups : Array[Array[String]] = []
   let mut index = start
@@ -1068,7 +1071,7 @@ fn looks_like_lowercase_phrase(text : String) -> Bool {
 }
 
 ///|
-fn common_group_length(groups : Array[Array[String]], needed : Int) -> Int {
+fn common_group_length(groups : Array[Array[String]], needed : Int32) -> Int32 {
   if groups.length() < needed {
     return 0
   }
@@ -1089,8 +1092,8 @@ fn common_group_length(groups : Array[Array[String]], needed : Int) -> Int {
 ///|
 fn transpose_table_groups(
   groups : Array[Array[String]],
-  column_count : Int,
-  row_count : Int,
+  column_count : Int32,
+  row_count : Int32,
 ) -> Array[Array[String]] {
   let rows : Array[Array[String]] = []
   let mut row_index = 0
@@ -1115,8 +1118,8 @@ fn looks_like_table_data_line(text : String) -> Bool {
 ///|
 fn try_parse_layout_table(
   lines : Array[PdfLayoutLine],
-  start : Int,
-) -> (Array[String], Array[Array[String]], Int)? {
+  start : Int32,
+) -> (Array[String], Array[Array[String]], Int32)? {
   let candidate_lines : Array[PdfLayoutLine] = []
   let mut index = start
   while index < lines.length() {
@@ -1201,7 +1204,7 @@ fn layout_text_looks_like_sentence(text : String) -> Bool {
 }
 
 ///|
-fn count_layout_numeric_words(words : Array[PdfLayoutWord]) -> Int {
+fn count_layout_numeric_words(words : Array[PdfLayoutWord]) -> Int32 {
   let mut count = 0
   for word in words {
     if looks_like_layout_numeric_value(word.text) {
@@ -1235,8 +1238,8 @@ fn looks_like_layout_numeric_value(text : String) -> Bool {
 }
 
 ///|
-fn cluster_layout_table_columns(lines : Array[PdfLayoutLine]) -> Array[Int] {
-  let anchors : Array[Int] = []
+fn cluster_layout_table_columns(lines : Array[PdfLayoutLine]) -> Array[Int32] {
+  let anchors : Array[Int32] = []
   for line in lines {
     for word in line.words {
       let center = layout_word_center(word)
@@ -1259,14 +1262,14 @@ fn cluster_layout_table_columns(lines : Array[PdfLayoutLine]) -> Array[Int] {
 }
 
 ///|
-fn layout_word_center(word : PdfLayoutWord) -> Int {
+fn layout_word_center(word : PdfLayoutWord) -> Int32 {
   word.left + (word.right - word.left) / 2
 }
 
 ///|
 fn layout_table_row_cells(
   line : PdfLayoutLine,
-  anchors : Array[Int],
+  anchors : Array[Int32],
 ) -> Array[String] {
   let cells : Array[String] = Array::make(anchors.length(), "")
   for word in line.words {
@@ -1289,9 +1292,9 @@ fn layout_table_row_cells(
 ///|
 fn layout_word_covered_columns(
   word : PdfLayoutWord,
-  anchors : Array[Int],
-) -> Array[Int] {
-  let covered : Array[Int] = []
+  anchors : Array[Int32],
+) -> Array[Int32] {
+  let covered : Array[Int32] = []
   let center = layout_word_center(word)
   let mut index = 0
   while index < anchors.length() {
@@ -1319,7 +1322,7 @@ fn layout_word_covered_columns(
 }
 
 ///|
-fn detect_layout_table_header_rows(rows : Array[Array[String]]) -> Int {
+fn detect_layout_table_header_rows(rows : Array[Array[String]]) -> Int32 {
   let mut header_rows = 0
   let mut index = 0
   while index < rows.length() && index < 3 {
@@ -1356,8 +1359,8 @@ fn layout_table_row_is_data(row : Array[String]) -> Bool {
 ///|
 fn flatten_layout_table_headers(
   rows : Array[Array[String]],
-  column_count : Int,
-  header_rows : Int,
+  column_count : Int32,
+  header_rows : Int32,
 ) -> Array[String] {
   let headers : Array[String] = []
   let mut column = 0
@@ -1387,7 +1390,7 @@ fn flatten_layout_table_headers(
 ///|
 fn normalize_layout_table_row(
   row : Array[String],
-  column_count : Int,
+  column_count : Int32,
 ) -> Array[String] {
   let normalized : Array[String] = []
   let mut index = 0
@@ -1403,7 +1406,7 @@ fn compact_layout_table_columns(
   headers : Array[String],
   rows : Array[Array[String]],
 ) -> (Array[String], Array[Array[String]]) {
-  let keep_indices : Array[Int] = []
+  let keep_indices : Array[Int32] = []
   let mut index = 0
   while index < headers.length() {
     if !should_remove_empty_spanned_header_column(headers, rows, index) {
@@ -1434,7 +1437,7 @@ fn compact_layout_table_columns(
 fn should_remove_empty_spanned_header_column(
   headers : Array[String],
   rows : Array[Array[String]],
-  index : Int,
+  index : Int32,
 ) -> Bool {
   if index <= 0 || index + 1 >= headers.length() {
     return false
@@ -1454,7 +1457,7 @@ fn should_remove_empty_spanned_header_column(
 ///|
 fn layout_table_column_is_empty(
   rows : Array[Array[String]],
-  index : Int,
+  index : Int32,
 ) -> Bool {
   for row in rows {
     if collapse_inline_whitespace(row[index]) != "" {
@@ -1475,7 +1478,7 @@ fn row_has_any_text(row : Array[String]) -> Bool {
 }
 
 ///|
-fn abs_int(value : Int) -> Int {
+fn abs_int(value : Int32) -> Int32 {
   if value < 0 {
     -value
   } else {
@@ -1484,7 +1487,7 @@ fn abs_int(value : Int) -> Int {
 }
 
 ///|
-fn insert_int_sorted(items : Array[Int], value : Int) -> Unit {
+fn insert_int_sorted(items : Array[Int32], value : Int32) -> Unit {
   let mut index = 0
   while index < items.length() && items[index] <= value {
     index = index + 1
@@ -1495,8 +1498,8 @@ fn insert_int_sorted(items : Array[Int], value : Int) -> Unit {
 ///|
 fn try_parse_ocr_whitespace_table(
   chunks : Array[String],
-  start : Int,
-) -> (Array[String], Array[Array[String]], Int)? {
+  start : Int32,
+) -> (Array[String], Array[Array[String]], Int32)? {
   let rows : Array[Array[String]] = []
   let mut index = start
   let mut expected_columns = 0
@@ -1670,8 +1673,8 @@ fn looks_like_table_value(token : String) -> Bool {
 ///|
 fn should_promote_to_heading(
   pages : Array[PdfPageText],
-  page_index : Int,
-  chunk_index : Int,
+  page_index : Int32,
+  chunk_index : Int32,
   chunk : String,
   heading_seen : Bool,
 ) -> Bool {
@@ -1691,8 +1694,8 @@ fn should_promote_to_heading(
 ///|
 fn next_chunk_after(
   pages : Array[PdfPageText],
-  page_index : Int,
-  chunk_index : Int,
+  page_index : Int32,
+  chunk_index : Int32,
 ) -> String? {
   if page_index < pages.length() {
     let page = pages[page_index]
@@ -1987,8 +1990,8 @@ fn append_repaired_list_block(
 ///|
 fn next_plain_text_paragraph(
   blocks : Array[@ast.Block],
-  start : Int,
-) -> (String, Int)? {
+  start : Int32,
+) -> (String, Int32)? {
   let mut index = start
   while index < blocks.length() {
     match blocks[index] {
@@ -2090,7 +2093,7 @@ fn looks_like_missing_list_item_paragraph(text : String) -> Bool {
 }
 
 ///|
-fn first_char_index(text : String, target : Char) -> Int? {
+fn first_char_index(text : String, target : Char) -> Int32? {
   let mut index = 0
   for ch in text {
     if ch == target {
@@ -2151,7 +2154,7 @@ fn pdf_list_strings(items : Array[Array[@ast.Inline]]) -> Array[String] {
 ///|
 fn should_promote_paragraph_block_to_heading(
   blocks : Array[@ast.Block],
-  index : Int,
+  index : Int32,
   text : String,
   heading_seen : Bool,
 ) -> Bool {
@@ -2173,7 +2176,7 @@ fn should_promote_paragraph_block_to_heading(
 }
 
 ///|
-fn next_block_text_after(blocks : Array[@ast.Block], start : Int) -> String? {
+fn next_block_text_after(blocks : Array[@ast.Block], start : Int32) -> String? {
   let mut index = start
   while index < blocks.length() {
     match blocks[index] {
@@ -2205,7 +2208,7 @@ fn next_block_text_after(blocks : Array[@ast.Block], start : Int) -> String? {
 ///|
 fn render_pdf_candidates(
   candidates : Array[PdfBlockCandidate],
-) -> (Array[@ast.Block], Int, Int) {
+) -> (Array[@ast.Block], Int32, Int32) {
   let blocks : Array[@ast.Block] = []
   let mut list_block_count = 0
   let mut paragraph_count = 0
@@ -2323,7 +2326,11 @@ fn marker_chars(text : String) -> Array[Char] {
 }
 
 ///|
-fn join_chars(chars : Array[Char], start : Int, end_exclusive : Int) -> String {
+fn join_chars(
+  chars : Array[Char],
+  start : Int32,
+  end_exclusive : Int32,
+) -> String {
   let mut result = ""
   let mut index = start
   while index < end_exclusive && index < chars.length() {

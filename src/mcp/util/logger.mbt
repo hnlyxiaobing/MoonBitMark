@@ -108,13 +108,13 @@ fn format_prefix(logger : Logger, level : LogLevel) -> String {
 
 ///|
 pub(all) struct DateTime {
-  year : Int
-  month : Int
-  day : Int
-  hour : Int
-  minute : Int
-  second : Int
-  millisecond : Int
+  year : Int32
+  month : Int32
+  day : Int32
+  hour : Int32
+  minute : Int32
+  second : Int32
+  millisecond : Int32
 }
 
 ///|
@@ -153,7 +153,7 @@ fn format_current_time() -> String {
 }
 
 ///|
-fn pad2(value : Int) -> String {
+fn pad2(value : Int32) -> String {
   if value < 10 {
     "0" + value.to_string()
   } else {
@@ -162,7 +162,7 @@ fn pad2(value : Int) -> String {
 }
 
 ///|
-fn pad3(value : Int) -> String {
+fn pad3(value : Int32) -> String {
   if value < 10 {
     "00" + value.to_string()
   } else if value < 100 {
@@ -173,7 +173,7 @@ fn pad3(value : Int) -> String {
 }
 
 ///|
-fn pad4(value : Int) -> String {
+fn pad4(value : Int32) -> String {
   let text = value.to_string()
   if text.length() >= 4 {
     text

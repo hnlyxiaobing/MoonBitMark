@@ -43,7 +43,7 @@ priv enum PdfRouteFlag {
 
 ///|
 priv struct PdfPageRoute {
-  page_no : Int
+  page_no : Int32
   provider : PdfPageProviderKind
   text_quality : PdfTextQuality
   layout_complexity : PdfLayoutComplexity
@@ -52,11 +52,11 @@ priv struct PdfPageRoute {
 
 ///|
 priv struct PdfRouteSummary {
-  total_pages : Int
-  native_fast_pages : Int
-  structured_pages : Int
-  recovery_pages : Int
-  flagged_pages : Int
+  total_pages : Int32
+  native_fast_pages : Int32
+  structured_pages : Int32
+  recovery_pages : Int32
+  flagged_pages : Int32
 }
 
 ///|
@@ -74,24 +74,24 @@ priv struct PdfRawLine {
 ///|
 priv struct PdfLayoutWord {
   text : String
-  left : Int
-  right : Int
+  left : Int32
+  right : Int32
 } derive(FromJson)
 
 ///|
 priv struct PdfLayoutLine {
   text : String
-  left : Int
-  top : Int
-  right : Int
-  bottom : Int
+  left : Int32
+  top : Int32
+  right : Int32
+  bottom : Int32
   words : Array[PdfLayoutWord]
 } derive(FromJson)
 
 ///|
 priv struct PdfLayoutPage {
-  page_no : Int
-  width : Int
+  page_no : Int32
+  width : Int32
   lines : Array[PdfLayoutLine]
 } derive(FromJson)
 
@@ -102,7 +102,7 @@ priv struct PdfLayoutPayload {
 
 ///|
 priv struct PdfPageExtraction {
-  page_no : Int
+  page_no : Int32
   source_kind : PdfPageProviderKind
   raw_text : String?
   lines : Array[PdfRawLine]
@@ -120,7 +120,7 @@ priv struct PdfNativeExtraction {
 
 ///|
 priv struct PdfPageText {
-  number : Int
+  number : Int32
   raw_text : String
   chunks : Array[String]
   layout : PdfLayoutPage?
@@ -129,9 +129,9 @@ priv struct PdfPageText {
 ///|
 priv struct PdfNormalizationResult {
   pages : Array[PdfPageText]
-  removed_header_count : Int
-  removed_footer_count : Int
-  merged_partial_numbering_count : Int
+  removed_header_count : Int32
+  removed_footer_count : Int32
+  merged_partial_numbering_count : Int32
 }
 
 ///|
@@ -143,7 +143,7 @@ priv struct PdfListItem {
 ///|
 priv enum PdfBlockKind {
   Paragraph
-  Heading(Int)
+  Heading(Int32)
   List(Bool)
 }
 
@@ -155,11 +155,11 @@ priv struct PdfBlockCandidate {
 
 ///|
 priv struct PdfStructureSummary {
-  heading_count : Int
-  list_block_count : Int
-  list_item_count : Int
-  paragraph_count : Int
-  merged_paragraph_count : Int
+  heading_count : Int32
+  list_block_count : Int32
+  list_item_count : Int32
+  paragraph_count : Int32
+  merged_paragraph_count : Int32
 }
 
 ///|

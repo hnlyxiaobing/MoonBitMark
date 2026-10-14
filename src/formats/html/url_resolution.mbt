@@ -167,7 +167,7 @@ fn resolve_relative_url(base : String, reference : String) -> String {
 
 ///|
 fn split_reference_suffix(reference : String) -> (String, String) {
-  let mut split_index : Int? = None
+  let mut split_index : Int32? = None
   match reference.find("?") {
     Some(index) => split_index = Some(index)
     None => ()

@@ -2,9 +2,9 @@
 
 ///|
 pub(all) struct ConvertStats {
-  char_count : Int
-  block_count : Int
-  duration_ms : Int?
+  char_count : Int32
+  block_count : Int32
+  duration_ms : Int32?
   used_fallback : Bool
 } derive(Debug, Eq, ToJson)
 
@@ -147,7 +147,7 @@ pub(all) enum ConversionError {
   InputError(String, String?)
   FormatDetectionError(String)
   ZipError(String, String?)
-  XmlParseError(String, Int?)
+  XmlParseError(String, Int32?)
   UnsupportedFeatureError(String, String)
   ConversionFailed(String, String)
 } derive(Debug, Eq, ToJson)
@@ -360,8 +360,8 @@ pub impl Show for OutputMode with fn output(self, logger) {
 pub(all) struct ConvertContext {
   keep_metadata : Bool
   debug : Bool
-  max_file_size : Int?
-  timeout_ms : Int?
+  max_file_size : Int32?
+  timeout_ms : Int32?
   asset_output_dir : String?
   output_mode : OutputMode
   ocr : @ocr.OcrConfig
@@ -392,12 +392,12 @@ pub fn ConvertContext::default() -> ConvertContext {
 ///|
 pub(open) trait DocumentConverter {
   fn name() -> String
-  fn priority() -> Int
+  fn priority() -> Int32
   fn accepts(StreamInfo) -> Bool
 }
 
 ///|
-pub fn count_markdown_blocks(markdown : String) -> Int {
+pub fn count_markdown_blocks(markdown : String) -> Int32 {
   let trimmed = markdown.trim()
   if trimmed == "" {
     0
@@ -409,7 +409,7 @@ pub fn count_markdown_blocks(markdown : String) -> Int {
 ///|
 pub fn stats_for_markdown(
   markdown : String,
-  duration_ms? : Int,
+  duration_ms? : Int32,
   used_fallback~ : Bool = false,
 ) -> ConvertStats {
   ConvertStats::{

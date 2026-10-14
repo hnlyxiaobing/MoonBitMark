@@ -11,13 +11,13 @@ struct TestStream {
 }
 
 ///|
-fn arr_set16(arr : Array[Byte], off : Int, v : Int) -> Unit {
+fn arr_set16(arr : Array[Byte], off : Int32, v : Int32) -> Unit {
   arr.set(off, (v & 0xFF).to_byte())
   arr.set(off + 1, ((v >> 8) & 0xFF).to_byte())
 }
 
 ///|
-fn arr_set32(arr : Array[Byte], off : Int, v : UInt) -> Unit {
+fn arr_set32(arr : Array[Byte], off : Int32, v : UInt32) -> Unit {
   arr.set(off, (v & 0xFF).to_byte())
   arr.set(off + 1, ((v >> 8) & 0xFF).to_byte())
   arr.set(off + 2, ((v >> 16) & 0xFF).to_byte())
@@ -46,7 +46,7 @@ fn bytes_of_arr(arr : Array[Byte]) -> Bytes {
 }
 
 ///|
-fn pad_to_sectors(data : Bytes, sector_size : Int) -> Bytes {
+fn pad_to_sectors(data : Bytes, sector_size : Int32) -> Bytes {
   let rem = data.length() % sector_size
   if rem == 0 {
     data
@@ -62,9 +62,9 @@ fn pad_to_sectors(data : Bytes, sector_size : Int) -> Bytes {
 ///|
 fn make_directory_entry(
   name_utf16 : Array[Byte],
-  entry_type : Int,
-  start : UInt,
-  size : UInt,
+  entry_type : Int32,
+  start : UInt32,
+  size : UInt32,
 ) -> Array[Byte] {
   let entry : Array[Byte] = Array::make(128, b'\x00')
   for i in 0..<name_utf16.length() {
@@ -109,8 +109,8 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
     }
   }
   // Assign big-stream sectors.
-  let big_start : Array[Int] = Array(capacity=0)
-  let big_padded_len : Array[Int] = Array(capacity=0)
+  let big_start : Array[Int32] = Array(capacity=0)
+  let big_padded_len : Array[Int32] = Array(capacity=0)
   let mut next_sector = 2
   for stream in big {
     let padded = pad_to_sectors(stream.data, sector_size)
@@ -121,10 +121,10 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
   // Pack small streams into the mini stream (64-byte units).
   let mini_unit = 64
   let ministream : Array[Byte] = Array(capacity=0)
-  let minifat : Array[UInt] = Array(capacity=0)
-  let small_start : Array[UInt] = Array(capacity=0)
+  let minifat : Array[UInt32] = Array(capacity=0)
+  let small_start : Array[UInt32] = Array(capacity=0)
   for stream in small {
-    let start_unit : UInt = minifat.length().reinterpret_as_uint()
+    let start_unit : UInt32 = minifat.length().reinterpret_as_uint()
     let units = (stream.data.length() + mini_unit - 1) / mini_unit
     for b in stream.data {
       ministream.push(b)
@@ -133,7 +133,7 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
       ministream.push(b'\x00')
     }
     for u in 0..<units {
-      let next : UInt = if u == units - 1 {
+      let next : UInt32 = if u == units - 1 {
         0xFFFFFFFE
       } else {
         start_unit + (u + 1).reinterpret_as_uint()
@@ -205,7 +205,7 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
     let start = big_start[i]
     let sectors = big_padded_len[i] / sector_size
     for s in 0..<sectors {
-      let next : UInt = if s == sectors - 1 {
+      let next : UInt32 = if s == sectors - 1 {
         0xFFFFFFFE
       } else {
         (start + s + 1).reinterpret_as_uint()
@@ -214,7 +214,7 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
     }
   }
   for s in 0..<ministream_sectors {
-    let next : UInt = if s == ministream_sectors - 1 {
+    let next : UInt32 = if s == ministream_sectors - 1 {
       0xFFFFFFFE
     } else {
       (ministream_start + s + 1).reinterpret_as_uint()
@@ -222,7 +222,7 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
     arr_set32(fat, (ministream_start + s) * 4, next)
   }
   for s in 0..<minifat_sectors {
-    let next : UInt = if s == minifat_sectors - 1 {
+    let next : UInt32 = if s == minifat_sectors - 1 {
       0xFFFFFFFE
     } else {
       (minifat_start + s + 1).reinterpret_as_uint()
@@ -244,7 +244,7 @@ fn build_test_cfb(streams : Array[TestStream]) -> Bytes {
   arr_set16(header, 0x2C, 1) // num FAT sectors
   arr_set32(header, 0x30, dir_start.reinterpret_as_uint())
   arr_set32(header, 0x38, cutoff.reinterpret_as_uint())
-  let mf_start_field : UInt = if minifat_sectors == 0 {
+  let mf_start_field : UInt32 = if minifat_sectors == 0 {
     0xFFFFFFFE
   } else {
     minifat_start.reinterpret_as_uint()

@@ -3,7 +3,7 @@
 ///|
 /// Converter for CSV files
 pub(all) struct CsvConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|
@@ -233,7 +233,7 @@ fn sample_csv_lines(csv : String) -> Array[String] {
 }
 
 ///|
-fn delimiter_score(lines : Array[String], delimiter : Char) -> Int {
+fn delimiter_score(lines : Array[String], delimiter : Char) -> Int32 {
   let mut score = 0
   for line in lines {
     let mut count = 0
@@ -276,12 +276,12 @@ fn delimiter_label(delimiter : Char) -> String {
 }
 
 ///|
-fn csv_row_count(rows : Array[Array[String]]) -> Int {
+fn csv_row_count(rows : Array[Array[String]]) -> Int32 {
   rows.length()
 }
 
 ///|
-fn csv_column_count(rows : Array[Array[String]]) -> Int {
+fn csv_column_count(rows : Array[Array[String]]) -> Int32 {
   let mut max_columns = 0
   for row in rows {
     if row.length() > max_columns {

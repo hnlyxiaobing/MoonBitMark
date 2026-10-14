@@ -473,7 +473,7 @@ fn parse_get_prompt_params(
 }
 
 ///|
-fn mcp_default_page_size() -> Int {
+fn mcp_default_page_size() -> Int32 {
   50
 }
 

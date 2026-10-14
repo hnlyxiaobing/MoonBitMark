@@ -3,13 +3,13 @@
 
 ///|
 /// CRC32 多项式 (反向表示)
-let crc32_poly : UInt = 0xEDB88320
+let crc32_poly : UInt32 = 0xEDB88320
 
 ///|
 /// 构建 CRC32 查找表
-fn build_crc32_table() -> FixedArray[UInt] {
-  FixedArray::makei(256, fn(i : Int) -> UInt {
-    let mut c : UInt = i.reinterpret_as_uint()
+fn build_crc32_table() -> FixedArray[UInt32] {
+  FixedArray::makei(256, fn(i : Int32) -> UInt32 {
+    let mut c : UInt32 = i.reinterpret_as_uint()
     for _ in 0..<8 {
       if (c & 1U) == 1U {
         c = (c >> 1) ^ crc32_poly
@@ -23,19 +23,19 @@ fn build_crc32_table() -> FixedArray[UInt] {
 
 ///|
 /// CRC32 查找表 (延迟初始化)
-fn get_crc32_table() -> FixedArray[UInt] {
+fn get_crc32_table() -> FixedArray[UInt32] {
   build_crc32_table()
 }
 
 ///|
 /// 计算 CRC32 校验值
 /// 使用 IEEE 802.3 标准算法
-pub fn crc32(data : Bytes) -> UInt {
+pub fn crc32(data : Bytes) -> UInt32 {
   let table = get_crc32_table()
-  let mut crc : UInt = 0xFFFFFFFF
+  let mut crc : UInt32 = 0xFFFFFFFF
 
   for i in 0..<data.length() {
-    let byte : UInt = data[i].to_uint()
+    let byte : UInt32 = data[i].to_uint()
     let index = (crc ^ byte) & 0xFF
     crc = (crc >> 8) ^ table[index.reinterpret_as_int()]
   }
@@ -46,12 +46,12 @@ pub fn crc32(data : Bytes) -> UInt {
 ///|
 /// 继续计算 CRC32 (用于流式处理)
 /// 初始值应传入 0，后续调用传入上一次的结果
-pub fn crc32_continue(data : Bytes, init : UInt) -> UInt {
+pub fn crc32_continue(data : Bytes, init : UInt32) -> UInt32 {
   let table = get_crc32_table()
   let mut crc = init
 
   for i in 0..<data.length() {
-    let byte : UInt = data[i].to_uint()
+    let byte : UInt32 = data[i].to_uint()
     let index = (crc ^ byte) & 0xFF
     crc = (crc >> 8) ^ table[index.reinterpret_as_int()]
   }

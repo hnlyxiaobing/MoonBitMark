@@ -157,8 +157,8 @@ fn bytes_to_ascii(data : Bytes) -> String {
 ///|
 /// 位读取器 (公开用于测试)
 pub struct BitReader {
-  mut byte_pos : Int
-  mut bit_pos : Int
+  mut byte_pos : Int32
+  mut bit_pos : Int32
   data : Bytes
 }
 
@@ -170,8 +170,8 @@ pub fn BitReader::new(data : Bytes) -> BitReader {
 ///|
 pub fn BitReader::read_bits(
   self : BitReader,
-  count : Int,
-) -> Result[Int, String] {
+  count : Int32,
+) -> Result[Int32, String] {
   let mut result = 0
   let mut bits_read = 0
 
@@ -204,8 +204,8 @@ pub fn BitReader::read_bits(
 ///|
 pub fn BitReader::read_bits_reverse(
   self : BitReader,
-  count : Int,
-) -> Result[Int, String] {
+  count : Int32,
+) -> Result[Int32, String] {
   let mut result = 0
   let mut bits_read = 0
 

@@ -9,7 +9,7 @@
 
 ///|
 pub(all) struct DocConverter {
-  dummy : Int
+  dummy : Int32
 }
 
 ///|
@@ -182,15 +182,15 @@ pub fn convert_bytes(
 priv struct DocFib {
   encrypted : Bool
   which_tbl_stm : Bool
-  fc_min : Int
-  fc_mac : Int
-  ccp_text : Int
-  fc_clx : Int
-  lcb_clx : Int
-  fc_plcf_bte_papx : Int
-  lcb_plcf_bte_papx : Int
-  fc_plcf_bte_chpx : Int
-  lcb_plcf_bte_chpx : Int
+  fc_min : Int32
+  fc_mac : Int32
+  ccp_text : Int32
+  fc_clx : Int32
+  lcb_clx : Int32
+  fc_plcf_bte_papx : Int32
+  lcb_plcf_bte_papx : Int32
+  fc_plcf_bte_chpx : Int32
+  lcb_plcf_bte_chpx : Int32
 }
 
 ///|
@@ -228,11 +228,11 @@ fn parse_fib(word_document : Bytes) -> Result[DocFib, String] {
 ///|
 /// One entry of the piece table (PlcPcd).
 priv struct DocPiece {
-  cp0 : Int
-  cp1 : Int
+  cp0 : Int32
+  cp1 : Int32
   compressed : Bool
-  byte_offset : Int
-  fc_space_start : Int
+  byte_offset : Int32
+  fc_space_start : Int32
 }
 
 ///|
@@ -240,8 +240,8 @@ priv struct DocPiece {
 fn parse_piece_table(
   _word_document : Bytes,
   table : Bytes?,
-  fc_clx : Int,
-  lcb_clx : Int,
+  fc_clx : Int32,
+  lcb_clx : Int32,
 ) -> Array[DocPiece]? {
   match table {
     None => None
@@ -305,7 +305,7 @@ fn parse_piece_table(
 fn join_piece_text(
   word_document : Bytes,
   pieces : Array[DocPiece],
-  _ccp_text : Int,
+  _ccp_text : Int32,
 ) -> String {
   let sb = StringBuilder()
   for piece in pieces {
@@ -322,8 +322,8 @@ fn join_piece_text(
 fn decode_piece_range(
   word_document : Bytes,
   piece : DocPiece,
-  start : Int,
-  chars : Int,
+  start : Int32,
+  chars : Int32,
 ) -> String {
   if chars <= 0 {
     return ""
@@ -351,8 +351,8 @@ fn decode_piece_range(
 fn extract_fc_range(
   word_document : Bytes,
   pieces : Array[DocPiece],
-  start_fc : Int,
-  end_fc : Int,
+  start_fc : Int32,
+  end_fc : Int32,
 ) -> String {
   let sb = StringBuilder()
   let mut pos = start_fc
@@ -399,7 +399,7 @@ fn extract_fc_range(
 }
 
 ///|
-fn find_piece_at(pieces : Array[DocPiece], fc_space : Int) -> DocPiece? {
+fn find_piece_at(pieces : Array[DocPiece], fc_space : Int32) -> DocPiece? {
   for piece in pieces {
     let start = piece.fc_space_start
     let end = start + 2 * (piece.cp1 - piece.cp0)
@@ -413,8 +413,8 @@ fn find_piece_at(pieces : Array[DocPiece], fc_space : Int) -> DocPiece? {
 ///|
 /// Smallest piece start strictly greater than `after_fc`, used to hop over
 /// gaps in fc space at piece boundaries.
-fn next_piece_start(pieces : Array[DocPiece], after_fc : Int) -> Int? {
-  let mut best : Int? = None
+fn next_piece_start(pieces : Array[DocPiece], after_fc : Int32) -> Int32? {
+  let mut best : Int32? = None
   for piece in pieces {
     if piece.fc_space_start > after_fc {
       match best {
@@ -453,11 +453,11 @@ fn contiguous_text(word_document : Bytes, fib : DocFib) -> String? {
 /// character range (field delimiters and control characters included) so
 /// formatting runs and hyperlink fields can be resolved against fc space.
 priv struct DocParagraph {
-  istd : Int
-  ilfo : Int
+  istd : Int32
+  ilfo : Int32
   in_table : Bool
   row_end : Bool
-  start_fc : Int
+  start_fc : Int32
   text : String
 }
 
@@ -467,8 +467,8 @@ priv struct DocParagraph {
 fn parse_paragraph_table(
   word_document : Bytes,
   table : Bytes?,
-  fc_plcf : Int,
-  lcb_plcf : Int,
+  fc_plcf : Int32,
+  lcb_plcf : Int32,
   pieces : Array[DocPiece]?,
 ) -> Array[DocParagraph] {
   let result : Array[DocParagraph] = []
@@ -550,8 +550,8 @@ fn parse_paragraph_table(
 ///|
 /// One run of text with uniform character formatting.
 priv struct DocTextRun {
-  start_fc : Int
-  end_fc : Int
+  start_fc : Int32
+  end_fc : Int32
   bold : Bool
   italic : Bool
   underline : Bool
@@ -563,8 +563,8 @@ priv struct DocTextRun {
 fn parse_char_format_table(
   word_document : Bytes,
   table : Bytes?,
-  fc_plcf : Int,
-  lcb_plcf : Int,
+  fc_plcf : Int32,
+  lcb_plcf : Int32,
 ) -> Array[DocTextRun] {
   let result : Array[DocTextRun] = []
   match table {
@@ -627,7 +627,7 @@ fn parse_char_format_table(
 
 ///|
 priv struct DocSprms {
-  ilfo : Int
+  ilfo : Int32
   in_table : Bool
   row_end : Bool
 }
@@ -636,7 +636,7 @@ priv struct DocSprms {
 /// Walk a grpprl, decoding sprm opcodes per [MS-DOC] operand sizes:
 /// spra {0,1} -> 1 byte, {2,4,5} -> 2 bytes, {3} -> 4 bytes,
 /// {7} -> 3 bytes, {6} -> variable (length byte includes itself).
-fn parse_sprms(fkp : Bytes, start : Int, length : Int) -> DocSprms {
+fn parse_sprms(fkp : Bytes, start : Int32, length : Int32) -> DocSprms {
   let mut ilfo = 0
   let mut in_table = false
   let mut row_end = false
@@ -687,7 +687,11 @@ priv struct DocCharFormat {
 /// - 0x0835 (sprmFBold): 1 byte operand, non-zero = bold
 /// - 0x0836 (sprmFItalic): 1 byte operand, non-zero = italic
 /// - 0x2A3E (sprmCKul): 1 byte operand, non-zero = some underline style
-fn parse_char_sprms(fkp : Bytes, start : Int, length : Int) -> DocCharFormat {
+fn parse_char_sprms(
+  fkp : Bytes,
+  start : Int32,
+  length : Int32,
+) -> DocCharFormat {
   let mut bold = false
   let mut italic = false
   let mut underline = false
@@ -805,7 +809,7 @@ fn build_doc_blocks(
 /// `raw character index = (fc - fc_base) / 2`.
 fn build_formatted_inlines(
   raw_text : String,
-  start_fc : Int,
+  start_fc : Int32,
   char_runs : Array[DocTextRun],
 ) -> Array[@ast.Inline] {
   let (text, leading) = trim_doc_raw(raw_text)
@@ -837,7 +841,7 @@ fn build_formatted_inlines(
 /// `raw[0]`; character runs are matched in fc space (two units per character).
 fn format_doc_text(
   raw : String,
-  fc_base : Int,
+  fc_base : Int32,
   char_runs : Array[DocTextRun],
 ) -> Array[@ast.Inline] {
   let result : Array[@ast.Inline] = []
@@ -903,7 +907,7 @@ fn push_doc_formatted(
 }
 
 ///|
-fn clamp_int(value : Int, lo : Int, hi : Int) -> Int {
+fn clamp_int(value : Int32, lo : Int32, hi : Int32) -> Int32 {
   if value < lo {
     lo
   } else if value > hi {
@@ -927,8 +931,8 @@ priv enum DocSpan {
 /// top-level fields are recognized. A hyperlink field keeps its result text and
 /// target; any other field degrades to its literal result text. An unterminated
 /// field is emitted verbatim so malformed documents lose no text.
-fn split_doc_field_spans(text : String) -> Array[(Int, DocSpan)] {
-  let spans : Array[(Int, DocSpan)] = []
+fn split_doc_field_spans(text : String) -> Array[(Int32, DocSpan)] {
+  let spans : Array[(Int32, DocSpan)] = []
   let mut literal_start = 0
   let mut i = 0
   while i < text.length() {
@@ -960,7 +964,7 @@ fn split_doc_field_spans(text : String) -> Array[(Int, DocSpan)] {
 ///|
 /// Parse the field starting at `start` (`text[start]` is 0x13). Returns the
 /// span, the raw offset of its visible content and the index past the field.
-fn parse_doc_field_at(text : String, start : Int) -> (DocSpan, Int, Int) {
+fn parse_doc_field_at(text : String, start : Int32) -> (DocSpan, Int32, Int32) {
   let mut depth = 1
   let mut i = start + 1
   let instr_start = i
@@ -1065,7 +1069,7 @@ fn tokenize_field_instr(instr : String) -> Array[String] {
 /// Trim whitespace, cell and paragraph marks from the ends of raw paragraph
 /// text. Returns the trimmed text and the number of leading characters removed
 /// so the caller can keep the fc base aligned.
-fn trim_doc_raw(text : String) -> (String, Int) {
+fn trim_doc_raw(text : String) -> (String, Int32) {
   let mut start = 0
   while start < text.length() && is_doc_trim_char(text[start]) {
     start = start + 1
@@ -1197,7 +1201,7 @@ fn render_doc_failure(
 }
 
 ///|
-fn doc_u16le(b : Bytes, o : Int) -> Int {
+fn doc_u16le(b : Bytes, o : Int32) -> Int32 {
   if o + 2 > b.length() {
     return 0
   }
@@ -1205,7 +1209,7 @@ fn doc_u16le(b : Bytes, o : Int) -> Int {
 }
 
 ///|
-fn doc_u32le(b : Bytes, o : Int) -> Int {
+fn doc_u32le(b : Bytes, o : Int32) -> Int32 {
   if o + 4 > b.length() {
     return 0
   }
@@ -1216,7 +1220,7 @@ fn doc_u32le(b : Bytes, o : Int) -> Int {
 }
 
 ///|
-fn doc_u32le_uint(b : Bytes, o : Int) -> UInt {
+fn doc_u32le_uint(b : Bytes, o : Int32) -> UInt32 {
   if o + 4 > b.length() {
     return 0
   }
@@ -1227,7 +1231,7 @@ fn doc_u32le_uint(b : Bytes, o : Int) -> UInt {
 }
 
 ///|
-fn doc_min(a : Int, b : Int) -> Int {
+fn doc_min(a : Int32, b : Int32) -> Int32 {
   if a < b {
     a
   } else {

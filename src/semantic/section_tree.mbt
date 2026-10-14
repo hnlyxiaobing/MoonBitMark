@@ -35,8 +35,8 @@ pub impl Show for SemanticRole with fn output(self, logger) {
 pub(all) struct Provenance {
   source_path : String?
   source_url : String?
-  page_no : Int?
-  slide_no : Int?
+  page_no : Int32?
+  slide_no : Int32?
   sheet_name : String?
   chapter : String?
   resource : String?
@@ -54,13 +54,13 @@ pub extend Provenance with ToJson::{to_json}
 ///|
 pub(all) struct SemanticBlock {
   block_id : String
-  index : Int
+  index : Int32
   role : SemanticRole
   text : String
   source_hint : String?
   origin_hint : String?
   diagnostics : Array[String]
-  confidence : Int
+  confidence : Int32
   provenance : Provenance
 } derive(Debug, Eq, ToJson)
 
@@ -77,9 +77,9 @@ pub extend SemanticBlock with ToJson::{to_json}
 pub(all) struct Section {
   id : String
   title : String?
-  level : Int
+  level : Int32
   role : SemanticRole
-  block_indices : Array[Int]
+  block_indices : Array[Int32]
   diagnostics : Array[String]
   provenance : Provenance
   children : Array[Section]
@@ -185,11 +185,11 @@ fn semantic_block_of(
   annotation : @ast.BlockAnnotation,
   metadata : Map[String, String],
   document_title : String?,
-  index : Int,
+  index : Int32,
   has_previous : Bool,
   previous_block : @ast.Block?,
-  current_page_no : Int?,
-  current_slide_no : Int?,
+  current_page_no : Int32?,
+  current_slide_no : Int32?,
 ) -> SemanticBlock {
   let text = @ast.plain_text_of_block(block)
   let provenance = provenance_of(
@@ -429,7 +429,7 @@ fn confidence_of(
   block : @ast.Block,
   text : String,
   diagnostics : Array[String],
-) -> Int {
+) -> Int32 {
   let mut value = 85
   if text.trim() == "" {
     value = 40
@@ -477,8 +477,8 @@ fn provenance_of(
   annotation : @ast.BlockAnnotation,
   block : @ast.Block,
   text : String,
-  current_page_no : Int?,
-  current_slide_no : Int?,
+  current_page_no : Int32?,
+  current_slide_no : Int32?,
 ) -> Provenance {
   let base = document_provenance_of(metadata)
   let format_name = metadata.get("format")
@@ -523,7 +523,7 @@ fn provenance_of(
 fn default_resource_for_format(
   format_name : String?,
   current : String?,
-  slide_no : Int?,
+  slide_no : Int32?,
 ) -> String? {
   match format_name {
     Some("pptx") =>
@@ -606,9 +606,9 @@ fn infer_slide_no_from_block(
   format_name : String?,
   block : @ast.Block,
   text : String,
-  current_slide_no : Int?,
-  fallback : Int?,
-) -> Int? {
+  current_slide_no : Int32?,
+  fallback : Int32?,
+) -> Int32? {
   match format_name {
     Some("pptx") =>
       match slide_heading_number(block, text) {
@@ -620,7 +620,7 @@ fn infer_slide_no_from_block(
 }
 
 ///|
-fn slide_heading_number(block : @ast.Block, text : String) -> Int? {
+fn slide_heading_number(block : @ast.Block, text : String) -> Int32? {
   match block {
     @ast.Heading(_, _) =>
       if looks_like_slide_heading(text) {
@@ -661,8 +661,8 @@ fn is_ascii_letter(ch : UInt16) -> Bool {
 ///|
 fn page_no_from_hints(
   annotation : @ast.BlockAnnotation,
-  fallback : Int?,
-) -> Int? {
+  fallback : Int32?,
+) -> Int32? {
   match extract_number_after_prefix(annotation.source_hint, "page:") {
     Some(value) => Some(value)
     None =>
@@ -676,8 +676,8 @@ fn page_no_from_hints(
 ///|
 fn slide_no_from_hints(
   annotation : @ast.BlockAnnotation,
-  fallback : Int?,
-) -> Int? {
+  fallback : Int32?,
+) -> Int32? {
   match extract_number_after_prefix(annotation.source_hint, "slide:") {
     Some(value) => Some(value)
     None =>
@@ -727,7 +727,7 @@ fn first_present(primary : String?, fallback : String?) -> String? {
 }
 
 ///|
-fn parse_optional_int(value : String?) -> Int? {
+fn parse_optional_int(value : String?) -> Int32? {
   match value {
     Some(text) if text != "" => parse_decimal_digits(text.trim().to_owned())
     _ => None
@@ -735,7 +735,7 @@ fn parse_optional_int(value : String?) -> Int? {
 }
 
 ///|
-fn parse_decimal_digits(text : String) -> Int? {
+fn parse_decimal_digits(text : String) -> Int32? {
   if text == "" {
     return None
   }
@@ -750,7 +750,7 @@ fn parse_decimal_digits(text : String) -> Int? {
 }
 
 ///|
-fn extract_number_after_prefix(text : String?, prefix : String) -> Int? {
+fn extract_number_after_prefix(text : String?, prefix : String) -> Int32? {
   match extract_text_after_prefix(text, prefix) {
     Some(value) => parse_decimal_digits(value)
     None => None
@@ -826,7 +826,7 @@ fn insert_section(
 ///|
 fn append_block_to_deepest_section(
   sections : Array[Section],
-  block_index : Int,
+  block_index : Int32,
   provenance : Provenance,
 ) -> Array[Section] {
   if sections.length() == 0 {
@@ -890,7 +890,7 @@ fn merge_provenance(current : Provenance, incoming : Provenance) -> Provenance {
 }
 
 ///|
-fn first_present_int(primary : Int?, fallback : Int?) -> Int? {
+fn first_present_int(primary : Int32?, fallback : Int32?) -> Int32? {
   match primary {
     Some(_) => primary
     None => fallback

@@ -27,7 +27,7 @@
 `tests/integration/mcp_prompts_smoke.ps1` verifies static prompts over STDIO:
 
 - initialize advertises the `prompts` capability
-- `prompts/list` exposes `convert-document` and `diagnose-conversion-failure`
+- `prompts/list` exposes `convert-document` and `diagnose-conversion-failure` (the server also registers `batch-convert`; this smoke does not assert it)
 - `prompts/get` returns guided message payloads for both prompts
 - missing prompts and missing required prompt arguments return structured JSON-RPC errors without polluting stdout/stderr
 
@@ -40,7 +40,7 @@
 
 `tests/integration/mcp_http_smoke.ps1` verifies the standalone HTTP transport:
 
-- start `_build/native/release/build/moonbitlang/moonbitmark/cmd/mcp-http-server/mcp-http-server.exe`
+- start `_build/native/release/build/cmd/mcp-http-server/mcp-http-server.exe`
 - wait for `GET /healthz`
 - verify `POST /mcp` handles notifications with `204 No Content`
 - verify malformed JSON returns `400 Bad Request`

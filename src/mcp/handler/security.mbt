@@ -5,8 +5,8 @@ pub(all) struct McpSecurityConfig {
   allowed_roots : Array[String]
   allow_http : Bool
   enable_ocr : Bool
-  max_output_chars : Int?
-  max_upload_bytes : Int
+  max_output_chars : Int32?
+  max_upload_bytes : Int32
 }
 
 ///|
@@ -98,9 +98,9 @@ pub fn build_mcp_convert_context(
 
 ///|
 pub fn clamp_mcp_output_chars(
-  requested_limit : Int?,
+  requested_limit : Int32?,
   config : McpSecurityConfig,
-) -> Int? {
+) -> Int32? {
   match (requested_limit, config.max_output_chars) {
     (Some(requested), Some(boundary)) => Some(min_int(requested, boundary))
     (Some(requested), None) => Some(requested)
@@ -178,10 +178,10 @@ fn parse_bool_env(name : String, fallback : Bool) -> Result[Bool, String] {
 }
 
 ///|
-fn parse_positive_int_env(name : String) -> Result[Int?, String] {
+fn parse_positive_int_env(name : String) -> Result[Int32?, String] {
   match @env.get_env_var(name) {
     Some(raw) if raw.trim() != "" => {
-      let value : Int = @string.from_str(raw.trim()) catch {
+      let value : Int32 = @string.from_str(raw.trim()) catch {
         _ => return Err(name + " must be a positive integer.")
       }
       if value > 0 {
@@ -197,8 +197,8 @@ fn parse_positive_int_env(name : String) -> Result[Int?, String] {
 ///|
 fn parse_positive_int_env_with_default(
   name : String,
-  fallback : Int,
-) -> Result[Int, String] {
+  fallback : Int32,
+) -> Result[Int32, String] {
   match parse_positive_int_env(name) {
     Ok(Some(value)) => Ok(value)
     Ok(None) => Ok(fallback)
@@ -327,7 +327,7 @@ fn is_ascii_letter(ch : UInt16) -> Bool {
 }
 
 ///|
-fn min_int(left : Int, right : Int) -> Int {
+fn min_int(left : Int32, right : Int32) -> Int32 {
   if left <= right {
     left
   } else {

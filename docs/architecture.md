@@ -38,6 +38,8 @@ src/
 ├── libzip/           纯 MoonBit ZIP / Deflate
 ├── mcp/              MCP 协议、handler 与传输
 ├── normalize/        heading / list / table / paragraph 等共享归一化
+├── ole2/             纯 MoonBit OLE2/CFB 复合文件读取
+├── python/           Python 解释器解析与 bridge 脚本定位
 ├── semantic/         Section tree、SemanticRole、Provenance 等语义派生
 └── xml/              纯 MoonBit XML parser
 
@@ -124,7 +126,7 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 ### PDF
 
 - PDF 管线拆分为 route、extract、normalize、structure、assemble 和 diagnostics。
-- 默认路径使用模块内联的 `third_party/mbtpdf`（上游 `bobzhang/mbtpdf` 的固化副本）。
+- 默认路径使用 registry 版 `bobzhang/mbtpdf@0.2.0`（不再内联 vendored 副本）。
 - 原生抽取使用项目内的词距感知抽取器（`src/formats/pdf/extract_spacing_native.mbt`），
   将 TJ 位移与 Td 水平移动物化为词间空格。
 - 必要时可以走 Python bridge fallback。
@@ -138,7 +140,7 @@ OCR 是横切能力，不直接绑死在 CLI 或单个格式里，而是通过 `
 | --- | --- | --- |
 | TXT / CSV / JSON / HTML / DOCX / PPTX / XLSX / EPUB 容器解析 | 纯 MoonBit | 无 |
 | DOC / WPS 二进制解析 | 纯 MoonBit（`src/ole2/` + `src/formats/doc/`，不使用 libzip/xml） | 无 |
-| PDF 提取 | MoonBit 包 | 模块内联的 `third_party/mbtpdf`（上游 `bobzhang/mbtpdf` 的固化副本，不再走 registry 依赖） |
+| PDF 提取 | MoonBit 包 | registry 依赖 `bobzhang/mbtpdf@0.2.0`（wasm-gc 门控要求不得引入其 `io/pdfiofs` 系 fs 适配包） |
 | PDF fallback | 可选 bridge | `python scripts/pdf/bridge.py` |
 | OCR | 可选 bridge | `python scripts/ocr/bridge.py`，backend 为 `mock`、`tesseract` 或 `auto` |
 | MCP STDIO / HTTP | 本地服务 | 无额外运行时，但受环境变量限制 |
@@ -172,6 +174,8 @@ Bridge 相关的环境变量：
 - `compare_with_baseline`
 - `upload_document`
 - `convert_uploaded_document`
+- `list_documents`
+- `delete_document`
 
 其中 `response_mode=json` 会返回 `structuredContent`，包含：
 

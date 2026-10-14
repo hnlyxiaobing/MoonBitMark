@@ -7,6 +7,43 @@ async fn write_asset_file(path : String, bytes : Bytes) -> Bool {
 }
 
 ///|
+/// Create the parent directory chain for a file path so the file can be
+/// written even when intermediate directories do not exist yet.
+pub async fn ensure_parent_directory(path : String) -> Unit {
+  match parent_directory_of(path) {
+    Some(dir) => ensure_directory_chain(dir)
+    None => ()
+  }
+}
+
+///|
+/// Strip the last path component. Both `/` and `\` are treated as separators;
+/// returns `None` when the path has no parent (e.g. a bare file name).
+fn parent_directory_of(path : String) -> String? {
+  let normalized = path.replace_all(old="\\", new="/")
+  let mut end = normalized.length()
+  while end > 0 && normalized[end - 1] == '/' {
+    end = end - 1
+  }
+  if end == 0 {
+    return None
+  }
+  let mut separator = -1
+  for i in 0..<end {
+    if normalized[i] == '/' {
+      separator = i
+    }
+  }
+  if separator < 0 {
+    return None
+  }
+  if separator == 0 {
+    return Some("/")
+  }
+  Some(normalized[0:separator].to_owned())
+}
+
+///|
 async fn ensure_directory_chain(path : String) -> Unit {
   let normalized = normalize_asset_path(path)
   let mut current = directory_prefix(normalized)

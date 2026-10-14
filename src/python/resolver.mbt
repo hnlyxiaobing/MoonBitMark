@@ -14,9 +14,9 @@
 ///|
 /// A parsed `major.minor.patch` version. Missing components default to 0.
 pub struct PyVersion {
-  major : Int
-  minor : Int
-  patch : Int
+  major : Int32
+  minor : Int32
+  patch : Int32
 }
 
 ///|
@@ -47,7 +47,7 @@ pub fn parse_version(text : String) -> PyVersion? {
   if index >= chars.length() {
     return None
   }
-  let parts : Array[Int] = []
+  let parts : Array[Int32] = []
   let mut value = 0
   let mut has_digit = false
   while index < chars.length() {
@@ -89,7 +89,7 @@ pub fn parse_version(text : String) -> PyVersion? {
 ///|
 /// Compare two versions by major, then minor, then patch. Returns a negative
 /// number, zero, or a positive number like other comparison primitives.
-pub fn compare_version(a : PyVersion, b : PyVersion) -> Int {
+pub fn compare_version(a : PyVersion, b : PyVersion) -> Int32 {
   if a.major != b.major {
     return a.major - b.major
   }

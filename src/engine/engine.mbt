@@ -18,7 +18,7 @@ pub(all) enum ConverterKind {
 ///|
 pub(all) struct ConverterRegistration {
   name : String
-  priority : Int
+  priority : Int32
   hint : @core.DiagnosticHint
   accepts : (@core.StreamInfo) -> Bool
   convert : async (@core.InputSource, @core.ConvertContext) -> @core.ConvertResult
@@ -85,7 +85,7 @@ pub fn MarkItDown::register(
 pub fn MarkItDown::register_named(
   self : MarkItDown,
   kind : ConverterKind,
-  priority : Int,
+  priority : Int32,
 ) -> MarkItDown {
   self.register(default_registration(kind, priority))
 }
@@ -252,7 +252,7 @@ fn file_extension(path : String) -> String? {
 }
 
 ///|
-fn find_last_char(s : String, target : Char) -> Int? {
+fn find_last_char(s : String, target : Char) -> Int32? {
   let mut found = -1
   let mut i = 0
   for ch in s {
@@ -502,7 +502,7 @@ async fn materialize_embedded_assets(
   markdown : String,
   assets : Array[@core.OutputAsset],
   asset_output_dir : String,
-) -> (String, Array[String], Array[@core.ConversionDiagnostic], Int) {
+) -> (String, Array[String], Array[@core.ConversionDiagnostic], Int32) {
   let mut rewritten = markdown
   let warnings : Array[String] = []
   let diagnostics : Array[@core.ConversionDiagnostic] = []
@@ -544,7 +544,7 @@ async fn materialize_embedded_assets(
 async fn materialize_data_uri_assets(
   markdown : String,
   asset_output_dir : String,
-) -> (String, Array[String], Array[@core.ConversionDiagnostic], Int) {
+) -> (String, Array[String], Array[@core.ConversionDiagnostic], Int32) {
   let mut rewritten = markdown
   let warnings : Array[String] = []
   let diagnostics : Array[@core.ConversionDiagnostic] = []
@@ -619,7 +619,7 @@ async fn materialize_data_uri_assets(
 }
 
 ///|
-fn decode_data_uri_asset(uri : String, index : Int) -> (String, Bytes)? {
+fn decode_data_uri_asset(uri : String, index : Int32) -> (String, Bytes)? {
   if !uri.has_prefix("data:image/") {
     return None
   }
@@ -661,7 +661,7 @@ fn image_extension(media_type : String) -> String {
 }
 
 ///|
-fn find_data_uri_end(text : String, start : Int) -> Int? {
+fn find_data_uri_end(text : String, start : Int32) -> Int32? {
   let mut i = start
   while i < text.length() {
     let ch = text[i]
@@ -679,7 +679,7 @@ fn find_data_uri_end(text : String, start : Int) -> Int? {
 }
 
 ///|
-fn find_substring(text : String, needle : String, start : Int) -> Int? {
+fn find_substring(text : String, needle : String, start : Int32) -> Int32? {
   if start >= text.length() {
     None
   } else {
@@ -768,7 +768,7 @@ fn register_default_converters(engine : MarkItDown) -> MarkItDown {
 ///|
 fn default_registration(
   kind : ConverterKind,
-  priority : Int,
+  priority : Int32,
 ) -> ConverterRegistration {
   match kind {
     Docx =>
