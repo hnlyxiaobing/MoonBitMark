@@ -81,7 +81,7 @@ struct CliOptions {
 fn print_usage() -> Unit {
   println("MoonBitMark v0.4.6 - File to Markdown Converter")
   println("")
-  println("Usage: moon run cmd/main [options] <input> [output_file]")
+  println("Usage: mbd [options] <input> [output_file]")
   println("")
   println("Options:")
   println("  --frontmatter     Include YAML frontmatter in markdown output")

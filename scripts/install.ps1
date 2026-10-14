@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-Install MoonBitMark as a `moonbitmark` command on the user PATH.
+Install MoonBitMark as a short CLI command (default: `mbd`) on the user PATH.
 
 .DESCRIPTION
 - Builds the release binary when missing (or when -Rebuild is given)
-- Copies it to <InstallRoot>\bin\moonbitmark.exe
+- Copies it to <InstallRoot>\bin\<CommandName>.exe
 - Copies scripts\ocr and scripts\pdf under <InstallRoot>\scripts so the
   OCR/PDF bridges resolve from the installed location
 - Adds the bin directory to the user PATH (new terminals pick it up)
@@ -24,16 +24,30 @@ Force a release rebuild even when a binary already exists.
 
 .PARAMETER SkipPath
 Do not modify the user PATH environment variable.
+
+.PARAMETER CommandName
+Bare command name (without extension) installed on the PATH. Defaults to
+'mbd', so the CLI is invoked as `mbd`. The install root, the MOONBITMARK_*
+environment variables, and the ~/.moonbitmark config directory keep their
+product-identity names regardless; only the typed command changes.
 #>
 [CmdletBinding()]
 param(
     [string]$OutDir = '',
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'MoonBitMark'),
     [switch]$Rebuild,
-    [switch]$SkipPath
+    [switch]$SkipPath,
+    [string]$CommandName = 'mbd'
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($CommandName)) {
+    throw '-CommandName cannot be empty.'
+}
+if ($CommandName -match '[\\/\s]') {
+    throw "-CommandName must be a bare command name without spaces or path separators (got: '$CommandName')."
+}
 
 . (Join-Path $PSScriptRoot '..\tests\TestHelpers.ps1')
 
@@ -60,7 +74,7 @@ $bridgeRoot = Join-Path $InstallRoot 'scripts'
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 New-Item -ItemType Directory -Force -Path $bridgeRoot | Out-Null
 
-$installedExe = Join-Path $binDir 'moonbitmark.exe'
+$installedExe = Join-Path $binDir ($CommandName + '.exe')
 Copy-Item -Path $binary -Destination $installedExe -Force
 Write-Host "Installed CLI: $installedExe"
 
@@ -116,5 +130,5 @@ if (-not [string]::IsNullOrWhiteSpace($OutDir)) {
 
 Write-Host ''
 Write-Host 'Install complete.'
-Write-Host 'Open a NEW terminal so PATH and environment changes take effect, then run:'
-Write-Host '    moonbitmark --help'
+Write-Host "Open a NEW terminal so PATH and environment changes take effect, then run:"
+Write-Host "    $CommandName --help"

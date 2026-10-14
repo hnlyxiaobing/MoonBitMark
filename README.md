@@ -62,9 +62,9 @@ _build\native\release\build\cmd\main\main.exe --diag-json tests\conversion_eval\
 _build\native\release\build\cmd\main\main.exe --dump-ast tests\conversion_eval\fixtures\inputs\html\simple_table.html
 ```
 
-## 安装为 `moonbitmark` 命令（Windows）
+## 安装为 `mbd` 命令（Windows）
 
-一次安装后可在任意目录直接使用 `moonbitmark`：
+一次安装后可在任意目录直接使用 `mbd`（命令名可通过 `-CommandName` 调整，默认 `mbd`）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -OutDir D:\docs\markdown
@@ -72,7 +72,7 @@ powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -OutDir D:\docs\mar
 
 安装脚本会：
 
-- 构建（或复用）release 二进制，复制为 `%LOCALAPPDATA%\MoonBitMark\bin\moonbitmark.exe`
+- 构建（或复用）release 二进制，复制为 `%LOCALAPPDATA%\MoonBitMark\bin\mbd.exe`
 - 复制 `scripts\ocr`、`scripts\pdf` bridge 脚本到安装目录
 - 把 `bin` 目录加入用户 PATH（**新开终端**后生效）
 - 设置 `MOONBITMARK_OCR_BRIDGE` / `MOONBITMARK_PDF_BRIDGE` 用户环境变量
@@ -97,9 +97,9 @@ powershell -ExecutionPolicy Bypass -File scripts\uninstall.ps1   # -RemoveConfig
 
 ```powershell
 # 配置了默认输出目录后：
-moonbitmark report.docx            # -> <out_dir>/report.md
-moonbitmark notes.html             # -> <out_dir>/notes.md
-moonbitmark report.docx out\x.md   # 显式输出，忽略默认目录
+mbd report.docx            # -> <out_dir>/report.md
+mbd notes.html             # -> <out_dir>/notes.md
+mbd report.docx out\x.md   # 显式输出，忽略默认目录
 ```
 
 ## 作为依赖使用（mooncakes）
