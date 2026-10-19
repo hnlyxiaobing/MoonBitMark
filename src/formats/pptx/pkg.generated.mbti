@@ -21,14 +21,14 @@ pub enum ParseResult {
 }
 
 pub(all) struct PptxConverter {
-  dummy : Int
+  dummy : Int32
 }
 pub fn PptxConverter::accepts(@core.StreamInfo) -> Bool
 pub async fn PptxConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult
 pub fn PptxConverter::new() -> Self
 
 pub struct SlideRef {
-  slide_num : Int
+  slide_num : Int32
   r_id : String
   slide_path : String
 }

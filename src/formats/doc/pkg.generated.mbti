@@ -12,7 +12,7 @@ pub fn convert_bytes(Bytes, String, ctx? : @core.ConvertContext) -> @core.Conver
 
 // Types and methods
 pub(all) struct DocConverter {
-  dummy : Int
+  dummy : Int32
 }
 pub fn DocConverter::accepts(@core.StreamInfo) -> Bool
 pub async fn DocConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult

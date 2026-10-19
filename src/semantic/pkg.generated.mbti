@@ -15,8 +15,8 @@ pub fn semantic_document_of(@ast.Document) -> SemanticDocument
 pub(all) struct Provenance {
   source_path : String?
   source_url : String?
-  page_no : Int?
-  slide_no : Int?
+  page_no : Int32?
+  slide_no : Int32?
   sheet_name : String?
   chapter : String?
   resource : String?
@@ -29,9 +29,9 @@ pub fn Provenance::to_repr(Self) -> @debug.Repr
 pub(all) struct Section {
   id : String
   title : String?
-  level : Int
+  level : Int32
   role : SemanticRole
-  block_indices : Array[Int]
+  block_indices : Array[Int32]
   diagnostics : Array[String]
   provenance : Provenance
   children : Array[Section]
@@ -43,13 +43,13 @@ pub fn Section::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SemanticBlock {
   block_id : String
-  index : Int
+  index : Int32
   role : SemanticRole
   text : String
   source_hint : String?
   origin_hint : String?
   diagnostics : Array[String]
-  confidence : Int
+  confidence : Int32
   provenance : Provenance
 } derive(Eq, ToJson, @debug.Debug)
 pub fn SemanticBlock::equal(Self, Self) -> Bool

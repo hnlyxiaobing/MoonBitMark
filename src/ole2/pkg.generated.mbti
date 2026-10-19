@@ -9,11 +9,11 @@ pub fn cfb_is_ole2_signature(Bytes) -> Bool
 // Types and methods
 pub(all) struct CfbArchive {
   data : Bytes
-  sector_size : Int
-  mini_sector_size : Int
-  mini_cutoff : UInt
-  fat : Array[UInt]
-  minifat : Array[UInt]
+  sector_size : Int32
+  mini_sector_size : Int32
+  mini_cutoff : UInt32
+  fat : Array[UInt32]
+  minifat : Array[UInt32]
   entries : Array[CfbDirectoryEntry]
   ministream : Bytes
 }
@@ -25,9 +25,9 @@ pub fn CfbArchive::stream_names(Self) -> Array[String]
 
 pub(all) struct CfbDirectoryEntry {
   name : String
-  entry_type : Int
-  start_sector : UInt
-  stream_size : UInt
+  entry_type : Int32
+  start_sector : UInt32
+  stream_size : UInt32
 }
 
 // Type aliases

@@ -8,9 +8,9 @@ import {
 // Values
 pub fn bridge_script_diagnostic(BridgeScriptResolution) -> String
 
-pub fn compare_version(PyVersion, PyVersion) -> Int
+pub fn compare_version(PyVersion, PyVersion) -> Int32
 
-pub fn exe_probe_candidates(String, String, Int) -> Array[String]
+pub fn exe_probe_candidates(String, String, Int32) -> Array[String]
 
 pub fn is_pyenv_shim_dir(Array[String]) -> Bool
 
@@ -52,9 +52,9 @@ pub fn BridgeScriptSource::not_equal(Self, Self) -> Bool
 pub fn BridgeScriptSource::to_repr(Self) -> @debug.Repr
 
 pub struct PyVersion {
-  major : Int
-  minor : Int
-  patch : Int
+  major : Int32
+  minor : Int32
+  patch : Int32
 }
 
 // Type aliases

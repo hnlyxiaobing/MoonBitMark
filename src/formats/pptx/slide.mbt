@@ -141,17 +141,15 @@ fn process_slide_xml(
   slide_num : Int32,
   slide_path : String,
 ) -> (Array[@ast.Block], String?) {
-  match @xml.parse_xml(xml) {
-    Ok(events) => {
-      let blocks = extract_slide_blocks(events, slide_num)
-      (blocks, None)
-    }
-    Err(_) =>
-      (
+  let events = @xml.parse_xml(xml) catch {
+    _ =>
+      return (
         [],
         Some("Failed to parse slide XML: Slide \{slide_num} (\{slide_path})."),
       )
   }
+  let blocks = extract_slide_blocks(events, slide_num)
+  (blocks, None)
 }
 
 ///|
@@ -179,12 +177,13 @@ fn parse_slide_relationships(
         )
         return (relationships, warnings)
       }
-      match @xml.parse_xml(xml_string) {
-        Ok(events) =>
-          extract_slide_relationship_events(events, slide_path, relationships)
-        Err(_) =>
+      let events = @xml.parse_xml(xml_string) catch {
+        _ => {
           warnings.push("Failed to parse slide relationships XML: \{rel_path}.")
+          return (relationships, warnings)
+        }
       }
+      extract_slide_relationship_events(events, slide_path, relationships)
     }
     None => ()
   }
@@ -290,20 +289,18 @@ fn notes_blocks_from_xml(
   xml : String,
   notes_path : String,
 ) -> (Array[@ast.Block], String?) {
-  match @xml.parse_xml(xml) {
-    Ok(events) => {
-      let paragraphs = extract_notes_paragraphs(events)
-      if paragraphs.length() == 0 {
-        return ([], None)
-      }
-      let blocks : Array[@ast.Block] = [@ast.text_heading(4, "Speaker Notes")]
-      for paragraph in paragraphs {
-        blocks.push(@ast.text_paragraph(paragraph))
-      }
-      (blocks, None)
-    }
-    Err(_) => ([], Some("Failed to parse notes XML: \{notes_path}."))
+  let events = @xml.parse_xml(xml) catch {
+    _ => return ([], Some("Failed to parse notes XML: \{notes_path}."))
   }
+  let paragraphs = extract_notes_paragraphs(events)
+  if paragraphs.length() == 0 {
+    return ([], None)
+  }
+  let blocks : Array[@ast.Block] = [@ast.text_heading(4, "Speaker Notes")]
+  for paragraph in paragraphs {
+    blocks.push(@ast.text_paragraph(paragraph))
+  }
+  (blocks, None)
 }
 
 ///|
@@ -546,37 +543,35 @@ priv struct ChartContext {
 
 ///|
 fn parse_chart_xml(xml : String, chart_path : String) -> (ChartData?, String?) {
-  match @xml.parse_xml(xml) {
-    Ok(events) => {
-      let ctx = ChartContext::{
-        path: [],
-        current_text: "",
-        current_role: NoRole,
-        title_parts: [],
-        current_series_name: "",
-        current_categories: [],
-        current_values: [],
-        series: [],
-      }
-      for event in events {
-        match event {
-          @xml.ElementStart(evt) => handle_chart_element_start(ctx, evt)
-          @xml.TextContent(evt) =>
-            if ctx.current_role != NoRole {
-              ctx.current_text = ctx.current_text + evt.content
-            }
-          @xml.ElementEnd(evt) => handle_chart_element_end(ctx, evt.name)
-        }
-      }
-      if ctx.series.length() == 0 &&
-        compact_pptx_lines(ctx.title_parts).length() == 0 {
-        return (None, None)
-      }
-      let title = chart_title_from_parts(ctx.title_parts)
-      (Some(ChartData::{ title, series: copy_chart_series(ctx.series), }), None)
-    }
-    Err(_) => (None, Some("Failed to parse chart XML: \{chart_path}."))
+  let events = @xml.parse_xml(xml) catch {
+    _ => return (None, Some("Failed to parse chart XML: \{chart_path}."))
   }
+  let ctx = ChartContext::{
+    path: [],
+    current_text: "",
+    current_role: NoRole,
+    title_parts: [],
+    current_series_name: "",
+    current_categories: [],
+    current_values: [],
+    series: [],
+  }
+  for event in events {
+    match event {
+      @xml.ElementStart(evt) => handle_chart_element_start(ctx, evt)
+      @xml.TextContent(evt) =>
+        if ctx.current_role != NoRole {
+          ctx.current_text = ctx.current_text + evt.content
+        }
+      @xml.ElementEnd(evt) => handle_chart_element_end(ctx, evt.name)
+    }
+  }
+  if ctx.series.length() == 0 &&
+    compact_pptx_lines(ctx.title_parts).length() == 0 {
+    return (None, None)
+  }
+  let title = chart_title_from_parts(ctx.title_parts)
+  (Some(ChartData::{ title, series: copy_chart_series(ctx.series), }), None)
 }
 
 ///|

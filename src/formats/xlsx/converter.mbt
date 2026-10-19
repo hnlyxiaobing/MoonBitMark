@@ -118,9 +118,8 @@ fn parse_workbook_sheets(
             ),
           )
       }
-      match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_sheet_info(events)
-        Err(_) =>
+      let events = @xml.parse_xml(xml_string) catch {
+        _ =>
           fail(
             render_xlsx_failure(
               @core.XmlParseError("Failed to parse xl/workbook.xml", None),
@@ -134,6 +133,7 @@ fn parse_workbook_sheets(
             ),
           )
       }
+      extract_sheet_info(events)
     }
     None =>
       fail(
@@ -205,10 +205,10 @@ fn parse_shared_strings(
       let xml_string = @utf8.decode(xml_bytes) catch {
         _ => return ([], ["Failed to decode xl/sharedStrings.xml as UTF-8."])
       }
-      match @xml.parse_xml(xml_string) {
-        Ok(events) => (extract_shared_strings(events), [])
-        Err(_) => ([], ["Failed to parse xl/sharedStrings.xml."])
+      let events = @xml.parse_xml(xml_string) catch {
+        _ => return ([], ["Failed to parse xl/sharedStrings.xml."])
       }
+      (extract_shared_strings(events), [])
     }
     None => ([], [])
   }
@@ -359,10 +359,10 @@ fn parse_sheet_paths(
             ["Failed to decode xl/_rels/workbook.xml.rels as UTF-8."],
           )
       }
-      match @xml.parse_xml(xml_string) {
-        Ok(events) => (extract_sheet_paths(events), [])
-        Err(_) => (Map([]), ["Failed to parse xl/_rels/workbook.xml.rels."])
+      let events = @xml.parse_xml(xml_string) catch {
+        _ => return (Map([]), ["Failed to parse xl/_rels/workbook.xml.rels."])
       }
+      (extract_sheet_paths(events), [])
     }
     None => (Map([]), ["Failed to read xl/_rels/workbook.xml.rels."])
   }
@@ -425,14 +425,15 @@ fn parse_worksheet_to_blocks(
             ],
           )
       }
-      match @xml.parse_xml(xml_string) {
-        Ok(events) => {
-          let sheet_data = extract_sheet_data(events, shared_strings)
-          (sheet_data_to_blocks(sheet_data), [])
-        }
-        Err(_) =>
-          ([], ["Failed to parse worksheet XML: \{sheet_name} (\{full_path})."])
+      let events = @xml.parse_xml(xml_string) catch {
+        _ =>
+          return (
+            [],
+            ["Failed to parse worksheet XML: \{sheet_name} (\{full_path})."],
+          )
       }
+      let sheet_data = extract_sheet_data(events, shared_strings)
+      (sheet_data_to_blocks(sheet_data), [])
     }
     None =>
       ([], ["Failed to read worksheet XML: \{sheet_name} (\{full_path})."])

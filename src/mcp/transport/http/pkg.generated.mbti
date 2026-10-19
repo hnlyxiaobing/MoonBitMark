@@ -8,7 +8,7 @@ import {
 // Values
 pub fn default_mcp_http_bind_host() -> String
 
-pub fn default_mcp_http_port() -> Int
+pub fn default_mcp_http_port() -> Int32
 
 // Errors
 
@@ -23,9 +23,9 @@ pub async fn McpHttpServer::run(Self) -> Unit
 
 pub(all) struct McpHttpServerConfig {
   bind_host : String
-  port : Int
+  port : Int32
 }
-pub fn McpHttpServerConfig::new(bind_host? : String, port? : Int) -> Self raise
+pub fn McpHttpServerConfig::new(bind_host? : String, port? : Int32) -> Self raise
 
 // Type aliases
 

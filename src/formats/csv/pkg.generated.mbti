@@ -11,7 +11,7 @@ import {
 
 // Types and methods
 pub(all) struct CsvConverter {
-  dummy : Int
+  dummy : Int32
 }
 pub fn CsvConverter::accepts(@core.StreamInfo) -> Bool
 pub async fn CsvConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult

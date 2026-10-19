@@ -5,20 +5,13 @@
 
 ///|
 /// 解析 XML 字符串，返回事件列表
-pub fn parse_xml(
-  xml_content : String,
-) -> Result[Array[ParseEvent], XMLParseError] {
-  match tokenize(xml_content) {
-    Ok(tokens) => parse_tokens(tokens)
-    Err(e) => Err(e)
-  }
+pub fn parse_xml(xml_content : String) -> Array[ParseEvent] raise {
+  parse_tokens(tokenize(xml_content))
 }
 
 ///|
 /// 将标记列表转换为事件列表
-fn parse_tokens(
-  tokens : Array[Token],
-) -> Result[Array[ParseEvent], XMLParseError] {
+fn parse_tokens(tokens : Array[Token]) -> Array[ParseEvent] raise {
   let events : Array[ParseEvent] = Array(capacity=0)
   let line = 1
   // 元素栈，用于追踪嵌套结构
@@ -37,17 +30,17 @@ fn parse_tokens(
       EndTag(name) => {
         // 检查栈顶是否匹配
         if tag_stack.length() == 0 {
-          return Err(UnclosedTag(name))
+          raise UnclosedTag(name)
         }
         match tag_stack.pop() {
           Some(top) => {
             if top != name {
-              return Err(MismatchedTag(top, name))
+              raise MismatchedTag(top, name)
             }
             // 生成结束事件
             events.push(ElementEnd({ name, line_number: line, }))
           }
-          None => return Err(UnclosedTag(name))
+          None => raise UnclosedTag(name)
         }
       }
       SelfCloseTag(name, attrs) => {
@@ -81,8 +74,8 @@ fn parse_tokens(
   // 检查是否所有标签都已闭合
   if tag_stack.length() > 0 {
     let unclosed = tag_stack[tag_stack.length() - 1]
-    return Err(UnclosedTag(unclosed))
+    raise UnclosedTag(unclosed)
   }
 
-  Ok(events)
+  events
 }

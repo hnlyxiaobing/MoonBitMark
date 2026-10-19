@@ -11,7 +11,7 @@ import {
 // Values
 pub fn build_mcp_convert_context(McpSecurityConfig) -> @core.ConvertContext
 
-pub fn clamp_mcp_output_chars(Int?, McpSecurityConfig) -> Int?
+pub fn clamp_mcp_output_chars(Int32?, McpSecurityConfig) -> Int32?
 
 pub async fn convert_document_to_markdown(String) -> String
 
@@ -37,8 +37,8 @@ pub(all) struct McpSecurityConfig {
   allowed_roots : Array[String]
   allow_http : Bool
   enable_ocr : Bool
-  max_output_chars : Int?
-  max_upload_bytes : Int
+  max_output_chars : Int32?
+  max_upload_bytes : Int32
 }
 
 pub(all) struct McpServer {

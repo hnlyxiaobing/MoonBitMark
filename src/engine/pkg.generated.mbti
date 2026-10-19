@@ -28,7 +28,7 @@ pub(all) enum ConverterKind {
 
 pub(all) struct ConverterRegistration {
   name : String
-  priority : Int
+  priority : Int32
   hint : @core.DiagnosticHint
   accepts : (@core.StreamInfo) -> Bool
   convert : async (@core.InputSource, @core.ConvertContext) -> @core.ConvertResult
@@ -54,7 +54,7 @@ pub fn MarkItDown::detect_converter_name(Self, String) -> String raise
 pub async fn MarkItDown::detect_source(Self, @core.InputSource) -> DetectionResult
 pub fn MarkItDown::new() -> Self
 pub fn MarkItDown::register(Self, ConverterRegistration) -> Self
-pub fn MarkItDown::register_named(Self, ConverterKind, Int) -> Self
+pub fn MarkItDown::register_named(Self, ConverterKind, Int32) -> Self
 pub fn MarkItDown::select_converter(Self, @core.StreamInfo) -> ConverterRegistration raise
 
 // Type aliases

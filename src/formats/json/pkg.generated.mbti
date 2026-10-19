@@ -11,7 +11,7 @@ import {
 
 // Types and methods
 pub(all) struct JsonConverter {
-  dummy : Int
+  dummy : Int32
 }
 pub fn JsonConverter::accepts(@core.StreamInfo) -> Bool
 pub async fn JsonConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult

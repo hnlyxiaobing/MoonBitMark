@@ -142,10 +142,8 @@ fn extract_blocks_from_docx_xml_with_annotations(
   numbering : DocxNumbering,
   asset_placeholders : Map[String, String],
 ) -> (Array[@ast.Block], Array[@ast.BlockAnnotation], Array[String]) raise {
-  match @xml.parse_xml(xml) {
-    Ok(events) =>
-      process_docx_events(events, relationships, numbering, asset_placeholders)
-    Err(_) =>
+  let events = @xml.parse_xml(xml) catch {
+    _ =>
       fail(
         render_docx_failure(
           @core.XmlParseError("Failed to parse word/document.xml", None),
@@ -159,6 +157,7 @@ fn extract_blocks_from_docx_xml_with_annotations(
         ),
       )
   }
+  process_docx_events(events, relationships, numbering, asset_placeholders)
 }
 
 ///|
@@ -794,10 +793,8 @@ fn parse_docx_relationships(
     ) {
     Some(bytes) => {
       let xml_string = @utf8.decode(bytes) catch { _ => return Map([]) }
-      match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_docx_relationships(events)
-        Err(_) => Map([])
-      }
+      let events = @xml.parse_xml(xml_string) catch { _ => return Map([]) }
+      extract_docx_relationships(events)
     }
     None => Map([])
   }
@@ -845,10 +842,8 @@ fn parse_docx_numbering(archive : @libzip.ZipArchive) -> DocxNumbering {
   match @libzip.read_file_entry_decompressed(archive, "word/numbering.xml") {
     Some(bytes) => {
       let xml_string = @utf8.decode(bytes) catch { _ => return numbering }
-      match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_docx_numbering(events, numbering)
-        Err(_) => ()
-      }
+      let events = @xml.parse_xml(xml_string) catch { _ => return numbering }
+      extract_docx_numbering(events, numbering)
     }
     None => ()
   }

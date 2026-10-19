@@ -6,13 +6,13 @@ import {
 }
 
 // Values
-pub fn default_block_annotation(Int) -> BlockAnnotation
+pub fn default_block_annotation(Int32) -> BlockAnnotation
 
 pub fn document(String?, Map[String, String], Array[Block]) -> Document
 
 pub fn document_of_markdownish(String, String?, Map[String, String]) -> Document
 
-pub fn normalize_annotations(Array[BlockAnnotation], Int) -> Array[BlockAnnotation]
+pub fn normalize_annotations(Array[BlockAnnotation], Int32) -> Array[BlockAnnotation]
 
 pub fn parse_markdownish_block(String) -> Block
 
@@ -24,7 +24,7 @@ pub fn render_inlines(Array[Inline]) -> String
 
 pub fn render_markdown(Document) -> String
 
-pub fn text_heading(Int, String) -> Block
+pub fn text_heading(Int32, String) -> Block
 
 pub fn text_inlines(String) -> Array[Inline]
 
@@ -34,7 +34,7 @@ pub fn text_paragraph(String) -> Block
 
 // Types and methods
 pub(all) enum Block {
-  Heading(Int, Array[Inline])
+  Heading(Int32, Array[Inline])
   Paragraph(Array[Inline])
   List(Array[Array[Inline]], Bool)
   Quote(Array[String])

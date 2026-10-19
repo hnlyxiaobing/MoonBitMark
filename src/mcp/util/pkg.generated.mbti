@@ -18,19 +18,19 @@ pub fn[T] spawn(() -> Result[T, String]) -> Future[T]
 
 // Types and methods
 pub(all) struct AsyncTask[T] {
-  id : Int
+  id : Int32
   state : TaskState
   result : T?
 }
 
 pub(all) struct DateTime {
-  year : Int
-  month : Int
-  day : Int
-  hour : Int
-  minute : Int
-  second : Int
-  millisecond : Int
+  year : Int32
+  month : Int32
+  day : Int32
+  hour : Int32
+  minute : Int32
+  second : Int32
+  millisecond : Int32
 }
 
 pub(all) struct ErrorContext {
@@ -45,19 +45,19 @@ pub fn ErrorContext::with_request_id(Self, String) -> Self
 
 pub(all) struct ErrorLocation {
   file : String?
-  line : Int?
-  column : Int?
+  line : Int32?
+  column : Int32?
   function : String?
 }
 pub fn ErrorLocation::new() -> Self
 pub fn ErrorLocation::to_string(Self) -> String
-pub fn ErrorLocation::with_column(Self, Int) -> Self
+pub fn ErrorLocation::with_column(Self, Int32) -> Self
 pub fn ErrorLocation::with_file(Self, String) -> Self
 pub fn ErrorLocation::with_function(Self, String) -> Self
-pub fn ErrorLocation::with_line(Self, Int) -> Self
+pub fn ErrorLocation::with_line(Self, Int32) -> Self
 
 pub(all) struct EventLoop {
-  mut next_id : Int
+  mut next_id : Int32
 }
 pub fn EventLoop::new() -> Self
 pub fn EventLoop::run(Self) -> Unit
@@ -116,18 +116,18 @@ pub fn McpError::internal_error_with_cause(String, String?, ErrorContext, Self) 
 pub fn McpError::invalid_params(String, ErrorContext) -> Self
 pub fn McpError::invalid_request(String, ErrorContext) -> Self
 pub fn McpError::method_not_found(String, ErrorContext) -> Self
-pub fn McpError::parse_error(Int, String, ErrorContext) -> Self
-pub fn McpError::server_error(Int, String, String?, ErrorContext) -> Self
-pub fn McpError::to_jsonrpc_code(Self) -> Int
+pub fn McpError::parse_error(Int32, String, ErrorContext) -> Self
+pub fn McpError::server_error(Int32, String, String?, ErrorContext) -> Self
+pub fn McpError::to_jsonrpc_code(Self) -> Int32
 pub fn McpError::tool_error(String, String, ErrorContext) -> Self
 
 pub enum McpErrorCode {
-  ParseError(Int)
+  ParseError(Int32)
   InvalidRequest
   MethodNotFound
   InvalidParams
   InternalError
-  ServerError(Int)
+  ServerError(Int32)
   ToolError(String)
 }
 

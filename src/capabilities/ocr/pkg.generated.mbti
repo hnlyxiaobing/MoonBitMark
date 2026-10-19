@@ -8,7 +8,7 @@ import {
 // Values
 pub async fn recognize_image_bytes(Bytes, String, OcrConfig, temp_stem? : String) -> OcrResult
 
-pub async fn recognize_image_file(String, OcrConfig, source_name? : String, page_numbers? : Array[Int]) -> OcrResult
+pub async fn recognize_image_file(String, OcrConfig, source_name? : String, page_numbers? : Array[Int32]) -> OcrResult
 
 pub fn should_attempt_for_native_text(OcrConfig, String) -> Bool
 
@@ -20,7 +20,7 @@ pub(all) struct OcrConfig {
   language : String
   enable_embedded_images : Bool
   backend : String?
-  timeout_ms : Int?
+  timeout_ms : Int32?
 } derive(Eq, ToJson, @debug.Debug)
 pub fn OcrConfig::backend_or_auto(Self) -> String
 pub fn OcrConfig::default() -> Self

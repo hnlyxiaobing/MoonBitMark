@@ -105,9 +105,8 @@ test "xlsx formula falls back when cached value is missing" {
 
 ///|
 fn sheet_events(xml : String) -> Array[@xml.ParseEvent] {
-  match @xml.parse_xml(xml) {
-    Ok(events) => events
-    Err(_) => abort("failed to parse fixture worksheet XML")
+  @xml.parse_xml(xml) catch {
+    _ => abort("failed to parse fixture worksheet XML")
   }
 }
 

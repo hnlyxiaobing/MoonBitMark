@@ -181,44 +181,8 @@ fn parse_container_xml(data : Bytes) -> String raise {
     }
   }
 
-  match @xml.parse_xml(xml_string) {
-    Ok(events) => {
-      let mut opf_path = ""
-
-      for event in events {
-        match event {
-          @xml.ElementStart(evt) =>
-            if evt.name == "rootfile" {
-              match evt.attributes.get("full-path") {
-                Some(path) => opf_path = path
-                None => ignore(())
-              }
-            }
-          _ => ignore(())
-        }
-      }
-
-      if opf_path == "" {
-        fail(
-          render_epub_failure(
-            @core.XmlParseError(
-              "Could not find OPF path in container.xml",
-              None,
-            ),
-            Some(@core.Parse(Some("container.xml"))),
-            Some(@core.ArchiveEntry("META-INF/container.xml")),
-            Some(
-              @core.Custom(
-                "Verify META-INF/container.xml declares a rootfile full-path.",
-              ),
-            ),
-          ),
-        )
-      }
-
-      opf_path
-    }
-    Err(_) =>
+  let events = @xml.parse_xml(xml_string) catch {
+    _ =>
       fail(
         render_epub_failure(
           @core.XmlParseError("Failed to parse container.xml", None),
@@ -232,6 +196,38 @@ fn parse_container_xml(data : Bytes) -> String raise {
         ),
       )
   }
+
+  let mut opf_path = ""
+
+  for event in events {
+    match event {
+      @xml.ElementStart(evt) =>
+        if evt.name == "rootfile" {
+          match evt.attributes.get("full-path") {
+            Some(path) => opf_path = path
+            None => ignore(())
+          }
+        }
+      _ => ignore(())
+    }
+  }
+
+  if opf_path == "" {
+    fail(
+      render_epub_failure(
+        @core.XmlParseError("Could not find OPF path in container.xml", None),
+        Some(@core.Parse(Some("container.xml"))),
+        Some(@core.ArchiveEntry("META-INF/container.xml")),
+        Some(
+          @core.Custom(
+            "Verify META-INF/container.xml declares a rootfile full-path.",
+          ),
+        ),
+      ),
+    )
+  }
+
+  opf_path
 }
 
 ///|
@@ -250,84 +246,8 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
       result
     }
   }
-  match @xml.parse_xml(xml_string) {
-    Ok(events) => {
-      let metadata = EpubMetadata::default()
-      let manifest : Map[String, ManifestItem] = Map([])
-      let spine : Array[SpineItem] = Array(capacity=0)
-      let mut current_element = ""
-      let mut in_metadata = false
-
-      for event in events {
-        match event {
-          @xml.ElementStart(evt) => {
-            current_element = strip_epub_namespace(evt.name)
-            if current_element == "metadata" {
-              in_metadata = true
-            }
-            if current_element == "item" {
-              let id = evt.attributes.get("id")
-              let href = evt.attributes.get("href")
-              let media_type = evt.attributes.get("media-type")
-              let properties = evt.attributes.get("properties")
-              match (id, href, media_type) {
-                (Some(id_val), Some(href_val), Some(mt_val)) =>
-                  manifest.set(id_val, {
-                    id: id_val,
-                    href: href_val,
-                    media_type: mt_val,
-                    properties,
-                  })
-                _ => ignore(())
-              }
-            }
-            if current_element == "itemref" {
-              match evt.attributes.get("idref") {
-                Some(idref) =>
-                  spine.push({
-                    idref,
-                    linear: evt.attributes.get("linear") != Some("no"),
-                  })
-                None => ignore(())
-              }
-            }
-          }
-          @xml.ElementEnd(evt) => {
-            if strip_epub_namespace(evt.name) == "metadata" {
-              in_metadata = false
-            }
-            current_element = ""
-          }
-          @xml.TextContent(evt) =>
-            if in_metadata {
-              if current_element == "title" {
-                metadata.title = Some(evt.content)
-              }
-              if current_element == "creator" {
-                metadata.authors.push(evt.content)
-              }
-              if current_element == "language" {
-                metadata.language = Some(evt.content)
-              }
-              if current_element == "description" {
-                metadata.description = Some(evt.content)
-              }
-              if current_element == "publisher" {
-                metadata.publisher = Some(evt.content)
-              }
-              if current_element == "identifier" {
-                metadata.identifier = Some(evt.content)
-              }
-              if current_element == "date" {
-                metadata.date = Some(evt.content)
-              }
-            }
-        }
-      }
-
-      { metadata, manifest, spine, opf_dir: "", }
-    }
-    Err(_) =>
+  let events = @xml.parse_xml(xml_string) catch {
+    _ =>
       fail(
         render_epub_failure(
           @core.XmlParseError("Failed to parse OPF file", None),
@@ -339,6 +259,81 @@ fn parse_opf(data : Bytes) -> EpubPackage raise {
         ),
       )
   }
+
+  let metadata = EpubMetadata::default()
+  let manifest : Map[String, ManifestItem] = Map([])
+  let spine : Array[SpineItem] = Array(capacity=0)
+  let mut current_element = ""
+  let mut in_metadata = false
+
+  for event in events {
+    match event {
+      @xml.ElementStart(evt) => {
+        current_element = strip_epub_namespace(evt.name)
+        if current_element == "metadata" {
+          in_metadata = true
+        }
+        if current_element == "item" {
+          let id = evt.attributes.get("id")
+          let href = evt.attributes.get("href")
+          let media_type = evt.attributes.get("media-type")
+          let properties = evt.attributes.get("properties")
+          match (id, href, media_type) {
+            (Some(id_val), Some(href_val), Some(mt_val)) =>
+              manifest.set(id_val, {
+                id: id_val,
+                href: href_val,
+                media_type: mt_val,
+                properties,
+              })
+            _ => ignore(())
+          }
+        }
+        if current_element == "itemref" {
+          match evt.attributes.get("idref") {
+            Some(idref) =>
+              spine.push({
+                idref,
+                linear: evt.attributes.get("linear") != Some("no"),
+              })
+            None => ignore(())
+          }
+        }
+      }
+      @xml.ElementEnd(evt) => {
+        if strip_epub_namespace(evt.name) == "metadata" {
+          in_metadata = false
+        }
+        current_element = ""
+      }
+      @xml.TextContent(evt) =>
+        if in_metadata {
+          if current_element == "title" {
+            metadata.title = Some(evt.content)
+          }
+          if current_element == "creator" {
+            metadata.authors.push(evt.content)
+          }
+          if current_element == "language" {
+            metadata.language = Some(evt.content)
+          }
+          if current_element == "description" {
+            metadata.description = Some(evt.content)
+          }
+          if current_element == "publisher" {
+            metadata.publisher = Some(evt.content)
+          }
+          if current_element == "identifier" {
+            metadata.identifier = Some(evt.content)
+          }
+          if current_element == "date" {
+            metadata.date = Some(evt.content)
+          }
+        }
+    }
+  }
+
+  { metadata, manifest, spine, opf_dir: "", }
 }
 
 ///|
@@ -957,10 +952,8 @@ fn strip_epub_namespace(name : String) -> String {
 
 ///|
 fn parse_epub_xhtml_via_xml(xml_string : String) -> Array[@ast.Block] {
-  match @xml.parse_xml(xml_string) {
-    Ok(events) => build_epub_blocks_from_xml_events(events)
-    Err(_) => []
-  }
+  let events = @xml.parse_xml(xml_string) catch { _ => return [] }
+  build_epub_blocks_from_xml_events(events)
 }
 
 ///|

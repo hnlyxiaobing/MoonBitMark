@@ -6,23 +6,23 @@ import {
 }
 
 // Values
-pub let central_dir_sig : UInt
+pub let central_dir_sig : UInt32
 
 pub fn close_archive(ZipArchive) -> Unit
 
-pub fn compression_method_from_int(Int) -> CompressionMethod
+pub fn compression_method_from_int(Int32) -> CompressionMethod
 
-pub fn crc32(Bytes) -> UInt
+pub fn crc32(Bytes) -> UInt32
 
-pub fn crc32_continue(Bytes, UInt) -> UInt
+pub fn crc32_continue(Bytes, UInt32) -> UInt32
 
 pub fn crc32_hex(Bytes) -> String
 
 pub fn deflate_decompress(Bytes) -> Bytes?
 
-pub let end_of_central_dir_sig : UInt
+pub let end_of_central_dir_sig : UInt32
 
-pub let local_file_header_sig : UInt
+pub let local_file_header_sig : UInt32
 
 pub fn read_file_entry(ZipArchive, String) -> Bytes?
 
@@ -33,7 +33,7 @@ pub(all) suberror ZipError {
   InvalidSignature
   CorruptedHeader
   FileNotFound(String)
-  UnsupportedMethod(Int)
+  UnsupportedMethod(Int32)
   DecompressFailed(String)
   CrcMismatch
 } derive(Eq, @debug.Debug)
@@ -43,9 +43,9 @@ pub fn ZipError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub enum CompressionMethod {
-  Store(Int)
-  Deflate(Int)
-  Unknown(Int)
+  Store(Int32)
+  Deflate(Int32)
+  Unknown(Int32)
 } derive(Eq, @debug.Debug)
 pub fn CompressionMethod::equal(Self, Self) -> Bool
 pub fn CompressionMethod::not_equal(Self, Self) -> Bool

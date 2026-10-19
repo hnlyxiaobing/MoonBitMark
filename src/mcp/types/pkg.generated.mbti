@@ -8,7 +8,7 @@ pub fn parse_json(String) -> Result[JsonValue, JsonParseError]
 
 // Types and methods
 pub(all) struct JsonError {
-  code : Int
+  code : Int32
   message : String
   data : JsonValue?
 }
@@ -16,15 +16,15 @@ pub fn JsonError::to_json(Self) -> JsonValue
 
 pub(all) enum JsonId {
   StringId(String)
-  NumberId(Int)
+  NumberId(Int32)
   NullId
 }
 pub fn JsonId::to_string(Self) -> String
 
 pub enum JsonParseError {
   UnexpectedEnd
-  ExpectedChar(Int)
-  InvalidEscape(Int)
+  ExpectedChar(Int32)
+  InvalidEscape(Int32)
   ExpectedColon
   ExpectedCommaOrTerminator
   InvalidJson(String)
@@ -48,7 +48,7 @@ pub fn JsonResponse::to_json(Self) -> JsonValue
 
 pub(all) enum JsonValue {
   String(String)
-  Number(Int)
+  Number(Int32)
   Float(Float)
   Bool(Bool)
   Null
@@ -56,7 +56,7 @@ pub(all) enum JsonValue {
   Array(Array[JsonValue])
 }
 pub fn JsonValue::get(Self, String) -> Self?
-pub fn JsonValue::get_array(Self, Int) -> Self?
+pub fn JsonValue::get_array(Self, Int32) -> Self?
 pub fn JsonValue::to_string(Self) -> String
 
 pub(all) enum McpContent {
@@ -138,7 +138,7 @@ pub(all) struct McpResource {
   title : String?
   description : String?
   mime_type : String?
-  size : Int?
+  size : Int32?
 }
 pub fn McpResource::to_json(Self) -> JsonValue
 

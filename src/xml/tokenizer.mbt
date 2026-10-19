@@ -36,110 +36,106 @@ priv struct DoctypeSkipResult {
 
 ///|
 /// XML 分词器实现
-fn tokenize(xml : String) -> Result[Array[Token], XMLParseError] {
-  try {
-    let tokens : Array[Token] = Array(capacity=0)
-    let mut pos = 0
-    let mut line = 1
-    let len = xml.length()
+fn tokenize(xml : String) -> Array[Token] raise {
+  let tokens : Array[Token] = Array(capacity=0)
+  let mut pos = 0
+  let mut line = 1
+  let len = xml.length()
 
-    while pos < len {
-      let ch = xml[pos]
+  while pos < len {
+    let ch = xml[pos]
 
-      // 处理换行符
-      if ch == '\n' {
-        line = line + 1
-        pos = pos + 1
-        continue
-      }
-
-      // 跳过空白符
-      if ch == ' ' || ch == '\t' || ch == '\r' {
-        pos = pos + 1
-        continue
-      }
-
-      // 检查是否进入标签
-      if ch == '<' {
-        // 检查后续字符
-        if pos + 1 < len {
-          let next = xml[pos + 1]
-          match next {
-            '!' =>
-              // 可能是注释、CDATA 或 DOCTYPE
-              if pos + 3 < len && xml[pos + 2] == '-' && xml[pos + 3] == '-' {
-                // 注释 <!--
-                let result = parse_comment(xml, pos + 4, line)
-                tokens.push(result.token)
-                pos = result.pos
-                line = result.line
-              } else if pos + 8 < len &&
-                // 检查 CDATA: 逐个字符比较 ![CDATA[
-                xml[pos + 2] == '[' &&
-                xml[pos + 3] == 'C' &&
-                xml[pos + 4] == 'D' &&
-                xml[pos + 5] == 'A' &&
-                xml[pos + 6] == 'T' &&
-                xml[pos + 7] == 'A' &&
-                xml[pos + 8] == '[' {
-                let result = parse_cdata(xml, pos + 9, line)
-                tokens.push(result.token)
-                pos = result.pos
-                line = result.line
-              } else if pos + 8 < len &&
-                // 检查 DOCTYPE: 逐个字符比较 !DOCTYPE
-                xml[pos + 2] == 'D' &&
-                xml[pos + 3] == 'O' &&
-                xml[pos + 4] == 'C' &&
-                xml[pos + 5] == 'T' &&
-                xml[pos + 6] == 'Y' &&
-                xml[pos + 7] == 'P' &&
-                xml[pos + 8] == 'E' {
-                // 跳过 DOCTYPE 声明，不产生 token
-                let result = skip_doctype(xml, pos + 9, line)
-                pos = result.pos
-                line = result.line
-              } else {
-                raise SyntaxError(line, "Invalid markup declaration")
-              }
-            '?' => {
-              // XML 声明 <?xml ... ?>
-              let result = parse_declaration(xml, pos + 2, line)
-              tokens.push(result.token)
-              pos = result.pos
-              line = result.line
-            }
-            '/' => {
-              // 结束标签 </tag>
-              let result = parse_end_tag(xml, pos + 2, line)
-              tokens.push(result.token)
-              pos = result.pos
-              line = result.line
-            }
-            _ => {
-              // 开始标签 <tag> 或自闭合标签 <tag/>
-              let result = parse_start_tag(xml, pos + 1, line)
-              tokens.push(result.token)
-              pos = result.pos
-              line = result.line
-            }
-          }
-        } else {
-          raise SyntaxError(line, "Unclosed tag")
-        }
-      } else {
-        // 文本内容
-        let result = parse_text(xml, pos, line)
-        tokens.push(result.text)
-        pos = result.pos
-        line = result.line
-      }
+    // 处理换行符
+    if ch == '\n' {
+      line = line + 1
+      pos = pos + 1
+      continue
     }
 
-    Ok(tokens)
-  } catch {
-    _ => Err(SyntaxError(1, "Parse error"))
+    // 跳过空白符
+    if ch == ' ' || ch == '\t' || ch == '\r' {
+      pos = pos + 1
+      continue
+    }
+
+    // 检查是否进入标签
+    if ch == '<' {
+      // 检查后续字符
+      if pos + 1 < len {
+        let next = xml[pos + 1]
+        match next {
+          '!' =>
+            // 可能是注释、CDATA 或 DOCTYPE
+            if pos + 3 < len && xml[pos + 2] == '-' && xml[pos + 3] == '-' {
+              // 注释 <!--
+              let result = parse_comment(xml, pos + 4, line)
+              tokens.push(result.token)
+              pos = result.pos
+              line = result.line
+            } else if pos + 8 < len &&
+              // 检查 CDATA: 逐个字符比较 ![CDATA[
+              xml[pos + 2] == '[' &&
+              xml[pos + 3] == 'C' &&
+              xml[pos + 4] == 'D' &&
+              xml[pos + 5] == 'A' &&
+              xml[pos + 6] == 'T' &&
+              xml[pos + 7] == 'A' &&
+              xml[pos + 8] == '[' {
+              let result = parse_cdata(xml, pos + 9, line)
+              tokens.push(result.token)
+              pos = result.pos
+              line = result.line
+            } else if pos + 8 < len &&
+              // 检查 DOCTYPE: 逐个字符比较 !DOCTYPE
+              xml[pos + 2] == 'D' &&
+              xml[pos + 3] == 'O' &&
+              xml[pos + 4] == 'C' &&
+              xml[pos + 5] == 'T' &&
+              xml[pos + 6] == 'Y' &&
+              xml[pos + 7] == 'P' &&
+              xml[pos + 8] == 'E' {
+              // 跳过 DOCTYPE 声明，不产生 token
+              let result = skip_doctype(xml, pos + 9, line)
+              pos = result.pos
+              line = result.line
+            } else {
+              raise SyntaxError(line, "Invalid markup declaration")
+            }
+          '?' => {
+            // XML 声明 <?xml ... ?>
+            let result = parse_declaration(xml, pos + 2, line)
+            tokens.push(result.token)
+            pos = result.pos
+            line = result.line
+          }
+          '/' => {
+            // 结束标签 </tag>
+            let result = parse_end_tag(xml, pos + 2, line)
+            tokens.push(result.token)
+            pos = result.pos
+            line = result.line
+          }
+          _ => {
+            // 开始标签 <tag> 或自闭合标签 <tag/>
+            let result = parse_start_tag(xml, pos + 1, line)
+            tokens.push(result.token)
+            pos = result.pos
+            line = result.line
+          }
+        }
+      } else {
+        raise SyntaxError(line, "Unclosed tag")
+      }
+    } else {
+      // 文本内容
+      let result = parse_text(xml, pos, line)
+      tokens.push(result.text)
+      pos = result.pos
+      line = result.line
+    }
   }
+
+  tokens
 }
 
 ///|

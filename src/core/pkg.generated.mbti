@@ -9,15 +9,15 @@ import {
 }
 
 // Values
-pub fn apply_ocr_metadata(Map[String, String], @ocr.OcrConfig, String?, embedded_image_count? : Int, attempted? : Bool, available? : Bool, fallback_used? : Bool) -> Unit
+pub fn apply_ocr_metadata(Map[String, String], @ocr.OcrConfig, String?, embedded_image_count? : Int32, attempted? : Bool, available? : Bool, fallback_used? : Bool) -> Unit
 
 pub fn archive_asset_warning_diagnostic(String, String) -> ConversionDiagnostic?
 
-pub fn asset_placeholder(String, Int) -> String
+pub fn asset_placeholder(String, Int32) -> String
 
 pub fn bytes_from_array(Array[Byte]) -> Bytes
 
-pub fn count_markdown_blocks(String) -> Int
+pub fn count_markdown_blocks(String) -> Int32
 
 pub fn diagnostics_from_warnings(Array[String], ConversionPhase?, DiagnosticSource?, hint? : DiagnosticHint) -> Array[ConversionDiagnostic]
 
@@ -35,11 +35,11 @@ pub fn file_ocr_warning_diagnostic(String, String, String) -> ConversionDiagnost
 
 pub fn file_stem(String) -> String?
 
-pub fn find_last_char(String, Char) -> Int?
+pub fn find_last_char(String, Char) -> Int32?
 
-pub fn find_markup_tag(String, String, Int, Bool) -> Int?
+pub fn find_markup_tag(String, String, Int32, Bool) -> Int32?
 
-pub fn find_tag_close(String, Int) -> Int?
+pub fn find_tag_close(String, Int32) -> Int32?
 
 pub fn image_extension_for_media_type(String) -> String
 
@@ -47,11 +47,11 @@ pub fn is_image_filename(String) -> Bool
 
 pub fn join_path(String, String) -> String
 
-pub fn markup_tag_matches(String, Int, String, Bool) -> Bool
+pub fn markup_tag_matches(String, Int32, String, Bool) -> Bool
 
 pub fn normalize_path(String) -> String
 
-pub fn numbered_asset_filename(String, Int, String, fallback_extension? : String) -> String
+pub fn numbered_asset_filename(String, Int32, String, fallback_extension? : String) -> String
 
 pub fn path_dirname(String) -> String
 
@@ -75,7 +75,7 @@ pub fn split_ocr_paragraphs(String) -> Array[String]
 
 pub fn split_path_segments(String) -> Array[String]
 
-pub fn stats_for_markdown(String, duration_ms? : Int, used_fallback? : Bool) -> ConvertStats
+pub fn stats_for_markdown(String, duration_ms? : Int32, used_fallback? : Bool) -> ConvertStats
 
 pub fn strip_utf8_bom(String) -> String
 
@@ -104,7 +104,7 @@ pub(all) enum ConversionError {
   InputError(String, String?)
   FormatDetectionError(String)
   ZipError(String, String?)
-  XmlParseError(String, Int?)
+  XmlParseError(String, Int32?)
   UnsupportedFeatureError(String, String)
   ConversionFailed(String, String)
 } derive(Eq, ToJson, @debug.Debug)
@@ -133,8 +133,8 @@ pub fn ConversionPhase::to_repr(Self) -> @debug.Repr
 pub(all) struct ConvertContext {
   keep_metadata : Bool
   debug : Bool
-  max_file_size : Int?
-  timeout_ms : Int?
+  max_file_size : Int32?
+  timeout_ms : Int32?
   asset_output_dir : String?
   output_mode : OutputMode
   ocr : @ocr.OcrConfig
@@ -175,9 +175,9 @@ pub fn ConvertResult::with_title(Self, String?) -> Self
 pub fn ConvertResult::with_warnings(Self, Array[String]) -> Self
 
 pub(all) struct ConvertStats {
-  char_count : Int
-  block_count : Int
-  duration_ms : Int?
+  char_count : Int32
+  block_count : Int32
+  duration_ms : Int32?
   used_fallback : Bool
 } derive(Eq, ToJson, @debug.Debug)
 pub fn ConvertStats::equal(Self, Self) -> Bool
@@ -279,6 +279,6 @@ pub fn StreamInfo::to_repr(Self) -> @debug.Repr
 // Traits
 pub(open) trait DocumentConverter {
   fn name() -> String
-  fn priority() -> Int
+  fn priority() -> Int32
   fn accepts(StreamInfo) -> Bool
 }

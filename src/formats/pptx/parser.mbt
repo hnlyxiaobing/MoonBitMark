@@ -28,17 +28,15 @@ pub fn parse_presentation(archive : @libzip.ZipArchive) -> ParseResult {
         _ => return Err("Failed to decode presentation.xml as UTF-8")
       }
       // 解析 XML 获取幻灯片 ID 列表
-      match @xml.parse_xml(xml_string) {
-        Ok(events) => {
-          let slide_refs = extract_slide_refs(events, relations)
-          // 如果没有找到幻灯片，返回调试信息
-          if slide_refs.length() == 0 {
-            Err("No sldId found in presentation.xml")
-          } else {
-            Ok(slide_refs, warnings)
-          }
-        }
-        Err(_) => Err("Failed to parse presentation.xml")
+      let events = @xml.parse_xml(xml_string) catch {
+        _ => return Err("Failed to parse presentation.xml")
+      }
+      let slide_refs = extract_slide_refs(events, relations)
+      // 如果没有找到幻灯片，返回调试信息
+      if slide_refs.length() == 0 {
+        Err("No sldId found in presentation.xml")
+      } else {
+        Ok(slide_refs, warnings)
       }
     }
     None => Err("Failed to read ppt/presentation.xml")
@@ -65,11 +63,13 @@ fn parse_relations(
             ["Failed to decode ppt/_rels/presentation.xml.rels as UTF-8."],
           )
       }
-      match @xml.parse_xml(xml_string) {
-        Ok(events) => extract_relations(events, relations)
-        Err(_) =>
+      let events = @xml.parse_xml(xml_string) catch {
+        _ => {
           warnings.push("Failed to parse ppt/_rels/presentation.xml.rels.")
+          return (relations, warnings)
+        }
       }
+      extract_relations(events, relations)
     }
     None => warnings.push("Failed to read ppt/_rels/presentation.xml.rels.")
   }

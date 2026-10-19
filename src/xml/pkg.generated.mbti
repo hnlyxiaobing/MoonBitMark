@@ -2,11 +2,11 @@
 package "hnlyxiaobing/moonbitmark/src/xml"
 
 // Values
-pub fn parse_xml(String) -> Result[Array[ParseEvent], XMLParseError]
+pub fn parse_xml(String) -> Array[ParseEvent] raise
 
 // Errors
 pub(all) suberror XMLParseError {
-  SyntaxError(Int, String)
+  SyntaxError(Int32, String)
   UnclosedTag(String)
   MismatchedTag(String, String)
   InvalidAttributeFormat(String)
@@ -17,13 +17,13 @@ pub(all) suberror XMLParseError {
 // Types and methods
 pub(all) struct ElementEndEvent {
   name : String
-  line_number : Int
+  line_number : Int32
 }
 
 pub(all) struct ElementStartEvent {
   name : String
   attributes : Map[String, String]
-  line_number : Int
+  line_number : Int32
 }
 
 pub enum ParseEvent {
@@ -34,7 +34,7 @@ pub enum ParseEvent {
 
 pub(all) struct TextEvent {
   content : String
-  line_number : Int
+  line_number : Int32
 }
 
 pub enum Token {
@@ -49,7 +49,7 @@ pub enum Token {
 
 pub(all) struct XMLParserConfig {
   encoding : String
-  buffer_size : Int
+  buffer_size : Int32
 }
 
 // Type aliases
