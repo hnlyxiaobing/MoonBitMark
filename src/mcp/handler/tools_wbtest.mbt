@@ -821,6 +821,153 @@ async test "tools reject invalid response_mode" {
 }
 
 ///|
+fn temp_baseline_filename(name : String?, effective_format : String) -> String {
+  // Test-local convenience: the production code now composes the name at the
+  // create site so it can retry on collision, but the naming invariants are
+  // still worth pinning on the composed result.
+  let (base, suffix) = temp_baseline_name_parts(name, effective_format)
+  base + suffix
+}
+
+///|
+test "temp_baseline_filename keeps the extension at the end" {
+  // The baseline converters dispatch on the file extension, so the extension
+  // has to be the *last* segment of the temporary file name. Otherwise the
+  // baseline silently fails to recognise the format.
+  let cases = [
+    ("report.doc", ".doc"),
+    ("report.docx", ".docx"),
+    ("photo.png", ".png"),
+    ("a.b.c", ".c"),
+    ("weird name.doc", ".doc"),
+    ("../escape.doc", ".doc"),
+    ("C:\\Users\\me\\file.doc", ".doc"),
+  ]
+  for (name, expected) in cases {
+    let out = temp_baseline_filename(Some(name), "text")
+    assert_true(out.has_suffix(expected), msg=name)
+    assert_true(filename_extension(out) == expected, msg=name)
+  }
+  // A name without an extension falls back to the detected format.
+  let plain = temp_baseline_filename(Some("noext"), "text")
+  assert_true(plain.has_suffix(".txt"))
+  assert_true(filename_extension(plain) == ".txt")
+  // A dotfile keeps the whole name as its extension, and the head fallback
+  // keeps the generated name from starting with a dash.
+  let dotfile = temp_baseline_filename(Some(".gitignore"), "text")
+  assert_true(dotfile.has_suffix(".gitignore"))
+  assert_true(dotfile.has_prefix("baseline-input-"))
+}
+
+///|
+async test "create_unique_temp_file moves to the next candidate on collision" {
+  let dir = mcp_baseline_temp_dir_absolute()
+  ensure_mcp_baseline_temp_dir(dir)
+  let base = dir + "/collision-probe-" + @async.now().to_string()
+  let first = create_unique_temp_file(base, ".md", @utf8.encode("one"))
+  let second = create_unique_temp_file(base, ".md", @utf8.encode("two"))
+  assert_true(first != second)
+  assert_true(first == base + ".md")
+  assert_true(second == base + "-1.md")
+  ignore(@fs.remove(first) catch { _ => () })
+  ignore(@fs.remove(second) catch { _ => () })
+}
+
+///|
+async test "write_temp_markdown_file never reuses a path" {
+  // The name used to depend on the millisecond clock alone, so two calls in
+  // the same millisecond produced the same path and silently overwrote each
+  // other (Windows: a sharing violation instead).
+  let paths : Array[String] = []
+  for _ in 0..<64 {
+    paths.push(write_temp_markdown_file("candidate-markdown", "body"))
+  }
+  let mut duplicates = 0
+  for i in 0..<paths.length() {
+    for j in 0..<paths.length() {
+      if i < j && paths[i] == paths[j] {
+        duplicates = duplicates + 1
+      }
+    }
+  }
+  for path in paths {
+    ignore(@fs.remove(path) catch { _ => () })
+  }
+  inspect(duplicates, content="0")
+}
+
+///|
+async test "materialize_baseline_input keeps every BytesInput payload in its own file" {
+  // `BytesInput` (a `resource_uri` or an inline upload) is the only input kind
+  // that has to materialise a temporary file, and it used to derive the name
+  // from the millisecond clock alone. Two requests in the same millisecond
+  // therefore shared a name: on Windows the second create failed with a
+  // sharing violation, on POSIX the second payload silently overwrote the
+  // first -- the baseline then compared document A against document B's bytes.
+  let payload = @utf8.encode("docx-bytes")
+  let document = ResolvedMcpDocument::{
+    request_uri: "upload://tempfile-probe",
+    input_kind: "uploaded_document",
+    input_source: @core.BytesInput(Some("report.docx"), payload, None),
+    source_filename: Some("report.docx"),
+    mime_type: None,
+    byte_size: None,
+    upload_encoding: Some("base64"),
+  }
+  let first = materialize_baseline_input(document, "docx")
+  let second = materialize_baseline_input(document, "docx")
+  let first_exists = @fs.exists(first)
+  let second_exists = @fs.exists(second)
+  let first_bytes = try {
+    @fs.read_file(first).binary()
+  } catch {
+    _ => Bytes::new(0)
+  }
+  let second_bytes = try {
+    @fs.read_file(second).binary()
+  } catch {
+    _ => Bytes::new(0)
+  }
+  ignore(@fs.remove(first) catch { _ => () })
+  ignore(@fs.remove(second) catch { _ => () })
+  // The extension has to stay the *last* segment: the baseline converters pick
+  // their parser from it (§B-19), so a counter must never be appended after it.
+  assert_true(first.has_suffix(".docx"), msg=first)
+  assert_true(second.has_suffix(".docx"), msg=second)
+  // Two materialisations of the same document must not land on one path.
+  assert_true(first != second, msg=first + " vs " + second)
+  assert_true(first_exists, msg=first)
+  assert_true(second_exists, msg=second)
+  // Each file still holds exactly the payload it was created from, so a
+  // collision cannot hand one document another document's bytes.
+  assert_true(first_bytes == payload, msg=@utf8.decode(first_bytes))
+  assert_true(second_bytes == payload, msg=@utf8.decode(second_bytes))
+}
+
+///|
+test "format_extension covers every registered converter name" {
+  // This table is a hand-maintained copy of the converter registry in
+  // `src/engine/engine.mbt` (`default_registration`). Keep both in sync.
+  let cases = [
+    ("docx", ".docx"),
+    ("epub", ".epub"),
+    ("pptx", ".pptx"),
+    ("xlsx", ".xlsx"),
+    ("doc", ".doc"),
+    ("pdf", ".pdf"),
+    ("image", ".png"),
+    ("html", ".html"),
+    ("json", ".json"),
+    ("csv", ".csv"),
+    ("text", ".txt"),
+  ]
+  for (name, expected) in cases {
+    assert_true(format_extension(name) == expected, msg=name)
+  }
+  assert_true(format_extension("not-a-format") == ".bin")
+}
+
+///|
 async test "compare_with_baseline rejects invalid baseline" {
   let result = compare_with_baseline_handler(
     @types.Object({
@@ -848,4 +995,103 @@ async test "convert_to_markdown rejects invalid mode" {
     extract_text(result.content[0]),
     content="Error: 'mode' must be 'preview' or 'full'",
   )
+}
+
+///|
+fn expect_canonical_format(input : String, expected : String) -> Unit raise {
+  match canonical_format_name(input) {
+    Some(actual) => assert_true(actual == expected, msg="input: " + input)
+    None => fail("expected a canonical format name for input: " + input)
+  }
+}
+
+///|
+test "canonical_format_name accepts every registered converter name" {
+  // This table mirrors the match arms of `format_extension`, which in turn
+  // mirror `default_registration` in src/engine/engine.mbt. Adding a converter
+  // means updating both lists.
+  let names = [
+    "text", "csv", "json", "pdf", "html", "docx", "doc", "pptx", "xlsx", "epub",
+    "image",
+  ]
+  for name in names {
+    expect_canonical_format(name, name)
+  }
+  // Normalisation runs before matching, so padded and upper-case hints that
+  // existing callers already send keep working.
+  expect_canonical_format(" PDF ", "pdf")
+  expect_canonical_format("Doc", "doc")
+  expect_canonical_format("  docx  ", "docx")
+  expect_canonical_format("IMAGE", "image")
+}
+
+///|
+test "canonical_format_name rejects names outside the whitelist" {
+  // `xhtml` and `wps` are file extensions, not registered converter names;
+  // `text/plain` is a MIME type. None of them may be adopted as a format.
+  let rejected = ["pdfx", "xyz", "text/plain", "xhtml", "wps", "unknown", ""]
+  for name in rejected {
+    match canonical_format_name(name) {
+      Some(actual) =>
+        fail("expected no canonical format for '" + name + "', got: " + actual)
+      None => ()
+    }
+  }
+}
+
+///|
+test "unrecognized format_hint falls back to the detected format" {
+  let rejected = ["pdfx", "xyz", "text/plain", "xhtml", "wps", ""]
+  for hint in rejected {
+    inspect(advisory_format("html", Some(hint)), content="html")
+    inspect(format_hint_effective(Some(hint)), content="false")
+  }
+  inspect(advisory_format("html", None), content="html")
+  inspect(format_hint_effective(None), content="false")
+}
+
+///|
+test "recognized format_hint overrides the detected format" {
+  inspect(advisory_format("html", Some("pdf")), content="pdf")
+  inspect(format_hint_effective(Some("pdf")), content="true")
+  inspect(advisory_format("html", Some(" PDF ")), content="pdf")
+  inspect(format_hint_effective(Some(" PDF ")), content="true")
+  inspect(advisory_format("html", Some("docx")), content="docx")
+  // Regression guard for the "doc" mapping added to `format_extension`.
+  inspect(advisory_format("html", Some("doc")), content="doc")
+  inspect(format_hint_effective(Some("doc")), content="true")
+  inspect(advisory_format("html", Some("image")), content="image")
+  inspect(format_hint_effective(Some("image")), content="true")
+}
+
+///|
+async test "convert_uploaded_document reports format_hint_applied by adoption" {
+  // End-to-end through the real handler: an unknown hint must not be
+  // reported as applied, while a whitelisted one must be.
+  let body = @utf8.encode("format hint adoption probe")
+  let unknown = convert_uploaded_document_handler(
+    @types.Object({
+      "filename": @types.String("hint-probe.txt"),
+      "data_base64": @types.String(@base64.encode(body)),
+      "format_hint": @types.String("pdfx"),
+    }),
+  )
+  inspect(unknown.is_error, content="false")
+  let unknown_summary = parse_summary_text(unknown.content[0])
+  inspect(unknown_summary["format_hint"], content="pdfx")
+  inspect(unknown_summary["format_hint_applied"], content="false")
+  inspect(unknown_summary["effective_format"], content="text")
+
+  let known = convert_uploaded_document_handler(
+    @types.Object({
+      "filename": @types.String("hint-probe.txt"),
+      "data_base64": @types.String(@base64.encode(body)),
+      "format_hint": @types.String("pdf"),
+    }),
+  )
+  inspect(known.is_error, content="false")
+  let known_summary = parse_summary_text(known.content[0])
+  inspect(known_summary["format_hint"], content="pdf")
+  inspect(known_summary["format_hint_applied"], content="true")
+  inspect(known_summary["effective_format"], content="pdf")
 }

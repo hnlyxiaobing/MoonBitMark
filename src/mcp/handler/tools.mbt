@@ -488,7 +488,10 @@ async fn convert_to_markdown_handler(
       summary_line("detected_format", detected_format),
       summary_line("effective_format", effective_format),
       summary_line("format_hint", optional_string(format_hint)),
-      summary_line("format_hint_applied", bool_string(format_hint != None)),
+      summary_line(
+        "format_hint_applied",
+        bool_string(format_hint_effective(format_hint)),
+      ),
       summary_line("requested_max_chars", optional_int_string(max_chars)),
       summary_line("effective_max_chars", optional_int_string(limit)),
       summary_line("http_allowed", bool_string(config.allow_http)),
@@ -745,7 +748,7 @@ async fn compare_with_baseline_handler(
       result.markdown,
     ) catch {
       err => {
-        cleanup_file_if_exists(baseline_input_path)
+        cleanup_file_if_exists_if_temp(document, baseline_input_path)
         return error_tool_result(
           "Error preparing baseline comparison: " + err.to_string(),
         )
@@ -999,9 +1002,50 @@ async fn file_size_bytes(input : String) -> Int32? {
 }
 
 ///|
+/// Canonical form of a `format_hint` value, or `None` when the hint does not
+/// name a known converter. The 11 accepted names are exactly the match arms of
+/// `format_extension` below; keep the two lists in sync.
+fn canonical_format_name(name : String) -> String? {
+  let normalized = name.trim().to_lower().to_owned()
+  match normalized {
+    "text" => Some("text")
+    "csv" => Some("csv")
+    "json" => Some("json")
+    "pdf" => Some("pdf")
+    "html" => Some("html")
+    "docx" => Some("docx")
+    "doc" => Some("doc")
+    "pptx" => Some("pptx")
+    "xlsx" => Some("xlsx")
+    "epub" => Some("epub")
+    "image" => Some("image")
+    _ => None
+  }
+}
+
+///|
+/// True when a hint was supplied *and* actually adopted. This replaces the
+/// older `format_hint != None` test, which also reported hints that named no
+/// known converter and were therefore silently dropped.
+fn format_hint_effective(format_hint : String?) -> Bool {
+  match format_hint {
+    Some(value) =>
+      match canonical_format_name(value) {
+        Some(_) => true
+        None => false
+      }
+    None => false
+  }
+}
+
+///|
 fn advisory_format(detected_format : String, format_hint : String?) -> String {
   match format_hint {
-    Some(value) => value
+    Some(value) =>
+      match canonical_format_name(value) {
+        Some(canonical) => canonical
+        None => detected_format
+      }
     None => detected_format
   }
 }
@@ -1234,7 +1278,7 @@ fn convert_to_markdown_payload(
     "detected_format": @types.String(detected_format),
     "effective_format": @types.String(effective_format),
     "format_hint": json_optional_string(format_hint),
-    "format_hint_applied": @types.Bool(format_hint != None),
+    "format_hint_applied": @types.Bool(format_hint_effective(format_hint)),
     "title": json_optional_string(result.title),
     "source_type": @types.String(result.source_type),
     "document_metadata": string_map_to_json_object(result.metadata),
@@ -3101,6 +3145,11 @@ fn mcp_escape_json_string(value : String) -> String {
       escaped = escaped + "\\r"
     } else if ch == '\t' {
       escaped = escaped + "\\t"
+    } else if ch.to_int() < 0x20 {
+      // JSON forbids raw C0 control characters inside strings; emit the
+      // \u00XX form so document content can never produce an invalid
+      // JSON-RPC response.
+      escaped = escaped + @types.control_char_escape(ch)
     } else {
       escaped = escaped + ch.to_string()
     }
@@ -3481,10 +3530,8 @@ async fn materialize_baseline_input(
     @core.BytesInput(name, bytes, _) => {
       let temp_dir = mcp_baseline_temp_dir_absolute()
       ensure_mcp_baseline_temp_dir(temp_dir)
-      let filename = temp_baseline_filename(name, effective_format)
-      let path = temp_dir + "/" + filename
-      write_bytes_to_file(path, bytes)
-      path
+      let (base, suffix) = temp_baseline_name_parts(name, effective_format)
+      create_unique_temp_file(base, suffix, bytes)
     }
     @core.UrlInput(_, _) =>
       fail(
@@ -3494,19 +3541,82 @@ async fn materialize_baseline_input(
 }
 
 ///|
+///|
+/// Create a temporary file whose path is guaranteed not to collide with one
+/// that already exists.
+///
+/// `base` already carries the millisecond timestamp, but a timestamp is not an
+/// identity: two calls that land in the same millisecond (concurrent MCP
+/// requests, or two async tests) would otherwise produce the same path. On
+/// Windows the second `CreateOrTruncate` fails with a sharing violation; on
+/// POSIX both calls silently truncate the same file, so one call can end up
+/// reading the other call's data. `allow_existing=false` (create-new
+/// semantics) makes the create atomic, and a `-1`..`-127` counter is inserted
+/// *before* the extension so a collision simply moves on to the next candidate.
+///
+/// The extension has to stay last: the baseline converters pick their parser
+/// by file extension.
+async fn create_unique_temp_file(
+  base : String,
+  extension : String,
+  payload : Bytes,
+) -> String {
+  let mut attempt = 0
+  while attempt < 128 {
+    let path = if attempt == 0 {
+      base + extension
+    } else {
+      base + "-" + attempt.to_string() + extension
+    }
+    if @fs.exists(path) {
+      attempt = attempt + 1
+      continue
+    }
+    let opened : @fs.File? = Some(@fs.create(path, allow_existing=false)) catch {
+      _ => None
+    }
+    match opened {
+      Some(file) =>
+        try {
+          file.write(payload)
+          file.close()
+          return path
+        } catch {
+          _ => {
+            // The name is taken but the file holds no usable payload; drop it
+            // so later attempts do not inherit a half-written candidate.
+            ignore(@fs.remove(path) catch { _ => () })
+            fail("Error writing temporary file " + path)
+          }
+        }
+      None =>
+        if @fs.exists(path) {
+          // Failed exclusively because the name is taken: try the next one.
+          attempt = attempt + 1
+        } else {
+          // Permissions, a vanished directory, ... Retrying 128 times would
+          // only hide the real cause.
+          fail("Error creating temporary file " + path)
+        }
+    }
+  }
+  fail(
+    "Error preparing temporary file: unable to create a unique name for " +
+    base +
+    " after 128 attempts",
+  )
+}
+
+///|
 async fn write_temp_markdown_file(stem : String, markdown : String) -> String {
   let temp_dir = mcp_baseline_temp_dir_absolute()
   ensure_mcp_baseline_temp_dir(temp_dir)
-  let path = temp_dir +
+  let base = temp_dir +
     "/" +
     sanitize_temp_stem(stem) +
     "-" +
-    @async.now().to_string() +
-    ".md"
-  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
-  file.write(@utf8.encode(markdown))
-  file.close()
-  path
+    @async.now().to_string()
+  create_unique_temp_file(base, ".md", @utf8.encode(markdown))
 }
 
 ///|
@@ -3542,26 +3652,44 @@ async fn cleanup_file_if_exists_if_temp(
 }
 
 ///|
-fn temp_baseline_filename(name : String?, effective_format : String) -> String {
+///|
+/// Split the temporary baseline file name into the `base` part (everything up
+/// to and including the timestamp) and the `suffix` (the extension).
+///
+/// Keeping them apart lets the caller retry with a counter inserted between
+/// them, which is why the extension stays the *last* segment: the baseline
+/// converters pick their parser by file extension.
+fn temp_baseline_name_parts(
+  name : String?,
+  effective_format : String,
+) -> (String, String) {
   let raw_name = match name {
     Some(value) => value
     None => "baseline-input"
   }
   let stem = sanitize_temp_stem(raw_name)
   let extension = filename_extension(stem)
-  let suffix = if extension == "" {
-    format_extension(effective_format)
+  // `stem` still carries the original extension, so strip it first and
+  // re-append it (or the format derived one) at the end.
+  let has_extension = extension != "" && extension != "."
+  let head = if has_extension {
+    stem[:stem.length() - extension.length()].to_owned()
   } else {
-    ""
+    stem
   }
-  stem + "-" + @async.now().to_string() + suffix
-}
-
-///|
-async fn write_bytes_to_file(path : String, bytes : Bytes) -> Unit {
-  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
-  file.write(bytes)
-  file.close()
+  let base = if has_extension && head == "" {
+    "baseline-input"
+  } else if has_extension {
+    head
+  } else {
+    stem
+  }
+  let suffix = if has_extension {
+    extension
+  } else {
+    format_extension(effective_format)
+  }
+  (base + "-" + @async.now().to_string(), suffix)
 }
 
 ///|
@@ -3605,6 +3733,7 @@ fn format_extension(format_name : String) -> String {
     "pdf" => ".pdf"
     "html" => ".html"
     "docx" => ".docx"
+    "doc" => ".doc"
     "pptx" => ".pptx"
     "xlsx" => ".xlsx"
     "epub" => ".epub"
