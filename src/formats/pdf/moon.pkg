@@ -27,6 +27,7 @@ options(
     "assemble_wbtest.mbt": [ "native" ],
     "converter_wbtest.mbt": [ "native" ],
     "extract_bridge.mbt": [ "native" ],
+    "extract_bridge_wbtest.mbt": [ "native" ],
     "extract_native.mbt": [ "native" ],
     "extract_native_stub.mbt": [ "wasm", "wasm-gc", "js" ],
     "extract_spacing_native.mbt": [ "native" ],

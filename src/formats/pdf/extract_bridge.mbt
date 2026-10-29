@@ -8,10 +8,58 @@ priv struct PdfBridgeResponse {
 } derive(FromJson)
 
 ///|
+/// Stable, filename-safe tag identifying the PDF being converted.
+///
+/// The temp stem used to be `"pdf-bridge-" + now`, carrying **no document
+/// identity at all**: two different PDFs converted in the same millisecond
+/// wrote the same `.json` and `.stderr.txt`, silently pairing one document's
+/// parsed pages with another document's stderr. Folding the basename into the
+/// stem removes that equivalence class: two runs can now only collide when
+/// they are the *same* document, and converting the same document twice
+/// yields the same output, so such a collision is harmless.
+///
+/// Only `[A-Za-z0-9]` survives (everything else becomes `-`, runs are
+/// collapsed, leading/trailing dashes trimmed) so the tag can never introduce
+/// a path separator or an escape sequence into the temp file name.
+fn pdf_bridge_document_tag(file_path : String) -> String {
+  let base = @core.file_name_only(file_path)
+  let mut tag = ""
+  for ch in base {
+    let keep = (ch >= 'a' && ch <= 'z') ||
+      (ch >= 'A' && ch <= 'Z') ||
+      (ch >= '0' && ch <= '9')
+    if keep {
+      tag = tag + ch.to_string()
+    } else if tag != "" && !tag.has_suffix("-") {
+      tag = tag + "-"
+    }
+  }
+  let mut result = tag
+  while result.has_suffix("-") {
+    result = result[:result.length() - 1].to_owned()
+  }
+  // Cap the length so an absurdly long basename cannot blow up the path; the
+  // cap is applied to the sanitised text, so no path separator can appear.
+  if result.length() > 32 {
+    result = result[:32].to_owned()
+    while result.has_suffix("-") {
+      result = result[:result.length() - 1].to_owned()
+    }
+  }
+  if result == "" {
+    return "document"
+  }
+  result
+}
+
+///|
 async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
   let temp_dir = pdf_bridge_temp_dir()
   ensure_pdf_bridge_temp_dir(temp_dir)
-  let temp_stem = "pdf-bridge-" + @async.now().to_string()
+  let temp_stem = "pdf-bridge-" +
+    @async.now().to_string() +
+    "-" +
+    pdf_bridge_document_tag(file_path)
   let output_path = temp_dir + "/" + temp_stem + ".json"
   let stderr_path = temp_dir + "/" + temp_stem + ".stderr.txt"
 
