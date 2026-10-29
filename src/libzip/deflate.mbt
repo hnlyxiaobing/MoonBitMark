@@ -2,10 +2,55 @@
 // 实现 RFC 1951 DEFLATE 解压缩算法
 
 ///|
-/// Deflate 解压主函数（支持 RFC 1951 多块流）
+/// 单个 DEFLATE 条目允许的最大解压输出字节数（256 MiB）。
+///
+/// 取值理由：DEFLATE 的理论压缩比约 1032:1（32 KiB 滑动窗口 + 最短匹配），
+/// 一个几百 KB 的条目即可膨胀到 GB 级（实测 64 KiB 全零数据压缩后仅 78 字节，
+/// 1 MiB 全零数据仅 1033 字节）。
+///
+/// 反向校验：仓库 `tests/` 下 16 个 ZIP 容器 fixture 中，解压后最大的单个条目
+/// 是 20.78 MiB（`simple_shared_culture.epub` 里的 mp4），单归档累计最大
+/// 32.31 MiB。256 MiB 对最大条目留了约 12 倍余量，不会挡住正常文档。
+/// MCP 场景下上传附件与抓取 URL 都会走到这条路径，属远程可达。
+let zip_max_inflate_bytes : Int32 = 268435456
+
+///|
+/// 解压失败的内部原因。
+///
+/// `zip` 层据此把「超限」与「数据损坏」映射成两种可诊断的错误串，而不是
+/// 一律当成 `None`。
+priv enum InflateFailure {
+  /// 压缩数据非法或截断
+  Corrupt
+  /// 解压输出超过给定上限（携带该上限值）
+  SizeLimitExceeded(Int32)
+}
+
+///|
+/// Deflate 解压主函数（支持 RFC 1951 多块流）。
+///
+/// 输出上限为 `zip_max_inflate_bytes`，超限即中止并返回 `None`。
 pub fn deflate_decompress(input : Bytes) -> Bytes? {
+  match deflate_decompress_limited(input, zip_max_inflate_bytes) {
+    Ok(bytes) => Some(bytes)
+    Err(_) => None
+  }
+}
+
+///|
+/// 带显式输出上限的 Deflate 解压。
+///
+/// 上限在每次写出前检查（见 `InflateState::write_byte` 与
+/// `InflateState::copy_from_distance`），不做「先分配再比大小」。
+fn deflate_decompress_limited(
+  input : Bytes,
+  max_bytes : Int32,
+) -> Result[Bytes, InflateFailure] {
+  if max_bytes <= 0 {
+    return Err(SizeLimitExceeded(0))
+  }
   let reader = BitReader::new(input)
-  let state = InflateState::new()
+  let state = InflateState::new(max_bytes)
 
   // RFC 1951: DEFLATE 数据流由一个或多个块组成，每块有 bfinal 标志
   let mut is_final = false
@@ -14,7 +59,7 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
     let bfinal_result = reader.read_bits(1)
     let bfinal = match bfinal_result {
       Ok(v) => v == 1
-      Err(_) => return None
+      Err(_) => return Err(Corrupt)
     }
     is_final = bfinal
 
@@ -22,7 +67,7 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
     let btype_result = reader.read_bits(2)
     let btype = match btype_result {
       Ok(v) => v
-      Err(_) => return None
+      Err(_) => return Err(Corrupt)
     }
 
     // 解压当前块到 output（各函数返回 Bool 表示成功/失败）
@@ -30,14 +75,20 @@ pub fn deflate_decompress(input : Bytes) -> Bytes? {
       0 => decompress_stored_block(reader, state)
       1 => decompress_fixed_huffman_block(reader, state)
       2 => decompress_dynamic_huffman_block(reader, state)
-      _ => return None
+      _ => return Err(Corrupt)
     }
     if !ok {
-      return None
+      // 靠 `limit_hit` 区分「被上限截断」与「数据损坏」：一次 LZ77 匹配可能
+      // 整段越过上限，那时 `produced` 会小于上限，不能拿它当判据。
+      return if state.limit_hit {
+        Err(SizeLimitExceeded(max_bytes))
+      } else {
+        Err(Corrupt)
+      }
     }
   }
 
-  Some(bytes_from_array(state.output))
+  Ok(bytes_from_array(state.output))
 }
 
 ///|
@@ -46,24 +97,40 @@ priv struct InflateState {
   window : Array[Byte]
   mut window_pos : Int32
   mut produced : Int32
+  max_output : Int32
+  /// 是否因触碰 `max_output` 而中止（用来区分超限与数据损坏）
+  mut limit_hit : Bool
 }
 
 ///|
-fn InflateState::new() -> InflateState {
+fn InflateState::new(max_output : Int32) -> InflateState {
   let output : Array[Byte] = Array(capacity=0)
   let window : Array[Byte] = Array(capacity=0)
   for _ in 0..<32768 {
     window.push(b'\x00')
   }
-  InflateState::{ output, window, window_pos: 0, produced: 0, }
+  InflateState::{
+    output,
+    window,
+    window_pos: 0,
+    produced: 0,
+    max_output,
+    limit_hit: false,
+  }
 }
 
 ///|
-fn InflateState::write_byte(self : InflateState, byte : Byte) -> Unit {
+/// 写入一个字节。超过 `max_output` 时返回 false 并停止解压。
+fn InflateState::write_byte(self : InflateState, byte : Byte) -> Bool {
+  if self.produced >= self.max_output {
+    self.limit_hit = true
+    return false
+  }
   self.output.push(byte)
   self.window[self.window_pos] = byte
   self.window_pos = (self.window_pos + 1) & 0x7FFF
   self.produced = self.produced + 1
+  true
 }
 
 ///|
@@ -78,11 +145,23 @@ fn InflateState::copy_from_distance(
   if distance > self.produced {
     return false
   }
+  if length <= 0 {
+    return true
+  }
+  // 预检剩余额度，避免超量写入（`produced` 恒不超过 `max_output`）。
+  // 一次 LZ77 匹配最长 258 字节，可能整段越过上限而被这里整段拒绝，此时
+  // `produced` 未必等于 `max_output`，所以要显式记下「是上限导致的」。
+  if length > self.max_output - self.produced {
+    self.limit_hit = true
+    return false
+  }
 
   let copy_start = self.window_pos - distance
   for i in 0..<length {
     let src_pos = (copy_start + i) & 0x7FFF
-    self.write_byte(self.window[src_pos])
+    if !self.write_byte(self.window[src_pos]) {
+      return false
+    }
   }
   true
 }
@@ -198,7 +277,7 @@ fn decompress_stored_block(reader : BitReader, state : InflateState) -> Bool {
   for _ in 0..<len {
     let byte_result = reader.read_byte()
     match byte_result {
-      Ok(b) => state.write_byte(b)
+      Ok(b) => if !state.write_byte(b) { return false }
       Err(_) => return false
     }
   }
@@ -234,7 +313,9 @@ fn decompress_fixed_huffman_block(
 
     if symbol < 256 {
       // 字面量字节
-      state.write_byte(int_to_byte(symbol))
+      if !state.write_byte(int_to_byte(symbol)) {
+        return false
+      }
     } else if symbol == 256 {
       // 块结束
       done = true
@@ -681,7 +762,9 @@ fn decompress_dynamic_huffman_block(
 
     if symbol < 256 {
       // 字面量字节
-      state.write_byte(int_to_byte(symbol))
+      if !state.write_byte(int_to_byte(symbol)) {
+        return false
+      }
     } else if symbol == 256 {
       // 块结束
       done = true
