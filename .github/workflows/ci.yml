@@ -53,6 +53,15 @@ jobs:
         shell: bash
         run: moon test
 
+      # The parser packages (libzip, xml, formats/*) declare no
+      # `supported_targets`, so they must compile for every target. Only the
+      # native-only packages (mcp/handler, mcp/transport*, cmd/*) are skipped
+      # here. `moon test --target wasm-gc` is deliberately not run: parts of
+      # the test suite depend on native-only packages.
+      - name: moon check (wasm-gc)
+        shell: bash
+        run: moon check --target wasm-gc
+
   coverage-check:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -126,28 +135,80 @@ jobs:
         shell: pwsh
         run: moon test
 
+      # Same rationale as the portable job: keep the target-agnostic parser
+      # packages compiling under wasm-gc so that Int32/32-bit assumptions
+      # cannot hide behind a passing native build.
+      - name: moon check (wasm-gc)
+        shell: pwsh
+        run: moon check --target wasm-gc
+
       - name: Build native release binaries
         shell: pwsh
         run: moon build --target native --release
 
+      # Windows PowerShell 5.1 (`powershell.exe`) is deliberately avoided from
+      # here on. `tests/TestHelpers.ps1` spawns processes through
+      # `ProcessStartInfo.Environment`, a .NET Core-only property; under 5.1 it
+      # is $null and every spawn dies with "cannot index into a null array".
+      # `pwsh` (PowerShell 7) ships with the windows-latest runner.
       - name: CLI smoke checks
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File tests/cli/cli_smoke.ps1
+        run: pwsh -NoLogo -NoProfile -File tests/cli/cli_smoke.ps1
 
       - name: CLI negative checks
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File tests/cli/cli_negative.ps1
+        run: pwsh -NoLogo -NoProfile -File tests/cli/cli_negative.ps1
 
       - name: MCP STDIO smoke checks
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File tests/integration/mcp_stdio_smoke.ps1
+        run: pwsh -NoLogo -NoProfile -File tests/integration/mcp_stdio_smoke.ps1
 
+      # Remaining MCP integration scripts, grouped so the job stops at the first
+      # failing one. Each `pwsh -File` exit code is checked explicitly: the
+      # `shell: pwsh` wrapper only propagates the *last* native exit code of the
+      # step, so an unchecked failure earlier in the loop would be swallowed.
+      #
+      # NOTE: these were added from a development machine that has no
+      # PowerShell 7 installed, so they are NOT locally verified. They rely on
+      # the PowerShell 7 that ships with the windows-latest runner.
+      - name: MCP integration checks
+        shell: pwsh
+        run: |
+          $scripts = @(
+            'tests/integration/mcp_security_smoke.ps1',
+            'tests/integration/mcp_resources_smoke.ps1',
+            'tests/integration/mcp_prompts_smoke.ps1',
+            'tests/integration/mcp_http_smoke.ps1',
+            'tests/integration/mcp_http_security_smoke.ps1'
+          )
+          foreach ($script in $scripts) {
+            Write-Host "=== $script ==="
+            pwsh -NoLogo -NoProfile -File $script
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "MCP integration script failed with exit code $LASTEXITCODE : $script"
+              exit $LASTEXITCODE
+            }
+          }
+
+      # Same per-script exit-code check as the MCP step above, for the same
+      # reason: the `shell: pwsh` wrapper only propagates the *last* native exit
+      # code of the step, so an unchecked earlier failure would be swallowed.
       - name: OCR smoke checks
         shell: pwsh
         run: |
-          powershell -ExecutionPolicy Bypass -File tests/ocr/ocr_force_smoke.ps1
-          powershell -ExecutionPolicy Bypass -File tests/ocr/ocr_backend_missing.ps1
-          powershell -ExecutionPolicy Bypass -File tests/ocr/ocr_timeout_smoke.ps1
+          $scripts = @(
+            'tests/ocr/ocr_force_smoke.ps1',
+            'tests/ocr/ocr_backend_missing.ps1',
+            'tests/ocr/ocr_timeout_smoke.ps1'
+          )
+          foreach ($script in $scripts) {
+            Write-Host "=== $script ==="
+            pwsh -NoLogo -NoProfile -File $script
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "OCR smoke script failed with exit code $LASTEXITCODE : $script"
+              exit $LASTEXITCODE
+            }
+          }
 
       - name: Conversion eval
         shell: pwsh
