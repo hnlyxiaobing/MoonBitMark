@@ -15,13 +15,118 @@ async fn store_document_resource(
   bytes : Bytes,
   mime_type : String?,
 ) -> StoredDocument {
+  store_document_resource_at_base_id(
+    filename,
+    new_document_resource_id(filename),
+    bytes,
+    mime_type,
+  )
+}
+
+///|
+/// Store `bytes` under `base_id`, or under `<base_id>-<n>` for the first free
+/// `n` when that id is already taken.
+///
+/// The id doubles as the blob/meta path stem, so two uploads that land in the
+/// same millisecond with equivalent sanitized stems (everything that is not
+/// alphanumeric collapses to `-`, and the file name is caller supplied) would
+/// otherwise map onto the same files. Both writes used `CreateOrTruncate`, so
+/// the loser was truncated silently and its `moonbitmark://document/<id>` uri
+/// kept resolving to the winner's bytes -- a cross-document mix-up that no
+/// layer reported. Claiming the blob through an atomic exclusive create makes
+/// the id unique per stored document; suffixing keeps the shape
+/// `<timestamp>-<stem>[-<n>]` so `document_timestamp_prefix` (and therefore the
+/// staleness sweep) still reads the leading timestamp.
+async fn store_document_resource_at_base_id(
+  filename : String,
+  base_id : String,
+  bytes : Bytes,
+  mime_type : String?,
+) -> StoredDocument {
   ensure_document_store_dirs()
   sweep_stale_document_resources()
-  let id = new_document_resource_id(filename)
+  let mut chosen : String? = None
+  let mut attempt = 0
+  while attempt < 128 {
+    let id = if attempt == 0 {
+      base_id
+    } else {
+      base_id + "-" + attempt.to_string()
+    }
+    let blob_path = document_blob_path(id)
+    if @fs.exists(blob_path) {
+      // Fast path: the id is taken, so move on without paying for an exception
+      // from `@fs.create`.
+      attempt = attempt + 1
+      continue
+    }
+    let file = @fs.create(blob_path, allow_existing=false) catch {
+      err =>
+        // `allow_existing=false` maps to an exclusive create, so a failure here
+        // means either "someone took the id between the check and the create"
+        // or a real filesystem problem. Tell them apart by looking at the path:
+        // still taken -> lost the race, try the next suffix; still free ->
+        // permissions/directory issue that retrying 128 times cannot fix.
+        if @fs.exists(blob_path) {
+          attempt = attempt + 1
+          continue
+        } else {
+          fail(
+            "Failed to create document blob " +
+            blob_path +
+            ": " +
+            err.to_string(),
+          )
+        }
+    }
+    try {
+      file.write(bytes)
+      file.close()
+    } catch {
+      err => {
+        // The blob file exists but holds no complete payload. `sweep` only
+        // walks `*.meta.txt`, so an orphaned `.bin` would never be reclaimed:
+        // close the handle first (Windows refuses to unlink an open file), drop
+        // the file, then report.
+        file.close()
+        ignore(@fs.remove(blob_path) catch { _ => () })
+        fail(
+          "Failed to write document blob " +
+          blob_path +
+          ": " +
+          err.to_string(),
+        )
+      }
+    }
+    chosen = Some(id)
+    break
+  }
+  let id = match chosen {
+    Some(value) => value
+    None =>
+      fail(
+        "Failed to allocate a document resource id for " +
+        filename +
+        " (stem=" +
+        sanitize_document_stem(filename) +
+        ", attempts=128)",
+      )
+  }
   let blob_path = document_blob_path(id)
   let meta_path = document_meta_path(id)
-  write_document_blob(blob_path, bytes)
-  write_document_meta(meta_path, id, filename, mime_type, bytes.length())
+  write_document_meta(meta_path, id, filename, mime_type, bytes.length()) catch {
+    err => {
+      // Without metadata the document is unloadable, so the blob must not be
+      // left behind either.
+      ignore(@fs.remove(blob_path) catch { _ => () })
+      fail(
+        "Failed to write document metadata " +
+        meta_path +
+        ": " +
+        err.to_string(),
+      )
+    }
+  }
   StoredDocument::{
     resource_uri: document_resource_uri(id),
     filename,
@@ -299,9 +404,33 @@ fn parse_document_resource_id(resource_uri : String) -> Result[String, String] {
   let id = resource_uri[prefix.length():].to_owned()
   if id.trim() == "" {
     Err("Resource not found")
+  } else if !is_safe_document_resource_id(id) {
+    // The id is appended to the store's blob/meta paths. Anything that could
+    // escape the store root (path separators, drive prefixes, "..") has to be
+    // rejected before it ever reaches the filesystem.
+    Err("Resource not found")
   } else {
     Ok(id)
   }
+}
+
+///|
+/// Document resource ids are generated as "<timestamp>-<sanitized filename>",
+/// where the sanitized stem keeps only ASCII letters, digits and dashes.
+/// Restricting the id to that alphabet keeps it a single path segment, so a
+/// crafted `resource_uri` cannot traverse out of the document store.
+fn is_safe_document_resource_id(id : String) -> Bool {
+  for ch in id {
+    if (ch >= 'a' && ch <= 'z') ||
+      (ch >= 'A' && ch <= 'Z') ||
+      (ch >= '0' && ch <= '9') ||
+      ch == '-' {
+      continue
+    } else {
+      return false
+    }
+  }
+  true
 }
 
 ///|
@@ -335,13 +464,6 @@ fn document_timestamp_prefix(id : String) -> String {
     Some(index) if index > 0 => id[:index].to_owned()
     _ => id
   }
-}
-
-///|
-async fn write_document_blob(path : String, bytes : Bytes) -> Unit {
-  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
-  file.write(bytes)
-  file.close()
 }
 
 ///|
