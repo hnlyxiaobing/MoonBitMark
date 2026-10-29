@@ -131,11 +131,26 @@ fn escape_json_string(input : String) -> String {
       escaped = escaped + "\\r"
     } else if ch == '\t' {
       escaped = escaped + "\\t"
+    } else if ch.to_int() < 0x20 {
+      // JSON forbids raw C0 control characters inside strings; emit the
+      // \u00XX form so document content can never produce an invalid
+      // JSON-RPC response.
+      escaped = escaped + control_char_escape(ch)
     } else {
       escaped = escaped + ch.to_string()
     }
   }
   escaped
+}
+
+///|
+/// Render a C0 control character as its `\u00XX` JSON escape sequence.
+pub fn control_char_escape(ch : Char) -> String {
+  let code = ch.to_int()
+  let hex = "0123456789abcdef"
+  let high = code / 16
+  let low = code % 16
+  "\\u00" + hex[high:high + 1].to_owned() + hex[low:low + 1].to_owned()
 }
 
 ///|

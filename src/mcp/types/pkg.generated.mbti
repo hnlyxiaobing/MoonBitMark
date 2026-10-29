@@ -2,6 +2,8 @@
 package "hnlyxiaobing/moonbitmark/src/mcp/types"
 
 // Values
+pub fn control_char_escape(Char) -> String
+
 pub fn parse_json(String) -> Result[JsonValue, JsonParseError]
 
 // Errors

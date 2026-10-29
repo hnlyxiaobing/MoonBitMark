@@ -27,11 +27,18 @@ pub fn JsonParseError::to_string(self : JsonParseError) -> String {
 ///|
 priv struct ParserState {
   mut index : Int32
+  mut depth : Int32
 }
 
 ///|
+/// Maximum container nesting accepted by the parser. Every nested object or
+/// array costs one level of the native stack, so deeply nested input is
+/// rejected instead of exhausting the stack.
+let json_max_depth : Int32 = 64
+
+///|
 pub fn parse_json(input : String) -> Result[JsonValue, JsonParseError] {
-  let state = ParserState::{ index: 0, }
+  let state = ParserState::{ index: 0, depth: 0, }
   match parse_value(input, state) {
     Ok(value) => {
       skip_whitespace(input, state)
@@ -59,8 +66,24 @@ fn parse_value(
   let ch = char_code_at(input, state.index)
   match ch {
     34 => parse_string(input, state)
-    123 => parse_object(input, state)
-    91 => parse_array(input, state)
+    123 => {
+      if enter_container(state) {
+        let result = parse_object(input, state)
+        leave_container(state)
+        result
+      } else {
+        Err(InvalidJson("Maximum nesting depth exceeded"))
+      }
+    }
+    91 => {
+      if enter_container(state) {
+        let result = parse_array(input, state)
+        leave_container(state)
+        result
+      } else {
+        Err(InvalidJson("Maximum nesting depth exceeded"))
+      }
+    }
     116 => parse_literal(input, state, "true", Bool(true))
     102 => parse_literal(input, state, "false", Bool(false))
     110 => parse_literal(input, state, "null", Null)
@@ -72,6 +95,24 @@ fn parse_value(
         Err(ExpectedChar(ch))
       }
   }
+}
+
+///|
+/// Enter a nested container. Returns false when the nesting limit is hit.
+fn enter_container(state : ParserState) -> Bool {
+  state.depth = state.depth + 1
+  if state.depth > json_max_depth {
+    state.depth = state.depth - 1
+    false
+  } else {
+    true
+  }
+}
+
+///|
+/// Leave a nested container.
+fn leave_container(state : ParserState) -> Unit {
+  state.depth = state.depth - 1
 }
 
 ///|
@@ -196,6 +237,11 @@ fn parse_object(
       return Err(ExpectedCommaOrTerminator)
     }
     state.index = state.index + 1
+    // The next key may be separated from the comma by whitespace. Without
+    // this the parser would consume the whitespace as the opening quote of
+    // the key and reject every request serialized with the usual
+    // `", "` / `": "` separators.
+    skip_whitespace(input, state)
   }
 
   Ok(Object(entries))
