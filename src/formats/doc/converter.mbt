@@ -236,6 +236,20 @@ priv struct DocPiece {
 }
 
 ///|
+/// 段落 FKP 页中允许的最大段落数。
+///
+/// FKP 页固定 512 字节，段落 RGBX 每项 13 字节，且页首需要 4 * (c + 1) 字节
+/// 存放 rgfc，故 4 * (c + 1) + 13 * (c - 1) <= 511，即 c <= 30。
+let doc_max_fkp_paragraphs : Int32 = 30
+
+///|
+/// 字符 FKP 页中允许的最大字符游程数。
+///
+/// FKP 页固定 512 字节，字符 RGBX 每项 1 字节，故 4 * (c + 1) + (c - 1) <= 511，
+/// 即 c <= 101。
+let doc_max_fkp_char_runs : Int32 = 101
+
+///|
 /// Parse the CLX -> Pcdt -> PlcPcd structure, returning the piece list.
 fn parse_piece_table(
   _word_document : Bytes,
@@ -246,7 +260,10 @@ fn parse_piece_table(
   match table {
     None => None
     Some(tbl) => {
-      if lcb_clx <= 0 || fc_clx < 0 || fc_clx + lcb_clx > tbl.length() {
+      if lcb_clx <= 0 ||
+        fc_clx < 0 ||
+        fc_clx > tbl.length() ||
+        lcb_clx > tbl.length() - fc_clx {
         return None
       }
       let clx = tbl[fc_clx:fc_clx + lcb_clx].to_owned()
@@ -266,7 +283,7 @@ fn parse_piece_table(
             break
           }
           let lcb = doc_u32le(clx, index + 1)
-          if lcb < 4 || index + 5 + lcb > clx.length() {
+          if lcb < 4 || lcb > clx.length() - index - 5 {
             break
           }
           let plc = clx[index + 5:index + 5 + lcb].to_owned()
@@ -330,13 +347,19 @@ fn decode_piece_range(
   }
   if piece.compressed {
     let byte_off = piece.byte_offset + start
-    if byte_off + chars > word_document.length() {
+    // 使用减法比较，避免 `byte_off + chars` 溢出后绕过边界检查
+    if byte_off < 0 ||
+      byte_off > word_document.length() ||
+      chars > word_document.length() - byte_off {
       return ""
     }
     decode_cp1252(word_document, byte_off, chars)
   } else {
     let byte_off = piece.byte_offset + start * 2
-    if byte_off + chars * 2 > word_document.length() {
+    // 使用减法比较，避免 `byte_off + chars * 2` 溢出后绕过边界检查
+    if byte_off < 0 ||
+      byte_off > word_document.length() ||
+      chars > (word_document.length() - byte_off) / 2 {
       return ""
     }
     decode_utf16le(word_document, byte_off, chars)
@@ -475,7 +498,10 @@ fn parse_paragraph_table(
   match table {
     None => result
     Some(tbl) => {
-      if lcb_plcf < 12 || fc_plcf < 0 || fc_plcf + lcb_plcf > tbl.length() {
+      if lcb_plcf < 12 ||
+        fc_plcf < 0 ||
+        fc_plcf > tbl.length() ||
+        lcb_plcf > tbl.length() - fc_plcf {
         return result
       }
       let plcf = tbl[fc_plcf:fc_plcf + lcb_plcf].to_owned()
@@ -483,15 +509,25 @@ fn parse_paragraph_table(
       if count <= 0 {
         return result
       }
+      // FKP 页为固定 512 字节；文档不足一页时无法定位任何 FKP
+      if word_document.length() < 512 {
+        return result
+      }
+      let max_page = (word_document.length() - 512) / 512
       for i in 0..<count {
         let pn = doc_u32le(plcf, (count + 1) * 4 + i * 4)
-        let fkp_offset = pn * 512
-        if fkp_offset + 512 > word_document.length() {
+        // `pn` 为 32 位页号，先做范围判断再乘 512，避免乘法溢出
+        if pn < 0 || pn > max_page {
           continue
         }
+        let fkp_offset = pn * 512
         let fkp = word_document[fkp_offset:fkp_offset + 512].to_owned()
         let cpara = fkp[511].to_int()
         if cpara <= 0 {
+          continue
+        }
+        // RGBX 每项 13 字节：4 * (cpara + 1) + 13 * (cpara - 1) <= 511
+        if cpara > doc_max_fkp_paragraphs {
           continue
         }
         let rgbx_off = (cpara + 1) * 4
@@ -570,7 +606,10 @@ fn parse_char_format_table(
   match table {
     None => result
     Some(tbl) => {
-      if lcb_plcf < 8 || fc_plcf < 0 || fc_plcf + lcb_plcf > tbl.length() {
+      if lcb_plcf < 8 ||
+        fc_plcf < 0 ||
+        fc_plcf > tbl.length() ||
+        lcb_plcf > tbl.length() - fc_plcf {
         return result
       }
       let plcf = tbl[fc_plcf:fc_plcf + lcb_plcf].to_owned()
@@ -578,15 +617,25 @@ fn parse_char_format_table(
       if count <= 0 {
         return result
       }
+      // FKP 页为固定 512 字节；文档不足一页时无法定位任何 FKP
+      if word_document.length() < 512 {
+        return result
+      }
+      let max_page = (word_document.length() - 512) / 512
       for i in 0..<count {
         let pn = doc_u32le(plcf, (count + 1) * 4 + i * 4)
-        let fkp_offset = pn * 512
-        if fkp_offset + 512 > word_document.length() {
+        // `pn` 为 32 位页号，先做范围判断再乘 512，避免乘法溢出
+        if pn < 0 || pn > max_page {
           continue
         }
+        let fkp_offset = pn * 512
         let fkp = word_document[fkp_offset:fkp_offset + 512].to_owned()
         let crun = fkp[511].to_int()
         if crun <= 0 {
+          continue
+        }
+        // RGBX 每项 1 字节：4 * (crun + 1) + (crun - 1) <= 511
+        if crun > doc_max_fkp_char_runs {
           continue
         }
         let rgbx_off = (crun + 1) * 4
@@ -1202,7 +1251,8 @@ fn render_doc_failure(
 
 ///|
 fn doc_u16le(b : Bytes, o : Int32) -> Int32 {
-  if o + 2 > b.length() {
+  // 使用减法比较，避免 `o + 2` 溢出后绕过边界检查
+  if o < 0 || o > b.length() - 2 {
     return 0
   }
   b[o].to_int() | (b[o + 1].to_int() << 8)
@@ -1210,7 +1260,8 @@ fn doc_u16le(b : Bytes, o : Int32) -> Int32 {
 
 ///|
 fn doc_u32le(b : Bytes, o : Int32) -> Int32 {
-  if o + 4 > b.length() {
+  // 使用减法比较，避免 `o + 4` 溢出后绕过边界检查
+  if o < 0 || o > b.length() - 4 {
     return 0
   }
   b[o].to_int() |
@@ -1221,7 +1272,8 @@ fn doc_u32le(b : Bytes, o : Int32) -> Int32 {
 
 ///|
 fn doc_u32le_uint(b : Bytes, o : Int32) -> UInt32 {
-  if o + 4 > b.length() {
+  // 使用减法比较，避免 `o + 4` 溢出后绕过边界检查
+  if o < 0 || o > b.length() - 4 {
     return 0
   }
   b[o].to_uint() |

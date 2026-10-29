@@ -1587,21 +1587,22 @@ fn is_epub_gutenberg_license_block(text : String) -> Bool {
 
 ///|
 fn normalize_epub_text(text : String) -> String {
-  let mut result = ""
+  // 使用 StringBuilder 累积，避免不可变字符串反复拼接造成的 O(n^2)
+  let sb = StringBuilder()
   let mut previous_was_space = true
   for ch in text.replace(old="\r", new="\n").replace(old="\t", new=" ") {
     let is_space = ch == '\n' || ch == ' '
     if is_space {
       if !previous_was_space {
-        result = result + " "
+        sb.write_string(" ")
       }
       previous_was_space = true
     } else {
-      result = result + ch.to_string()
+      sb.write_string(ch.to_string())
       previous_was_space = false
     }
   }
-  result.trim().to_owned()
+  sb.to_string().trim().to_owned()
 }
 
 ///|

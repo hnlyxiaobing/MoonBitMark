@@ -730,9 +730,25 @@ fn parse_decimal_digits(text : String) -> Int32 {
 }
 
 ///|
+/// `w:ilvl` 允许的最大列表层级。
+///
+/// Word 自身只使用 0-8 共 9 个层级；上限用于防止构造的 `w:ilvl` 触发
+/// `"  ".repeat(level)` 分配超大缩进前缀。
+let docx_max_list_level : Int32 = 8
+
+///|
 fn docx_parse_level(value : String?) -> Int32 {
   match value {
-    Some(text) if text != "" => parse_decimal_digits(text)
+    Some(text) if text != "" => {
+      let level = parse_decimal_digits(text)
+      if level < 0 {
+        0
+      } else if level > docx_max_list_level {
+        docx_max_list_level
+      } else {
+        level
+      }
+    }
     _ => 0
   }
 }

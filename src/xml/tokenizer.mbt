@@ -491,7 +491,8 @@ fn parse_attribute(
 ///|
 /// 解码实体引用
 fn decode_entities(s : String) -> String {
-  let mut result = ""
+  // 使用 StringBuilder 累积，避免不可变字符串反复拼接造成的 O(n^2)
+  let sb = StringBuilder()
   let mut i = 0
   let len = s.length()
 
@@ -512,19 +513,19 @@ fn decode_entities(s : String) -> String {
           "apos" => "'"
           _ => "&" + entity + ";"
         }
-        result = result + decoded
+        sb.write_string(decoded)
         i = j + 1
       } else {
-        result = result + "&"
+        sb.write_string("&")
         i = i + 1
       }
     } else {
-      result = result + s[i:i + 1].to_owned()
+      sb.write_string(s[i:i + 1].to_owned())
       i = i + 1
     }
   }
 
-  result
+  sb.to_string()
 }
 
 ///|

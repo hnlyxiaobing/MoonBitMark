@@ -1005,23 +1005,26 @@ fn merge_partial_numbering_chunks(
 
 ///|
 fn collapse_inline_whitespace(text : String) -> String {
-  let mut result = ""
+  // 使用 StringBuilder 累积，避免不可变字符串反复拼接造成的 O(n^2)
+  let sb = StringBuilder()
+  let mut has_content = false
   let mut pending_space = false
   for ch in text {
     if is_ignorable_control_char(ch) {
       continue
     }
     if ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t' {
-      pending_space = result != ""
+      pending_space = has_content
       continue
     }
     if pending_space {
-      result = result + " "
+      sb.write_string(" ")
       pending_space = false
     }
-    result = result + ch.to_string()
+    sb.write_string(ch.to_string())
+    has_content = true
   }
-  result.trim().to_owned()
+  sb.to_string().trim().to_owned()
 }
 
 ///|

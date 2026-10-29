@@ -2,6 +2,30 @@
 // Converts Excel files (.xlsx) to Markdown tables
 
 ///|
+/// Maximum number of rows accepted in a single worksheet.
+///
+/// Mirrors the Excel hard limit (1,048,576 rows). The row index in the sheet
+/// XML is attacker controlled, so it is clamped to this bound before any row
+/// array is materialized.
+let xlsx_max_rows : Int32 = 1048576
+
+///|
+/// Maximum number of columns accepted in a single worksheet.
+///
+/// Mirrors the Excel hard limit (16,384 columns, i.e. `XFD`). Cell references
+/// are attacker controlled, so the derived column index is clamped to this
+/// bound before any column slot is materialized.
+let xlsx_max_cols : Int32 = 16384
+
+///|
+/// Maximum number of cells materialized for a single worksheet.
+///
+/// Bounds the total memory used by the row padding performed by
+/// `normalize_sheet_rows`. Exceeding the budget stops the padding of the
+/// trailing rows instead of aborting the conversion.
+let xlsx_max_cells : Int32 = 4194304
+
+///|
 /// Converter for XLSX files
 pub(all) struct XlsxConverter {
   dummy : Int32
@@ -483,6 +507,9 @@ fn extract_sheet_data(
   let mut current_cell_type = ""
   let mut current_content = ""
   let mut current_formula = ""
+  // Total number of cells accepted so far. Bounded by `xlsx_max_cells` so a
+  // crafted sheet cannot force an unbounded amount of memory to be used.
+  let mut cell_count = 0
 
   for event in events {
     match event {
@@ -494,7 +521,10 @@ fn extract_sheet_data(
             current_row_index = match evt.attributes.get("r") {
               Some(r) =>
                 match parse_int(r) {
-                  Some(n) if n > 0 => n - 1
+                  // A row index beyond `xlsx_max_rows` is treated like a
+                  // missing index: the row is appended sequentially instead
+                  // of materializing millions of placeholder rows.
+                  Some(n) if n > 0 && n <= xlsx_max_rows => n - 1
                   _ => next_row_index
                 }
               None => next_row_index
@@ -526,10 +556,13 @@ fn extract_sheet_data(
           "row" => {
             // Place the row at its absolute index, padding skipped row
             // numbers with empty rows so region detection sees the gaps.
-            while data.rows.length() <= current_row_index {
+            while data.rows.length() <= current_row_index &&
+                  data.rows.length() < xlsx_max_rows {
               data.rows.push([])
             }
-            data.rows[current_row_index] = current_row
+            if current_row_index < data.rows.length() {
+              data.rows[current_row_index] = current_row
+            }
             current_row = []
             next_row_index = current_row_index + 1
           }
@@ -539,17 +572,25 @@ fn extract_sheet_data(
             let cell_value = get_cell_value(
               current_cell_type, current_content, current_formula, shared_strings,
             )
-            // Parse cell reference to get column index
-            let col_idx = cell_ref_to_col_index(current_cell_ref)
-            // Extend row if needed
-            while current_row.length() <= col_idx {
-              current_row.push("")
+            // Parse cell reference to get column index. The `r` attribute is
+            // optional in ECMA-376; a missing or unusable reference falls
+            // back to the next free column of the current row.
+            let col_idx = match cell_ref_to_col_index(current_cell_ref) {
+              Some(idx) => idx
+              None => current_row.length()
             }
-            if col_idx < current_row.length() {
-              current_row[col_idx] = cell_value
-            }
-            if col_idx >= data.max_cols {
-              data.max_cols = col_idx + 1
+            if col_idx < xlsx_max_cols && cell_count < xlsx_max_cells {
+              // Extend row if needed
+              while current_row.length() <= col_idx {
+                current_row.push("")
+              }
+              if col_idx < current_row.length() {
+                current_row[col_idx] = cell_value
+              }
+              if col_idx >= data.max_cols {
+                data.max_cols = col_idx + 1
+              }
+              cell_count = cell_count + 1
             }
           }
           "v" => in_value = false
@@ -633,7 +674,12 @@ fn parse_int(s : String) -> Int32? {
   while i < s.length() {
     let ch = s[i]
     if ch >= '0' && ch <= '9' {
-      result = result * 10 + (ch.to_int() - '0'.to_int())
+      let digit = ch.to_int() - '0'.to_int()
+      // Reject values that would overflow `Int32` instead of wrapping.
+      if result > (2147483647 - digit) / 10 {
+        return None
+      }
+      result = result * 10 + digit
       i = i + 1
     } else {
       return None
@@ -643,21 +689,36 @@ fn parse_int(s : String) -> Int32? {
 }
 
 ///|
-/// Convert cell reference (e.g., "A1", "C10") to column index
-fn cell_ref_to_col_index(cell_ref : String) -> Int32 {
+/// Convert cell reference (e.g., "A1", "C10") to a 0-based column index.
+///
+/// Returns `None` when the reference carries no column letters (the `r`
+/// attribute is optional in ECMA-376) or names a column beyond the Excel
+/// limit. The caller then falls back to the next free column.
+fn cell_ref_to_col_index(cell_ref : String) -> Int32? {
   let mut col_idx = 0
+  let mut has_letters = false
   let chars = cell_ref.iter()
   for ch in chars {
     if ch >= 'A' && ch <= 'Z' {
       col_idx = col_idx * 26 + (ch.to_int() - 'A'.to_int() + 1)
+      has_letters = true
     } else if ch >= 'a' && ch <= 'z' {
       col_idx = col_idx * 26 + (ch.to_int() - 'a'.to_int() + 1)
+      has_letters = true
     } else {
       // Reached the row number part
       break
     }
+    // Stop before the accumulator can overflow: `xlsx_max_cols` is far
+    // below `Int32::MAX`, so the multiplication above cannot overflow.
+    if col_idx > xlsx_max_cols {
+      return None
+    }
   }
-  col_idx - 1 // Convert to 0-based
+  if !has_letters {
+    return None
+  }
+  Some(col_idx - 1) // Convert to 0-based
 }
 
 ///|
@@ -681,10 +742,20 @@ fn sheet_data_to_blocks(data : SheetData) -> Array[@ast.Block] {
 ///|
 fn normalize_sheet_rows(data : SheetData) -> Array[Array[String]] {
   let normalized_rows : Array[Array[String]] = []
+  // Padding every row up to `max_cols` multiplies the sheet size by the
+  // number of rows, so the total number of materialized cells is bounded by
+  // `xlsx_max_cells`.
+  let mut budget = xlsx_max_cells
   for row in data.rows {
     let extended_row = row
-    while extended_row.length() < data.max_cols {
+    if extended_row.length() > budget {
+      budget = 0
+    } else {
+      budget = budget - extended_row.length()
+    }
+    while extended_row.length() < data.max_cols && budget > 0 {
       extended_row.push("")
+      budget = budget - 1
     }
     normalized_rows.push(extended_row)
   }
