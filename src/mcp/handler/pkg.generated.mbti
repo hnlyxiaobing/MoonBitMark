@@ -21,6 +21,8 @@ pub fn enforce_mcp_input_boundary(String, McpSecurityConfig) -> Result[String, S
 
 pub fn load_mcp_security_config() -> Result[McpSecurityConfig, String]
 
+pub async fn verify_mcp_real_path(String, McpSecurityConfig) -> Result[Unit, String]
+
 // Errors
 
 // Types and methods
@@ -36,6 +38,7 @@ pub fn McpDispatcher::new_with_logger(@util.Logger) -> Self
 pub(all) struct McpSecurityConfig {
   allowed_roots : Array[String]
   allow_http : Bool
+  allow_private_http : Bool
   enable_ocr : Bool
   max_output_chars : Int32?
   max_upload_bytes : Int32

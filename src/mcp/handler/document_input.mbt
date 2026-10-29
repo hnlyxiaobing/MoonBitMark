@@ -49,6 +49,12 @@ async fn resolve_uri_document(
     Ok(value) => value
     Err(message) => return Err(message)
   }
+  // 第二层：符号链接 / junction / 8.3 短名只有落到真实文件系统上才看得见，
+  // 词法层的 allowed_roots 前缀比较对它们完全无效。
+  match verify_mcp_real_path(input, config) {
+    Ok(_) => ()
+    Err(message) => return Err(message)
+  }
   let byte_size = file_size_bytes(input)
   let source_filename = if is_http_input(input) {
     None
