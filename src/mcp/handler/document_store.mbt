@@ -30,13 +30,11 @@ async fn store_document_resource(
 /// The id doubles as the blob/meta path stem, so two uploads that land in the
 /// same millisecond with equivalent sanitized stems (everything that is not
 /// alphanumeric collapses to `-`, and the file name is caller supplied) would
-/// otherwise map onto the same files. Both writes used `CreateOrTruncate`, so
-/// the loser was truncated silently and its `moonbitmark://document/<id>` uri
-/// kept resolving to the winner's bytes -- a cross-document mix-up that no
-/// layer reported. Claiming the blob through an atomic exclusive create makes
-/// the id unique per stored document; suffixing keeps the shape
-/// `<timestamp>-<stem>[-<n>]` so `document_timestamp_prefix` (and therefore the
-/// staleness sweep) still reads the leading timestamp.
+/// otherwise map onto the same files. The shared temp-file helper claims the
+/// blob through an atomic exclusive create, so the id is unique per stored
+/// document; suffixing keeps the shape `<timestamp>-<stem>[-<n>]` so
+/// `document_timestamp_prefix` (and therefore the staleness sweep) still reads
+/// the leading timestamp.
 async fn store_document_resource_at_base_id(
   filename : String,
   base_id : String,
@@ -45,74 +43,23 @@ async fn store_document_resource_at_base_id(
 ) -> StoredDocument {
   ensure_document_store_dirs()
   sweep_stale_document_resources()
-  let mut chosen : String? = None
-  let mut attempt = 0
-  while attempt < 128 {
-    let id = if attempt == 0 {
-      base_id
-    } else {
-      base_id + "-" + attempt.to_string()
-    }
-    let blob_path = document_blob_path(id)
-    if @fs.exists(blob_path) {
-      // Fast path: the id is taken, so move on without paying for an exception
-      // from `@fs.create`.
-      attempt = attempt + 1
-      continue
-    }
-    let file = @fs.create(blob_path, allow_existing=false) catch {
-      err =>
-        // `allow_existing=false` maps to an exclusive create, so a failure here
-        // means either "someone took the id between the check and the create"
-        // or a real filesystem problem. Tell them apart by looking at the path:
-        // still taken -> lost the race, try the next suffix; still free ->
-        // permissions/directory issue that retrying 128 times cannot fix.
-        if @fs.exists(blob_path) {
-          attempt = attempt + 1
-          continue
-        } else {
-          fail(
-            "Failed to create document blob " +
-            blob_path +
-            ": " +
-            err.to_string(),
-          )
-        }
-    }
-    try {
-      file.write(bytes)
-      file.close()
-    } catch {
-      err => {
-        // The blob file exists but holds no complete payload. `sweep` only
-        // walks `*.meta.txt`, so an orphaned `.bin` would never be reclaimed:
-        // close the handle first (Windows refuses to unlink an open file), drop
-        // the file, then report.
-        file.close()
-        ignore(@fs.remove(blob_path) catch { _ => () })
-        fail(
-          "Failed to write document blob " +
-          blob_path +
-          ": " +
-          err.to_string(),
-        )
-      }
-    }
-    chosen = Some(id)
-    break
-  }
-  let id = match chosen {
-    Some(value) => value
-    None =>
+  let blob_path = @tempfile.create_unique_file(
+    document_blob_base(base_id),
+    ".bin",
+    bytes,
+  ) catch {
+    err =>
       fail(
-        "Failed to allocate a document resource id for " +
+        "Failed to create document blob for " +
         filename +
-        " (stem=" +
-        sanitize_document_stem(filename) +
-        ", attempts=128)",
+        ": " +
+        err.to_string(),
       )
   }
-  let blob_path = document_blob_path(id)
+  let id = match @core.file_stem(blob_path) {
+    Some(value) => value
+    None => fail("Failed to derive a document resource id from " + blob_path)
+  }
   let meta_path = document_meta_path(id)
   write_document_meta(meta_path, id, filename, mime_type, bytes.length()) catch {
     err => {
@@ -381,8 +328,13 @@ fn document_meta_dir() -> String {
 }
 
 ///|
+fn document_blob_base(id : String) -> String {
+  document_blob_dir() + "/" + id
+}
+
+///|
 fn document_blob_path(id : String) -> String {
-  document_blob_dir() + "/" + id + ".bin"
+  document_blob_base(id) + ".bin"
 }
 
 ///|

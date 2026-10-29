@@ -860,12 +860,12 @@ test "temp_baseline_filename keeps the extension at the end" {
 }
 
 ///|
-async test "create_unique_temp_file moves to the next candidate on collision" {
+async test "create_unique_file moves to the next candidate on collision" {
   let dir = mcp_baseline_temp_dir_absolute()
   ensure_mcp_baseline_temp_dir(dir)
   let base = dir + "/collision-probe-" + @async.now().to_string()
-  let first = create_unique_temp_file(base, ".md", @utf8.encode("one"))
-  let second = create_unique_temp_file(base, ".md", @utf8.encode("two"))
+  let first = @tempfile.create_unique_file(base, ".md", @utf8.encode("one"))
+  let second = @tempfile.create_unique_file(base, ".md", @utf8.encode("two"))
   assert_true(first != second)
   assert_true(first == base + ".md")
   assert_true(second == base + "-1.md")

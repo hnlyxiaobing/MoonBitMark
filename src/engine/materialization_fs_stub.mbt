@@ -12,9 +12,12 @@ async fn ensure_engine_materialized_dir() -> Unit {
 }
 
 ///|
-async fn write_engine_materialized_bytes(path : String, bytes : Bytes) -> Unit {
-  ignore(path)
-  ignore(bytes)
+async fn write_engine_materialized_bytes(
+  base : String,
+  extension : String,
+  bytes : Bytes,
+) -> String {
+  ignore((base, extension, bytes))
   @async.pause()
   fail("Bytes input persistence is only supported on the native target")
 }

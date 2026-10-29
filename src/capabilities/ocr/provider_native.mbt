@@ -26,11 +26,16 @@ async fn run_ocr_bytes_bridge(
 ) -> OcrResult {
   let temp_dir = ocr_temp_dir()
   ensure_ocr_temp_dir(temp_dir)
-  let input_path = temp_dir +
+  let base = temp_dir +
     "/" +
     sanitize_file_stem(temp_stem) +
-    input_extension(source_name)
-  write_bytes_file(input_path, bytes)
+    "-" +
+    @async.now().to_string()
+  let input_path = @tempfile.create_unique_file(
+    base,
+    input_extension(source_name),
+    bytes,
+  )
   let result = run_bridge(input_path, source_name, temp_stem, config, [])
   cleanup_file(input_path)
   result
@@ -46,9 +51,6 @@ async fn run_bridge(
 ) -> OcrResult {
   let temp_dir = ocr_temp_dir()
   ensure_ocr_temp_dir(temp_dir)
-  let temp_stem = sanitize_file_stem(temp_name) + "-" + @async.now().to_string()
-  let output_path = temp_dir + "/" + temp_stem + ".json"
-  let stderr_path = temp_dir + "/" + temp_stem + ".stderr.txt"
   // Resolve the bridge script: explicit env override -> probe upward from
   // the executable -> CWD relative path. A missing script is reported as a
   // warning, never raised.
@@ -69,6 +71,61 @@ async fn run_bridge(
           @python.bridge_script_diagnostic(resolution),
         ],
       }
+  }
+
+  // Resolve a real interpreter path: spawning bare "python" fails on Windows
+  // pyenv-win setups (async appends ".exe" and calls CreateProcessW directly,
+  // with no PATHEXT matching for shims).
+  let (program, prefix_args) = match @python.resolve_python() {
+    Some(resolved) => resolved
+    None =>
+      return OcrResult::{
+        attempted: true,
+        available: false,
+        provider: None,
+        text: "",
+        layout_json: None,
+        warnings: [
+          "OCR backend unavailable: " + @python.python_not_found_diagnostic(),
+        ],
+      }
+  }
+
+  // Claim the output names atomically: a timestamp is not an identity, and a
+  // shared stem would otherwise pair one call's JSON with another call's
+  // stderr (or let one child read a half-written peer's output).
+  let stem = temp_dir +
+    "/" +
+    sanitize_file_stem(temp_name) +
+    "-" +
+    @async.now().to_string()
+  let output_path = @tempfile.reserve_unique_path(stem, ".json") catch {
+    err =>
+      return OcrResult::{
+        attempted: true,
+        available: false,
+        provider: None,
+        text: "",
+        layout_json: None,
+        warnings: [
+          "OCR bridge could not create its output file: " + err.to_string(),
+        ],
+      }
+  }
+  let stderr_path = @tempfile.reserve_unique_path(stem, ".stderr.txt") catch {
+    err => {
+      cleanup_file(output_path)
+      return OcrResult::{
+        attempted: true,
+        available: false,
+        provider: None,
+        text: "",
+        layout_json: None,
+        warnings: [
+          "OCR bridge could not create its output file: " + err.to_string(),
+        ],
+      }
+    }
   }
   let args : Array[String] = [
     script_path,
@@ -93,24 +150,6 @@ async fn run_bridge(
   if page_numbers.length() > 0 {
     args.push("--page-numbers")
     args.push(page_numbers.map(n => n.to_string()).join(","))
-  }
-
-  // Resolve a real interpreter path: spawning bare "python" fails on Windows
-  // pyenv-win setups (async appends ".exe" and calls CreateProcessW directly,
-  // with no PATHEXT matching for shims).
-  let (program, prefix_args) = match @python.resolve_python() {
-    Some(resolved) => resolved
-    None =>
-      return OcrResult::{
-        attempted: true,
-        available: false,
-        provider: None,
-        text: "",
-        layout_json: None,
-        warnings: [
-          "OCR backend unavailable: " + @python.python_not_found_diagnostic(),
-        ],
-      }
   }
   let run_args = prefix_args.copy()
   for arg in args {
@@ -158,8 +197,10 @@ async fn parse_bridge_response(
     err => Err(err)
   }
   let json_text = match json_text_result {
-    Ok(text) => text
-    Err(_) => {
+    // The output path is reserved up front, so an empty file means the bridge
+    // never wrote its response; report it exactly like a missing file.
+    Ok(text) if text.trim() != "" => text
+    _ => {
       let stderr_text_result : Result[String, Error] = Ok(
         read_utf8_file(stderr_path),
       ) catch {
@@ -245,13 +286,6 @@ async fn ensure_ocr_temp_dir(path : String) -> Unit {
 ///|
 async fn cleanup_file(path : String) -> Unit {
   ignore(@fs.remove(path) catch { _ => () })
-}
-
-///|
-async fn write_bytes_file(path : String, bytes : Bytes) -> Unit {
-  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
-  file.write(bytes)
-  file.close()
 }
 
 ///|

@@ -16,8 +16,10 @@ async fn ensure_engine_materialized_dir() -> Unit {
 }
 
 ///|
-async fn write_engine_materialized_bytes(path : String, bytes : Bytes) -> Unit {
-  let file = @fs.open(path, mode=WriteOnly, create_mode=@fs.CreateOrTruncate)
-  file.write(bytes)
-  file.close()
+async fn write_engine_materialized_bytes(
+  base : String,
+  extension : String,
+  bytes : Bytes,
+) -> String {
+  @tempfile.create_unique_file(base, "." + extension, bytes)
 }

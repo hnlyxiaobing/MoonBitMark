@@ -15,6 +15,7 @@ import {
   "hnlyxiaobing/moonbitmark/src/core",
   "hnlyxiaobing/moonbitmark/src/engine",
   "hnlyxiaobing/moonbitmark/src/semantic",
+  "hnlyxiaobing/moonbitmark/src/tempfile",
 }
 
 supported_targets = "native"

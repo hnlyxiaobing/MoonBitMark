@@ -1,0 +1,15 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "hnlyxiaobing/moonbitmark/src/tempfile"
+
+// Values
+pub async fn create_unique_file(String, String, Bytes) -> String
+
+pub async fn reserve_unique_path(String, String) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

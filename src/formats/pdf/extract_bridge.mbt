@@ -56,12 +56,6 @@ fn pdf_bridge_document_tag(file_path : String) -> String {
 async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
   let temp_dir = pdf_bridge_temp_dir()
   ensure_pdf_bridge_temp_dir(temp_dir)
-  let temp_stem = "pdf-bridge-" +
-    @async.now().to_string() +
-    "-" +
-    pdf_bridge_document_tag(file_path)
-  let output_path = temp_dir + "/" + temp_stem + ".json"
-  let stderr_path = temp_dir + "/" + temp_stem + ".stderr.txt"
 
   // Resolve the bridge script: explicit env override -> probe upward from
   // the executable -> CWD relative path. A missing script is reported as a
@@ -83,10 +77,6 @@ async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
         ],
       }
   }
-  let args : Array[String] = [
-    script_path, "--input", file_path, "--output-json", output_path,
-  ]
-
   // Resolve a real interpreter path: spawning bare "python" fails on Windows
   // pyenv-win setups (async appends ".exe" and calls CreateProcessW directly,
   // with no PATHEXT matching for shims).
@@ -103,6 +93,43 @@ async fn try_extract_pdf_bridge_pages(file_path : String) -> PdfBridgeResponse {
         ],
       }
   }
+
+  // The document tag keeps different PDFs apart; the exclusive create keeps
+  // same-millisecond runs of the *same* PDF from sharing output and stderr.
+  let temp_stem = temp_dir +
+    "/pdf-bridge-" +
+    @async.now().to_string() +
+    "-" +
+    pdf_bridge_document_tag(file_path)
+  let output_path = @tempfile.reserve_unique_path(temp_stem, ".json") catch {
+    err =>
+      return PdfBridgeResponse::{
+        available: false,
+        provider: None,
+        pages: [],
+        layout_json: None,
+        warnings: [
+          "PDF bridge could not create its output file: " + err.to_string(),
+        ],
+      }
+  }
+  let stderr_path = @tempfile.reserve_unique_path(temp_stem, ".stderr.txt") catch {
+    err => {
+      cleanup_pdf_bridge_file(output_path)
+      return PdfBridgeResponse::{
+        available: false,
+        provider: None,
+        pages: [],
+        layout_json: None,
+        warnings: [
+          "PDF bridge could not create its output file: " + err.to_string(),
+        ],
+      }
+    }
+  }
+  let args : Array[String] = [
+    script_path, "--input", file_path, "--output-json", output_path,
+  ]
   let run_args = prefix_args.copy()
   for arg in args {
     run_args.push(arg)
@@ -147,8 +174,10 @@ async fn parse_pdf_bridge_response(
     err => Err(err)
   }
   let json_text = match json_text_result {
-    Ok(text) => text
-    Err(_) => {
+    // The output path is reserved up front, so an empty file means the bridge
+    // never wrote its response; report it exactly like a missing file.
+    Ok(text) if text.trim() != "" => text
+    _ => {
       let stderr_text_result : Result[String, Error] = Ok(
         @core.read_utf8_file(stderr_path),
       ) catch {

@@ -3531,80 +3531,13 @@ async fn materialize_baseline_input(
       let temp_dir = mcp_baseline_temp_dir_absolute()
       ensure_mcp_baseline_temp_dir(temp_dir)
       let (base, suffix) = temp_baseline_name_parts(name, effective_format)
-      create_unique_temp_file(base, suffix, bytes)
+      @tempfile.create_unique_file(base, suffix, bytes)
     }
     @core.UrlInput(_, _) =>
       fail(
         "compare_with_baseline currently supports local files or uploaded resources, not URLs",
       )
   }
-}
-
-///|
-///|
-/// Create a temporary file whose path is guaranteed not to collide with one
-/// that already exists.
-///
-/// `base` already carries the millisecond timestamp, but a timestamp is not an
-/// identity: two calls that land in the same millisecond (concurrent MCP
-/// requests, or two async tests) would otherwise produce the same path. On
-/// Windows the second `CreateOrTruncate` fails with a sharing violation; on
-/// POSIX both calls silently truncate the same file, so one call can end up
-/// reading the other call's data. `allow_existing=false` (create-new
-/// semantics) makes the create atomic, and a `-1`..`-127` counter is inserted
-/// *before* the extension so a collision simply moves on to the next candidate.
-///
-/// The extension has to stay last: the baseline converters pick their parser
-/// by file extension.
-async fn create_unique_temp_file(
-  base : String,
-  extension : String,
-  payload : Bytes,
-) -> String {
-  let mut attempt = 0
-  while attempt < 128 {
-    let path = if attempt == 0 {
-      base + extension
-    } else {
-      base + "-" + attempt.to_string() + extension
-    }
-    if @fs.exists(path) {
-      attempt = attempt + 1
-      continue
-    }
-    let opened : @fs.File? = Some(@fs.create(path, allow_existing=false)) catch {
-      _ => None
-    }
-    match opened {
-      Some(file) =>
-        try {
-          file.write(payload)
-          file.close()
-          return path
-        } catch {
-          _ => {
-            // The name is taken but the file holds no usable payload; drop it
-            // so later attempts do not inherit a half-written candidate.
-            ignore(@fs.remove(path) catch { _ => () })
-            fail("Error writing temporary file " + path)
-          }
-        }
-      None =>
-        if @fs.exists(path) {
-          // Failed exclusively because the name is taken: try the next one.
-          attempt = attempt + 1
-        } else {
-          // Permissions, a vanished directory, ... Retrying 128 times would
-          // only hide the real cause.
-          fail("Error creating temporary file " + path)
-        }
-    }
-  }
-  fail(
-    "Error preparing temporary file: unable to create a unique name for " +
-    base +
-    " after 128 attempts",
-  )
 }
 
 ///|
@@ -3616,7 +3549,7 @@ async fn write_temp_markdown_file(stem : String, markdown : String) -> String {
     sanitize_temp_stem(stem) +
     "-" +
     @async.now().to_string()
-  create_unique_temp_file(base, ".md", @utf8.encode(markdown))
+  @tempfile.create_unique_file(base, ".md", @utf8.encode(markdown))
 }
 
 ///|
@@ -3651,7 +3584,6 @@ async fn cleanup_file_if_exists_if_temp(
   }
 }
 
-///|
 ///|
 /// Split the temporary baseline file name into the `base` part (everything up
 /// to and including the timestamp) and the `suffix` (the extension).

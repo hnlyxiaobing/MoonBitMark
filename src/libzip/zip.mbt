@@ -14,8 +14,11 @@
 let zip_max_archive_inflate_bytes : Int32 = 536870912
 
 ///|
-/// ZIP 归档结构
-pub(all) struct ZipArchive {
+/// ZIP 归档结构。
+///
+/// 外部包只能读取、不能构造或改写字段：解压额度计数若能被外部伪造，
+/// 单条目与归档级解压上限都会失效。读取一律走本包公开方法。
+pub struct ZipArchive {
   /// 原始数据
   data : Bytes
   /// 文件条目列表

@@ -9,6 +9,7 @@ import {
   "hnlyxiaobing/moonbitmark/src/core",
   "hnlyxiaobing/moonbitmark/src/capabilities/ocr",
   "hnlyxiaobing/moonbitmark/src/python",
+  "hnlyxiaobing/moonbitmark/src/tempfile",
   "bobzhang/mbtpdf/crypto/pdfcrypt",
   "bobzhang/mbtpdf/core/pdf" @mbtpdf,
   "bobzhang/mbtpdf/document/pdfpage",

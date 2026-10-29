@@ -63,12 +63,12 @@ async fn materialize_input_path(
           )
       }
       ensure_engine_materialized_dir()
-      let file_path = engine_materialized_path(
-        converter_name,
-        source_name,
+      let base = engine_materialized_base(converter_name, source_name)
+      let file_path = write_engine_materialized_bytes(
+        base,
         materialized_extension(source_name, mime_type),
-      )
-      write_engine_materialized_bytes(file_path, bytes) catch {
+        bytes,
+      ) catch {
         err =>
           fail(
             render_engine_failure(
@@ -93,22 +93,19 @@ fn engine_materialized_dir() -> String {
 }
 
 ///|
-fn engine_materialized_path(
+/// The timestamp only keeps names human-readable; uniqueness comes from the
+/// exclusive create in `write_engine_materialized_bytes`.
+fn engine_materialized_base(
   converter_name : String,
   source_name : String,
-  extension : String,
 ) -> String {
-  let suffix = @async.now().to_string()
-  let stem = sanitize_materialized_stem(source_name)
   engine_materialized_dir() +
   "/" +
   converter_name +
   "-" +
-  suffix +
+  @async.now().to_string() +
   "-" +
-  stem +
-  "." +
-  extension
+  sanitize_materialized_stem(source_name)
 }
 
 ///|

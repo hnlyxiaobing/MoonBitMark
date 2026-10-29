@@ -1,0 +1,14 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+}
+
+warnings = "-29"
+
+options(
+  targets: {
+    "tempfile_native.mbt": [ "native" ],
+    "tempfile_stub.mbt": [ "wasm", "wasm-gc", "js" ],
+    "tempfile_wbtest.mbt": [ "native" ],
+  },
+)
