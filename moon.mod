@@ -1,6 +1,6 @@
 name = "hnlyxiaobing/moonbitmark"
 
-version = "0.5.0"
+version = "0.5.1"
 
 import {
   "moonbitlang/async@0.22.7",
