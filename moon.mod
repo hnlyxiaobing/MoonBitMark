@@ -3,7 +3,7 @@ name = "hnlyxiaobing/moonbitmark"
 version = "0.5.0"
 
 import {
-  "moonbitlang/async@0.22.5",
+  "moonbitlang/async@0.22.7",
   "bobzhang/mbtpdf@0.2.0",
 }
 

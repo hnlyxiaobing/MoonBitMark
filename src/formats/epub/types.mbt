@@ -3,6 +3,7 @@
 
 ///|
 /// EPUB metadata extracted from OPF file
+#derive(Debug, Eq, ToJson)
 pub(all) struct EpubMetadata {
   mut title : String?
   mut authors : Array[String]
@@ -11,7 +12,7 @@ pub(all) struct EpubMetadata {
   mut date : String?
   mut description : String?
   mut identifier : String?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend EpubMetadata with @debug.Debug::{to_repr}
@@ -38,12 +39,13 @@ pub fn EpubMetadata::default() -> EpubMetadata {
 
 ///|
 /// Manifest item from OPF
+#derive(Debug, Eq, ToJson)
 pub(all) struct ManifestItem {
   id : String
   href : String
   media_type : String
   properties : String?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend ManifestItem with @debug.Debug::{to_repr}
@@ -56,10 +58,11 @@ pub extend ManifestItem with ToJson::{to_json}
 
 ///|
 /// Spine item from OPF (reading order)
+#derive(Debug, Eq, ToJson)
 pub(all) struct SpineItem {
   idref : String
   linear : Bool
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend SpineItem with @debug.Debug::{to_repr}
@@ -72,12 +75,13 @@ pub extend SpineItem with ToJson::{to_json}
 
 ///|
 /// EPUB package information
+#derive(Debug)
 pub(all) struct EpubPackage {
   metadata : EpubMetadata
   manifest : Map[String, ManifestItem]
   spine : Array[SpineItem]
   opf_dir : String
-} derive(Debug)
+}
 
 ///|
 pub extend EpubPackage with @debug.Debug::{to_repr}

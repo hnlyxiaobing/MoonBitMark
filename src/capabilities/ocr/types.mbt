@@ -1,9 +1,10 @@
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum OcrMode {
   Off
   Auto
   Force
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend OcrMode with @debug.Debug::{to_repr}
@@ -32,13 +33,14 @@ pub fn OcrMode::label(self : OcrMode) -> String {
 }
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct OcrConfig {
   mode : OcrMode
   language : String
   enable_embedded_images : Bool
   backend : String?
   timeout_ms : Int32?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend OcrConfig with @debug.Debug::{to_repr}
@@ -91,6 +93,7 @@ pub fn should_attempt_for_native_text(
 }
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct OcrResult {
   attempted : Bool
   available : Bool
@@ -98,7 +101,7 @@ pub(all) struct OcrResult {
   text : String
   layout_json : String?
   warnings : Array[String]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend OcrResult with @debug.Debug::{to_repr}

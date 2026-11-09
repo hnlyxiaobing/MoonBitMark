@@ -521,13 +521,14 @@ priv struct ChartData {
 }
 
 ///|
+#derive(Eq)
 priv enum ChartTextRole {
   NoRole
   TitleRole
   SeriesNameRole
   CategoryRole
   ValueRole
-} derive(Eq)
+}
 
 ///|
 priv struct ChartContext {
@@ -771,19 +772,21 @@ fn path_contains(path : Array[String], segment : String) -> Bool {
 }
 
 ///|
+#derive(Eq)
 priv enum ShapeKind {
   Title
   Subtitle
   Body
   Generic
-} derive(Eq)
+}
 
 ///|
+#derive(Eq)
 priv enum ShapeParagraphKind {
   Plain
   Bullet
   Numbered
-} derive(Eq)
+}
 
 ///|
 priv struct ShapeParagraph {

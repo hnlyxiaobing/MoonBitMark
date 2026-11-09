@@ -6,13 +6,14 @@ priv enum PdfDocumentMode {
 }
 
 ///|
+#derive(Eq)
 priv enum PdfPageProviderKind {
   NativeTextFast
   NativeTextStructured
   LayoutEnhanced
   OcrRecovery
   Hybrid
-} derive(Eq)
+}
 
 ///|
 priv enum PdfTextQuality {
@@ -31,6 +32,7 @@ priv enum PdfLayoutComplexity {
 }
 
 ///|
+#derive(Eq)
 priv enum PdfRouteFlag {
   SuspectTable
   SuspectCode
@@ -39,7 +41,7 @@ priv enum PdfRouteFlag {
   SuspectScanned
   SuspectHeaderFooter
   SuspectBrokenSpacing
-} derive(Eq)
+}
 
 ///|
 priv struct PdfPageRoute {
@@ -72,13 +74,15 @@ priv struct PdfRawLine {
 }
 
 ///|
+#derive(FromJson)
 priv struct PdfLayoutWord {
   text : String
   left : Int32
   right : Int32
-} derive(FromJson)
+}
 
 ///|
+#derive(FromJson)
 priv struct PdfLayoutLine {
   text : String
   left : Int32
@@ -86,19 +90,21 @@ priv struct PdfLayoutLine {
   right : Int32
   bottom : Int32
   words : Array[PdfLayoutWord]
-} derive(FromJson)
+}
 
 ///|
+#derive(FromJson)
 priv struct PdfLayoutPage {
   page_no : Int32
   width : Int32
   lines : Array[PdfLayoutLine]
-} derive(FromJson)
+}
 
 ///|
+#derive(FromJson)
 priv struct PdfLayoutPayload {
   pages : Array[PdfLayoutPage]
-} derive(FromJson)
+}
 
 ///|
 priv struct PdfPageExtraction {

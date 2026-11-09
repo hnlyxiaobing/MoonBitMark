@@ -1,11 +1,12 @@
 ///|
+#derive(FromJson)
 priv struct BridgeResponse {
   available : Bool
   provider : String?
   text : String
   layout_json : String?
   warnings : Array[String]
-} derive(FromJson)
+}
 
 ///|
 async fn run_ocr_file_bridge(

@@ -66,7 +66,7 @@ fn parse_value(
   let ch = char_code_at(input, state.index)
   match ch {
     34 => parse_string(input, state)
-    123 => {
+    123 =>
       if enter_container(state) {
         let result = parse_object(input, state)
         leave_container(state)
@@ -74,8 +74,7 @@ fn parse_value(
       } else {
         Err(InvalidJson("Maximum nesting depth exceeded"))
       }
-    }
-    91 => {
+    91 =>
       if enter_container(state) {
         let result = parse_array(input, state)
         leave_container(state)
@@ -83,7 +82,6 @@ fn parse_value(
       } else {
         Err(InvalidJson("Maximum nesting depth exceeded"))
       }
-    }
     116 => parse_literal(input, state, "true", Bool(true))
     102 => parse_literal(input, state, "false", Bool(false))
     110 => parse_literal(input, state, "null", Null)

@@ -113,7 +113,10 @@ test "security boundary clamps output chars to env limit" {
 }
 
 ///|
-fn boundary_config(allow_http : Bool, allow_private_http : Bool) -> McpSecurityConfig {
+fn boundary_config(
+  allow_http : Bool,
+  allow_private_http : Bool,
+) -> McpSecurityConfig {
   McpSecurityConfig::{
     allowed_roots: [resolve_file_path(".")],
     allow_http,
@@ -142,55 +145,40 @@ test "canonicalize strips win32 trailing dots and spaces per segment" {
 test "security boundary blocks private http targets by default" {
   let config = boundary_config(true, false)
   let blocked = [
-    "http://127.0.0.1/x",
-    "http://localhost/x",
-    "http://127.0.0.1:8080/x",
-    "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
-    "http://10.1.2.3/x",
-    "http://192.168.0.1/x",
-    "http://172.20.0.1/x",
-    "http://100.64.0.1/x",
-    "http://[::1]:8080/x",
-    "http://example.com@127.0.0.1/x",
-    "http://2130706433/x",
-    "http://127.1/x",
-    "http://nas.local/x",
-    "http://metadata.google.internal/x",
+    "http://127.0.0.1/x", "http://localhost/x", "http://127.0.0.1:8080/x", "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+    "http://10.1.2.3/x", "http://192.168.0.1/x", "http://172.20.0.1/x", "http://100.64.0.1/x",
+    "http://[::1]:8080/x", "http://example.com@127.0.0.1/x", "http://2130706433/x",
+    "http://127.1/x", "http://nas.local/x", "http://metadata.google.internal/x",
     // FQDN 根点（尾随 '.'）：与不带点的同一个目标等义，必须同样拦下，
     // 否则整层私网判定可被一个点绕过。
-    "http://127.0.0.1./x",
-    "http://localhost./x",
-    "http://169.254.169.254./x",
-    "http://10.1.2.3./x",
-    "http://127.0.0.1.:8080/x",
-    "http://metadata.google.internal./x",
+     "http://127.0.0.1./x", "http://localhost./x", "http://169.254.169.254./x", "http://10.1.2.3./x",
+    "http://127.0.0.1.:8080/x", "http://metadata.google.internal./x",
     // 剥掉根点后为空：真实目标完全不可判定，按私有处理（fail closed）。
-    "http://./x",
+     "http://./x",
     // 尾随空格同一类：畸形 authority 若被下游容错就会绕过末段纯数字判定。
-    "http://127.0.0.1 /x",
-    "http://localhost /x",
+     "http://127.0.0.1 /x", "http://localhost /x",
     // 字符集白名单：含 '%' 编码、控制字符、非 ASCII 的主机名一律拒绝，
     // 且不依赖"下游客户端到底解不解码"——解码之前就已经被挡在分类逻辑之外。
-    "http://127%2e0%2e0%2e1/x",
-    "http://127.0.0.1%00/x",
-    "http://例子.测试/x",
+     "http://127%2e0%2e0%2e1/x", "http://127.0.0.1%00/x", "http://例子.测试/x",
     "http://127.0.0.1\u{3002}x",
   ]
   for url in blocked {
     match enforce_mcp_input_boundary(url, config) {
-      Ok(value) => fail("expected private http target to be blocked: " + url + " -> " + value)
+      Ok(value) =>
+        fail(
+          "expected private http target to be blocked: " + url + " -> " + value,
+        )
       Err(message) =>
         inspect(
-          message.contains("MOONBITMARK_MCP_ALLOW_PRIVATE_HTTP"), content="true",
+          message.contains("MOONBITMARK_MCP_ALLOW_PRIVATE_HTTP"),
+          content="true",
         )
     }
   }
   let allowed = [
-    "http://8.8.8.8/x",
-    "https://example.com/demo.html",
-    "http://172.32.0.1/x",
+    "http://8.8.8.8/x", "https://example.com/demo.html", "http://172.32.0.1/x",
     // 根点剥离必须只剥点、不能因此变成「带点就拦」：公网目标带根点仍要放行。
-    "http://8.8.8.8./x",
+     "http://8.8.8.8./x",
   ]
   for url in allowed {
     match enforce_mcp_input_boundary(url, config) {
@@ -206,7 +194,8 @@ test "private http allowance is opt-in" {
   let config = boundary_config(true, true)
   match enforce_mcp_input_boundary("http://127.0.0.1:8080/health", config) {
     Ok(value) => inspect(value, content="http://127.0.0.1:8080/health")
-    Err(message) => fail("expected private http to pass when enabled: " + message)
+    Err(message) =>
+      fail("expected private http to pass when enabled: " + message)
   }
 }
 
@@ -217,7 +206,10 @@ test "http switch keeps its own error message" {
     Ok(_) => fail("expected http to be disabled")
     Err(message) => {
       inspect(message.contains("MOONBITMARK_MCP_ALLOW_HTTP"), content="true")
-      inspect(message.contains("MOONBITMARK_MCP_ALLOW_PRIVATE_HTTP"), content="false")
+      inspect(
+        message.contains("MOONBITMARK_MCP_ALLOW_PRIVATE_HTTP"),
+        content="false",
+      )
     }
   }
 }
@@ -227,7 +219,8 @@ async test "verify_mcp_real_path tolerates missing leaves and skips http" {
   let config = boundary_config(false, false)
   match verify_mcp_real_path("https://example.com/x", config) {
     Ok(_) => ()
-    Err(message) => fail("expected http input to skip the real path check: " + message)
+    Err(message) =>
+      fail("expected http input to skip the real path check: " + message)
   }
   // 已存在的仓内文件必须通过
   match verify_mcp_real_path("src/mcp/handler/security.mbt", config) {
@@ -236,7 +229,9 @@ async test "verify_mcp_real_path tolerates missing leaves and skips http" {
   }
   // 尚不存在的叶子文件：退化为「父目录 realpath + 末段」，不得因为 realpath
   // 抛错就整体失败（输出路径属于这种形态）。
-  let missing = "_build/mcp-realpath-missing-" + @async.now().to_string() + ".md"
+  let missing = "_build/mcp-realpath-missing-" +
+    @async.now().to_string() +
+    ".md"
   match verify_mcp_real_path(missing, config) {
     Ok(_) => ()
     Err(message) => fail("expected missing leaf to be tolerated: " + message)
@@ -249,7 +244,9 @@ async test "verify_mcp_real_path rejects a junction that escapes the roots" {
   let stamp = @async.now().to_string()
   let link = "_build/mbm-escape-" + stamp
   let target = if @fs.exists("C:/Windows") { "C:/Windows" } else { "/" }
-  @fs.symlink(target=target, link, force_symlink=false) catch { _ => () }
+  @fs.symlink(target~, link, force_symlink=false) catch {
+    _ => ()
+  }
   let created = @fs.exists(link)
   // Windows 上建 junction 需要目录目标且同卷 NTFS，通常无需管理员权限；
   // 实测本机 `created == true`，越界断言确实执行过。这里保留容错分支是为了
@@ -261,7 +258,9 @@ async test "verify_mcp_real_path rejects a junction that escapes the roots" {
       Err(message) =>
         inspect(message.contains("after symlink resolution"), content="true")
     }
-    @fs.rmdir(link) catch { _ => () }
+    @fs.rmdir(link) catch {
+      _ => ()
+    }
   }
   inspect(true, content="true")
 }
@@ -276,7 +275,9 @@ async test "verify_mcp_real_path rejects a junction that escapes the roots (stri
   let stamp = @async.now().to_string()
   let link = "_build/mbm-escape-strict-" + stamp
   let target = if @fs.exists("C:/Windows") { "C:/Windows" } else { "/" }
-  @fs.symlink(target=target, link, force_symlink=false) catch { _ => () }
+  @fs.symlink(target~, link, force_symlink=false) catch {
+    _ => ()
+  }
   let created = @fs.exists(link)
   inspect(created, content="true")
   let probe = link + "/mbm-probe-" + stamp + "/x.md"
@@ -285,5 +286,7 @@ async test "verify_mcp_real_path rejects a junction that escapes the roots (stri
     Err(message) =>
       inspect(message.contains("after symlink resolution"), content="true")
   }
-  @fs.rmdir(link) catch { _ => () }
+  @fs.rmdir(link) catch {
+    _ => ()
+  }
 }

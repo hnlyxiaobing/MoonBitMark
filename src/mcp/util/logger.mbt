@@ -1,12 +1,13 @@
 // MoonBitMark MCP Utility - Logger
 
 ///|
+#derive(Eq)
 pub enum LogLevel {
   Debug
   Info
   Warn
   Error
-} derive(Eq)
+}
 
 ///|
 pub extend LogLevel with Eq::{not_equal, equal}

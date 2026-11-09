@@ -3,6 +3,7 @@
 
 ///|
 /// ZIP 解析错误类型
+#derive(Debug, Eq)
 pub(all) suberror ZipError {
   /// 无效的 ZIP 签名
   InvalidSignature
@@ -16,7 +17,7 @@ pub(all) suberror ZipError {
   DecompressFailed(String)
   /// CRC 校验失败
   CrcMismatch
-} derive(Debug, Eq)
+}
 
 ///|
 pub extend ZipError with @debug.Debug::{to_repr}

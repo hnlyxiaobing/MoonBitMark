@@ -244,7 +244,9 @@ fn zip_read_error_text(
 ) -> String {
   try {
     ignore(
-      read_file_entry_decompressed_limited(archive, name, max_bytes, archive_limit),
+      read_file_entry_decompressed_limited(
+        archive, name, max_bytes, archive_limit,
+      ),
     )
     "entry was accepted"
   } catch {
@@ -278,15 +280,17 @@ fn zip_read_expected(
 /// process, and not be reported as corrupt data.
 test "zip entry that understates its uncompressed size is stopped by the inflate cap" {
   let archive = match
-    ZipArchive::open(zip_build([
-      ZipPayload::{
-        name: "a",
-        payload: zip_deflate_bomb(),
-        compression: 8,
-        declared: 1024,
-        crc: 0,
-      },
-    ])) {
+    ZipArchive::open(
+      zip_build([
+        ZipPayload::{
+          name: "a",
+          payload: zip_deflate_bomb(),
+          compression: 8,
+          declared: 1024,
+          crc: 0,
+        },
+      ]),
+    ) {
     Some(value) => value
     None => fail("failed to open synthetic archive")
   }
@@ -307,15 +311,17 @@ test "zip entry that understates its uncompressed size is stopped by the inflate
 test "zip high ratio entry that reports its real size is accepted" {
   let expected = zip_zero_bytes(65536)
   let archive = match
-    ZipArchive::open(zip_build([
-      ZipPayload::{
-        name: "a",
-        payload: zip_deflate_bomb(),
-        compression: 8,
-        declared: 65536,
-        crc: crc32(expected).reinterpret_as_int(),
-      },
-    ])) {
+    ZipArchive::open(
+      zip_build([
+        ZipPayload::{
+          name: "a",
+          payload: zip_deflate_bomb(),
+          compression: 8,
+          declared: 65536,
+          crc: crc32(expected).reinterpret_as_int(),
+        },
+      ]),
+    ) {
     Some(value) => value
     None => fail("failed to open synthetic archive")
   }
@@ -332,19 +338,24 @@ test "zip entry whose payload does not match the recorded crc is reported as cor
   // CRC32("hello") == 0x3610a686. Recording it next to "hallo" gives the same
   // length and a valid central directory, but the checksum no longer holds.
   let archive = match
-    ZipArchive::open(zip_build([
-      ZipPayload::{
-        name: "a",
-        payload: b"hallo",
-        compression: 0,
-        declared: 5,
-        crc: 0x3610a686,
-      },
-    ])) {
+    ZipArchive::open(
+      zip_build([
+        ZipPayload::{
+          name: "a",
+          payload: b"hallo",
+          compression: 0,
+          declared: 5,
+          crc: 0x3610a686,
+        },
+      ]),
+    ) {
     Some(value) => value
     None => fail("failed to open synthetic archive")
   }
-  assert_eq(zip_read_error_text(archive, "a", 268435456, 536870912), "crc mismatch")
+  assert_eq(
+    zip_read_error_text(archive, "a", 268435456, 536870912),
+    "crc mismatch",
+  )
   assert_eq(read_file_entry_decompressed(archive, "a"), None)
 }
 
@@ -354,15 +365,17 @@ test "zip entry whose payload does not match the recorded crc is reported as cor
 test "zip entry with a valid crc is returned byte for byte" {
   // cb 48 cd c9 c9 07 00 is raw DEFLATE for b"hello".
   let archive = match
-    ZipArchive::open(zip_build([
-      ZipPayload::{
-        name: "a",
-        payload: b"\xcb\x48\xcd\xc9\xc9\x07\x00",
-        compression: 8,
-        declared: 5,
-        crc: 0x3610a686,
-      },
-    ])) {
+    ZipArchive::open(
+      zip_build([
+        ZipPayload::{
+          name: "a",
+          payload: b"\xcb\x48\xcd\xc9\xc9\x07\x00",
+          compression: 8,
+          declared: 5,
+          crc: 0x3610a686,
+        },
+      ]),
+    ) {
     Some(value) => value
     None => fail("failed to open synthetic archive")
   }
@@ -379,10 +392,24 @@ test "zip entry with a valid crc is returned byte for byte" {
 /// entry that was already paid for stays within the budget.
 test "zip archive refuses further entries once the cumulative budget is spent" {
   let archive = match
-    ZipArchive::open(zip_build([
-      ZipPayload::{ name: "a", payload: b"hello", compression: 0, declared: 5, crc: 0x3610a686 },
-      ZipPayload::{ name: "b", payload: b"hello", compression: 0, declared: 5, crc: 0x3610a686 },
-    ])) {
+    ZipArchive::open(
+      zip_build([
+        ZipPayload::{
+          name: "a",
+          payload: b"hello",
+          compression: 0,
+          declared: 5,
+          crc: 0x3610a686,
+        },
+        ZipPayload::{
+          name: "b",
+          payload: b"hello",
+          compression: 0,
+          declared: 5,
+          crc: 0x3610a686,
+        },
+      ]),
+    ) {
     Some(value) => value
     None => fail("failed to open synthetic archive")
   }

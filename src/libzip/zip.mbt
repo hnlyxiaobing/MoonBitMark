@@ -307,10 +307,7 @@ pub fn read_file_entry_decompressed(
   name : String,
 ) -> Bytes? {
   let bytes = read_file_entry_decompressed_limited(
-    archive,
-    name,
-    zip_max_inflate_bytes,
-    zip_max_archive_inflate_bytes,
+    archive, name, zip_max_inflate_bytes, zip_max_archive_inflate_bytes,
   ) catch {
     _ => return None
   }
@@ -328,10 +325,7 @@ pub fn read_file_entry_decompressed_checked(
   name : String,
 ) -> Bytes raise ZipError {
   read_file_entry_decompressed_limited(
-    archive,
-    name,
-    zip_max_inflate_bytes,
-    zip_max_archive_inflate_bytes,
+    archive, name, zip_max_inflate_bytes, zip_max_archive_inflate_bytes,
   )
 }
 
@@ -375,9 +369,8 @@ fn read_file_entry_decompressed_limited(
   }
 
   // 根据压缩方法处理
-  let inflated : Bytes = match compression_method_from_int(
-    entry.compression_method,
-  ) {
+  let inflated : Bytes = match
+    compression_method_from_int(entry.compression_method) {
     Store(_) =>
       // 未压缩条目同样受上限约束
       if compressed_data.length() > max_bytes {

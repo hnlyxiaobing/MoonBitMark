@@ -1,10 +1,11 @@
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct BlockAnnotation {
   id : String
   source_hint : String?
   origin_hint : String?
   diagnostics : Array[String]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend BlockAnnotation with @debug.Debug::{to_repr}
@@ -16,6 +17,7 @@ pub extend BlockAnnotation with Eq::{not_equal, equal}
 pub extend BlockAnnotation with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum Inline {
   Text(String)
   Emphasis(Array[Inline])
@@ -25,7 +27,7 @@ pub(all) enum Inline {
   Code(String)
   LineBreak
   Html(String)
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend Inline with @debug.Debug::{to_repr}
@@ -37,6 +39,7 @@ pub extend Inline with Eq::{not_equal, equal}
 pub extend Inline with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum Block {
   Heading(Int32, Array[Inline])
   Paragraph(Array[Inline])
@@ -46,7 +49,7 @@ pub(all) enum Block {
   Table(Array[Array[Inline]], Array[Array[Array[Inline]]])
   Image(String, String, Array[Inline]?)
   HorizontalRule
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend Block with @debug.Debug::{to_repr}
@@ -61,12 +64,13 @@ pub extend Block with ToJson::{to_json}
 pub extend Block with Show::{to_string, output}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct Document {
   title : String?
   metadata : Map[String, String]
   blocks : Array[Block]
   annotations : Array[BlockAnnotation]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend Document with @debug.Debug::{to_repr}

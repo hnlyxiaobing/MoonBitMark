@@ -12,11 +12,12 @@ pub let end_of_central_dir_sig : UInt32 = 0x06054b50
 
 ///|
 /// 压缩方法
+#derive(Debug, Eq)
 pub enum CompressionMethod {
   Store(Int32) // 无压缩
   Deflate(Int32) // DEFLATE 压缩
   Unknown(Int32) // 未知方法
-} derive(Debug, Eq)
+}
 
 ///|
 pub extend CompressionMethod with @debug.Debug::{to_repr}

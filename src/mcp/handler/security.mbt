@@ -121,7 +121,9 @@ pub async fn verify_mcp_real_path(
   let real = resolve_real_path(path)
   let resolved_roots : Array[String] = []
   for root in config.allowed_roots {
-    resolved_roots.push(canonicalize_path(@core.normalize_path(resolve_real_path(root))))
+    resolved_roots.push(
+      canonicalize_path(@core.normalize_path(resolve_real_path(root))),
+    )
   }
   if path_within_allowed_roots(real, resolved_roots) {
     Ok(())
@@ -144,7 +146,9 @@ pub async fn verify_mcp_real_path(
 async fn resolve_real_path(path : String) -> String {
   let direct = @fs.realpath(path) catch { _ => "" }
   if direct != "" {
-    return canonicalize_path(@core.normalize_path(strip_windows_extended_prefix(direct)))
+    return canonicalize_path(
+      @core.normalize_path(strip_windows_extended_prefix(direct)),
+    )
   }
   match split_parent_and_leaf(path) {
     Some((parent, leaf)) => {
@@ -377,11 +381,12 @@ fn is_private_numeric_host(host : String) -> Bool {
     // `127.1` / `10.1` 这类点分不足四段的写法，按私有处理。
     return true
   }
-  match (
-    parse_ipv4_octet(parts[0].to_owned()),
-    parse_ipv4_octet(parts[1].to_owned()),
-    parse_ipv4_octet(parts[2].to_owned()),
-  ) {
+  match
+    (
+      parse_ipv4_octet(parts[0].to_owned()),
+      parse_ipv4_octet(parts[1].to_owned()),
+      parse_ipv4_octet(parts[2].to_owned()),
+    ) {
     (Some(first), Some(second), Some(_)) =>
       if first == 0 || first == 10 || first == 127 {
         true

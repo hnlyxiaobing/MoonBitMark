@@ -18,6 +18,7 @@
 
 ///|
 /// Where a resolved bridge script path came from.
+#derive(Debug, Eq)
 pub(all) enum BridgeScriptSource {
   /// Explicit environment variable override.
   EnvOverride
@@ -25,7 +26,7 @@ pub(all) enum BridgeScriptSource {
   ExeLocation
   /// The current-working-directory relative path (fallback).
   WorkingDirectory
-} derive(Debug, Eq)
+}
 
 ///|
 pub extend BridgeScriptSource with @debug.Debug::{to_repr}
@@ -35,6 +36,7 @@ pub extend BridgeScriptSource with Eq::{not_equal, equal}
 
 ///|
 /// Outcome of resolving a bridge script path.
+#derive(Debug, Eq)
 pub(all) enum BridgeScriptResolution {
   /// The script exists at `path`, discovered via `source`.
   Found(path~ : String, source~ : BridgeScriptSource)
@@ -44,7 +46,7 @@ pub(all) enum BridgeScriptResolution {
   /// No candidate exists: the script was not found relative to the
   /// executable or the current working directory, and no override is set.
   NotFound(relative_path~ : String, env_var~ : String)
-} derive(Debug, Eq)
+}
 
 ///|
 pub extend BridgeScriptResolution with @debug.Debug::{to_repr}

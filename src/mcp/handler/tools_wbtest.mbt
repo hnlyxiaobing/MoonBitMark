@@ -918,16 +918,8 @@ async test "materialize_baseline_input keeps every BytesInput payload in its own
   let second = materialize_baseline_input(document, "docx")
   let first_exists = @fs.exists(first)
   let second_exists = @fs.exists(second)
-  let first_bytes = try {
-    @fs.read_file(first).binary()
-  } catch {
-    _ => Bytes::new(0)
-  }
-  let second_bytes = try {
-    @fs.read_file(second).binary()
-  } catch {
-    _ => Bytes::new(0)
-  }
+  let first_bytes = @fs.read_file(first).binary() catch { _ => Bytes::new(0) }
+  let second_bytes = @fs.read_file(second).binary() catch { _ => Bytes::new(0) }
   ignore(@fs.remove(first) catch { _ => () })
   ignore(@fs.remove(second) catch { _ => () })
   // The extension has to stay the *last* segment: the baseline converters pick

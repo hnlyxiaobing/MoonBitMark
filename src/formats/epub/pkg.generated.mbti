@@ -4,6 +4,7 @@ package "hnlyxiaobing/moonbitmark/src/formats/epub"
 import {
   "hnlyxiaobing/moonbitmark/src/core",
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -18,6 +19,7 @@ pub fn EpubConverter::accepts(@core.StreamInfo) -> Bool
 pub async fn EpubConverter::convert(String, ctx? : @core.ConvertContext) -> @core.ConvertResult
 pub fn EpubConverter::new() -> Self
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct EpubMetadata {
   mut title : String?
   mut authors : Array[String]
@@ -26,39 +28,42 @@ pub(all) struct EpubMetadata {
   mut date : String?
   mut description : String?
   mut identifier : String?
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn EpubMetadata::default() -> Self
 pub fn EpubMetadata::equal(Self, Self) -> Bool
 pub fn EpubMetadata::not_equal(Self, Self) -> Bool
-pub fn EpubMetadata::to_json(Self) -> Json
+pub fn EpubMetadata::to_json(Self) -> @json.Json
 pub fn EpubMetadata::to_repr(Self) -> @debug.Repr
 
+#derive(@debug.Debug)
 pub(all) struct EpubPackage {
   metadata : EpubMetadata
   manifest : Map[String, ManifestItem]
   spine : Array[SpineItem]
   opf_dir : String
-} derive(@debug.Debug)
+}
 pub fn EpubPackage::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct ManifestItem {
   id : String
   href : String
   media_type : String
   properties : String?
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn ManifestItem::equal(Self, Self) -> Bool
 pub fn ManifestItem::not_equal(Self, Self) -> Bool
-pub fn ManifestItem::to_json(Self) -> Json
+pub fn ManifestItem::to_json(Self) -> @json.Json
 pub fn ManifestItem::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct SpineItem {
   idref : String
   linear : Bool
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn SpineItem::equal(Self, Self) -> Bool
 pub fn SpineItem::not_equal(Self, Self) -> Bool
-pub fn SpineItem::to_json(Self) -> Json
+pub fn SpineItem::to_json(Self) -> @json.Json
 pub fn SpineItem::to_repr(Self) -> @debug.Repr
 
 // Type aliases

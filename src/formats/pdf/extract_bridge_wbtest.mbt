@@ -32,17 +32,18 @@ test "pdf bridge tag separates different documents" {
 /// Path separators, spaces and traversal segments must not leak into the tag.
 test "pdf bridge tag only keeps alphanumerics" {
   // Windows separators are normalised before the basename is taken.
-  assert_eq(pdf_bridge_document_tag("C:\\Users\\me\\my report.pdf"), "my-report-pdf")
+  assert_eq(
+    pdf_bridge_document_tag("C:\\Users\\me\\my report.pdf"),
+    "my-report-pdf",
+  )
   assert_eq(pdf_bridge_document_tag("../escape.pdf"), "escape-pdf")
   // A dotfile-style basename keeps no leading dash.
   assert_eq(pdf_bridge_document_tag(".hidden.pdf"), "hidden-pdf")
-  for path in [
-    "C:\\Users\\me\\my report.pdf",
-    "../escape.pdf",
-    "/tmp/a b\tc.pdf",
-    "docs/../../etc/passwd",
-    ".hidden.pdf",
-  ] {
+  for
+    path in [
+      "C:\\Users\\me\\my report.pdf", "../escape.pdf", "/tmp/a b\tc.pdf", "docs/../../etc/passwd",
+      ".hidden.pdf",
+    ] {
     let tag = pdf_bridge_document_tag(path)
     assert_true(tag_charset_is_safe(tag), msg=path)
   }

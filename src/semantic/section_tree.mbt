@@ -1,4 +1,5 @@
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum SemanticRole {
   Title
   Subtitle
@@ -12,7 +13,7 @@ pub(all) enum SemanticRole {
   FooterLike
   Image
   Separator
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend SemanticRole with @debug.Debug::{to_repr}
@@ -32,6 +33,7 @@ pub impl Show for SemanticRole with fn output(self, logger) {
 }
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct Provenance {
   source_path : String?
   source_url : String?
@@ -40,7 +42,7 @@ pub(all) struct Provenance {
   sheet_name : String?
   chapter : String?
   resource : String?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend Provenance with @debug.Debug::{to_repr}
@@ -52,6 +54,7 @@ pub extend Provenance with Eq::{not_equal, equal}
 pub extend Provenance with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct SemanticBlock {
   block_id : String
   index : Int32
@@ -62,7 +65,7 @@ pub(all) struct SemanticBlock {
   diagnostics : Array[String]
   confidence : Int32
   provenance : Provenance
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend SemanticBlock with @debug.Debug::{to_repr}
@@ -74,6 +77,7 @@ pub extend SemanticBlock with Eq::{not_equal, equal}
 pub extend SemanticBlock with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct Section {
   id : String
   title : String?
@@ -83,7 +87,7 @@ pub(all) struct Section {
   diagnostics : Array[String]
   provenance : Provenance
   children : Array[Section]
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend Section with @debug.Debug::{to_repr}
@@ -95,12 +99,13 @@ pub extend Section with Eq::{not_equal, equal}
 pub extend Section with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct SemanticDocument {
   title : String?
   sections : Array[Section]
   blocks : Array[SemanticBlock]
   provenance : Provenance
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend SemanticDocument with @debug.Debug::{to_repr}

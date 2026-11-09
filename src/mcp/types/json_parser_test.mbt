@@ -36,8 +36,8 @@ test "parse_objects_with_whitespace_after_commas" {
   // Standard JSON producers (for example Python's `json.dumps`) separate
   // object members with ", ". Such payloads must be accepted.
   assert_true(
-    @types.parse_json("{\"a\": 1, \"b\": [2, 3], \"c\": {\"d\": \"e\"}}") is
-    Ok(Object(_)),
+    @types.parse_json("{\"a\": 1, \"b\": [2, 3], \"c\": {\"d\": \"e\"}}")
+    is Ok(Object(_)),
   )
   assert_true(@types.parse_json("{ \"a\" : 1 }") is Ok(Object(_)))
 }

@@ -31,6 +31,7 @@ pub fn read_file_entry_decompressed(ZipArchive, String) -> Bytes?
 pub fn read_file_entry_decompressed_checked(ZipArchive, String) -> Bytes raise ZipError
 
 // Errors
+#derive(Eq, @debug.Debug)
 pub(all) suberror ZipError {
   InvalidSignature
   CorruptedHeader
@@ -38,17 +39,18 @@ pub(all) suberror ZipError {
   UnsupportedMethod(Int32)
   DecompressFailed(String)
   CrcMismatch
-} derive(Eq, @debug.Debug)
+}
 pub fn ZipError::equal(Self, Self) -> Bool
 pub fn ZipError::not_equal(Self, Self) -> Bool
 pub fn ZipError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+#derive(Eq, @debug.Debug)
 pub enum CompressionMethod {
   Store(Int32)
   Deflate(Int32)
   Unknown(Int32)
-} derive(Eq, @debug.Debug)
+}
 pub fn CompressionMethod::equal(Self, Self) -> Bool
 pub fn CompressionMethod::not_equal(Self, Self) -> Bool
 pub fn CompressionMethod::to_repr(Self) -> @debug.Repr

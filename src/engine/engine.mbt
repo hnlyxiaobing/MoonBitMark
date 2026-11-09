@@ -25,10 +25,11 @@ pub(all) struct ConverterRegistration {
 }
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct DetectionResult {
   converter_name : String
   stream_info : @core.StreamInfo
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend DetectionResult with @debug.Debug::{to_repr}

@@ -1,11 +1,12 @@
 ///|
+#derive(FromJson)
 priv struct PdfBridgeResponse {
   available : Bool
   provider : String?
   pages : Array[String]
   layout_json : String?
   warnings : Array[String]
-} derive(FromJson)
+}
 
 ///|
 /// Stable, filename-safe tag identifying the PDF being converted.

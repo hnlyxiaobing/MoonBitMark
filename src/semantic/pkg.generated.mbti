@@ -4,6 +4,7 @@ package "hnlyxiaobing/moonbitmark/src/semantic"
 import {
   "hnlyxiaobing/moonbitmark/src/ast",
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -12,6 +13,7 @@ pub fn semantic_document_of(@ast.Document) -> SemanticDocument
 // Errors
 
 // Types and methods
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct Provenance {
   source_path : String?
   source_url : String?
@@ -20,12 +22,13 @@ pub(all) struct Provenance {
   sheet_name : String?
   chapter : String?
   resource : String?
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn Provenance::equal(Self, Self) -> Bool
 pub fn Provenance::not_equal(Self, Self) -> Bool
-pub fn Provenance::to_json(Self) -> Json
+pub fn Provenance::to_json(Self) -> @json.Json
 pub fn Provenance::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct Section {
   id : String
   title : String?
@@ -35,12 +38,13 @@ pub(all) struct Section {
   diagnostics : Array[String]
   provenance : Provenance
   children : Array[Section]
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn Section::equal(Self, Self) -> Bool
 pub fn Section::not_equal(Self, Self) -> Bool
-pub fn Section::to_json(Self) -> Json
+pub fn Section::to_json(Self) -> @json.Json
 pub fn Section::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct SemanticBlock {
   block_id : String
   index : Int32
@@ -51,23 +55,25 @@ pub(all) struct SemanticBlock {
   diagnostics : Array[String]
   confidence : Int32
   provenance : Provenance
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn SemanticBlock::equal(Self, Self) -> Bool
 pub fn SemanticBlock::not_equal(Self, Self) -> Bool
-pub fn SemanticBlock::to_json(Self) -> Json
+pub fn SemanticBlock::to_json(Self) -> @json.Json
 pub fn SemanticBlock::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) struct SemanticDocument {
   title : String?
   sections : Array[Section]
   blocks : Array[SemanticBlock]
   provenance : Provenance
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn SemanticDocument::equal(Self, Self) -> Bool
 pub fn SemanticDocument::not_equal(Self, Self) -> Bool
-pub fn SemanticDocument::to_json(Self) -> Json
+pub fn SemanticDocument::to_json(Self) -> @json.Json
 pub fn SemanticDocument::to_repr(Self) -> @debug.Repr
 
+#derive(Eq, @debug.Debug, @json.ToJson)
 pub(all) enum SemanticRole {
   Title
   Subtitle
@@ -81,11 +87,11 @@ pub(all) enum SemanticRole {
   FooterLike
   Image
   Separator
-} derive(Eq, ToJson, @debug.Debug)
+}
 pub fn SemanticRole::equal(Self, Self) -> Bool
 pub fn SemanticRole::not_equal(Self, Self) -> Bool
 pub fn SemanticRole::output(Self, &Logger) -> Unit
-pub fn SemanticRole::to_json(Self) -> Json
+pub fn SemanticRole::to_json(Self) -> @json.Json
 pub fn SemanticRole::to_repr(Self) -> @debug.Repr
 pub fn SemanticRole::to_string(Self) -> String
 pub impl Show for SemanticRole

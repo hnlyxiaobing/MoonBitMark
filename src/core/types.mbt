@@ -1,12 +1,13 @@
 // MoonBitMark - Core Type Definitions
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct ConvertStats {
   char_count : Int32
   block_count : Int32
   duration_ms : Int32?
   used_fallback : Bool
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend ConvertStats with @debug.Debug::{to_repr}
@@ -18,6 +19,7 @@ pub extend ConvertStats with Eq::{not_equal, equal}
 pub extend ConvertStats with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct ConvertResult {
   markdown : String
   title : String?
@@ -31,7 +33,7 @@ pub(all) struct ConvertResult {
   raw_document : @ast.Document?
   normalized_document : @ast.Document?
   semantic_document : @semantic.SemanticDocument?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend ConvertResult with @debug.Debug::{to_repr}
@@ -43,13 +45,14 @@ pub extend ConvertResult with Eq::{not_equal, equal}
 pub extend ConvertResult with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct OutputAsset {
   placeholder : String
   filename : String
   bytes : Bytes
   source : DiagnosticSource?
   hint : DiagnosticHint?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend OutputAsset with @debug.Debug::{to_repr}
@@ -61,11 +64,12 @@ pub extend OutputAsset with Eq::{not_equal, equal}
 pub extend OutputAsset with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum DiagnosticLevel {
   Info
   Warning
   Error
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend DiagnosticLevel with @debug.Debug::{to_repr}
@@ -86,6 +90,7 @@ pub fn DiagnosticLevel::label(self : DiagnosticLevel) -> String {
 }
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum ConversionPhase {
   Detect(String?)
   Load(String?)
@@ -94,7 +99,7 @@ pub(all) enum ConversionPhase {
   Render(String?)
   Postprocess(String?)
   Convert(String)
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend ConversionPhase with @debug.Debug::{to_repr}
@@ -106,6 +111,7 @@ pub extend ConversionPhase with Eq::{not_equal, equal}
 pub extend ConversionPhase with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum DiagnosticSource {
   Input(String)
   File(String)
@@ -113,7 +119,7 @@ pub(all) enum DiagnosticSource {
   ArchiveEntry(String)
   Bytes(String?)
   Generated(String)
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend DiagnosticSource with @debug.Debug::{to_repr}
@@ -125,13 +131,14 @@ pub extend DiagnosticSource with Eq::{not_equal, equal}
 pub extend DiagnosticSource with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum DiagnosticHint {
   CheckInputDetection
   InspectSourceDocument
   ProvideBytesSourceName
   CheckArchiveIntegrity
   Custom(String)
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend DiagnosticHint with @debug.Debug::{to_repr}
@@ -143,6 +150,7 @@ pub extend DiagnosticHint with Eq::{not_equal, equal}
 pub extend DiagnosticHint with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum ConversionError {
   InputError(String, String?)
   FormatDetectionError(String)
@@ -150,7 +158,7 @@ pub(all) enum ConversionError {
   XmlParseError(String, Int32?)
   UnsupportedFeatureError(String, String)
   ConversionFailed(String, String)
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend ConversionError with @debug.Debug::{to_repr}
@@ -162,6 +170,7 @@ pub extend ConversionError with Eq::{not_equal, equal}
 pub extend ConversionError with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct ConversionDiagnostic {
   level : DiagnosticLevel
   error : ConversionError?
@@ -169,7 +178,7 @@ pub(all) struct ConversionDiagnostic {
   source : DiagnosticSource?
   message : String
   hint : DiagnosticHint?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend ConversionDiagnostic with @debug.Debug::{to_repr}
@@ -272,13 +281,14 @@ pub fn ConvertResult::with_ast_views(
 }
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct StreamInfo {
   mimetype : String?
   extension : String?
   filename : String?
   url : String?
   charset : String?
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend StreamInfo with @debug.Debug::{to_repr}
@@ -290,11 +300,12 @@ pub extend StreamInfo with Eq::{not_equal, equal}
 pub extend StreamInfo with ToJson::{to_json}
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum InputSource {
   FileInput(String, Bytes?)
   UrlInput(String, String?)
   BytesInput(String?, Bytes, String?)
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend InputSource with @debug.Debug::{to_repr}
@@ -333,11 +344,12 @@ pub fn InputSource::kind(self : InputSource) -> String {
 }
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) enum OutputMode {
   PlainText
   StandardMarkdown
   FrontMatterMarkdown
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend OutputMode with @debug.Debug::{to_repr}
@@ -357,6 +369,7 @@ pub impl Show for OutputMode with fn output(self, logger) {
 }
 
 ///|
+#derive(Debug, Eq, ToJson)
 pub(all) struct ConvertContext {
   keep_metadata : Bool
   debug : Bool
@@ -365,7 +378,7 @@ pub(all) struct ConvertContext {
   asset_output_dir : String?
   output_mode : OutputMode
   ocr : @ocr.OcrConfig
-} derive(Debug, Eq, ToJson)
+}
 
 ///|
 pub extend ConvertContext with @debug.Debug::{to_repr}
