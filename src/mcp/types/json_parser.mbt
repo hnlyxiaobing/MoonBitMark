@@ -387,9 +387,9 @@ fn hex_to_int(hex : String) -> Int32? {
   let mut result = 0
   for ch in hex {
     let digit = match ch {
-      '0'..<='9' => ch.to_int() - '0'.to_int()
-      'a'..<='f' => ch.to_int() - 'a'.to_int() + 10
-      'A'..<='F' => ch.to_int() - 'A'.to_int() + 10
+      _ if ch >= '0' && ch <= '9' => ch.to_int() - '0'.to_int()
+      _ if ch >= 'a' && ch <= 'f' => ch.to_int() - 'a'.to_int() + 10
+      _ if ch >= 'A' && ch <= 'F' => ch.to_int() - 'A'.to_int() + 10
       _ => return None
     }
     result = result * 16 + digit
